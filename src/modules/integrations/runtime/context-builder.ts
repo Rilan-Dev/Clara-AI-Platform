@@ -1,7 +1,7 @@
 import * as crypto from "node:crypto";
-import { PostgresStore } from "./store.js";
-import { DoableFilesService } from "./files-service.js";
-import { DoableConnectionsManager } from "./connections-manager.js";
+import { PostgresStore } from "./store";
+import { DoableFilesService } from "./files-service";
+import { DoableConnectionsManager } from "./connections-manager";
 
 const API_URL = process.env.API_URL ?? "http://127.0.0.1:4000";
 const PUBLIC_URL = process.env.PUBLIC_URL ?? API_URL;
