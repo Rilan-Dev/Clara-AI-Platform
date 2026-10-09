@@ -185,6 +185,7 @@ export interface OAuth2TokenData {
   expires_in?: number;
   claimed_at: number;
   token_url: string;
+  authorization_method?: "HEADER" | "BODY";
   client_id: string;
   client_secret: string;
   data: Record<string, unknown>;
