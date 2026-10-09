@@ -419,7 +419,7 @@ export default function AnalyticsScreen() {
                     return (
                       <div key={i} className="px-5 py-3 hover:bg-muted/50 transition-colors">
                         <div className="flex items-start justify-between gap-3 mb-1.5">
-                          <span className="text-sm text-foreground/80 truncate flex-1">&quot;{q.query_text}&quot;</span>
+                          <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-sm text-foreground/80">&quot;{q.query_text}&quot;</span>
                           <div className="text-right shrink-0">
                             <span className="text-sm font-bold text-primary">{q.count}</span>
                             {q.avg_latency && <span className="text-xs text-muted-foreground/80 ml-2">{q.avg_latency}ms</span>}
