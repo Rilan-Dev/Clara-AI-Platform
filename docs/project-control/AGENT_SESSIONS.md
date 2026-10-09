@@ -149,3 +149,16 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers:** Need a fresh runtime image/commit and migration output to confirm whether historical errors persist.
 - **Handoff:** EVT-FIX-010.
 - **Next action:** Continue the currently authorized roadmap; on the next ordinary runtime verification, confirm deployed/running commit and migration result before any further DB code change. Do not wait/poll for CI/Vercel gates.
+
+
+### SESSION-FIX-20261010-02 — 2026-10-10
+- **Agent:** FIX-01 / Sentinel
+- **Invocation:** Continue UI audit for popup/card width and text-wrapping defects; preserve separate OPS-01 ownership for historical missing-schema errors.
+- **Started from:** `feature/ai-core-from-doable-source`, after Modal correction commit `ef069e3f8ac64d65288855497326e9c6ad0c6b5e`.
+- **Scope:** Shared dialog/popover/card primitives and regression protection only.
+- **Status:** ACTIVE
+- **Completed:** Updated Popover, HoverCard, AlertDialog, Sheet, Drawer, Tooltip and DropdownMenu sizing/wrapping; added `src/components/ui/layout-primitives.test.ts`; recorded worklog, shared lesson and event EVT-FIX-012.
+- **Pending:** Search feature-level bespoke popup/card class overrides; run focused test/typecheck and perform browser visual review when local runner/browser is available.
+- **Blockers:** No local execution/browser verification in this session. Historical database schema issue is routed to OPS-01 and does not block UI work.
+- **Handoff:** None; OPS-01 owns the separate runtime/migration investigation.
+- **Next action:** Continue bounded source audit without waiting for DEV-01 or CI/Vercel; do not claim visual pass until browser evidence exists.
