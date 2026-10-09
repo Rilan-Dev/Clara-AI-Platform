@@ -121,6 +121,16 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(embedKeys).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("keeps system errors and organisation identifiers readable at narrow widths", () => {
+    const systemStatus = source("../../features/admin/screens/system-status-screen.tsx");
+    const orgSettings = source("../../features/admin/screens/org-settings-screen.tsx");
+
+    expect(systemStatus).not.toMatch(/break-all/);
+    expect(systemStatus).toMatch(/overflow-wrap:anywhere/);
+    expect(orgSettings).not.toMatch(/font-mono text-right sm:text-left sm:mt-0\.5 truncate/);
+    expect(orgSettings).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
