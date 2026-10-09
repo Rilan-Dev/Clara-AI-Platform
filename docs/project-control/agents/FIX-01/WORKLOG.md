@@ -312,3 +312,13 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Files/code:** `src/app/api/cron/whatsapp-connection-health/route.test.ts`.
 - **Evidence:** Test source commit `023ba0b25b615f3badd6ff5b30b47b93afe7d832`. Vitest/typecheck still not executed because this runtime cannot resolve GitHub to clone the repository and no repo checkout/dependency tree is attached.
 - **Next action:** Continue safe reconnect/expiry transition coverage and ambiguous `sending` run reconciliation without duplicate delivery; continue UI audit. Do not wait for CI/Vercel.
+
+
+### SESSION-FIX-20261010-06 / 2026-10-10
+- **Task:** Implement safe reconnect guidance and quarantine ambiguous daily-briefing sends.
+- **Authorization:** Current owner-authorized WhatsApp lifecycle roadmap; user directed ongoing implementation without waiting for CI/Vercel.
+- **Actions:** Messaging UI now distinguishes reconnecting an unhealthy saved connection from initial setup and explicitly states briefing eligibility remains disabled until connection/webhook health is restored. Daily briefing cron now moves stale `sending` rows without provider message IDs (older than 30 minutes) to terminal `SEND_OUTCOME_UNKNOWN`, sets attempts to the retry limit, and never auto-resends those ambiguous requests. Added route-level regression source for ambiguous-send quarantine.
+- **Files/code:** `src/features/admin/screens/agent-messaging-screen.tsx`; `src/features/admin/screens/agent-messaging-screen.test.ts`; `src/app/api/cron/whatsapp-daily-briefings/route.ts`; `src/app/api/cron/whatsapp-daily-briefings/route.test.ts`.
+- **Commits:** `ab9a776eced829f8e88847d1c42a72170a70f8e3`, `2ab69e96434de51baadd8ebfaad6a85e563ffe97`, `afe11cf0ff1a95e4e6524f2e02b90cc168f785fb`, `3d506bf3e91734e9b9851702e0651dcc2d6c49cf`.
+- **Verification:** Source/tests authored only; Vitest/typecheck not run. No live Meta flow or delivery verified.
+- **Next action:** Continue phone-uniqueness/duplicate-webhook/monotonic-delivery route regression, inspect safe recovery for unknown send outcomes, evaluate grounded AI summaries, and finish remaining UI audit without waiting on CI/Vercel.
