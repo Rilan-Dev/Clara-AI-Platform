@@ -1776,3 +1776,11 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - The current feature-branch migration directory has one `063` prefix and includes `065_platform_integration_oauth_apps.sql`. The log's duplicate-063 failure is not reproducible from the current source listing; exact old image source remains unknown.
 - Current production seed source inserts/upserts the demo organisation before the demo agent. The reported foreign-key error requires fresh evidence before changing seed order or database rows.
 - **Not run / not claimed:** tests, typecheck, Docker rebuild, migration, direct DB inspection, seed execution, PDF extraction, or runtime recovery.
+
+
+## 2026-10-10 — FIX-01 database log triage and shared dialog layout
+- **Source inspection:** `src/instrumentation.node.ts` already disables self-hosted local cron, ingest poller and subscription sweeps unless `runMigrationsOnStartup()` completes successfully. If migration execution fails or is disabled, `schemaReady` remains false and workers return before querying their application tables. `src/lib/db/migrate.ts` validates migration-number uniqueness and fails closed. Current production seed source has an organisation-first demo setup path according to the existing project-control record.
+- **Historical symptom:** Owner-provided 2026-10-08 logs show repeated missing `documents`, `ingest_jobs`, `event_outbox`, `kb_reindex_jobs`, and `platform_integration_oauth_apps`, plus an `agents_org_id_fkey` failure. They do not include the running image commit or migration output. The current branch's source guard may not have been in that running image; root cause is not confirmed against current runtime.
+- **Correction:** Shared `src/components/ui/dialog.tsx` updated for viewport-safe width/height, overflow scrolling, min-width handling, and robust text wrapping. Commit: `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`.
+- **Not run / not claimed:** No browser visual check, UI regression test, test suite, typecheck, build, Docker rebuild, DB migration, runtime log comparison, or deployment. No runtime/production PASS is claimed.
+- **Next:** On the next normal runtime verification, compare the running image commit with the branch and capture migration output. Do not manually create missing tables or reset the database.
