@@ -16,6 +16,20 @@ describe("integration availability plan entitlement", () => {
     ]);
   });
 
+  it("returns no capabilities before querying when caller identity is incomplete", async () => {
+    const { buildIntegrationAvailabilityTool } = await import("./integration-ai-tools");
+    const tool = buildIntegrationAvailabilityTool();
+
+    const result = await tool.execute(
+      {},
+      { tenantId: "org-1", agentId: undefined, userId: undefined, surface: "chat" } as never,
+    );
+
+    expect(result).toEqual([]);
+    expect(query).not.toHaveBeenCalled();
+    expect(resolveOrgPlanLimits).not.toHaveBeenCalled();
+  });
+
   it("does not expose an agent integration when the organisation plan is no longer entitled", async () => {
     resolveOrgPlanLimits.mockResolvedValue({ plan_id: "free" });
     query
