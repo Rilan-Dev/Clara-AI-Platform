@@ -67,10 +67,10 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 py-12 sm:py-20">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-[100dvh] w-full min-w-0 px-4 sm:px-6 py-8 sm:py-12 md:py-20">
+      <div className="w-full min-w-0 max-w-6xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-3xl sm:text-5xl font-black text-foreground mb-3 sm:mb-4">
+          <h1 className="text-3xl sm:text-5xl font-black text-foreground mb-3 sm:mb-4 break-words [overflow-wrap:anywhere]">
             Simple, transparent <span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">pricing</span>
           </h1>
           <p className="text-muted-foreground text-base sm:text-lg mb-8">Start free, scale as you grow. No hidden fees.</p>
@@ -96,9 +96,9 @@ export default function PricingPage() {
             </div>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid min-w-0 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {plans.map(plan => (
-              <div key={plan.id} className={`relative rounded-2xl p-4 sm:p-6 border flex flex-col ${PLAN_COLOURS[plan.id] ?? "border-border bg-card"}`}>
+              <div key={plan.id} className={`relative min-w-0 rounded-2xl p-4 sm:p-6 border flex flex-col [overflow-wrap:anywhere] ${PLAN_COLOURS[plan.id] ?? "border-border bg-card"}`}>
                 {plan.id === "pro" && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">
                     Most Popular
@@ -106,25 +106,25 @@ export default function PricingPage() {
                 )}
                 <div className="mb-4">
                   <div className="text-sm font-semibold text-primary mb-1">{plan.name}</div>
-                  <div className="text-3xl font-black text-foreground mb-1">{price(plan)}</div>
+                  <div className="text-3xl font-black text-foreground mb-1 break-words [overflow-wrap:anywhere]">{price(plan)}</div>
                   {INR_PRICES[plan.id] && (
                     <div className="text-xs text-muted-foreground mb-1">
                       or <span className="font-semibold text-foreground/70">{INR_PRICES[plan.id]}</span> via Razorpay · UPI
                     </div>
                   )}
-                  <div className="text-xs text-muted-foreground mt-1">{plan.description}</div>
+                  <div className="text-xs text-muted-foreground mt-1 break-words [overflow-wrap:anywhere]">{plan.description}</div>
                 </div>
 
                 <div className="space-y-1 mb-4 border-t border-border pt-4">
-                  <div className="text-xs text-muted-foreground flex justify-between">
+                  <div className="text-xs text-muted-foreground flex flex-wrap justify-between gap-x-2 gap-y-1">
                     <span>Knowledge Bases</span>
                     <span className="font-semibold text-foreground">{plan.max_kbs === -1 ? "∞" : plan.max_kbs}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground flex justify-between">
+                  <div className="text-xs text-muted-foreground flex flex-wrap justify-between gap-x-2 gap-y-1">
                     <span>Docs per KB</span>
                     <span className="font-semibold text-foreground">{plan.max_docs_per_kb === -1 ? "∞" : plan.max_docs_per_kb}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground flex justify-between">
+                  <div className="text-xs text-muted-foreground flex flex-wrap justify-between gap-x-2 gap-y-1">
                     <span>Requests/day</span>
                     <span className="font-semibold text-foreground">{plan.max_req_day === -1 ? "∞" : plan.max_req_day.toLocaleString()}</span>
                   </div>
@@ -132,7 +132,7 @@ export default function PricingPage() {
 
                 <ul className="space-y-2 flex-1 mb-6">
                   {(plan.features as unknown as string[]).map((f: string) => (
-                    <li key={f} className="flex items-center gap-2 text-xs text-foreground/80">
+                    <li key={f} className="flex min-w-0 items-start gap-2 text-xs text-foreground/80 break-words [overflow-wrap:anywhere]">
                       <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />{f}
                     </li>
                   ))}
@@ -161,9 +161,9 @@ export default function PricingPage() {
               ["Is the data isolated between organisations?", "Absolutely. Each organisation has its own Qdrant collection namespace, its own documents, and its own API keys."],
               ["Do you offer a free trial?", "You can start on the Free plan at no cost, or contact us for a trial extension on a paid plan."],
             ].map(([q, a]) => (
-              <div key={q} className="border border-border bg-card rounded-xl p-5">
-                <div className="font-semibold text-foreground text-sm mb-2">{q}</div>
-                <div className="text-muted-foreground text-sm">{a}</div>
+              <div key={q} className="min-w-0 border border-border bg-card rounded-xl p-4 sm:p-5 [overflow-wrap:anywhere]">
+                <div className="font-semibold text-foreground text-sm mb-2 break-words [overflow-wrap:anywhere]">{q}</div>
+                <div className="text-muted-foreground text-sm break-words [overflow-wrap:anywhere]">{a}</div>
               </div>
             ))}
           </div>
