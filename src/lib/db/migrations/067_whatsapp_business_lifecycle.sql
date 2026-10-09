@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS whatsapp_business_connections (
     REFERENCES agents(id, org_id) ON DELETE CASCADE
 );
 ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS daily_briefing_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS briefing_recipient_phone TEXT;
+ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS briefing_recipient_opt_in_at TIMESTAMPTZ;
+ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS daily_briefing_last_sent_on DATE;
 
 CREATE UNIQUE INDEX IF NOT EXISTS whatsapp_one_active_phone_per_agent_idx
   ON whatsapp_business_connections(agent_id) WHERE status = 'active';
@@ -100,12 +103,32 @@ CREATE INDEX IF NOT EXISTS whatsapp_messages_agent_time_idx
 CREATE INDEX IF NOT EXISTS whatsapp_messages_status_idx
   ON whatsapp_messages(connection_id, status, updated_at DESC);
 
+CREATE TABLE IF NOT EXISTS whatsapp_daily_briefing_runs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  connection_id uuid NOT NULL REFERENCES whatsapp_business_connections(id) ON DELETE CASCADE,
+  briefing_date date NOT NULL,
+  recipient_phone text NOT NULL,
+  status text NOT NULL CHECK (status IN ('sending','sent','failed')),
+  summary_text text,
+  provider_message_id text,
+  attempt_count integer NOT NULL DEFAULT 1 CHECK (attempt_count >= 1),
+  error_code text,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  sent_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(connection_id, briefing_date)
+);
+CREATE INDEX IF NOT EXISTS whatsapp_daily_briefing_runs_status_idx
+  ON whatsapp_daily_briefing_runs(status, briefing_date DESC);
+
 -- No browser role may read tokens, OAuth sessions, webhook payloads or message data.
 ALTER TABLE public.whatsapp_oauth_states ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.whatsapp_oauth_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.whatsapp_business_connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.whatsapp_webhook_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.whatsapp_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.whatsapp_daily_briefing_runs ENABLE ROW LEVEL SECURITY;
 DO $$
 DECLARE role_name text;
 BEGIN
@@ -116,6 +139,7 @@ BEGIN
       EXECUTE format('REVOKE ALL ON public.whatsapp_business_connections FROM %I', role_name);
       EXECUTE format('REVOKE ALL ON public.whatsapp_webhook_events FROM %I', role_name);
       EXECUTE format('REVOKE ALL ON public.whatsapp_messages FROM %I', role_name);
+      EXECUTE format('REVOKE ALL ON public.whatsapp_daily_briefing_runs FROM %I', role_name);
     END IF;
   END LOOP;
 END
