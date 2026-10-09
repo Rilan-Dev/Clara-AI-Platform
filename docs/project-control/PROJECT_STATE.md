@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-09 — PROVIDER CHAT DISPATCH IMPLEMENTED
+
+[architect-verified] The KB-aware provider chat route now has a default-off integration tool-calling path. When both `ENABLE_AI_PLATFORM_AGENT_LOOP` and `ENABLE_AI_PLATFORM_TOOL_CALLING` are explicitly enabled, and the configured provider implements `chatStreamWithTools`, the route exposes only `integration_availability` and `integration_action` to the model and delegates their execution through `getClaraToolRuntime()`. The runtime context is minted from server-resolved organisation, KB, agent, authenticated user, and optional session identity; request-body identity is not trusted.
+
+- Route implementation: `df124e837b49a17d1e218eca9a585a8313dbdec6`.
+- Both flags remain default-off; providers without tool-call support retain the existing streaming path.
+- No tests, CI, Vercel build, or Gates were run or awaited.
+- Active bounded task remains IN PROGRESS: realtime voice dispatch to the same authorised runtime is next.
+
+**Next:** inspect the existing realtime voice tool invocation path and route its supported integration tool calls through the same Clara Unified Tool Runtime with provenance-verified context.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-09 — INTEGRATION RUNTIME DISPATCH
 
 [architect-verified] Owner-authorized organisation integration setup/AI access task is active. Platform OAuth app configuration validation is hardened and has dedicated regression source. Provider chat and realtime voice dispatch remain the next bounded implementation items; this task is not yet complete.
