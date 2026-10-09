@@ -19,6 +19,12 @@ type Candidate = {
 function digest(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
+function parseExpiresIn(value: unknown): number | null {
+  const seconds = typeof value === "number" ? value
+    : typeof value === "string" && /^\\d+$/.test(value) ? Number(value) : null;
+  return seconds !== null && Number.isSafeInteger(seconds) && seconds > 0 && seconds <= 2_147_483_647
+    ? seconds : null;
+}
 function returnUrl(origin: string, orgId: string, agentId: string, status: string, sessionId?: string): NextResponse {
   const url = new URL(`/orgs/${encodeURIComponent(orgId)}/agents/${encodeURIComponent(agentId)}/messaging`, origin);
   url.searchParams.set("whatsapp", status);
@@ -86,33 +92,38 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       typeof (tokenJson as { access_token?: unknown }).access_token === "string"
       ? (tokenJson as { access_token: string }).access_token : "";
     if (!initialAccessToken || initialAccessToken.length > 8192) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    const initialExpiresIn = tokenJson && typeof tokenJson === "object" && "expires_in" in tokenJson
+      ? (tokenJson as { expires_in?: unknown }).expires_in : undefined;
 
-    // Exchange the short-lived OAuth token for a long-lived user token before storing it.
+    // Prefer a long-lived token, but retain the code-exchanged token with its known expiry if the optional exchange is unavailable.
+    let accessToken = initialAccessToken;
+    let tokenExpiresIn = parseExpiresIn(initialExpiresIn);
     const exchangeUrl = new URL("https://graph.facebook.com/v23.0/oauth/access_token");
     exchangeUrl.searchParams.set("grant_type", "fb_exchange_token");
     exchangeUrl.searchParams.set("client_id", appId);
     exchangeUrl.searchParams.set("client_secret", appSecret);
     exchangeUrl.searchParams.set("fb_exchange_token", initialAccessToken);
-    let exchangeResponse: Response;
     try {
-      exchangeResponse = await fetch(exchangeUrl, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(12_000) });
+      const exchangeResponse = await fetch(exchangeUrl, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(12_000) });
+      if (exchangeResponse.ok) {
+        const exchangeJson: unknown = await exchangeResponse.json().catch(() => null);
+        const exchangedToken = exchangeJson && typeof exchangeJson === "object" && "access_token" in exchangeJson &&
+          typeof (exchangeJson as { access_token?: unknown }).access_token === "string"
+          ? (exchangeJson as { access_token: string }).access_token : "";
+        if (exchangedToken && exchangedToken.length <= 8192) {
+          accessToken = exchangedToken;
+          const expiresInValue = exchangeJson && typeof exchangeJson === "object" && "expires_in" in exchangeJson
+            ? (exchangeJson as { expires_in?: unknown }).expires_in : undefined;
+          tokenExpiresIn = parseExpiresIn(expiresInValue);
+        } else {
+          console.warn("[whatsapp OAuth callback] long-lived token response omitted an access token; retaining initial token");
+        }
+      } else {
+        console.warn("[whatsapp OAuth callback] long-lived token exchange unavailable; retaining initial token", { status: exchangeResponse.status });
+      }
     } catch {
-      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+      console.warn("[whatsapp OAuth callback] long-lived token exchange timed out; retaining initial token");
     }
-    if (!exchangeResponse.ok) {
-      console.warn("[whatsapp OAuth callback] long-lived token exchange failed", { status: exchangeResponse.status });
-      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
-    }
-    const exchangeJson: unknown = await exchangeResponse.json().catch(() => null);
-    const accessToken = exchangeJson && typeof exchangeJson === "object" && "access_token" in exchangeJson &&
-      typeof (exchangeJson as { access_token?: unknown }).access_token === "string"
-      ? (exchangeJson as { access_token: string }).access_token : "";
-    const expiresInValue = exchangeJson && typeof exchangeJson === "object" && "expires_in" in exchangeJson
-      ? (exchangeJson as { expires_in?: unknown }).expires_in : undefined;
-    const expiresInNumber = typeof expiresInValue === "number" ? expiresInValue
-      : typeof expiresInValue === "string" && /^\d+$/.test(expiresInValue) ? Number(expiresInValue) : null;
-    const tokenExpiresIn = expiresInNumber !== null && Number.isSafeInteger(expiresInNumber) &&
-      expiresInNumber > 0 && expiresInNumber <= 2_147_483_647 ? expiresInNumber : null;
     if (!accessToken || accessToken.length > 8192) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
 
     const graphUrl = new URL("https://graph.facebook.com/v23.0/me/businesses");
