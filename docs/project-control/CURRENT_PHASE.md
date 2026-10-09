@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — SHARED INTEGRATION CAPABILITY POLICY IMPLEMENTED
+
+- Added one shared integration capability authorization gate and reused it from the I-4 bridge and AI integration action tool.
+- The shared gate enforces caller user/agent identity, platform enablement, current plan entitlement, organisation grant, agent grant, and user/agent-compatible active connection.
+- Database authorization failures are sanitized as `AUTHORIZATION_UNAVAILABLE`; the action tool preserves runner error code/retryability details.
+- AI availability lists only runtime-resolvable action names and gives status-aware recovery guidance.
+- Regression source added; no tests/build/Docker/CI/Vercel/Gates/deployment/live provider flow was run or awaited.
+- I-6 remains complete at source level; broader roadmap remains in progress.
+
+**Next:** P1/P2 typed action safety and idempotency/approval hooks through the existing Unified Tool Runtime.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — SHARED INTEGRATION READINESS CONSISTENCY
 
 - Unified integration availability and action tools now fail closed when caller user/agent identity is missing.
