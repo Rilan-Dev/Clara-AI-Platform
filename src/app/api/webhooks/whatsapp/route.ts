@@ -59,7 +59,7 @@ async function persistEvent(input: {
     await client.query(
       `UPDATE whatsapp_business_connections
           SET last_webhook_at = now(), webhook_verified = true,
-              webhook_verified_at = COALESCE(webhook_verified_at, now()), updated_at = now()
+              webhook_verified_at = COALESCE(webhook_verified_at, now()), last_error_code = NULL, updated_at = now()
         WHERE id = $1`,
       [connection.id],
     );
@@ -83,8 +83,7 @@ async function persistEvent(input: {
     if (input.status?.id && input.status.status) {
       const status = ["sent", "delivered", "read", "failed", "deleted"].includes(input.status.status)
         ? input.status.status : "unknown";
-      const timestamp = typeof input.status.timestamp === "string" && /^\d{1,12}$/.test(input.status.timestamp)
-        ? new Date(Number(input.status.timestamp) * 1000) : new Date();
+      const timestamp = providerDate(input.status.timestamp) ?? new Date();
       const currentMessage = (await client.query<{ status: string }>(
         `SELECT status FROM whatsapp_messages
           WHERE provider_message_id = $1 AND connection_id = $2 FOR UPDATE`,
