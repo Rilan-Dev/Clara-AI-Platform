@@ -1,3 +1,14 @@
+### EVT-DEV-002 — 2026-10-09
+- **Agent/session:** DEV-01 / SESSION-DEV-20261009-02
+- **Type:** CORRECTION
+- **Summary:** Completed the remaining I-6 async MCP policy-snapshot hardening and continued the authorized integration roadmap with a generic OAuth state/authorization-code flow, encrypted tenant connection persistence, token-refresh auth-mode parity, safe connection health, and server-side credential validation. Source and regression files were committed directly to the feature branch.
+- **Impact:** cross-module integration security and connection setup reliability.
+- **Owner:** DEV-01
+- **Suggested next action:** Continue P0 connection recovery and P1 shared integration capability/readiness contracts; keep OAuth secrets and access tokens encrypted and never expose them to models or browser responses.
+- **Related records:** `docs/project-control/NEXT_ACTION.md`; `docs/project-control/CURRENT_PHASE.md`; `src/modules/ai-platform-core/mcp-tool-bridge.ts`; `src/app/api/integrations/oauth/callback/route.ts`; `src/app/api/orgs/[orgId]/integrations/[integrationId]/oauth/start/route.ts`; `src/modules/integrations/connection-validation.ts`.
+
+---
+
 # APCP Central Agent Events
 
 Append-only central event log for material cross-agent events. This is not a replacement for WORKLOG.md or project-control state.
