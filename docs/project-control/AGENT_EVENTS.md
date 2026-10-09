@@ -157,3 +157,12 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Scope:** Startup module loading only; no PDF parsing algorithm, authorization, or upload validation changed.
 - **Verification:** Source committed only. No tests/build/PDF job run. Actual PDF parsing may still require a canvas/DOMMatrix dependency fix.
 - **Next action:** Rebuild on the next normal verification pass and address any reproduced PDF-runtime error; do not wait for external gates.
+
+
+### EVT-FIX-009 — PDF canvas dependency declaration
+- **Date:** 2026-10-09
+- **Role:** FIX-01 / Sentinel
+- **Finding:** The lockfile already contained `@napi-rs/canvas@0.1.80` and its optional platform packages, but it was not declared as a root production dependency, matching the runtime warning that the package could not be loaded.
+- **Correction:** Declared `@napi-rs/canvas@^0.1.80` in `package.json` and synchronized the root dependency set in `package-lock.json`.
+- **Commits:** `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`; `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`.
+- **Verification:** No npm ci, Docker build, native module load, or PDF extraction was run. Runtime confirmation remains pending.
