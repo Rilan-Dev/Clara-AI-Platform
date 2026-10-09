@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
 import { ArrowUpRight, CheckCircle2, Clock3, MessageCircle, ShieldCheck } from "lucide-react";
 
 const META_WHATSAPP_MANAGER = "https://business.facebook.com/latest/whatsapp_manager/phone_numbers";
 
 export default function AgentMessagingScreen() {
-  const { id = "", agentId = "" } = useParams<{ id: string; agentId: string }>();
   const [showSetup, setShowSetup] = useState(false);
 
   return (
