@@ -604,7 +604,7 @@ export function ConfigEditor({
                                 {v.label[0]}
                               </span>
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-medium text-foreground">
+                                <span className="block break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">
                                   {v.label}
                                   {v.isDefault && (
                                     <span className="ml-1.5 rounded-full border border-border bg-muted/40 px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
@@ -613,7 +613,7 @@ export function ConfigEditor({
                                   )}
                                 </span>
                                 {v.description && (
-                                  <span className="block truncate text-[11px] text-muted-foreground/70">{v.description}</span>
+                                  <span className="block break-words [overflow-wrap:anywhere] text-[11px] text-muted-foreground/70">{v.description}</span>
                                 )}
                               </span>
                               {selected && (
@@ -668,8 +668,8 @@ export function ConfigEditor({
                                   {v.label[0]}
                                 </span>
                                 <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-sm font-medium text-foreground">{v.label}</span>
-                                  <span className="block truncate text-[11px] text-muted-foreground/70">{v.description}</span>
+                                  <span className="block break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">{v.label}</span>
+                                  <span className="block break-words [overflow-wrap:anywhere] text-[11px] text-muted-foreground/70">{v.description}</span>
                                 </span>
                                 {selected && (
                                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden>
@@ -719,7 +719,7 @@ export function ConfigEditor({
                       className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted/50"
                     >
                       <LanguageDot code={cfg.defaultLanguage} />
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                      <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">
                         {languageLabel(cfg.defaultLanguage)}
                       </span>
                       <span className="rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">Default</span>
@@ -736,7 +736,7 @@ export function ConfigEditor({
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground">
                         {cfg.allowedLanguages.length}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                      <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">
                         {cfg.allowedLanguages.map((c) => languageLabel(c)).slice(0, 3).join(" & ")}
                         {cfg.allowedLanguages.length > 3 ? ` +${cfg.allowedLanguages.length - 3}` : ""}
                       </span>
@@ -811,7 +811,7 @@ export function ConfigEditor({
                       style={{ backgroundColor: cfg.accentColour }}
                     />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">
                     {cfg.primaryColour} · {cfg.accentColour}
                   </span>
                   <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/80 transition-transform", brandingOpen && "rotate-180")} />
@@ -869,7 +869,7 @@ export function ConfigEditor({
                             >
                               <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: preset.primary }} />
                               <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: preset.accent }} />
-                              <span className="truncate">{preset.name}</span>
+                              <span className="break-words [overflow-wrap:anywhere]">{preset.name}</span>
                             </button>
                           );
                         })}
@@ -913,7 +913,7 @@ export function ConfigEditor({
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-[11px] font-semibold text-muted-foreground">
                     AI
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">
                     {llmSummary ?? "Platform default"}
                   </span>
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/80" />
@@ -936,7 +936,7 @@ export function ConfigEditor({
                   aria-expanded={behaviorOpen}
                   className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-muted/50"
                 >
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                  <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">
                     {cfg.strictMode ? "Strict" : "Open"} · {cfg.citeSources ? "cites sources" : "no citations"}
                   </span>
                   <span className="shrink-0 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
