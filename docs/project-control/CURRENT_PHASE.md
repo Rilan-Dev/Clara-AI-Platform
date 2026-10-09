@@ -1,3 +1,20 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — P0 OAUTH CONSENT LIFECYCLE IMPLEMENTED AT SOURCE LEVEL
+
+[developer-reported] Implemented a generic server-side OAuth authorization-code lifecycle using the existing registry metadata, platform OAuth app configuration, and tenant integration connection model.
+
+- Migration: `066_integration_oauth_states.sql` (one-time state digest, 10-minute expiry, tenant/user/agent provenance, redirect URI binding, encrypted PKCE verifier, RLS/revocation of browser roles).
+- Start route: `src/app/api/orgs/[orgId]/integrations/[integrationId]/oauth/start/route.ts`.
+- Callback: `src/app/api/integrations/oauth/callback/route.ts`.
+- Helpers/tests: `src/modules/integrations/oauth-state.ts`, `src/modules/integrations/oauth-state.test.ts`, and route test files for start/callback.
+- UI: OAuth2 integration cards now start provider consent and process the safe callback status.
+- The callback atomically consumes state, blocks redirects, enforces HTTPS token endpoints, honours configured HEADER/BODY client authentication and PKCE method, rechecks current platform/org/plan grants, and persists token material encrypted in `integration_connections`.
+- I-6 source hardening remains complete. OAuth lifecycle implementation is now **SOURCE IMPLEMENTED — EXECUTABLE/DEPLOYMENT VERIFICATION DEFERRED**.
+- Tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent were not run or awaited.
+
+**Next:** source-review the callback's credential shape against `OAuth2TokenData` and runner refresh contract; add/fix focused regression source as needed. Continue without external gate waits.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — I-6 MCP POLICY SNAPSHOT HARDENING COMPLETE
 
 [architect source review] Closed the last identified I-6 bounded hardening gap. `resolveMcpToolDefinition` now snapshots validated policy before awaiting the untrusted resolver; `buildMcpToolRuntime` snapshots policy once before request iteration; a focused regression locks `requireUserId` against mutation during async resolution.
