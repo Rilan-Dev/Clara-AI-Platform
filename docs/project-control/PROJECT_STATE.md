@@ -1,3 +1,15 @@
+# CURRENT PROJECT STATE — 2026-10-09 — WHATSAPP CONNECTION + BRIEFING SENDER SOURCE ADDED
+
+- Branch: `feature/ai-core-from-doable-source`.
+- DEV-01 implemented Meta OAuth initiation/callback with user/agent permission recheck, encrypted token persistence, WABA/phone selection and one-active-phone constraints; WABA subscription; signed, idempotent webhook processing; durable inbound message and delivery-status rows; server-backed Messaging health; explicit briefing recipient/opt-in; and a CRON_SECRET-protected daily briefing sender registered for 03:00 UTC.
+- Daily sends require an active connection, signed webhook verification, `daily_briefing_enabled`, E.164 recipient, opt-in, and a configured approved Meta template. Per-connection/date runs and outbound provider message IDs/statuses are persisted.
+- The first briefing is a deterministic excerpt digest, not an AI-generated summary. Token expiry/revocation/reconnect and ambiguous-run reconciliation remain follow-up.
+- Setup guide: `docs/deployment/whatsapp-business.md`. Regression source authored but not run.
+- No tests/typecheck/build/Docker/CI/Vercel/deployment/live Meta flow or actual scheduled delivery was run or awaited. No runtime PASS is claimed.
+- Exact next action: follow `docs/project-control/NEXT_ACTION.md`; do not wait for external gates.
+
+---
+
 # CURRENT PROJECT STATE — 2026-10-09 — WHATSAPP SERVER LIFECYCLE SOURCE ADDED
 
 - Branch: `feature/ai-core-from-doable-source`.
