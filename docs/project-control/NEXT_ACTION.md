@@ -18,8 +18,8 @@
 - Meta token expiry/revocation monitoring and automated reconnect remain follow-up work.
 
 ## Exact next implementation
-1. Implement the outbound WhatsApp message service using the encrypted active connection, persisting outbound message IDs and status transitions; honor Meta recipient-consent/template-window rules and never expose access tokens.
-2. Add a scheduled daily-summary worker that selects only `status='active' AND webhook_verified=true AND daily_briefing_enabled=true`, verifies `CRON_SECRET`, generates a grounded summary from Clara's stored message state, and persists send attempts/results idempotently. If no existing scheduler contract supports this safely, implement the scheduler contract first rather than simulating delivery.
+1. Implement the outbound WhatsApp message service using the encrypted active connection, persisting outbound message IDs and status transitions. Require an explicit recipient and recorded opt-in, use an approved Meta template for scheduled outbound briefings outside the customer-service window, and never expose access tokens.
+2. Add a scheduled daily-summary worker that selects only `status='active' AND webhook_verified=true AND daily_briefing_enabled=true` with an opted-in recipient and configured approved template, verifies `CRON_SECRET`, generates a grounded summary from Clara's stored message state, and persists send attempts/results idempotently. If no existing scheduler contract supports this safely, implement the scheduler contract first rather than simulating delivery.
 3. Add focused regression source for tenant/agent isolation, OAuth state replay/cancellation, phone-selection uniqueness, signature rejection, duplicate event retries, and the briefing readiness gate.
 4. Add token expiry/revocation health and safe reconnect handling. Wire real status and delivery results into Messaging.
 5. Keep project-control records current. Route substantial correctness/security bugs to FIX-01 and deployment/infrastructure work to OPS-01. Do not poll or wait for CI/Vercel/Gates.
