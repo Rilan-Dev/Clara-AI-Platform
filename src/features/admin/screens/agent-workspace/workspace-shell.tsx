@@ -484,12 +484,12 @@ function CreateAgentDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-2 backdrop-blur-sm sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-agent-title"
     >
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl">
+      <div className="my-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-xl [overflow-wrap:anywhere] sm:max-h-[calc(100dvh-2rem)] sm:p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 id="create-agent-title" className="text-base font-semibold text-foreground">New agent</h3>
