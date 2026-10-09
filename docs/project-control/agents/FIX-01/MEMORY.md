@@ -59,3 +59,12 @@ A dynamic import such as `await import("./files-service.js")` can fail webpack w
 
 ### 2026-10-09 — PDF.js runtime must not load during general server bootstrap
 When the parser registry is imported at server startup, a static `pdf-parse` runtime import can evaluate PDF.js and fail on missing browser canvas globals such as `DOMMatrix`, even before any PDF is parsed. Keep the dependency type-only at module scope and dynamically load it inside the PDF parse method. This isolates non-PDF startup paths, but does not replace the need for a working canvas/DOMMatrix dependency during actual PDF extraction. Source commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`; runtime verification pending.
+
+
+### 2026-10-10 — Missing-schema logs and shared dialog overflow
+- **Symptom:** Historical PostgreSQL logs repeatedly report missing application tables and one seed foreign-key failure; modal content reportedly collapses text into vertical words/letters and cards/dialogs have poor widths.
+- **Cause:** Current source already gates self-hosted pollers behind migration readiness, so the old logs most likely came from an older image or incomplete migration run; this needs current-image evidence before changing DB logic. Shared dialog primitive lacked viewport-safe sizing/scrolling and shrink-safe text wrapping.
+- **Failed approaches to avoid:** Manually create missing tables, reset the database, rewrite seed ordering without fresh source evidence, or patch every modal separately.
+- **Remedy:** Shared dialog primitive correction committed as `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`; DB code left unchanged because its readiness guard is already present.
+- **Prevention:** Confirm runtime commit and migration result before diagnosing repeated missing relations. Fix shared primitives and test narrow viewports/long content before page-specific styling.
+- **Verification:** Source inspection and commit only; no test/build/browser/database/runtime PASS claimed.
