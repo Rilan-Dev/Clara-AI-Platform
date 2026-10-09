@@ -55,6 +55,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
              WHERE r.connection_id = c.id AND r.briefing_date = $2::date
                AND r.status IN ('sending','sent')
           )
+          AND NOT EXISTS (
+            SELECT 1 FROM whatsapp_daily_briefing_runs r
+             WHERE r.connection_id = c.id AND r.briefing_date = $2::date
+               AND r.status = 'failed' AND r.attempt_count >= 3
+          )
         ORDER BY c.daily_briefing_last_sent_on ASC NULLS FIRST, c.created_at ASC
         LIMIT 3`,
       [ENCRYPTION_KEY, briefingDate],
