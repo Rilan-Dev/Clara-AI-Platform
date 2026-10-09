@@ -256,6 +256,35 @@ describe("OAuth token refresh endpoint binding", () => {
     expect(updateCredentials).not.toHaveBeenCalled();
   });
 
+  it("uses Basic client authentication for OAuth refresh when configured", async () => {
+    decrypt.mockResolvedValue({
+      access_token: "old-token",
+      refresh_token: "refresh-token",
+      expires_in: 3600,
+      claimed_at: Math.floor(Date.now() / 1000) - 3600,
+      token_url: "https://oauth.example/token",
+      authorization_method: "HEADER",
+      client_id: "client-id",
+      client_secret: "client-secret",
+      data: {},
+    });
+    vi.mocked(globalThis.fetch).mockResolvedValue(
+      new Response(JSON.stringify({ access_token: "new-token", expires_in: 3600 }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    const { ensureTokenFresh } = await import("./runner-helpers.js");
+    await ensureTokenFresh("connection-1", "org-1", "oauth2", "https://oauth.example/token");
+
+    const options = vi.mocked(globalThis.fetch).mock.calls[0]?.[1] as RequestInit;
+    const headers = options.headers as Record<string, string>;
+    expect(headers.Authorization).toBe(`Basic ${Buffer.from("client-id:client-secret").toString("base64")}`);
+    expect(String(options.body)).not.toContain("client_secret");
+    expect(String(options.body)).not.toContain("client_id");
+  });
+
   it("uses the registry token endpoint for credential-bearing refresh", async () => {
     decrypt.mockResolvedValue({
       access_token: "old-token",
