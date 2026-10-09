@@ -49,9 +49,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         WHERE c.status = 'active' AND c.webhook_verified = true AND c.daily_briefing_enabled = true
           AND c.briefing_recipient_phone IS NOT NULL AND c.briefing_recipient_opt_in_at IS NOT NULL
           AND (c.access_token_expires_at IS NULL OR c.access_token_expires_at > now())
-        ORDER BY c.created_at ASC
-        LIMIT 100`,
-      [ENCRYPTION_KEY],
+          AND (c.daily_briefing_last_sent_on IS NULL OR c.daily_briefing_last_sent_on < $2::date)
+          AND NOT EXISTS (
+            SELECT 1 FROM whatsapp_daily_briefing_runs r
+             WHERE r.connection_id = c.id AND r.briefing_date = $2::date
+               AND r.status IN ('sending','sent')
+          )
+        ORDER BY c.daily_briefing_last_sent_on ASC NULLS FIRST, c.created_at ASC
+        LIMIT 3`,
+      [ENCRYPTION_KEY, briefingDate],
     );
 
     let sent = 0;
