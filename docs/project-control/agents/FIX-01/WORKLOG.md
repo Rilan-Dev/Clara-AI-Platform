@@ -209,3 +209,14 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Verification boundary:** GitHub accepted source/test changes. Local Vitest, `npm run type-check`, and browser-based mobile/desktop inspection remain unexecuted; no PASS claimed.
 - **Database incident:** OPS-01 retains missing PostgreSQL relations and seed organisation FK failure. No manual table creation, reset, or migration bypass.
 - **Next:** Continue auditing custom overlays and card grids. Run focused tests/typecheck and visual inspection when local execution is available, without waiting on CI/Vercel.
+
+
+### SESSION-FIX-20261010-09 / 2026-10-10
+- **Task:** Fix the user's concrete width issue examples and search for similar unbounded text in those components on the current feature branch.
+- **Root cause:** The landing-page demo conversation bubbles used only `max-w-[85%]` inside flex rows with avatar siblings. The bubbles had no `min-w-0`, explicit width containment, or robust overflow wrapping, so long response/citation text could retain intrinsic min-content width and compete with avatar space. The OAuth app modal was viewport-bounded but its footer controls used a non-wrapping flex row, and form fields did not consistently declare shrink/max-width constraints.
+- **Fixes:** Constrained demo chat container and header to the available width; made chat rows shrink-safe; bounded each bubble to the remaining width after avatar/gap; enabled natural wrapping and overflow fallback; allowed source citations and header/footer controls to wrap; added explicit `min-w-0/max-w-full` constraints to OAuth fields and horizontal overflow containment to the modal.
+- **Source commits:** `src/features/platform/screens/landing-screen.tsx` `a2ddf694fcb6c4e76f5c0c85879ebed13ee632aa`, followed by precise bubble-row correction `982801734aad1757336d118067ec145be5bd8299`; `src/features/admin/screens/platform-integrations-screen.tsx` `018d87da30f5479d61f447d5263c2acaa388fdad`.
+- **Regression coverage:** Added a twelfth source-contract test for chat-bubble width and OAuth form constraints; commit `a3a0112b4907bc18ad1a216830b216344c2f671b`.
+- **Verification boundary:** GitHub source and test writes accepted and re-fetched. Local Vitest/typecheck and browser visual inspection remain unexecuted; no runtime/layout PASS claimed.
+- **Database incident:** OPS-01 retains PostgreSQL missing relations and seed FK failure; no manual table creation, reset or migration bypass.
+- **Next:** Continue auditing similar flex-contained text and custom dialogs across the current branch. Execute focused tests/typecheck and inspect mobile/desktop when local execution is available; do not wait for CI/Vercel.
