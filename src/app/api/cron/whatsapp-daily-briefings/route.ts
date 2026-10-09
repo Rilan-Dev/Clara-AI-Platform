@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, withTransaction } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
-import { buildWhatsAppDailySummary } from "@/modules/integrations/whatsapp-briefing";
+import { buildWhatsAppDailySummary, getWhatsAppMetaSendErrorCode } from "@/modules/integrations/whatsapp-briefing";
 import { advanceWhatsAppMessageStatus } from "@/modules/integrations/whatsapp-message-status";
 
 export const dynamic = "force-dynamic";
@@ -22,12 +22,6 @@ type BriefingConnection = {
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
   return Boolean(secret && req.headers.get("authorization") === `Bearer ${secret}`);
-}
-
-function isMetaAuthRejected(status: number, result: unknown): boolean {
-  const error = result && typeof result === "object" && "error" in result
-    ? (result as { error?: { code?: unknown } }).error : undefined;
-  return status === 401 || status === 403 || error?.code === 190 || error?.code === 102;
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -148,13 +142,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           ? ((providerResult as { messages: Array<{ id?: unknown }> }).messages[0]?.id)
           : undefined;
         if (!response.ok || typeof providerMessageId !== "string" || !providerMessageId) {
+          const authRejected = getWhatsAppMetaSendErrorCode(response.status, providerResult) === "META_AUTH_OR_PERMISSION_REJECTED";
           await query(
             `UPDATE whatsapp_daily_briefing_runs
                 SET status = 'failed', error_code = $2, updated_at = now()
               WHERE id = $1`,
-            [run.id, authRejected ? "META_AUTH_OR_PERMISSION_REJECTED" : `META_HTTP_${response.status}`],
+            [run.id, getWhatsAppMetaSendErrorCode(response.status, providerResult)],
           );
-          const authRejected = isMetaAuthRejected(response.status, providerResult);
           if (authRejected) {
             await query(
               `UPDATE whatsapp_business_connections
