@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, withTransaction } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
+import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { getIntegration } from "@/modules/integrations/registry";
 import { hashOAuthState } from "@/modules/integrations/oauth-state";
 
@@ -151,16 +152,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Re-check the grant after the external provider round-trip; an admin may
     // have disabled this integration while the user was on the consent screen.
-    const enabled = await query<{ enabled: boolean }>(
-      `SELECT enabled FROM organisation_integrations
-        WHERE org_id = $1 AND integration_id = $2`,
-      [oauthState.org_id, oauthState.integration_id],
-    );
-    const platform = await query<{ enabled: boolean }>(
-      "SELECT enabled FROM platform_integrations WHERE integration_id = $1",
-      [oauthState.integration_id],
-    );
-    if (!enabled[0]?.enabled || !platform[0]?.enabled) {
+    const [enabled, platform, limits] = await Promise.all([
+      query<{ enabled: boolean }>(
+        `SELECT enabled FROM organisation_integrations
+          WHERE org_id = $1 AND integration_id = $2`,
+        [oauthState.org_id, oauthState.integration_id],
+      ),
+      query<{ enabled: boolean; allowed_plans: string[] }>(
+        "SELECT enabled, allowed_plans FROM platform_integrations WHERE integration_id = $1",
+        [oauthState.integration_id],
+      ),
+      resolveOrgPlanLimits(oauthState.org_id),
+    ]);
+    const planStillAllows = Array.isArray(platform[0]?.allowed_plans) &&
+      (platform[0].allowed_plans.includes(limits.plan_id) || platform[0].allowed_plans.includes("*"));
+    if (!enabled[0]?.enabled || !platform[0]?.enabled || !planStillAllows) {
       return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id));
     }
 
