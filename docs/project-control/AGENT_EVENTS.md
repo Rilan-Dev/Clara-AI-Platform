@@ -249,3 +249,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** FIX-01
 - **Suggested next action:** When the next normal runtime verification is performed, compare the running image commit with the feature branch and capture migration logs before deciding whether another DB source change is needed. Exercise the shared dialog with narrow viewport and long content.
 - **Related records:** commit `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`; `src/instrumentation.node.ts`; `src/lib/db/migrate.ts`; `src/lib/db/seed/production.ts`; `src/components/ui/dialog.tsx`; `docs/project-control/agents/FIX-01/WORKLOG.md`.
+
+
+### EVT-FIX-011 — 2026-10-10
+- **Agent/session:** FIX-01 / SESSION-FIX-20261010-01
+- **Type:** ROUTE
+- **Summary:** Historical PostgreSQL logs report missing `documents`, `ingest_jobs`, `event_outbox`, `kb_reindex_jobs`, and `platform_integration_oauth_apps`, followed by a seed FK error for a demo agent whose organisation row was absent. Current source already has migration-readiness guards and demo-organisation seed ordering, so these logs alone do not prove a current source defect. Database identity, running image/commit, migration ledger and migration failure output need OPS-01 investigation; no manual schema creation or database reset is authorized.
+- **Impact:** Runtime/environment uncertainty; possible partial/stale schema. No current runtime PASS or failure reproduction established.
+- **Owner:** OPS-01 for runtime/database identity and migration investigation; FIX-01 remains owner for source defects if current evidence isolates one.
+- **Suggested next action:** Compare the running container image/commit and target database against the current branch; inspect `db:migrate` output and applied migration ledger, then route a reproducible application migration/bootstrap defect back to FIX-01. Do not wait for DEV-01.
+- **Related records:** `docs/project-control/agents/FIX-01/WORKLOG.md`; `docs/project-control/AGENT_MEMORY.md`; `src/instrumentation.node.ts`; `src/lib/db/migrate.ts`; `src/lib/db/seed/production.ts`.
