@@ -24,12 +24,6 @@ export function buildIntegrationActionTool(): ToolDefinition {
       requireSessionId: false,
     },
     async execute(raw, context: PlatformExecutionContext) {
-      if (!context.userId || !context.agentId) {
-        throw new ToolExecutionError(
-          "MISSING_CONTEXT_IDENTITY",
-          "Integration actions require tenant, agent, and user identity.",
-        );
-      }
       const input = raw as { integrationId:string; actionName:string; props:Record<string,unknown> };
       await assertIntegrationCapability(context, input.integrationId);
 
