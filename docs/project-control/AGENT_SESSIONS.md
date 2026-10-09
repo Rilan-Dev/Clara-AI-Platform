@@ -178,3 +178,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Evidence:** GitHub accepted source and test writes; no local execution, typecheck/build, or browser visual check was available. No PASS claimed.
 - **Routing:** OPS-01 remains responsible for PostgreSQL missing relations and seed FK failure; no DB changes.
 - **Next:** Continue custom overlay/card source audit; run focused Vitest and typecheck and inspect mobile/desktop when local execution is available.
+
+
+## SESSION-FIX-20261010-05 — FIX-01 / Sentinel — 2026-10-10
+- **Goal:** Continue custom overlay/card audit and eliminate awkward blanket word breaking on user-visible identifiers.
+- **Result:** Corrected API key/account/profile and create-agent overlays, published URL popover, publish/deploy dialogs, organisation detail values, verification email labels, API endpoint path, and email template link wrapping. Focused source-contract test suite now has 8 tests.
+- **Evidence:** Changed source and test files were re-fetched from GitHub. Local checkout is unavailable, so Vitest/typecheck and browser visual checks were not run; no pass claimed.
+- **Routing:** OPS-01 owns missing PostgreSQL relations and seed FK failure; no DB changes.
+- **Next:** Continue bounded custom dialog/card audit; run focused Vitest/typecheck and inspect mobile/desktop when local execution is available.
