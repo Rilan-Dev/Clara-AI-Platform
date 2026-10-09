@@ -264,4 +264,12 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(signupVerify).toMatch(/w-full min-w-0 max-w-md text-center/);
     expect(signupVerify).toMatch(/w-full min-w-0 border border-border bg-card/);
   });
+
+  it("keeps the public contact form and its cards shrink-safe", () => {
+    const contact = source("../../features/platform/screens/contact-screen.tsx");
+    expect(contact).toMatch(/w-full min-w-0 max-w-5xl/);
+    expect(contact).toMatch(/w-full min-w-0 max-w-full border border-border bg-card/);
+    expect(contact).toMatch(/block w-full min-w-0 max-w-full box-border/);
+    expect(contact).toMatch(/overflow-wrap:anywhere/);
+  });
 });
