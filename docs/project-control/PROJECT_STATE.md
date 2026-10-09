@@ -1,3 +1,13 @@
+## 2026-10-09 — Integration runner webpack import correction
+
+[architect-verified] Owner-provided self-hosted Docker output exposed five unresolved imports in src/modules/integrations/runtime/runner-core.ts. Changed the registry, credential-vault, context-builder, XRay, and runner-fetch imports from explicit .js suffixes to extensionless relative imports for Next.js webpack resolution.
+
+- Source commit: b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd
+- This is a source correction only. No build/deployment or current-head test success is claimed.
+- Continue the active integrations roadmap; do not wait for GitHub Actions, Vercel, or Gates.
+
+---
+
 ## CURRENT INCIDENT UPDATE — 2026-10-09 — OAUTH MIGRATION BUILD GUARD
 
 [architect-verified] Added a production fail-closed guard in `scripts/migrate.ts`: production/Vercel migration runs now exit unsuccessfully if `SKIP_DB_MIGRATIONS=1` is configured. This closes a deployment-safety gap that could otherwise allow an application build to succeed while schema changes were skipped.
