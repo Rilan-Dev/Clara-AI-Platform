@@ -106,3 +106,10 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Commits:** `84f9cdb1f4cb57fc9515271366abace3e0467c74`, `5da2109defd6b6539cb9f6b2dae680bd6ca2943a`, `c94d8957cbacbc261787984841c67d9dd1570910`, `9af04c79e7f6aefa6f151d7f8252f29fe1f4f491`, `8e1cac3858f84812d48e50584ad9d28dc6ae528f`, `c646654fb1b32f07732201329612f2c7330de26e`, `211c037416f81659982bdba7e68f411273ce7d62`, `289b71f1fc98d54fadb5b3146d40c07e9754c4ce`.
 - **Verification:** Test source authored only; none of the tests were executed. No typecheck/build/cron/live Meta flow was run or awaited.
 - **Next:** Add remaining phone uniqueness and duplicate-webhook retry tests, proactive token revocation/reconnect health, and safe reconciliation for ambiguous sending states.
+
+
+### SESSION-DEV-20261009-04 — manual Meta health probe
+
+- **Actions:** Added authenticated `verify` action to check access to the selected WABA using the encrypted active token. HTTP 401/403 marks the connection `error`, disables daily briefing eligibility, and presents the reconnect path. Messaging now exposes Verify Meta access and refreshes state after subscription/verification failures.
+- **Regression source:** Added a route test for a rejected Meta token and the resulting unhealthy state/briefing disablement. It is source only and has not been executed.
+- **Boundary:** Proactive periodic health probing remains pending; expiry and send-time 401/403 are guarded, while the manual probe is user-triggered.
