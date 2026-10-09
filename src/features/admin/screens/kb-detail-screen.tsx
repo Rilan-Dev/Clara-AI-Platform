@@ -390,7 +390,7 @@ export default function KbDashboardPage() {
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground/70">
               <Layers3 className="h-3.5 w-3.5 text-primary" /> Collection
             </div>
-            <p className="mt-3 break-all font-mono text-xs text-foreground/80">{kb.qdrantCollection}</p>
+            <p className="mt-3 break-words [overflow-wrap:anywhere] [word-break:normal] font-mono text-xs text-foreground/80">{kb.qdrantCollection}</p>
           </div>
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground/70">Created</div>
