@@ -1,3 +1,9 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-09 — REALTIME VOICE DISPATCH REVIEWED
+
+[architect-verified] DEV-01 / Forge reviewed the bounded realtime voice integration dispatch source on `feature/ai-core-from-doable-source`. Outcome: **PASS_WITH_FOLLOWUP — SOURCE REVIEW ONLY**. No substantial defect requiring FIX-01 was identified. The endpoint rejects disabled rollout flags and non-allowlisted tools, requires authenticated non-platform-admin KB membership with `kb:read`, derives org/agent/user/session identity from server state, and invokes the existing Clara Unified Tool Runtime. The client explicitly blocks embed-key sessions from integration dispatch.
+
+Focused regression source exists, but tests/build/CI/Vercel/Gates were not executed. No deployment or broader task closure is claimed. Exact next action: stop and await the next owner-authorized bounded task; do not infer authorization for unrelated implementation.
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-09 — REALTIME VOICE INTEGRATION DISPATCH SOURCE-COMPLETE
 
 [developer-reported] The current authorized integration runtime task now includes realtime voice dispatch through the same Clara Unified Tool Runtime used by provider chat. Both rollout flags remain default-off. Integration descriptors require authenticated non-super-admin KB membership with `kb:read`; the invocation route resolves org/agent/user/session server-side and rejects unknown tool names.
