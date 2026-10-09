@@ -19,10 +19,28 @@ export async function GET(req: NextRequest, { params }: Params) {
     const [platform, orgRows, connections] = await Promise.all([
       query<{integration_id:string;enabled:boolean;allowed_plans:string[]}>(`SELECT integration_id, enabled, allowed_plans FROM platform_integrations`),
       query<{integration_id:string;enabled:boolean}>(`SELECT integration_id, enabled FROM organisation_integrations WHERE org_id = $1`, [orgId]),
-      query<{integration_id:string;count:number}>(`SELECT integration_id, COUNT(*)::int AS count FROM integration_connections WHERE org_id = $1 AND status = 'active' GROUP BY integration_id`, [orgId]),
+      query<{
+        integration_id:string;
+        active_count:number;
+        expired_count:number;
+        error_count:number;
+        revoked_count:number;
+        last_updated_at:Date|null;
+      }>(
+        `SELECT integration_id,
+                COUNT(*) FILTER (WHERE status = 'active')::int AS active_count,
+                COUNT(*) FILTER (WHERE status = 'expired')::int AS expired_count,
+                COUNT(*) FILTER (WHERE status = 'error')::int AS error_count,
+                COUNT(*) FILTER (WHERE status = 'revoked')::int AS revoked_count,
+                MAX(updated_at) AS last_updated_at
+           FROM integration_connections
+          WHERE org_id = $1
+          GROUP BY integration_id`,
+        [orgId],
+      ),
     ]);
     const orgById = new Map(orgRows.map(r => [r.integration_id, r]));
-    const connById = new Map(connections.map(r => [r.integration_id, r.count]));
+    const connById = new Map(connections.map(r => [r.integration_id, r]));
     const platformById = new Map(platform.map(r => [r.integration_id, r]));
     const limits = await getOrgPlanLimits(orgId);
     const planId = limits.plan_id;
@@ -36,7 +54,17 @@ export async function GET(req: NextRequest, { params }: Params) {
           platformEnabled: p?.enabled ?? false,
           planAllowed: Array.isArray(p?.allowed_plans) ? p!.allowed_plans.includes(planId) || p!.allowed_plans.includes("*") : false,
           organisationEnabled: o?.enabled ?? false,
-          connected: (connById.get(def.id) ?? 0) > 0,
+          connected: (connById.get(def.id)?.active_count ?? 0) > 0,
+          connectionStatus: (connById.get(def.id)?.active_count ?? 0) > 0
+            ? "connected"
+            : (connById.get(def.id)?.expired_count ?? 0) > 0
+              ? "expired"
+              : (connById.get(def.id)?.error_count ?? 0) > 0
+                ? "error"
+                : (connById.get(def.id)?.revoked_count ?? 0) > 0
+                  ? "revoked"
+                  : "disconnected",
+          connectionUpdatedAt: connById.get(def.id)?.last_updated_at ?? null,
         };
       }),
     });
