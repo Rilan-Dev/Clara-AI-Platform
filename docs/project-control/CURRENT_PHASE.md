@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — I-6 MCP POLICY SNAPSHOT HARDENING COMPLETE
+
+[architect source review] Closed the last identified I-6 bounded hardening gap. `resolveMcpToolDefinition` now snapshots validated policy before awaiting the untrusted resolver; `buildMcpToolRuntime` snapshots policy once before request iteration; a focused regression locks `requireUserId` against mutation during async resolution.
+
+- Implementation: `826169686c91c5095ac5d717eb27a048c020a57a`.
+- Regression source: `6f824ce9f75e38645c6b33e06b37559977650d0a`.
+- **I-6 status: IMPLEMENTATION COMPLETE — EXTERNAL/EXECUTABLE VERIFICATION DEFERRED.** No tests, typecheck, build, CI, Vercel, Gates, or deployment were run or awaited.
+- The existing runner webpack import correction remains `b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd`; the user-provided Docker build output predates it. A rebuild is not claimed.
+
+**Next authorized implementation:** P0 OAuth connection lifecycle from `docs/project-control/INTEGRATIONS_AI_ENHANCEMENT_ROADMAP.md`, starting with inspection of provider-specific callback/consent contracts and secure one-time OAuth state persistence. Preserve Unified Tool Runtime and server-authoritative tenant identity.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — REALTIME VOICE INTEGRATION DISPATCH SOURCE-COMPLETE
 
 [developer-reported] The current authorized integration runtime task now includes realtime voice dispatch through the same Clara Unified Tool Runtime used by provider chat. Both rollout flags remain default-off. Integration descriptors require authenticated non-super-admin KB membership with `kb:read`; the invocation route resolves org/agent/user/session server-side and rejects unknown tool names.
