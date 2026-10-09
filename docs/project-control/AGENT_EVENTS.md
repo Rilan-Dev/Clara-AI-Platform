@@ -317,3 +317,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 found the same flex-bubble width pattern in the live conversation UI. Removed percentage-only max-widths that did not account for avatar/gap space, applied shrink-safe width bounds and natural long-text wrapping to welcome/user/assistant messages.
 - Source commit `ef49a5a4d13409be85f325f0644e65c2259326b4`; regression test commit `c42cb59fc726985dc6ad71ecb1626233b0c9c8ca`. Source-contract suite now has 13 tests.
 - Local tests/typecheck/browser visual review not performed; no PASS claimed. OPS-01 retains database incident.
+
+
+## EVT-FIX-021 — 2026-10-10 — Long text in email and billing cards
+- FIX-01 removed truncation from email-template audit subjects, organisation billing notes, and email variable descriptions/custom values; affected rows now shrink and wrap instead of hiding text or forcing a rigid row.
+- Commits: `67a9f793113a34494287804861e6b60eae435a19`, `aaacf4c12d036ee108eeeb1d911f15d4e266ce59`, `dde58e8a6737d0619e4884f5f8d37facf05cf781`; test commit `ba188039024cc1177d420a9f56b8a8fe98c34a3c`. Source-contract suite now has 14 tests.
+- Local test/typecheck/browser review not run; no PASS claimed. OPS-01 retains PostgreSQL incident.
