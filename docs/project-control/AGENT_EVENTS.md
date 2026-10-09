@@ -311,3 +311,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 traced the reported width issue to demo chat bubbles relying on `max-w-[85%]` inside flex rows with avatar siblings, without `min-w-0`/explicit remaining-width constraints. Constrained the chat container, bubbles, and citations; made OAuth modal footer wrap and form controls shrink safely.
 - Commits: landing demo `a2ddf694fcb6c4e76f5c0c85879ebed13ee632aa`, bubble correction `982801734aad1757336d118067ec145be5bd8299`, OAuth form `018d87da30f5479d61f447d5263c2acaa388fdad`; test commit `a3a0112b4907bc18ad1a216830b216344c2f671b`.
 - Source-contract suite now has 12 tests. Tests/typecheck/browser review not executed; no PASS claimed. OPS-01 owns database incident.
+
+
+## EVT-FIX-020 — 2026-10-10 — Live conversation bubble width containment
+- FIX-01 found the same flex-bubble width pattern in the live conversation UI. Removed percentage-only max-widths that did not account for avatar/gap space, applied shrink-safe width bounds and natural long-text wrapping to welcome/user/assistant messages.
+- Source commit `ef49a5a4d13409be85f325f0644e65c2259326b4`; regression test commit `c42cb59fc726985dc6ad71ecb1626233b0c9c8ca`. Source-contract suite now has 13 tests.
+- Local tests/typecheck/browser visual review not performed; no PASS claimed. OPS-01 retains database incident.
