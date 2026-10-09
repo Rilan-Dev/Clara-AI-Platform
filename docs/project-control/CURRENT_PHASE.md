@@ -1,3 +1,18 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — OAUTH TOKEN REFRESH + CONNECTION HEALTH SOURCE HARDENING
+
+[developer-reported] Follow-up source review aligned OAuth token exchange with the existing runner's refresh contract and added safe connection health reporting.
+
+- `OAuth2TokenData` now optionally carries `authorization_method`.
+- OAuth callback persists configured HEADER/BODY client authentication mode; runner refresh uses Basic Authorization when HEADER is configured, otherwise form-body client credentials.
+- OAuth start validates HTTPS provider authorization endpoint and redirect URI at runtime, uses configured PKCE method, and prunes stale state.
+- Organisation integration GET exposes only aggregate health state and last-updated time; admin UI distinguishes connected, expired, error and revoked states and offers OAuth reconnect.
+- Regression source added for HEADER-mode callback/refresh and expired connection health.
+- Tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent were not run or awaited.
+
+**Next:** finish source review of callback and org connection API failure paths; then continue the roadmap's connection recovery and shared integration capability framework.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — P0 OAUTH CONSENT LIFECYCLE IMPLEMENTED AT SOURCE LEVEL
 
 [developer-reported] Implemented a generic server-side OAuth authorization-code lifecycle using the existing registry metadata, platform OAuth app configuration, and tenant integration connection model.
