@@ -74,6 +74,7 @@ export type AgentWorkspaceTab =
   | "faq"
   | "knowledge"
   | "tools"
+  | "messaging"
   | "versions"
   | "publish";
 
@@ -82,6 +83,7 @@ const TAB_SEGMENTS: Record<string, AgentWorkspaceTab> = {
   faq: "faq",
   knowledge: "knowledge",
   tools: "tools",
+  messaging: "messaging",
   versions: "versions",
   publish: "publish",
 };
@@ -365,6 +367,7 @@ function AgentMobileTabs() {
       { href: `${base}/config`, label: "Main" },
       { href: `${base}/faq`, label: "FAQ" },
       { href: `${base}/tools`, label: "Capabilities" },
+      { href: `${base}/messaging`, label: "Messaging" },
       { href: `${base}/versions`, label: "Branches" },
       { href: `${base}/publish`, label: "Publish" },
     ] : []),
