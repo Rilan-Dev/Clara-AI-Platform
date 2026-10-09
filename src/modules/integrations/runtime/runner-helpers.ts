@@ -471,9 +471,16 @@ export async function ensureTokenFresh(
   const body = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: creds.refresh_token,
-    client_id: creds.client_id,
-    client_secret: creds.client_secret,
   });
+  const tokenHeaders: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
+  if (creds.authorization_method === "HEADER") {
+    tokenHeaders.Authorization = `Basic ${Buffer.from(`${creds.client_id}:${creds.client_secret}`, "utf8").toString("base64")}`;
+  } else {
+    body.set("client_id", creds.client_id);
+    body.set("client_secret", creds.client_secret);
+  }
 
   // OAuth refresh runs before the action fetch context is established, so enforce
   // the same host-owned egress policy explicitly at the token endpoint.
@@ -483,7 +490,7 @@ export async function ensureTokenFresh(
   try {
     response = await fetch(tokenUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: tokenHeaders,
       body: body.toString(),
       // Do not let an OAuth token endpoint redirect the credential-bearing
       // refresh request to an unchecked destination.
