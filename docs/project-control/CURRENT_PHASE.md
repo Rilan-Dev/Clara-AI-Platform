@@ -1,3 +1,14 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — WHATSAPP CONNECTION + BRIEFING SOURCE IMPLEMENTED
+
+- Owner-authorized DEV-01 scope: server-side Meta WhatsApp lifecycle and readiness-gated daily briefing source.
+- Implemented OAuth start/callback with state/user/agent permission checks, encrypted token/session storage, phone selection and unique binding; WABA subscription; challenge/HMAC webhook verification; idempotent durable inbound message/status processing; server-backed Messaging health; explicit recipient opt-in; and the `CRON_SECRET`-protected scheduled daily briefing sender.
+- Cron schedule is 03:00 UTC in `vercel.json`; the sender only selects active, webhook-verified, briefing-enabled connections with an opted-in recipient and configured approved template. Run records and outbound provider message IDs/status are persisted.
+- Current summary is a deterministic message-excerpt digest, not LLM summarization. Token expiry/revocation/reconnect and ambiguous-send reconciliation remain pending.
+- Regression source exists but no tests/typecheck/build/Docker/CI/Vercel/deployment/live Meta flow or actual scheduled delivery was run or awaited. No runtime PASS is claimed.
+- **Next:** follow `docs/project-control/NEXT_ACTION.md`; continue independent work without external-gate polling.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — WHATSAPP CONNECTION LIFECYCLE SOURCE IMPLEMENTED
 
 - Owner-authorized DEV-01 scope: implement the actual Meta WhatsApp Business server lifecycle, not another UI redesign.
