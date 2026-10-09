@@ -28,6 +28,7 @@ describe("WhatsApp briefing safeguards", () => {
   it("classifies Meta authentication failures before storing the run error code", () => {
     expect(getWhatsAppMetaSendErrorCode(401, null)).toBe("META_AUTH_OR_PERMISSION_REJECTED");
     expect(getWhatsAppMetaSendErrorCode(403, { error: { code: 10 } })).toBe("META_AUTH_OR_PERMISSION_REJECTED");
+    expect(getWhatsAppMetaSendErrorCode(400, { error: { code: 200 } })).toBe("META_AUTH_OR_PERMISSION_REJECTED");
     expect(getWhatsAppMetaSendErrorCode(400, { error: { code: 190 } })).toBe("META_AUTH_OR_PERMISSION_REJECTED");
     expect(getWhatsAppMetaSendErrorCode(500, null)).toBe("META_HTTP_500");
   });
