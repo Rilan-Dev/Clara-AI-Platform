@@ -1,3 +1,12 @@
+## CURRENT INCIDENT UPDATE — 2026-10-09 — OAUTH MIGRATION BUILD GUARD
+
+[architect-verified] Added a production fail-closed guard in `scripts/migrate.ts`: production/Vercel migration runs now exit unsuccessfully if `SKIP_DB_MIGRATIONS=1` is configured. This closes a deployment-safety gap that could otherwise allow an application build to succeed while schema changes were skipped.
+
+- Code commit: `176f9f26a13152f64aae505f1d04fee750f01411`.
+- Project-control records updated: NEXT_ACTION `c88cd191df7d048f53653b8fb326938f2db23d86`, worklog `a45c350bd231f32a771bb56ac4b590e9923cff81`, VERIFICATION_STATE `50b1843d650c13619ce7cc2d7f8cd63b99ca0386`.
+- The OAuth table migration is already uniquely numbered as `065_platform_integration_oauth_apps.sql`; the earlier duplicate-number correction remains in branch history.
+- Tests, CI, Vercel build, live database migration state, deployment, and endpoint smoke test were not run or awaited. The live production incident is not marked resolved; corrected source must be deployed and migration success confirmed.
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-09 — REALTIME VOICE DISPATCH REVIEWED
 
 [architect-verified] DEV-01 / Forge reviewed the bounded realtime voice integration dispatch source on `feature/ai-core-from-doable-source`. Outcome: **PASS_WITH_FOLLOWUP — SOURCE REVIEW ONLY**. No substantial defect requiring FIX-01 was identified. The endpoint rejects disabled rollout flags and non-allowlisted tools, requires authenticated non-platform-admin KB membership with `kb:read`, derives org/agent/user/session identity from server state, and invokes the existing Clara Unified Tool Runtime. The client explicitly blocks embed-key sessions from integration dispatch.
