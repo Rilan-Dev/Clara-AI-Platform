@@ -25,7 +25,7 @@ function digest(value: string): string {
 }
 
 
-async function subscribeWaba(wabaId: string, token: string): Promise<boolean> {
+async function subscribeWaba(wabaId: string, token: string): Promise<{ ok: boolean; authRejected: boolean }> {
   try {
     const url = new URL(`https://graph.facebook.com/v23.0/${encodeURIComponent(wabaId)}/subscribed_apps`);
     const response = await fetch(url, {
@@ -33,11 +33,11 @@ async function subscribeWaba(wabaId: string, token: string): Promise<boolean> {
       body: new URLSearchParams({ access_token: token }).toString(),
       redirect: "manual", signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) return false;
+    if (!response.ok) return { ok: false, authRejected: response.status === 401 || response.status === 403 };
     const result: unknown = await response.json().catch(() => null);
-    return Boolean(result && typeof result === "object" && "success" in result && (result as { success?: unknown }).success === true);
+    return { ok: Boolean(result && typeof result === "object" && "success" in result && (result as { success?: unknown }).success === true), authRejected: false };
   } catch {
-    return false;
+    return { ok: false, authRejected: false };
   }
 }
 
@@ -184,11 +184,16 @@ export async function POST(req: NextRequest, { params }: Params) {
            FROM whatsapp_business_connections WHERE id = $1 AND org_id = $2`,
         [inserted[0].id, orgId, ENCRYPTION_KEY],
       ))[0];
-      const subscribed = selected ? await subscribeWaba(selected.waba_id, selected.access_token) : false;
+      const subscription = selected ? await subscribeWaba(selected.waba_id, selected.access_token) : { ok: false, authRejected: false };
       await query(
-        `UPDATE whatsapp_business_connections SET last_error_code = $2, updated_at = now() WHERE id = $1`,
-        [inserted[0].id, subscribed ? null : "WEBHOOK_SUBSCRIBE_FAILED"],
+        `UPDATE whatsapp_business_connections
+            SET status = CASE WHEN $3 THEN 'error' ELSE status END,
+                daily_briefing_enabled = CASE WHEN $3 THEN false ELSE daily_briefing_enabled END,
+                last_error_code = $2, updated_at = now()
+          WHERE id = $1`,
+        [inserted[0].id, subscription.ok ? null : subscription.authRejected ? "META_AUTH_OR_PERMISSION_REJECTED" : "WEBHOOK_SUBSCRIBE_FAILED", subscription.authRejected],
       );
+      const subscribed = subscription.ok;
       return NextResponse.json({
         ok: true, connectionId: inserted[0].id, webhookSubscribed: subscribed,
         webhookVerified: false, dailyBriefingReady: false,
@@ -246,12 +251,16 @@ export async function POST(req: NextRequest, { params }: Params) {
         [orgId, agentId, ENCRYPTION_KEY],
       ))[0];
       if (!connection) return NextResponse.json({ error: "No active WhatsApp phone is connected." }, { status: 404 });
-      const subscribed = await subscribeWaba(connection.waba_id, connection.access_token);
+      const subscription = await subscribeWaba(connection.waba_id, connection.access_token);
       await query(
-        `UPDATE whatsapp_business_connections SET last_error_code = $2, updated_at = now() WHERE id = $1`,
-        [connection.id, subscribed ? null : "WEBHOOK_SUBSCRIBE_FAILED"],
+        `UPDATE whatsapp_business_connections
+            SET status = CASE WHEN $3 THEN 'error' ELSE status END,
+                daily_briefing_enabled = CASE WHEN $3 THEN false ELSE daily_briefing_enabled END,
+                last_error_code = $2, updated_at = now()
+          WHERE id = $1`,
+        [connection.id, subscription.ok ? null : subscription.authRejected ? "META_AUTH_OR_PERMISSION_REJECTED" : "WEBHOOK_SUBSCRIBE_FAILED", subscription.authRejected],
       );
-      return NextResponse.json({ ok: subscribed, webhookSubscribed: subscribed }, { status: subscribed ? 200 : 502 });
+      return NextResponse.json({ ok: subscription.ok, webhookSubscribed: subscription.ok }, { status: subscription.ok ? 200 : 502 });
     }
 
     if (body.action === "disconnect") {
