@@ -145,7 +145,7 @@ export default function DocsApiScreen() {
                 <div key={ep.path} className="border border-border bg-card rounded-xl overflow-hidden">
                   <div className="flex flex-col gap-2 px-5 py-4 border-b border-border sm:flex-row sm:items-center sm:gap-3">
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-md font-mono ${METHOD_COLORS[ep.method]}`}>{ep.method}</span>
-                    <code className="text-sm text-foreground/80 font-mono break-all sm:break-normal">{ep.path}</code>
+                    <code className="text-sm text-foreground/80 font-mono break-words [overflow-wrap:anywhere] sm:break-normal">{ep.path}</code>
                     {ep.auth && <span className="text-xs text-muted-foreground/70 border border-border rounded px-2 py-0.5 sm:ml-auto">Auth required</span>}
                   </div>
                   <div className="px-5 py-4 space-y-4">
