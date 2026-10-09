@@ -146,3 +146,14 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Scope:** Startup module loading only; no PDF parsing algorithm, authorization, or upload validation changed.
 - **Verification:** Source committed only. No tests/build/PDF job run. Actual PDF parsing may still require a canvas/DOMMatrix dependency fix.
 - **Next action:** Continue development without waiting for external gates; rebuild on the next normal verification pass and address any reproduced PDF-runtime error.
+
+
+## EVT-FIX-008 — Self-hosted PDF parser startup isolation
+- **Date:** 2026-10-09
+- **Role:** FIX-01 / Sentinel
+- **Evidence:** Owner logs show `DOMMatrix is not defined`, ingest poller startup failure, and a warning that `@napi-rs/canvas` is unavailable.
+- **Root cause identified in source:** `src/modules/ingest/parsers/pdf.ts` statically imported `PDFParse`, evaluating PDF.js when the parser registry was imported.
+- **Correction:** Changed the import to type-only and moved the runtime import inside `PDFParser.parse()`. Commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`.
+- **Scope:** Startup module loading only; no PDF parsing algorithm, authorization, or upload validation changed.
+- **Verification:** Source committed only. No tests/build/PDF job run. Actual PDF parsing may still require a canvas/DOMMatrix dependency fix.
+- **Next action:** Rebuild on the next normal verification pass and address any reproduced PDF-runtime error; do not wait for external gates.
