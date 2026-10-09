@@ -38,3 +38,12 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Lesson:** Fix every concrete unresolved specifier revealed by the import trace, but keep the correction limited to import paths; don't weaken webpack or infer build success from an old running container.
 - **Evidence:** commits `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`.
 - **Verification boundary:** Source correction only; no post-change build/test was run.
+
+
+### 2026-10-09 — Third webpack import-resolution pass
+- **Symptom:** Latest Docker webpack output identified imports from `execution-authorization.ts` and `runner-helpers.ts` that could not resolve.
+- **Cause:** Explicit `.js` suffixes remained on imports targeting TypeScript modules, including the registry's `index.ts`.
+- **Remedy:** Six import specifiers corrected to extensionless paths; no runtime logic changed.
+- **Prevention:** Each fresh build log is new evidence: inspect the complete failing trace and keep the correction narrowly tied to real target files.
+- **Verification:** Post-correction build not run.
+- **Commits:** `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`, `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`.
