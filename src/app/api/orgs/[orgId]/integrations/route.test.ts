@@ -96,6 +96,26 @@ describe("organisation integration entitlement enforcement", () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
   });
 
+  it("disconnects only the caller's user-scoped credentials by default", async () => {
+    queryMock.mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }]);
+    const { POST } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/integrations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ integrationId: "github", action: "disconnect" }),
+    });
+
+    const response = await POST(request, {
+      params: Promise.resolve({ orgId: "org-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    const deleteCall = queryMock.mock.calls.find(
+      ([sql]) => typeof sql === "string" && sql.includes("DELETE FROM integration_connections"),
+    );
+    expect(deleteCall?.[1]).toEqual(["org-1", "github", "user-1", null]);
+  });
+
   it("rejects a direct connection that would implicitly exceed the organisation integration limit", async () => {
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
