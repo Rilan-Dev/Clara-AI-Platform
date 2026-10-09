@@ -362,3 +362,9 @@ FIX-01 extended responsive clipping fixes to signup plan/account wizard, forgot-
 
 ## EVT-FIX-20261010-05 — WhatsApp health route regression coverage
 Added `src/app/api/cron/whatsapp-connection-health/route.test.ts` for CRON_SECRET enforcement, expiry handling, token revocation/permission rejection, and transient Graph API failures. Commit: `023ba0b25b615f3badd6ff5b30b47b93afe7d832`. Test source only; Vitest/typecheck not run because no repository runtime/dependencies are available and outbound GitHub clone DNS failed.
+
+
+## EVT-FIX-20261010-06 — Safe reconnect and ambiguous-send quarantine
+- Messaging now gives an explicit reconnect affordance and explains that briefing eligibility remains disabled for unhealthy saved connections until the connection and webhook are healthy. Regression source added.
+- Daily briefing cron now quarantines stale `sending` runs with no provider message ID after 30 minutes as terminal `SEND_OUTCOME_UNKNOWN`, raises attempt_count to the retry limit, and avoids an automatic resend that could duplicate a message. Route regression source covers this condition.
+- Commits: `ab9a776eced829f8e88847d1c42a72170a70f8e3`, `2ab69e96434de51baadd8ebfaad6a85e563ffe97`, `afe11cf0ff1a95e4e6524f2e02b90cc168f785fb`, `3d506bf3e91734e9b9851702e0651dcc2d6c49cf`. Tests/typecheck not run; no provider delivery PASS claimed.
