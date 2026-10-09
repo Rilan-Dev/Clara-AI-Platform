@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-09 — REALTIME VOICE INTEGRATION DISPATCH SOURCE-COMPLETE
+
+[developer-reported] The current authorized integration runtime task now includes realtime voice dispatch through the same Clara Unified Tool Runtime used by provider chat. Both rollout flags remain default-off. Integration descriptors require authenticated non-super-admin KB membership with `kb:read`; the invocation route resolves org/agent/user/session server-side and rejects unknown tool names.
+
+- Source commits: a2dee343b099edef6ad6337fef976047c3f59aa5, c36b5b67beabad175ea9530293846ef8763b3151, f3e8efda5b7a12173e313ee4f476774c62092e52, a64e8f3258b9ab8e59f4f0258c600b1e0ddf13e9, a218e2a354e0c83e7944dbe9b32ad6bebbb574bf, f830efd8fb03f778a4277b2817cc2e684266c3cb, 29e470aea416cd3cc1af56e0a27a1320013498f5, e6da6968d3d7d6e422b309e5188562578f2adb56.
+- Regression source authored in `src/modules/assistant/api/realtime.test.ts` and `src/modules/assistant/api/realtime-tool.test.ts`.
+- Tests/build/external CI/Vercel/Gates/deployment were not run or awaited.
+- Task status: IN_PROGRESS pending architect review; this is not a deployment or PASS claim.
+
+**Next:** architect review of the bounded source implementation; do not invent unrelated follow-on scope.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-09 — OAUTH APP CONFIGURATION MIGRATION COLLISION
 
 [architect-verified] The reported OAuth application configuration GET 500 is consistent with duplicate numbered DB migrations: the OAuth-app table migration and payment-settings migration both used `063`, and the migration runner intentionally rejects duplicate numeric prefixes. The OAuth-app migration was renumbered to `065_platform_integration_oauth_apps.sql` after `064_sarvam_realtime_streaming.sql`.
