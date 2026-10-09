@@ -1,3 +1,14 @@
+## 2026-10-09 — WhatsApp Business lifecycle source slice
+
+- Source committed: migration 067; authenticated per-agent Meta OAuth start/callback; encrypted pending token/session and active connection; unique one-active-phone-per-agent and phone-owner constraints; WABA app subscription; webhook challenge and raw-body HMAC signature verification; transactional idempotent event persistence; durable inbound messages and delivery-status updates; server-derived Messaging health; and briefing eligibility guard requiring active connection plus a valid signed webhook event.
+- Regression source added in `src/modules/integrations/whatsapp-webhook.test.ts` for raw-body HMAC validation, tamper rejection, constant-time comparisons, and stable/differentiated event keys.
+- Documentation added in `docs/deployment/whatsapp-business.md`.
+- **Not run / not claimed:** tests, typecheck, build, Docker, CI, Vercel, deployment, live Meta OAuth consent, Graph token exchange, WABA subscription, webhook challenge, or signed live event. No runtime PASS is inferred from successful source commits.
+- **Still pending:** outbound message send/delivery capture; actual CRON_SECRET-protected scheduled daily-summary worker (the current flag is only eligibility/preference); Meta token expiry/revocation/reconnect health; route-level tenant/state/uniqueness regression source.
+- Next: continue from `docs/project-control/NEXT_ACTION.md` without polling external gates.
+
+---
+
 ## 2026-10-09 — Shared integration capability policy
 
 - Added `integration-policy.ts` as the shared authorization check used by both the I-4 bridge and `integration-action-tool.ts`.
