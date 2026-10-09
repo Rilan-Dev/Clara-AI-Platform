@@ -87,7 +87,7 @@ export default function OrgSettingsScreen() {
         <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
           <div className="flex justify-between sm:block">
             <dt className="text-xs text-muted-foreground/70">Organisation ID</dt>
-            <dd className="text-sm text-muted-foreground font-mono text-right sm:text-left sm:mt-0.5 truncate">{id}</dd>
+            <dd className="min-w-0 text-sm text-muted-foreground font-mono text-right sm:text-left sm:mt-0.5 break-words [overflow-wrap:anywhere]">{id}</dd>
           </div>
           <div className="flex justify-between sm:block">
             <dt className="text-xs text-muted-foreground/70">Public URL</dt>
