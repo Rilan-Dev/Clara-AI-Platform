@@ -43,8 +43,8 @@ export default function SignupVerifyScreen() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-10 sm:py-20 flex items-center justify-center">
-      <div className="w-full max-w-md text-center">
+    <div className="min-h-[100dvh] w-full min-w-0 px-4 py-8 sm:py-12 md:py-20 flex items-center justify-center">
+      <div className="w-full min-w-0 max-w-md text-center [overflow-wrap:anywhere]">
 
         {/* Logo */}
         <Link href="/" className="inline-flex items-center gap-2 mb-10">
@@ -62,14 +62,14 @@ export default function SignupVerifyScreen() {
           </div>
         </div>
 
-        <h1 className="text-3xl font-black text-foreground mb-3">Check your inbox</h1>
+        <h1 className="text-3xl font-black text-foreground mb-3 break-words [overflow-wrap:anywhere]">Check your inbox</h1>
         <p className="text-muted-foreground text-base leading-relaxed mb-2">
           We&apos;ve sent a verification link to
         </p>
         <p className="text-primary font-semibold text-lg mb-6 break-words [overflow-wrap:anywhere]">{email}</p>
 
         {/* Info card */}
-        <div className="border border-border bg-card rounded-2xl p-5 mb-6 text-left space-y-3">
+        <div className="w-full min-w-0 border border-border bg-card rounded-2xl p-4 sm:p-5 mb-6 text-left space-y-3 [overflow-wrap:anywhere]">
           {[
             { n: "1", text: "Open the email from Clara AI" },
             { n: "2", text: "Click the verification link" },
@@ -79,13 +79,13 @@ export default function SignupVerifyScreen() {
               <div className="w-6 h-6 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                 {step.n}
               </div>
-              <span className="text-sm text-muted-foreground">{step.text}</span>
+              <span className="min-w-0 text-sm text-muted-foreground break-words [overflow-wrap:anywhere]">{step.text}</span>
             </div>
           ))}
         </div>
 
         {/* Plan reminder */}
-        <div className="border border-emerald-500/20 bg-emerald-500/[0.04] rounded-xl px-4 py-3 mb-6 flex items-center gap-3">
+        <div className="w-full min-w-0 border border-emerald-500/20 bg-emerald-500/[0.04] rounded-xl px-4 py-3 mb-6 flex items-start gap-3 [overflow-wrap:anywhere]">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <p className="text-sm text-muted-foreground text-left">
             {planId === "free" ? (
