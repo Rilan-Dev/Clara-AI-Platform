@@ -71,3 +71,12 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Prevention:** When a webpack error points to a TS module, inspect all static and dynamic imports in the implicated runtime module for explicit `.js` suffixes, but correct only demonstrated failures and avoid blanket replacements.
 - **Evidence status:** User-provided build output is the failure evidence; source correction commit is the remedy evidence. No post-fix build/test/typecheck/CI/Vercel/deployment PASS is claimed. Existing container being healthy is an older running instance and does not verify the new image.
 - **Next action:** Continue planned source work without waiting for external gates; when the ordinary Docker build is run again, address the next error from its actual output.
+### SESSION-FIX-20261009-04 / 2026-10-09
+- **Task:** Diagnose the owner-provided self-hosted backend logs and isolate PDF.js startup failure.
+- **Authorization:** Owner supplied runtime logs in the active FIX-01 continuation; narrow source correction and incident recording.
+- **Started from:** `feature/ai-core-from-doable-source`; latest known local container had been running for 14 hours, so its source/image age is not assumed current.
+- **Actions:** Recovered project-control state and inspected migration tree, startup instrumentation, PDF parser, parser factory, and Dockerfile. Current branch contains a unique migration prefix 063 plus migration 065; the duplicate-063 runtime log likely comes from a different/older image bundle, but the exact image source commit is unknown. The OAuth table error is consistent with migration startup aborting before 065.
+- **Files/code:** `src/modules/ingest/parsers/pdf.ts` now uses a type-only `PDFParse` import and dynamically loads `pdf-parse` only during `PDFParser.parse()`.
+- **Evidence:** Owner log reports `DOMMatrix is not defined` and missing `@napi-rs/canvas`; source correction commit `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`.
+- **Failed approaches:** None attempted in runtime; no Docker commands were run from this session. Do not treat lazy loading as proof that PDF extraction itself works.
+- **Next action:** When rebuilt from current branch, inspect any remaining duplicate migration prefix in the actual image; if a real PDF parse still fails on DOMMatrix, resolve the production PDF.js canvas runtime dependency.
