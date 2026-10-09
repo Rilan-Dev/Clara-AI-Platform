@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 type OAuthState = { org_id: string; agent_id: string; user_id: string; redirect_uri: string };
 type GraphPhone = { id?: string; display_phone_number?: string; verified_name?: string };
 type GraphWaba = { id?: string; name?: string; phone_numbers?: { data?: GraphPhone[] } };
-type GraphBusiness = { id?: string; name?: string; owned_whatsapp_business_accounts?: { data?: GraphWaba[] } };
+type GraphBusiness = { id?: string; name?: string; owned_whatsapp_business_accounts?: { data?: GraphWaba[] }; client_whatsapp_business_accounts?: { data?: GraphWaba[] } };
 type Candidate = {
   businessId: string; businessName: string; wabaId: string; wabaName: string;
   phoneNumberId: string; displayPhoneNumber: string; verifiedName: string | null;
@@ -69,9 +69,31 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
     }
     const tokenJson: unknown = await tokenResponse.json().catch(() => null);
-    const accessToken = tokenJson && typeof tokenJson === "object" && "access_token" in tokenJson &&
+    const initialAccessToken = tokenJson && typeof tokenJson === "object" && "access_token" in tokenJson &&
       typeof (tokenJson as { access_token?: unknown }).access_token === "string"
       ? (tokenJson as { access_token: string }).access_token : "";
+    if (!initialAccessToken || initialAccessToken.length > 8192) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+
+    // Exchange the short-lived OAuth token for a long-lived user token before storing it.
+    const exchangeUrl = new URL("https://graph.facebook.com/v23.0/oauth/access_token");
+    exchangeUrl.searchParams.set("grant_type", "fb_exchange_token");
+    exchangeUrl.searchParams.set("client_id", appId);
+    exchangeUrl.searchParams.set("client_secret", appSecret);
+    exchangeUrl.searchParams.set("fb_exchange_token", initialAccessToken);
+    let exchangeResponse: Response;
+    try {
+      exchangeResponse = await fetch(exchangeUrl, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(12_000) });
+    } catch {
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    }
+    if (!exchangeResponse.ok) {
+      console.warn("[whatsapp OAuth callback] long-lived token exchange failed", { status: exchangeResponse.status });
+      return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
+    }
+    const exchangeJson: unknown = await exchangeResponse.json().catch(() => null);
+    const accessToken = exchangeJson && typeof exchangeJson === "object" && "access_token" in exchangeJson &&
+      typeof (exchangeJson as { access_token?: unknown }).access_token === "string"
+      ? (exchangeJson as { access_token: string }).access_token : "";
     if (!accessToken || accessToken.length > 8192) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
 
     const graphUrl = new URL("https://graph.facebook.com/v23.0/me/businesses");
@@ -93,7 +115,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ? (graphJson as { data: GraphBusiness[] }).data : [];
     const candidates: Candidate[] = [];
     for (const business of businesses) {
-      for (const waba of business.owned_whatsapp_business_accounts?.data ?? []) {
+      const accounts = [
+        ...(business.owned_whatsapp_business_accounts?.data ?? []),
+        ...(business.client_whatsapp_business_accounts?.data ?? []),
+      ];
+      for (const waba of accounts) {
         for (const phone of waba.phone_numbers?.data ?? []) {
           if (!business.id || !waba.id || !phone.id || !phone.display_phone_number) continue;
           candidates.push({
