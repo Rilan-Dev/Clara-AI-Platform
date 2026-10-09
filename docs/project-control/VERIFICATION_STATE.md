@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-09 — OAUTH APP MIGRATION COLLISION
+
+[architect-verified] Source inspection found the migration runner rejects duplicate migration numbers and the branch contained both `063_payment_settings_category.sql` and `063_platform_integration_oauth_apps.sql`. The OAuth app migration was renumbered to 065 and the duplicate path removed.
+
+- Commits: `a85d58837719a6c7ac8aef4a28c909a262289bec`, `800826364c4b23be625629ebf9922687de84f342`.
+- Verification is source-level only; no tests, CI, Vercel build, Gate, or live deployment verification was run or awaited.
+- Do not claim the production endpoint is fixed until a deployment applies the corrected migration.
+
+---
+
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-09 — PROVIDER CHAT DISPATCH
 
 [architect-verified] The KB-aware chat route now conditionally invokes the bounded agentic loop using the existing Unified Tool Runtime for the two integration tools. Both rollout flags are default-off, and provider capability is checked before entering the tool path. The context is minted from server-side identity.
