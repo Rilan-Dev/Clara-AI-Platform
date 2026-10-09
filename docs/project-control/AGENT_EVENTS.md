@@ -299,3 +299,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 removed destructive `break-all` formatting from AI-provider error cards and the Qdrant collection identifier, and removed truncation from the organisation ID in workspace facts. Source-contract suite now contains 10 tests.
 - Source commits: `be2d3984232c7245bac1213fa749fa0d1f7a4866`, `6e418d2144b44070d4ae7f6703512dc4a200f553`, `515355ef503c0874e53ffa58106b9a097fa52e85`; test commit `294b17f5f5f7f4dac75f89c70f6608fc8cce4deb`.
 - No local execution or browser visual inspection; no PASS claimed. OPS-01 continues to own the PostgreSQL incident.
+
+
+## EVT-FIX-018 — 2026-10-10 — Analytics and agent-card text visibility
+- FIX-01 corrected remaining Qdrant collection `break-all` formatting and changed recent-agent names/descriptions and analytics top-query text to natural wrapping rather than truncation. Regression suite now contains 11 source-contract tests.
+- Commits: `515355ef503c0874e53ffa58106b9a097fa52e85`, `03d4131fbd87e458483da77fd5103cbd6cb8124a`, `ca58ea8a429bc4c12524e1949112ccbef8950f9e`; test commit `53c1501ca5a42d8110ed26869388c2ac4df6d7eb`.
+- No local tests/typecheck or browser visual review run; no PASS claimed. OPS-01 owns the PostgreSQL incident.
