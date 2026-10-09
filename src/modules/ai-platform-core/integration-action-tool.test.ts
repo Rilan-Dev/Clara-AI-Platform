@@ -17,6 +17,19 @@ vi.mock("@/modules/integrations/registry", () => ({
 vi.mock("@/modules/integrations/runtime/runner-core", () => ({ runAction }));
 
 describe("integration action tool scope propagation", () => {
+  it("rejects missing user or agent identity before querying grants", async () => {
+    const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
+    const tool = buildIntegrationActionTool();
+
+    await expect(tool.execute(
+      { integrationId: "example", actionName: "do_work", props: {} },
+      { tenantId: "org-1", agentId: undefined, userId: undefined, surface: "chat" } as never,
+    )).rejects.toMatchObject({ code: "MISSING_CONTEXT_IDENTITY" });
+
+    expect(query).not.toHaveBeenCalled();
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
   it("passes agentId separately from projectId to the runner", async () => {
     query
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
