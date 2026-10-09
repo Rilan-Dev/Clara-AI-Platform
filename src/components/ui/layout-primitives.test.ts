@@ -94,6 +94,21 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(workspace).toMatch(/max-h-\[calc\(100dvh-1rem\)\]/);
   });
 
+  it("uses natural wrapping for verification emails, endpoint paths and email links", () => {
+    const adminLogin = source("../../features/admin/screens/login-screen.tsx");
+    const emailVerification = source("../../app/login/verify-email/page.tsx");
+    const signupVerification = source("../../features/platform/screens/signup-verify-screen.tsx");
+    const apiDocs = source("../../features/platform/screens/docs-api-screen.tsx");
+    const emailTemplate = source("../../lib/email.ts");
+
+    expect(adminLogin).not.toMatch(/break-all/);
+    expect(emailVerification).not.toMatch(/break-all/);
+    expect(signupVerification).not.toMatch(/break-all/);
+    expect(apiDocs).not.toMatch(/break-all/);
+    expect(emailTemplate).not.toMatch(/word-break:break-all/);
+    expect(emailTemplate).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
