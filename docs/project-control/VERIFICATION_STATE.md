@@ -1694,3 +1694,10 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - Evidence: owner-provided pre-correction build log and source changes.
 - Not verified: post-correction Docker build, tests, typecheck, CI, Vercel, gates, deployment, or runtime health on the new image.
 - No executable PASS is claimed; continue `NEXT_ACTION.md` without waiting for external gates.
+
+
+## 2026-10-09 — Latest Docker build: files-service import
+- **Observed failure:** Owner-provided `docker compose build clara-backend` failed webpack resolution for `./files-service.js` in `src/modules/integrations/runtime/runner-helpers.ts`.
+- **Source correction:** Changed the dynamic import to `./files-service`; commit `bda45fd90379154e098d39076823829d2b741bd7`.
+- **Not verified:** No post-correction Docker build, tests, typecheck, CI, Vercel, deployment, or new-image runtime check. The old container remained healthy, but the failed build means that does not verify this source.
+- **Disposition:** I-092 remains open; no executable PASS is claimed. Continue authorized work without waiting for external gates.
