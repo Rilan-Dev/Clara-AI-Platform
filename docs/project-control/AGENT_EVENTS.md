@@ -358,3 +358,7 @@ FIX-01 extended responsive clipping fixes to signup plan/account wizard, forgot-
 - Extended the UI clipping audit to pricing cards/feature lists/FAQ, checkout plan summary/payment method panels, checkout-success receipt rows and transaction reference, and the legacy signup verification screen.
 - Added regression assertions for those surfaces. Commits: `cb2cf12daad6690e370df6d79b948e696de900a8`, `1b46a4f70634e90aeb0786fd401331d9f5930090`, `eede473e8a51462ba0397cd9dacc54ee087101ac`, `cbfc751f0c51e7bffe1fd119e10933195535383f`, `96f30aeabcafa4aa6a5495e36cec75f2d03d6b93`.
 - Tests/typecheck and visual review remain pending. Browser screenshot service returned upstream 502; DOM crawl timestamps predate the latest commits. No PASS claimed.
+
+
+## EVT-FIX-20261010-05 — WhatsApp health route regression coverage
+Added `src/app/api/cron/whatsapp-connection-health/route.test.ts` for CRON_SECRET enforcement, expiry handling, token revocation/permission rejection, and transient Graph API failures. Commit: `023ba0b25b615f3badd6ff5b30b47b93afe7d832`. Test source only; Vitest/typecheck not run because no repository runtime/dependencies are available and outbound GitHub clone DNS failed.
