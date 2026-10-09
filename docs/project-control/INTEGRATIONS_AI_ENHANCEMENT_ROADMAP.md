@@ -1,6 +1,6 @@
 # Clara Integrations & AI Capabilities Enhancement Roadmap
 
-**Status:** Proposed planning artifact — implementation not authorized by this document alone  
+**Status:** Owner-authorized implementation in progress  
 **Date:** 2026-10-09  
 **Scope:** Clara AI Platform integrations, provider configuration, tool execution, AI agent capabilities, realtime voice, observability, and administration.
 
