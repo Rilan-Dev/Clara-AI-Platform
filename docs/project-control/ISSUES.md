@@ -1917,3 +1917,6 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Current disposition | All concrete import specifiers exposed in the three supplied build logs have source corrections recorded. Build after the latest correction remains unverified; issue is not executable-PASS/resolved. |
 | Follow-on disposition | Five remaining imports changed to extensionless paths. Issue remains source-corrected with post-change build verification pending. |
 | Architect review status | Source corrections recorded; post-change build not reviewed or claimed. |
+
+
+| 2026-10-09 Docker follow-on | The supplied build then failed resolving `./files-service.js` from `runtime/runner-helpers.ts`; the matching source file is `files-service.ts`. Corrected the dynamic import to extensionless `./files-service` in `bda45fd90379154e098d39076823829d2b741bd7`. I-092 remains open pending a subsequent build. |
