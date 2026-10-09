@@ -850,7 +850,7 @@ export function EmailTemplatesPanel() {
                   ) : (
                     <ul className="mt-3 space-y-2">
                       {audit.map((a) => (
-                        <li key={a.id} className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2">
+                        <li key={a.id} className="flex min-w-0 flex-wrap items-start gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2">
                           <span
                             className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
                               a.action === "publish"
@@ -862,7 +862,7 @@ export function EmailTemplatesPanel() {
                           >
                             {a.action}
                           </span>
-                          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={a.subject}>
+                          <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] text-xs text-muted-foreground" title={a.subject}>
                             {a.subject}
                           </span>
                           <span className="shrink-0 text-[11px] text-muted-foreground/70">{formatDate(a.createdAt)}</span>
