@@ -105,3 +105,14 @@ If shared memory conflicts with current repository state or current requirements
 - **Remedy:** Diagnose each deployment path against its exact branch/commit and route application/build defects to FIX-01; do not change Vercel infrastructure or weaken Docker/npm reproducibility.
 - **Prevention:** Always inspect the actual deployed ref and latest build stage before relying on prior incident records.
 - **Related record:** EVT-OPS-003; EVT-OPS-004; HANDOFF-OPS-20261009-02.
+
+
+### FIX-01 / 2026-10-09 — Follow-on webpack sibling import failures
+- **Date/session:** 2026-10-09 / SESSION-FIX-20261009-02
+- **Agent:** FIX-01 / Sentinel
+- **Issue/symptom:** Docker's Next.js 16.4.0 webpack build still reported unresolved `credential-vault.js`, `execution-authorization.js`, `runner-helpers.js`, and `error-normalization.js` imports after an earlier five-import correction.
+- **Root cause:** Three runtime files still used explicit `.js` suffixes for sibling modules implemented as TypeScript source: `connections-manager.ts`, `runner-core.ts`, and `runner-fetch.ts`. The import traces exposed the exact remaining specifiers.
+- **Failed approach:** The prior correction only addressed the five imports shown in the earlier build log; it did not cover newly exposed sibling imports in the dependency chain. Re-running Docker without source changes cannot fix resolution.
+- **Remedy:** Converted the five remaining relative imports in those three files to extensionless paths, matching the already established local webpack convention.
+- **Prevention:** When a module-resolution build error moves deeper through the import graph, inspect each exact failing specifier and its source extension; don't assume the previous batch covered the whole dependency chain.
+- **Related record:** `connections-manager.ts`, `runner-core.ts`, `runner-fetch.ts`; commits `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`.
