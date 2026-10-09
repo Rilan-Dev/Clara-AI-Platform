@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
-import { requireAuth } from "@/modules/auth/core/rbac";
+import { requireAgentPermission, requireAuth } from "@/modules/auth/core/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -33,11 +33,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
     const auth = await requireAuth(req);
+    const stateHash = digest(state);
+    const pending = (await query<OAuthState>(
+      `SELECT org_id, agent_id, user_id, redirect_uri FROM whatsapp_oauth_states
+        WHERE state_hash = $1 AND user_id = $2 AND consumed_at IS NULL AND expires_at > now()
+        LIMIT 1`,
+      [stateHash, auth.user.id],
+    ))[0];
+    if (!pending) return NextResponse.json({ error: "Invalid, expired, or already-used WhatsApp OAuth state." }, { status: 400 });
+    const access = await requireAgentPermission(auth, pending.agent_id, "config:update");
+    if (access.orgId !== pending.org_id) return NextResponse.json({ error: "Agent does not belong to the initiating organisation." }, { status: 403 });
+    // Consume only after revalidating the initiating user's current agent permission.
     const consumed = await query<OAuthState>(
       `UPDATE whatsapp_oauth_states SET consumed_at = now()
         WHERE state_hash = $1 AND user_id = $2 AND consumed_at IS NULL AND expires_at > now()
         RETURNING org_id, agent_id, user_id, redirect_uri`,
-      [digest(state), auth.user.id],
+      [stateHash, auth.user.id],
     );
     const oauthState = consumed[0];
     if (!oauthState) return NextResponse.json({ error: "Invalid, expired, or already-used WhatsApp OAuth state." }, { status: 400 });
