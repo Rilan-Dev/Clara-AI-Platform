@@ -1957,3 +1957,21 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 
 ### I-093 follow-up — production dependency declaration
 Declared `@napi-rs/canvas@^0.1.80` directly in `package.json` and synchronized the existing locked package entry in `package-lock.json`. Commits: `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`, `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`. Runtime load and PDF extraction remain unverified.
+
+
+## I-090 — WhatsApp Business channel has no server-side connection lifecycle
+
+| Field | Value |
+|---|---|
+| Issue ID | I-090 |
+| Title | WhatsApp Business connect UI must be backed by durable Meta authorization, verified webhooks and message state |
+| Phase | Messaging / WhatsApp Business |
+| Severity | P1 |
+| Status | OPEN — implementation pending |
+| Date identified | 2026-10-09 |
+| Reporter / role | DEV-01 / Forge |
+| Finding | Agent workspace had no WhatsApp-specific connection initiation/callback, webhook verification handler, or durable inbound/message delivery state. Generic agent integrations are not a WhatsApp phone connection. |
+| Immediate correction | Added per-agent Messaging route and Connect WhatsApp Business setup dialog, surfaced through desktop and mobile agent navigation. UI explicitly remains Not connected after opening Meta. |
+| Remaining work | Implement authenticated Meta connection initiation/callback, secure WABA/phone binding with one active phone per agent, webhook challenge/signature validation, idempotent event processing, durable message/delivery state, and server-backed UI readiness. |
+| Related session | SESSION-DEV-20261009-03 |
+| Verification | Source commits returned successfully. No tests/build/runtime/live Meta verification was run or claimed. |
