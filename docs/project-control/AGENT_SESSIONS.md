@@ -276,3 +276,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Implementation:** Public/auth cards and input widths hardened; fixed Meta error classification ordering in daily briefing sender; added scheduled connection health probe with expiry/revocation gating and health-check timestamp migration.
 - **Verification:** Live DOM audit HTTP 200 for landing/login desktop and mobile presets, plus signup/forgot mobile. Browser screenshot endpoint returned upstream 502; visual verdict pending. Vitest/typecheck not run due absent local repo runtime.
 - **Next:** Route-level WhatsApp expiry/uniqueness tests, safe reconnect, ambiguous sending-run reconciliation, grounded AI briefing evaluation; continue UI audit. OPS-01 still owns the PostgreSQL missing-relations/seed incident.
+
+
+### SESSION-FIX-20261010-04 — 2026-10-10
+- **Role:** FIX-01 / Sentinel
+- **Scope:** Public pricing/checkout/signup-verification clipping audit.
+- **Implementation:** Hardened pricing card widths and feature/FAQ wrapping; checkout plan summary and payment panel shrink/wrap behavior; receipt rows and transaction reference; signup-verification content cards. Added source-contract test coverage.
+- **Verification:** No local runtime; Vitest/typecheck not run. Live DOM checks are HTTP 200 but predate latest branch commits. Screenshot service failed upstream 502; visual PASS not claimed.
+- **Next:** Finish remaining public/auth surfaces and continue WhatsApp roadmap work without external-gate polling.
