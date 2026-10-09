@@ -1709,3 +1709,13 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - **Migration log context:** Current branch tree contains one migration with prefix `063` (`063_payment_settings_category.sql`) and includes `065_platform_integration_oauth_apps.sql`. The duplicate-`063` log is therefore consistent with the running container containing an older/different migration bundle, but the image's exact source commit has not been established. The missing OAuth table is consistent with startup migrations aborting before migration 065.
 - **Not verified:** No tests, typecheck, Docker rebuild, PDF parse, database migration, deployment, or runtime recovery was run. Existing container health is not new-image evidence.
 - **Next:** Rebuild using current branch source. If the new image still reports duplicate 063, inspect the exact packaged migration directory; if PDF jobs still report DOMMatrix, add/repair the actual PDF.js canvas runtime dependency.
+
+
+## 2026-10-09 — Self-hosted DOMMatrix / PDF parser startup failure
+
+- **Observed:** Owner-provided logs show `DOMMatrix is not defined` during startup/ingest poller initialization and `@napi-rs/canvas` cannot be loaded.
+- **Source correction:** `src/modules/ingest/parsers/pdf.ts` now uses a type-only import and dynamically imports `pdf-parse` only inside the PDF parse method. Commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`.
+- **Boundary:** This prevents parser-registry import from eagerly initializing PDF.js for non-PDF startup paths; it does not prove actual PDF extraction works.
+- **Migration context:** The current branch has one migration prefix `063` and includes `065_platform_integration_oauth_apps.sql`. The duplicate-063 log likely comes from an older/different image bundle; the exact image source commit is unknown. The missing OAuth table is consistent with migrations aborting before migration 065.
+- **Not verified:** No tests, typecheck, Docker rebuild, PDF parse, database migration, deployment, or runtime recovery was run. Existing container health is not new-image evidence.
+- **Next:** Rebuild from current branch source. If duplicate 063 persists, inspect the packaged migration directory; if PDF jobs still report DOMMatrix, repair the actual PDF.js canvas runtime dependency.
