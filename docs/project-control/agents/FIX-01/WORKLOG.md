@@ -231,3 +231,13 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Verification boundary:** GitHub accepted and source was re-fetched; no local Vitest/typecheck or browser visual review performed. No PASS claimed.
 - **Database incident:** OPS-01 retains missing PostgreSQL relations and seed FK failure. No DB reset, manual schema creation or migration bypass.
 - **Next:** Continue checking analogous flex/card text layouts; execute focused test/typecheck and inspect narrow and desktop viewports when local runtime is available, without waiting for CI/Vercel.
+
+
+### SESSION-FIX-20261010-11 / 2026-10-10
+- **Task:** Continue checking similar width and truncation defects beyond the reported landing chat and OAuth form.
+- **Findings/fixes:** Email-template audit rows truncated long subject text and used a non-wrapping row; changed the row to shrink-safe wrapping and show the subject naturally. Organisation billing history truncated audit notes and used a rigid justify-between row; made it wrap and display the full note with an overflow fallback. Email variable manager rows truncated descriptions/custom values; changed them to natural wrapping while preserving the variable token and usage count.
+- **Source commits:** `src/components/admin/EmailTemplatesPanel.tsx` `67a9f793113a34494287804861e6b60eae435a19`; `src/features/admin/screens/org-billing-screen.tsx` `aaacf4c12d036ee108eeeb1d911f15d4e266ce59`; `src/components/admin/email-templates/VariablesManagerDialog.tsx` `dde58e8a6737d0619e4884f5f8d37facf05cf781`.
+- **Regression coverage:** Focused source-contract suite now has 14 tests; commit `ba188039024cc1177d420a9f56b8a8fe98c34a3c`.
+- **Verification boundary:** GitHub accepted source/test writes. Local Vitest/typecheck and mobile/desktop browser inspection remain unexecuted; no PASS claimed.
+- **Database incident:** OPS-01 remains owner of missing PostgreSQL relations and seed FK failure. No manual schema creation, reset, or migration bypass.
+- **Next:** Continue current-branch audit of remaining custom cards/overlays and inspect likely fixed-width/ellipsis patterns. Run tests/typecheck and browser review when local execution is available; don't wait on CI/Vercel.
