@@ -127,6 +127,22 @@ describe("integration action tool scope propagation", () => {
     );
   });
 
+  it("sanitizes authorization database failures instead of exposing driver errors", async () => {
+    query.mockRejectedValueOnce(new Error("secret_schema_name column password_hash missing"));
+
+    const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
+    const tool = buildIntegrationActionTool();
+
+    await expect(tool.execute(
+      { integrationId: "example", actionName: "do_work", props: {} },
+      { tenantId: "org-1", agentId: "agent-1", userId: "user-1", surface: "chat" } as never,
+    )).rejects.toMatchObject({
+      code: "AUTHORIZATION_UNAVAILABLE",
+      message: "Platform integration policy could not be verified.",
+    });
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
   it("fails closed when plan entitlement resolution fails", async () => {
     query.mockReset();
     runAction.mockReset();
