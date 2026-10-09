@@ -1,3 +1,27 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — I-6 FINAL MCP POLICY SNAPSHOT HARDENING
+
+[owner-authorized] The owner explicitly requested completion of I-6 bounded hardening and continuous progression without waiting for CI, Vercel, Gates, or continuous verification.
+
+## I-6 final source correction
+- Found and corrected a remaining async trust-boundary gap: the MCP bridge previously validated the caller-owned policy, then awaited the untrusted resolver before taking its immutable policy snapshot. A mutation during that await could change the resulting capability's authorization policy (including `requireUserId`).
+- The MCP bridge now snapshots the validated policy before any resolver await; runtime construction snapshots once before iterating requests; registration continues to bind immutable policy/descriptor/context.
+- Added regression source that mutates `requireUserId` during resolver discovery and asserts the stricter initial requirement is retained.
+- Commits: `826169686c91c5095ac5d717eb27a048c020a57a`, `6f824ce9f75e38645c6b33e06b37559977650d0a`.
+- **I-6 implementation status: COMPLETE — source changes and regression source authored.** Tests/build/CI/Vercel/Gates/deployment were not run or awaited; no executable PASS is claimed.
+
+## Next implementation — P0 OAuth connection lifecycle
+Continue the authorized `INTEGRATIONS_AI_ENHANCEMENT_ROADMAP.md`:
+1. Inspect current OAuth app configuration, integration connection schema, credential encryption, provider registry OAuth metadata, and existing callback/consent routes.
+2. Implement the smallest safe server-side OAuth state lifecycle with cryptographically random state, short expiry, one-time consumption, strict redirect URI binding, and PKCE where supported. Do not fabricate provider callback contracts or store tokens unencrypted.
+3. Persist consented connection credentials only against server-resolved organisation/user/agent provenance; never return secrets to the browser or expose tokens to model context.
+4. Add focused regression source and update project-control records after each bounded slice.
+
+The runner webpack import correction `b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd` is already committed on this branch, but the owner's pasted local build predates that correction. The source correction has not been validated by a rebuild. Do not claim the image or live OAuth endpoint is fixed.
+
+Do not wait for CI/Vercel/Gates. Do not begin production promotion or broad provider rollout.
+
+---
+
 ## 2026-10-09 — Self-hosted Next.js build blocker: runner module resolution
 
 [architect-verified] The owner supplied a Docker build log showing Next.js webpack cannot resolve five explicit .js-suffixed relative imports in src/modules/integrations/runtime/runner-core.ts. The target TypeScript modules exist, but this webpack path is failing to resolve the NodeNext-style suffixes. Updated those five imports to extensionless relative specifiers so Next's webpack resolver can select the TypeScript source files.
