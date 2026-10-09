@@ -74,6 +74,26 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(publish).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("covers account, API-key and publish-control overlays", () => {
+    const profileModal = source("../../components/admin/EditProfileModal.tsx");
+    const apiKeys = source("../../components/admin/ApiKeysManager.tsx");
+    const orgPanel = source("../../components/admin/EditOrgPanel.tsx");
+    const agentTopbar = source("../../features/admin/layouts/agent-topbar.tsx");
+    const publishMenu = source("../../features/admin/layouts/publish-menu.tsx");
+    const workspace = source("../../features/admin/screens/agent-workspace/workspace-shell.tsx");
+
+    expect(profileModal).toMatch(/max-h-\[92dvh\]/);
+    expect(profileModal).toMatch(/min-w-0/);
+    expect(apiKeys).toMatch(/max-h-\[calc\(100dvh-1rem\)\]/);
+    expect(apiKeys).toMatch(/overflow-y-auto/);
+    expect(apiKeys).not.toMatch(/break-all/);
+    expect(orgPanel).not.toMatch(/break-all/);
+    expect(agentTopbar).toMatch(/w-\[min\(20rem,calc\(100vw-2rem\)\)\]/);
+    expect(agentTopbar).not.toMatch(/break-all/);
+    expect(publishMenu).toMatch(/overflow-y-auto/);
+    expect(workspace).toMatch(/max-h-\[calc\(100dvh-1rem\)\]/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
