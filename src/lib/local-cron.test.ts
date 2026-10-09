@@ -27,5 +27,6 @@ describe("cronMatches (UTC, like Vercel Cron)", () => {
     const paths = configuredCronJobs().map((job) => job.path);
     expect(paths).toContain("/api/platform/services-status");
     expect(paths).toContain("/api/cron/onboarding-reminders");
+    expect(paths).toContain("/api/cron/whatsapp-daily-briefings");
   });
 });
