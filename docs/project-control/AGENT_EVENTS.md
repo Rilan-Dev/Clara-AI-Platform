@@ -275,3 +275,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 continued the UI audit beyond shared primitives. Organisation integration credential and platform OAuth dialogs now have viewport-bounded height, internal scrolling, shrink-safe headers/content and overflow wrapping; AI capability drawer is viewport-constrained; KB collection identifiers use readable wrapping instead of blanket `break-all`.
 - Regression test extended for these feature-specific contracts. Source commits: `51e6bb6e63558366b7965e644e0a02f61bbff951`, `1cc758978a0f89d86d8116f7217a63aa5b8f91cc`, `7934375741d50d91fc80a7615ee54dd6a7d4762e`, `3957e0e56d83fbd73ad00c27712b71a4f57d3ed6`, `13f353079f87c06d7b30d92d8cc00e180dbe1b90`.
 - No local tests/typecheck/build or browser review executed; no pass claimed. PostgreSQL missing-relation and seed FK incident remains with OPS-01; no DB changes.
+
+
+## EVT-FIX-014 — 2026-10-10 — Subscription and agent workspace overlays
+- FIX-01 corrected viewport/overflow risks in subscription manager, plan editor, billing-history drawer, publish-review dialog, and create-knowledge-base dialog. Published preview/public URLs now use natural wrapping plus overflow fallback rather than blanket `break-all`.
+- Source commits: `a6210e04a989bce8edb2cb76792411919281d54a`, `3432cfc4e242c8368516e662ad8ff483f8fc2dc4`, `0829d7de2e73804b70dcf1a5e94a5dafd852bdfb`, `de3cbeb8dd55b445e2dd41376d0a8e54386013fc`. Regression test commits: `7978dfbe315eade0624f69dc6cb00991f025d4c9`, `9ac73b5e16911336cb07aff7c855e7dba34467c0`.
+- No local tests/typecheck/build or browser visual inspection executed; no pass claimed. PostgreSQL missing relations and seed FK incident remain assigned to OPS-01; no DB changes.
