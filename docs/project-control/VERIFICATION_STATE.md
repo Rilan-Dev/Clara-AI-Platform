@@ -1,3 +1,11 @@
+## 2026-10-09 — OAuth app configuration incident: migration skip guard
+
+[architect-verified] Source change committed as `176f9f26a13152f64aae505f1d04fee750f01411`. Production/Vercel builds now fail closed when `SKIP_DB_MIGRATIONS=1` is set, rather than silently skipping schema application. Existing OAuth migration numbering correction remains in place at migration 065.
+
+- Evidence class: source inspection + committed code change only.
+- Not verified: unit tests, CI, Vercel build, live database migration state, deployment, or live endpoint recovery.
+- Do not claim the production incident is resolved until the corrected build is deployed and the OAuth configuration endpoint is confirmed working.
+
 ## ARCHITECT REVIEW — 2026-10-09 — REALTIME VOICE INTEGRATION DISPATCH
 
 [architect-verified] Source review completed against the current branch implementation and focused regression source.
