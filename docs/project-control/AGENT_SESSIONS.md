@@ -1,3 +1,17 @@
+### SESSION-DEV-20261009-02 — 2026-10-09
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Finish explicitly requested I-6 MCP bounded hardening, then continue the Integrations & AI Enhancement Roadmap without waiting for CI/Vercel/Gates.
+- **Started from:** `feature/ai-core-from-doable-source`; I-6 source completion record and owner-provided runner webpack build failure.
+- **Scope:** Complete remaining MCP policy snapshot hardening; correct OAuth state/consent/token persistence and refresh compatibility; surface safe connection health; validate credential writes at the server boundary.
+- **Status:** ACTIVE
+- **Completed:** I-6 policy is snapshotted before async resolver awaits with regression source; OAuth state migration/helper/start/callback and UI flow added; token refresh honours HEADER/BODY auth mode; connection health is surfaced without credentials; invalid OAuth/basic/custom/secret-text credential shapes are rejected.
+- **Pending:** Continue P0 connection recovery and P1 shared capability/readiness framework. Source review of failure paths is ongoing.
+- **Blockers:** No source-level blocker currently identified. Tests/build/Docker/CI/Vercel/Gates/deployment/live OAuth provider flow have not been run or awaited.
+- **Handoff:** None.
+- **Next action:** Continue bounded integration connection recovery and ensure all future capability discovery/execution still delegates to the existing Unified Tool Runtime.
+
+---
+
 # APCP Central Agent Sessions
 
 Central index of autonomous agent sessions. Each agent also maintains its own role-local WORKLOG.md and MEMORY.md.
