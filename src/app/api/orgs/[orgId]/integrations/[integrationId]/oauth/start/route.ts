@@ -68,7 +68,8 @@ export async function GET(request: NextRequest, { params }: Params): Promise<Nex
       return NextResponse.json({ error: "Platform OAuth application is not configured for this integration." }, { status: 409 });
     }
 
-    const created = createOAuthState();
+    const pkceMethod = definition.oauth2Config.pkceMethod ?? "S256";
+    const created = createOAuthState(new Date(), pkceMethod);
     const usePkce = definition.oauth2Config.pkce === true;
     await query(
       `INSERT INTO integration_oauth_states
@@ -106,7 +107,7 @@ export async function GET(request: NextRequest, { params }: Params): Promise<Nex
     }
     if (usePkce) {
       authorizationUrl.searchParams.set("code_challenge", created.codeChallenge);
-      authorizationUrl.searchParams.set("code_challenge_method", "S256");
+      authorizationUrl.searchParams.set("code_challenge_method", pkceMethod);
     }
 
     return NextResponse.redirect(authorizationUrl);
