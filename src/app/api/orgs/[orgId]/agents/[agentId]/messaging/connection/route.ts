@@ -23,11 +23,18 @@ function digest(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-function messagingUrl(origin: string, orgId: string, agentId: string, status?: string, session?: string): URL {
-  const url = new URL(`/orgs/${encodeURIComponent(orgId)}/agents/${encodeURIComponent(agentId)}/messaging`, origin);
-  if (status) url.searchParams.set("whatsapp", status);
-  if (session) url.searchParams.set("session", session);
-  return url;
+
+async function subscribeWaba(wabaId: string, token: string): Promise<boolean> {
+  try {
+    const url = new URL(`https://graph.facebook.com/v23.0/${encodeURIComponent(wabaId)}/subscribed_apps`);
+    url.searchParams.set("access_token", token);
+    const response = await fetch(url, { method: "POST", redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) return false;
+    const result: unknown = await response.json().catch(() => null);
+    return Boolean(result && typeof result === "object" && "success" in result && (result as { success?: unknown }).success === true);
+  } catch {
+    return false;
+  }
 }
 
 export async function GET(req: NextRequest, { params }: Params) {
@@ -140,7 +147,37 @@ export async function POST(req: NextRequest, { params }: Params) {
       );
       if (!inserted[0]) return NextResponse.json({ error: "The selection expired or the phone is not part of this authorization." }, { status: 400 });
       await query("UPDATE whatsapp_oauth_sessions SET selected_at = now() WHERE id = $1 AND user_id = $2", [body.sessionId, auth.user.id]);
-      return NextResponse.json({ ok: true, connectionId: inserted[0].id, webhookVerified: false, dailyBriefingReady: false });
+      const selected = (await query<{ waba_id: string; access_token: string }>(
+        `SELECT waba_id, pgp_sym_decrypt(access_token_encrypted, $3) AS access_token
+           FROM whatsapp_business_connections WHERE id = $1 AND org_id = $2`,
+        [inserted[0].id, orgId, ENCRYPTION_KEY],
+      ))[0];
+      const subscribed = selected ? await subscribeWaba(selected.waba_id, selected.access_token) : false;
+      await query(
+        `UPDATE whatsapp_business_connections SET last_error_code = $2, updated_at = now() WHERE id = $1`,
+        [inserted[0].id, subscribed ? null : "WEBHOOK_SUBSCRIBE_FAILED"],
+      );
+      return NextResponse.json({
+        ok: true, connectionId: inserted[0].id, webhookSubscribed: subscribed,
+        webhookVerified: false, dailyBriefingReady: false,
+        ...(subscribed ? {} : { warning: "Phone saved, but Meta webhook subscription failed. Retry subscription before expecting inbound messages." }),
+      });
+    }
+
+    if (body.action === "subscribe") {
+      const connection = (await query<{ id: string; waba_id: string; access_token: string }>(
+        `SELECT id, waba_id, pgp_sym_decrypt(access_token_encrypted, $3) AS access_token
+           FROM whatsapp_business_connections
+          WHERE org_id = $1 AND agent_id = $2 AND status = 'active' LIMIT 1`,
+        [orgId, agentId, ENCRYPTION_KEY],
+      ))[0];
+      if (!connection) return NextResponse.json({ error: "No active WhatsApp phone is connected." }, { status: 404 });
+      const subscribed = await subscribeWaba(connection.waba_id, connection.access_token);
+      await query(
+        `UPDATE whatsapp_business_connections SET last_error_code = $2, updated_at = now() WHERE id = $1`,
+        [connection.id, subscribed ? null : "WEBHOOK_SUBSCRIBE_FAILED"],
+      );
+      return NextResponse.json({ ok: subscribed, webhookSubscribed: subscribed }, { status: subscribed ? 200 : 502 });
     }
 
     if (body.action === "disconnect") {
