@@ -16,6 +16,9 @@ import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/reso
 import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
 import { isSupportedOpenAIRealtimeVoice } from "./openai-catalog";
 import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret } from "./openai-realtime";
+import { getAuthContext } from "@/modules/auth/core/rbac";
+import { getKbAccessContext } from "@/modules/auth/core/db";
+import { isAgentLoopEnabled, isProviderToolCallingEnabled } from "@/modules/ai-platform-core";
 
 // Legacy document mode only. Unset → no cap (provider default "inf"); the
 // spoken audio counts against this limit, so a small cap truncates answers.
@@ -33,6 +36,36 @@ const VOICE_VAD = {
 const TRANSCRIPTION_MODEL = process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL ?? "gpt-4o-mini-transcribe";
 const DEFAULT_REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-2.1-mini";
 const DEFAULT_REALTIME_VOICE = process.env.OPENAI_REALTIME_VOICE ?? "marin";
+
+const REALTIME_INTEGRATION_TOOLS = [
+  {
+    type: "function" as const,
+    name: "integration_availability",
+    description: "List integrations enabled for this organisation and agent, including connection readiness and available actions.",
+    parameters: {
+      type: "object",
+      properties: {
+        integrationId: { type: "string", description: "Optional integration identifier to inspect." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    type: "function" as const,
+    name: "integration_action",
+    description: "Execute an explicitly enabled action on a connected organisation integration. Use integration_availability first to discover valid actions.",
+    parameters: {
+      type: "object",
+      properties: {
+        integrationId: { type: "string", minLength: 1 },
+        actionName: { type: "string", minLength: 1 },
+        props: { type: "object", additionalProperties: true },
+      },
+      required: ["integrationId", "actionName"],
+      additionalProperties: false,
+    },
+  },
+] as const;
 
 export async function postRealtimeSession(request: NextRequest): Promise<NextResponse> {
   try {
@@ -57,7 +90,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       // Runs BEFORE the assistant-config lookup so plan gating is always the
       // first failure a free-plan org sees.
       const orgRows = await dbQuery<{ org_id: string }>(
-        `SELECT a.org_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
+        `SELECT a.org_id, a.id AS agent_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
         [kbId]
       );
       const orgId = orgRows[0]?.org_id ?? null;
@@ -146,7 +179,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not set on server" }, { status: 500 });
 
-    const tools = [{
+    const tools: Array<Record<string, unknown>> = [{
       type: "function" as const,
       name: "rag_search",
       description: toolDescription,
@@ -161,6 +194,23 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
         required: ["query"],
       },
     }];
+
+    // Integration tools are exposed only for an authenticated tenant member
+    // and only while both rollout flags are explicitly enabled. Tenant, agent,
+    // user and session identity are always resolved server-side.
+    if (kbId && orgId && orgRows[0]?.agent_id && isAgentLoopEnabled() && isProviderToolCallingEnabled()) {
+      const auth = await getAuthContext(request);
+      if (auth && !auth.user.isSuperAdmin) {
+        const [kbAccess] = await getKbAccessContext(kbId, auth.user.id);
+        if (
+          kbAccess?.membership &&
+          kbAccess.orgId === orgId &&
+          kbAccess.permissions.has("kb:read")
+        ) {
+          tools.push(...REALTIME_INTEGRATION_TOOLS);
+        }
+      }
+    }
 
     const realtimeSession = buildOpenAIRealtimeSession({
       model,
