@@ -109,8 +109,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       ? (exchangeJson as { access_token: string }).access_token : "";
     const expiresInValue = exchangeJson && typeof exchangeJson === "object" && "expires_in" in exchangeJson
       ? (exchangeJson as { expires_in?: unknown }).expires_in : undefined;
-    const tokenExpiresIn = typeof expiresInValue === "number" && Number.isSafeInteger(expiresInValue) &&
-      expiresInValue > 0 && expiresInValue <= 2_147_483_647 ? expiresInValue : null;
+    const expiresInNumber = typeof expiresInValue === "number" ? expiresInValue
+      : typeof expiresInValue === "string" && /^\\d+$/.test(expiresInValue) ? Number(expiresInValue) : null;
+    const tokenExpiresIn = expiresInNumber !== null && Number.isSafeInteger(expiresInNumber) &&
+      expiresInNumber > 0 && expiresInNumber <= 2_147_483_647 ? expiresInNumber : null;
     if (!accessToken || accessToken.length > 8192) return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
 
     const graphUrl = new URL("https://graph.facebook.com/v23.0/me/businesses");
