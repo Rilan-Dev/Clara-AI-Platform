@@ -1936,3 +1936,20 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Remaining risk | This isolates PDF.js from non-PDF startup paths but does not prove PDF extraction works in the current image. The reported missing `@napi-rs/canvas` and runtime `DOMMatrix` errors may still affect actual PDF parsing and require follow-up if reproduced during a PDF job. |
 | Verification | Source correction only. No tests, Docker rebuild, or PDF ingestion was run. |
 | Next action | Rebuild from the current branch; if a PDF job still fails, resolve the missing PDF.js canvas/DOMMatrix runtime dependency without weakening PDF validation or falling back to decoding binary bytes as text. |
+
+
+## I-093 — PDF parser eagerly loads browser canvas runtime during server startup
+
+| Field | Value |
+|---|---|
+| Issue ID | I-093 |
+| Title | PDF.js canvas globals can crash self-hosted startup before a PDF is parsed |
+| Phase | Self-hosted runtime reliability |
+| Severity | P1 |
+| Status | SOURCE-CORRECTED — runtime verification pending |
+| Date identified | 2026-10-09 |
+| Finding | Owner-provided logs show `DOMMatrix is not defined` during startup/ingest poller initialization. The PDF parser statically imported `PDFParse`, which eagerly evaluates the PDF.js runtime when the parser registry is loaded. |
+| Correction | Changed the import to type-only and dynamically load `pdf-parse` inside `PDFParser.parse()`. Commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`. |
+| Remaining risk | This isolates PDF.js from non-PDF startup paths but does not prove PDF extraction works. Missing `@napi-rs/canvas` and `DOMMatrix` errors may still affect actual PDF parsing. |
+| Verification | Source correction only. No tests, Docker rebuild, or PDF ingestion was run. |
+| Next action | Rebuild from the current branch; if PDF jobs still fail, resolve the actual PDF.js canvas/DOMMatrix runtime dependency without weakening PDF validation or decoding binary bytes as text. |
