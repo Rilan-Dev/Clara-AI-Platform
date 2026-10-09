@@ -86,6 +86,10 @@ export default function AgentMessagingScreen() {
         setNotice("WhatsApp Business was disconnected from this agent.");
       } else if (action === "save-briefing-recipient") {
         setNotice("Briefing recipient and opt-in saved. Enable daily briefing to include this agent in the scheduled job.");
+      } else if (action === "clear-briefing-recipient") {
+        setRecipientPhone("");
+        setRecipientOptIn(false);
+        setNotice("Briefing recipient and consent were cleared; daily briefing eligibility is disabled.");
       } else if (action === "enable-briefing") {
         setNotice("Daily briefing eligibility is enabled for this verified connection.");
       } else if (action === "disable-briefing") {
