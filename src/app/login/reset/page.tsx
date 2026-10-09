@@ -60,7 +60,7 @@ function ResetForm() {
 
   if (!token) {
     return (
-      <div className="border border-border bg-card rounded-2xl p-6 text-center shadow-sm">
+      <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-6 text-center shadow-sm [overflow-wrap:anywhere]">
         <p className="text-foreground font-medium">Reset link missing</p>
         <p className="text-sm text-muted-foreground mt-2 mb-4">
           This page needs a valid reset link from your email.
@@ -77,7 +77,7 @@ function ResetForm() {
 
   if (done) {
     return (
-      <div className="border border-border bg-card rounded-2xl p-6 text-center space-y-4 shadow-sm">
+      <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-6 text-center space-y-4 shadow-sm [overflow-wrap:anywhere]">
         <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
           <ShieldCheck className="w-6 h-6 text-emerald-600" />
         </div>
@@ -96,11 +96,11 @@ function ResetForm() {
   }
 
   return (
-    <div className="border border-border bg-card rounded-2xl p-5 sm:p-6 shadow-sm">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-6 shadow-sm [overflow-wrap:anywhere]">
+      <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">New password</label>
-          <div className="relative">
+          <div className="relative min-w-0">
             <input
               type={show ? "text" : "password"}
               value={password}
@@ -109,7 +109,7 @@ function ResetForm() {
               autoFocus
               minLength={8}
               placeholder="At least 8 characters"
-              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
+              className="block w-full min-w-0 max-w-full box-border bg-background border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
             />
             <button type="button" onClick={() => setShow(!show)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors">
@@ -137,7 +137,7 @@ function ResetForm() {
             onChange={(e) => setConfirm(e.target.value)}
             required
             placeholder="Repeat your new password"
-            className={`w-full bg-background border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none transition-colors ${
+            className={`block w-full min-w-0 max-w-full box-border bg-background border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none transition-colors ${
               confirm && confirm !== password
                 ? "border-destructive/50"
                 : "border-border focus:border-primary"
@@ -171,8 +171,8 @@ function ResetForm() {
  */
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-[100dvh] w-full min-w-0 bg-background flex items-center justify-center px-4 py-8">
+      <div className="w-full min-w-0 max-w-sm">
         <div className="text-center mb-8">
           <LogoMark className="flex w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mx-auto mb-4 shadow-lg shadow-primary/25" iconClassName="w-6 h-6 sm:w-7 sm:h-7" />
           <h1 className="text-2xl font-bold text-foreground">Choose a new password</h1>
