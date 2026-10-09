@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWhatsAppDailySummary, isValidE164Phone } from "./whatsapp-briefing";
+import { buildWhatsAppDailySummary, getWhatsAppMetaSendErrorCode, isValidE164Phone } from "./whatsapp-briefing";
 
 describe("WhatsApp briefing safeguards", () => {
   it("accepts only E.164 recipient numbers", () => {
@@ -25,4 +25,11 @@ describe("WhatsApp briefing safeguards", () => {
   it("creates a truthful empty-day digest", () => {
     expect(buildWhatsAppDailySummary("2026-10-09", [], 0)).toContain("No new inbound messages");
   });
+  it("classifies Meta authentication failures before storing the run error code", () => {
+    expect(getWhatsAppMetaSendErrorCode(401, null)).toBe("META_AUTH_OR_PERMISSION_REJECTED");
+    expect(getWhatsAppMetaSendErrorCode(403, { error: { code: 10 } })).toBe("META_AUTH_OR_PERMISSION_REJECTED");
+    expect(getWhatsAppMetaSendErrorCode(400, { error: { code: 190 } })).toBe("META_AUTH_OR_PERMISSION_REJECTED");
+    expect(getWhatsAppMetaSendErrorCode(500, null)).toBe("META_HTTP_500");
+  });
+
 });
