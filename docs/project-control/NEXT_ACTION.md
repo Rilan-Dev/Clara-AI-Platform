@@ -1,3 +1,23 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — WHATSAPP BUSINESS CONNECTION LIFECYCLE
+
+[owner-authorized] Continue the explicit DEV-01 Messaging task. The UI entry point is committed, but the account is not connected and the server-side WhatsApp lifecycle is missing.
+
+## Completed source work
+- Added `/orgs/[id]/agents/[agentId]/messaging` and the “Connect WhatsApp Business” setup dialog.
+- Added Messaging to the existing desktop agent sidebar and mobile workspace tabs; no second sidebar was added.
+- UI honestly keeps the channel “Not connected”; opening Meta Business Manager does not mark it connected.
+
+## Exact next implementation
+1. Inspect existing OAuth, encrypted connection persistence, credential-vault, and migration conventions.
+2. Implement authenticated, organisation-authorized and agent-scoped Meta WhatsApp connection initiation/callback. Persist OAuth state and selected WABA/phone identity securely; enforce one active WhatsApp Business phone per agent.
+3. Add Meta webhook challenge and signature verification, idempotent inbound event handling, and durable message/delivery state with retry-safe processing.
+4. Wire Messaging UI to server-authoritative connection/webhook health; enable daily briefing only after a verified phone exists.
+5. Add focused regression source for tenant/agent isolation, callback/state replay, webhook verification, duplicate events, and durable state transitions.
+
+Do not claim live Meta connection, webhook verification, or runtime PASS without evidence. Do not wait for CI/Vercel/Gates. Route substantial bugs to FIX-01 and deployment/infrastructure-only work to OPS-01.
+
+---
+
 # IMMEDIATE SELF-HOSTED RUNTIME FOLLOW-UP — 2026-10-09
 
 The owner-provided `clara-backend` logs exposed a runtime/image mismatch and PDF.js startup issue. Source corrections are committed, but the running image is 14 hours old and is not verified against the branch.
