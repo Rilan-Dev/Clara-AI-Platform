@@ -95,6 +95,28 @@ describe("OAuth callback", () => {
     );
   });
 
+  it("uses Basic authentication when the provider registry requires HEADER mode", async () => {
+    mocks.getIntegration.mockReturnValue({
+      id: "gmail",
+      displayName: "Gmail",
+      authType: "oauth2",
+      oauth2Config: {
+        authUrl: "https://accounts.example/authorize",
+        tokenUrl: "https://tokens.example/token",
+        scopes: ["mail.read"],
+        authorizationMethod: "HEADER",
+        pkce: false,
+      },
+    });
+
+    await GET(callbackRequest());
+    const options = mocks.fetch.mock.calls[0]?.[1] as RequestInit;
+    const headers = options.headers as Record<string, string>;
+    expect(headers.Authorization).toBe(`Basic ${Buffer.from("client-id:client-secret").toString("base64")}`);
+    expect(String(options.body)).not.toContain("client_secret");
+    expect(String(options.body)).not.toContain("client_id");
+  });
+
   it("rejects invalid or replayed state without exchanging a token", async () => {
     mocks.query.mockImplementation(async (sql: string) => sql.includes("UPDATE integration_oauth_states") ? [] : []);
     const response = await GET(callbackRequest());
