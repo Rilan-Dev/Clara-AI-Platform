@@ -1,3 +1,30 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — OAUTH CONSENT LIFECYCLE SOURCE IMPLEMENTED
+
+[owner-authorized] I-6 MCP policy snapshot hardening is complete at source level. Development has continued into the P0 OAuth connection lifecycle in the Integrations & AI Enhancement Roadmap.
+
+## OAuth lifecycle source added
+- Added migration `066_integration_oauth_states.sql` for short-lived, one-time state records bound to integration, organisation, user, optional agent, exact redirect URI, expiry, and encrypted PKCE verifier. RLS is enabled and browser roles are revoked.
+- Added cryptographic helpers to generate 256-bit URL-safe state, SHA-256 state digests, PKCE verifier/challenge, and a 10-minute expiry.
+- Added organisation-authorized OAuth start route. It checks platform enablement, organisation grant, plan entitlement, provider OAuth metadata, and platform OAuth app configuration; persists only the state digest and encrypts PKCE verifier; uses exact configured redirect URI and safe parameter precedence.
+- Added OAuth callback route. It atomically consumes unexpired state once, binds callback origin/path and current redirect config, exchanges authorization code with redirects disabled and timeout, honours HEADER/BODY client authentication and configured PKCE method, rechecks current org/platform/plan entitlement, and stores token credentials encrypted in the existing tenant-scoped connection table.
+- Organisation integrations UI now starts OAuth consent for OAuth2 integrations and reports callback outcome.
+- Added focused regression source for state/PKCE helpers, OAuth start, callback one-time state handling, encrypted persistence path, and grant revocation during consent.
+- Implementation commits include `bd7380f09ad4e56e30ab3c2a69ec416c9ef35652`, `28ecb76e96779ac0730b7c2ee1a8798b32b79777`, `23b99abe58cd82e9f6c9724787a066bb2304de99`, `da181a12e5e9d92798bd2d068a2f676eba62f2b4`, `df5217af0678b76eaa7983c66656ad8ad0b0a980`, plus subsequent PKCE, entitlement, test, and table-security corrections.
+
+## Verification disposition
+- Source and regression tests authored; tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent were not run or awaited.
+- OAuth lifecycle must not be called production-verified. The user's pasted Docker build predates runner import fix `b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd`; rebuild result is unknown.
+
+## Next bounded implementation
+1. Inspect the OAuth start/callback routes against the current runner token-refresh contract and provider metadata. Correct source-level mismatches without waiting for external gates.
+2. Add any missing regression source for provider client-auth modes, PKCE and cancellation/replay paths.
+3. Continue roadmap P0 connection health/reconnect and OAuth configuration observability only after this bounded callback slice is coherent.
+4. Keep project-control records current; no deployment or live recovery claims.
+
+Do not wait for CI/Vercel/Gates. Do not promote production or begin broad provider rollout.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — I-6 FINAL MCP POLICY SNAPSHOT HARDENING
 
 [owner-authorized] The owner explicitly requested completion of I-6 bounded hardening and continuous progression without waiting for CI, Vercel, Gates, or continuous verification.
