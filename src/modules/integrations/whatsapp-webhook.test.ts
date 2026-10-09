@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { describe, expect, it } from "vitest";
 import { constantTimeEquals, verifyMetaWebhookSignature, whatsappEventKey, whatsappOpaqueEventKey } from "./whatsapp-webhook";
 
 describe("WhatsApp webhook security helpers", () => {
