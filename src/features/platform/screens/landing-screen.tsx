@@ -175,22 +175,22 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.2, duration: 0.8 }}
-            className="mt-8 sm:mt-20 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-primary/10"
+            className="mt-8 sm:mt-20 w-full min-w-0 max-w-3xl mx-auto glass-premium rounded-3xl p-1.5 shadow-2xl shadow-primary/10"
           >
-            <div className="bg-card dark:bg-card/90 rounded-2xl overflow-hidden">
-              <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border">
+            <div className="min-w-0 max-w-full overflow-hidden rounded-2xl bg-card dark:bg-card/90">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 px-3 py-3.5 border-b border-border sm:px-5">
                 <div className="flex gap-1.5">
                   <div className="w-3 h-3 rounded-full bg-red-500/60" />
                   <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
                   <div className="w-3 h-3 rounded-full bg-green-500/60" />
                 </div>
-                <span className="text-xs text-muted-foreground ml-2 font-mono">clara — insurance-assistant</span>
-                <div className="ml-auto flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400/60">
+                <span className="min-w-0 flex-1 break-words text-xs text-muted-foreground sm:ml-2 font-mono">clara — insurance-assistant</span>
+                <div className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400/60">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
                   Connected
                 </div>
               </div>
-              <div className="p-4 sm:p-6 space-y-4 text-left">
+              <div className="min-w-0 max-w-full space-y-4 p-3 text-left sm:p-6">
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0">U</div>
                   <div className="bg-muted border border-border rounded-2xl rounded-bl-md px-3.5 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm text-foreground/80 max-w-[85%]">
@@ -200,14 +200,14 @@ export default function LandingPage() {
                 <div className="flex gap-3 justify-end">
                   <div className="bg-primary/5 dark:bg-indigo-600/15 border border-primary/20 dark:border-indigo-500/20 rounded-2xl rounded-br-md px-3.5 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm text-foreground dark:text-indigo-200/90 max-w-[85%]">
                     Yes! Per <span className="text-primary dark:text-indigo-300 font-medium">[S1] Section 4.2 — Water Damage</span>, burst pipe damage is covered up to £50,000 under your Platinum plan, subject to the £500 excess.
-                    <div className="mt-2 text-xs text-muted-foreground dark:text-indigo-300/50 flex items-center gap-1.5">
+                    <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5 break-words text-xs text-muted-foreground dark:text-indigo-300/50">
                       <FileText className="w-3 h-3" />
                       Policy-2024-Platinum.pdf · p.12
                     </div>
                   </div>
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xs text-white shrink-0 shadow-lg shadow-primary/20">C</div>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   Clara is typing…
                 </div>
