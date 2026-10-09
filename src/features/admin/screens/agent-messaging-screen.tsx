@@ -13,7 +13,7 @@ type ConnectionState = {
     id: string; wabaId: string; wabaName: string | null; phoneNumberId: string;
     displayPhoneNumber: string; verifiedName: string | null; status: string;
     webhookVerified: boolean; webhookVerifiedAt: string | null; lastWebhookAt: string | null;
-    lastErrorCode: string | null; briefingRecipientPhone: string | null; briefingRecipientOptInAt: string | null; dailyBriefingLastSentOn: string | null; updatedAt: string;
+    lastErrorCode: string | null; accessTokenExpiresAt: string | null; briefingRecipientPhone: string | null; briefingRecipientOptInAt: string | null; dailyBriefingLastSentOn: string | null; updatedAt: string;
   };
   webhook: { verified: boolean; lastEventAt: string | null };
   dailyBriefing: { enabled: boolean; ready: boolean; reason: string | null };
@@ -100,9 +100,9 @@ export default function AgentMessagingScreen() {
   }
 
   const connection = state?.connection;
-  const connected = Boolean(connection);
+  const connected = Boolean(connection && connection.status === "active");
   const ready = Boolean(state?.dailyBriefing.ready);
-  const statusLabel = !connected ? "Not connected" : connection?.webhookVerified ? "Connected · verified" : "Connected · awaiting webhook";
+  const statusLabel = !connection ? "Not connected" : connection.status !== "active" ? "Connection needs attention" : connection.webhookVerified ? "Connected · verified" : "Connected · awaiting webhook";
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-8">
@@ -242,7 +242,7 @@ export default function AgentMessagingScreen() {
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>
                 <p className="text-sm font-medium">Daily briefing</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{!ready ? state?.dailyBriefing.reason || "Briefings are disabled until the connection and webhook are verified." : state?.dailyBriefing.enabled ? "Enabled for this verified connection. The scheduled job runs daily at 03:00 UTC using the configured approved Meta template." : "Connection is verified. Enable briefing eligibility when you want this agent marked ready for scheduled delivery."}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{!ready ? state?.dailyBriefing.reason || "Briefings are disabled until the connection, webhook, and recipient consent are verified." : state?.dailyBriefing.enabled ? "Enabled for this verified connection. The scheduled job runs daily at 03:00 UTC using the configured approved Meta template." : "Connection and recipient consent are verified. Enable briefing eligibility to include this agent in the scheduled job."}</p>
                 {connection?.dailyBriefingLastSentOn && <p className="mt-1 text-xs text-muted-foreground">Last sent date (UTC): {connection.dailyBriefingLastSentOn}</p>}
               </div>
             </div>
