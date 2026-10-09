@@ -313,18 +313,18 @@ export default function SignupScreen() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background px-4 py-10 sm:py-20 flex items-start justify-center">
-      <div className="w-full max-w-lg">
+    <div className="min-h-[100dvh] w-full min-w-0 bg-background px-4 py-8 sm:py-12 md:py-20 flex items-start justify-center">
+      <div className="w-full min-w-0 max-w-lg">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <LogoMark className="w-9 h-9 rounded-xl" iconClassName="w-5 h-5" />
             <span className="font-bold text-foreground text-lg">Clara AI</span>
           </Link>
-          <h1 className="text-2xl font-black text-foreground mb-1">Create your account</h1>
-          <p className="text-muted-foreground text-sm">Choose a plan and complete your account setup securely</p>
+          <h1 className="text-2xl font-black text-foreground mb-1 break-words [overflow-wrap:anywhere]">Create your account</h1>
+          <p className="text-muted-foreground text-sm break-words [overflow-wrap:anywhere]">Choose a plan and complete your account setup securely</p>
         </div>
 
-        <div className="flex items-center gap-0 mb-8">
+        <div className="flex min-w-0 items-start gap-0 mb-8">
           {STEP_LABELS.map((label, i) => {
             const done = i < stepIndex;
             const current = i === stepIndex;
@@ -374,7 +374,7 @@ export default function SignupScreen() {
           </div>
         )}
 
-        <div className="border border-border bg-card rounded-2xl p-6">
+        <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-6 [overflow-wrap:anywhere]">
           {step === "plan" && (
             <div>
               <h2 className="text-lg font-bold text-foreground mb-1">Choose your plan</h2>
@@ -391,8 +391,8 @@ export default function SignupScreen() {
                         : "border-border bg-card hover:bg-muted/50"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div
                           className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                             form.planId === plan.id ? "border-primary" : "border-muted-foreground/60"
@@ -412,7 +412,7 @@ export default function SignupScreen() {
                           <div className="text-xs text-muted-foreground">{plan.description}</div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="min-w-0 text-left sm:text-right">
                         <div className="text-sm font-black text-foreground">{plan.price}</div>
                         <div className="text-xs text-muted-foreground/70">{plan.id === "free" ? "no payment required" : "per month"}</div>
                       </div>
@@ -452,7 +452,7 @@ export default function SignupScreen() {
                     onChange={set("fullName")}
                     placeholder="Jane Smith"
                     autoComplete="name"
-                    className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
+                    className="block w-full min-w-0 max-w-full box-border bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <div>
@@ -463,7 +463,7 @@ export default function SignupScreen() {
                     onChange={set("email")}
                     placeholder="jane@company.com"
                     autoComplete="email"
-                    className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
+                    className="block w-full min-w-0 max-w-full box-border bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 <div>
@@ -475,7 +475,7 @@ export default function SignupScreen() {
                       onChange={set("password")}
                       placeholder="At least 8 characters"
                       autoComplete="new-password"
-                      className="w-full bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
+                      className="block w-full min-w-0 max-w-full box-border bg-muted/50 border border-border rounded-xl px-4 py-3 sm:py-2.5 pr-10 text-base sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                     />
                     <button
                       type="button"
@@ -556,7 +556,7 @@ export default function SignupScreen() {
                     onChange={set("orgName")}
                     placeholder="Acme Corp"
                     autoComplete="organization"
-                    className="w-full bg-muted/50 border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
+                    className="block w-full min-w-0 max-w-full box-border bg-muted/50 border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 {form.orgName.trim() && (
