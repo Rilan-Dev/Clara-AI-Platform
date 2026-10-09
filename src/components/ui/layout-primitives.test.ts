@@ -63,6 +63,17 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(publishReview).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("keeps knowledge-base creation and published URLs overflow-safe", () => {
+    const knowledge = source("../../features/admin/screens/agent-workspace/knowledge-screen.tsx");
+    const publish = source("../../features/admin/screens/agent-workspace/publish-screen.tsx");
+
+    expect(knowledge).toMatch(/max-h-\[calc\(100dvh-1rem\)\]/);
+    expect(knowledge).toMatch(/overflow-y-auto/);
+    expect(knowledge).toMatch(/overflow-wrap:anywhere/);
+    expect(publish).not.toMatch(/break-all/);
+    expect(publish).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
