@@ -1869,109 +1869,21 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Architect review status | RESOLVED — correction directly reviewed by ChatGPT on 2026-10-08 |
 
 
-## I-090 — MCP resolver malformed descriptor could abort capability discovery
+## I-090 — WhatsApp Business channel needs complete server-side lifecycle
 
 | Field | Value |
 |---|---|
 | Issue ID | I-090 |
-| Title | MCP resolver discovery must fail closed for malformed resolved descriptors |
-| Phase | Integrations I-6 |
-| Severity | P1 |
-| Status | RESOLVED — architect source correction + regression |
-| Date identified | 2026-10-08 |
-| Reporter / role | ChatGPT — architect / implementation owner |
-| Finding | resolveMcpToolDefinition validated resolver identity and allowlist membership, but then called buildMcpToolDefinition without converting descriptor-validation failures into an unavailable capability. A resolver-supplied malformed surface policy could therefore abort MCP runtime construction instead of failing closed for that capability while allowing other valid capabilities to continue. |
-| Correction | Resolver discovery now wraps the final MCP definition construction and returns null for malformed resolver-supplied descriptors. A focused regression verifies an explicitly empty resolver-supplied surface allowlist is rejected as unavailable. |
-| Scope | src/modules/ai-platform-core/mcp-tool-bridge.ts; src/modules/ai-platform-core/mcp-tool-bridge.test.ts |
-| Correction commits | 689313f3e7b4ebc17f1dfbc2b4e5f89f9f86c847; 6281348bef1fa2da08f9d795a2785aa493697610 |
-| Related correction | 282f80f72f1950c949a3658578d7e3b21745fd81 corrected MCP runtime factory imports exposed by the same bounded source review. |
-| Verification | [architect-verified] Direct source review confirms malformed resolver descriptors now fail closed during discovery; focused regression source is present. Executable test evidence remains deferred by owner instruction. |
-| Explicit non-scope | No MCP transport/server hosting, persistence/OAuth, marketplace, billing, production promotion, broad provider rollout, or unrelated runtime refactor. |
-| Architect review status | RESOLVED — correction directly reviewed by ChatGPT on 2026-10-08 |
-
-
-## I-092 — Integration runtime TypeScript imports unresolved by Next.js webpack
-
-| Field | Value |
-|---|---|
-| Issue ID | I-092 |
-| Title | Integration runtime sibling imports must resolve in the production webpack build |
-| Phase | Integrations runtime / build reliability |
-| Severity | P1 — production image build blocker in the supplied log |
-| Status | SOURCE CORRECTED — post-change build verification pending |
-| Date identified | 2026-10-09 |
-| Reporter / role | Owner-provided Docker build log / FIX-01 Sentinel |
-| Finding | Next.js 16.4.0 webpack failed to resolve `./store.js`, `./files-service.js`, and `./connections-manager.js` from `context-builder.ts`, plus `./action-input-validation.js` and `./error-normalization.js` from `runner-core.ts`. The target TypeScript files exist in the runtime directory. |
-| Root cause | Explicit `.js` relative specifiers for TypeScript siblings were not resolved in this webpack build path. |
-| Correction scope | Only the five reported import specifiers in `src/modules/integrations/runtime/context-builder.ts` and `src/modules/integrations/runtime/runner-core.ts`; no resolver configuration or unrelated runtime logic changed. |
-| Correction commits | `ec1d0cd88d16e626ffbb9af7ed44a6b9e1320210`; `8da4ec31da847a9a024d27ad49c2ee53d67f0372` |
-| Regression protection | Existing extensionless import convention retained. The production webpack build is the meaningful integration check; no source-text-only test was added. |
-| Verification | Source updated and project-control records written. No post-change tests/typecheck/build/Docker/CI/Vercel/Gates/deployment were run or awaited. Do not mark PASS until ordinary verification provides evidence. |
-| Failed approach / prevention | Repeating the same build without source changes cannot fix resolver behavior. `docker compose up -d --no-deps` after a failed build may leave the previous image running and is not evidence of recovery. Preserve build checks. |
-| Next action | Continue the authorized P1/P2 integration-runtime roadmap in `NEXT_ACTION.md` without waiting for external gates; investigate any new build failure as a separate issue when verification is next run. |
-| Related records | EVT-FIX-003; SESSION-FIX-20261009-01; `docs/project-control/agents/FIX-01/WORKLOG.md`; `docs/project-control/VERIFICATION_STATE.md` |
-| Follow-on finding (2026-10-09) | The next owner-provided build log exposed five additional explicit `.js` sibling imports: `credential-vault.js` and `execution-authorization.js` in `connections-manager.ts`; `execution-authorization.js` and `runner-helpers.js` in `runner-core.ts`; and `error-normalization.js` in `runner-fetch.ts`. Each target exists as TypeScript source. |
-| Follow-on correction commits | `f507443805130d1068b8fe570bc0940f4e8ace1b`; `8eb329af87f1225342b10b9c299fa8163812a9eb`; `21576b8e5e3db30fd5a61325712e0d89dfe38369` |
-| Third follow-on finding (2026-10-09) | The next build reported unresolved `../registry/index.js` and `./error-normalization.js` from `execution-authorization.ts), plus `../registry/index.js`, `./credential-vault.js`, and `./runner-fetch.js` from `runner-helpers.ts`. The `./types.js` import in the same file was also converted to follow the established extensionless TypeScript import convention. |
-| Third follow-on correction commits | `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`; `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b` |
-| Current disposition | All concrete import specifiers exposed in the three supplied build logs have source corrections recorded. Build after the latest correction remains unverified; issue is not executable-PASS/resolved. |
-| Follow-on disposition | Five remaining imports changed to extensionless paths. Issue remains source-corrected with post-change build verification pending. |
-| Architect review status | Source corrections recorded; post-change build not reviewed or claimed. |
-
-
-| 2026-10-09 Docker follow-on | The supplied build then failed resolving `./files-service.js` from `runtime/runner-helpers.ts`; the matching source file is `files-service.ts`. Corrected the dynamic import to extensionless `./files-service` in `bda45fd90379154e098d39076823829d2b741bd7`. I-092 remains open pending a subsequent build. |
-## I-093 — PDF parser eagerly loads browser canvas runtime during server startup
-
-| Field | Value |
-|---|---|
-| Issue ID | I-093 |
-| Title | PDF.js canvas globals can crash self-hosted startup before a PDF is parsed |
-| Phase | Self-hosted runtime reliability |
-| Severity | P1 |
-| Status | SOURCE-CORRECTED — runtime verification pending |
-| Date identified | 2026-10-09 |
-| Reporter / role | Owner-provided Docker logs / FIX-01 Sentinel |
-| Finding | The running backend logs repeatedly report `DOMMatrix is not defined`, including ingest poller startup. The current PDF parser statically imports `PDFParse` from `pdf-parse`, which eagerly evaluates the PDF.js runtime when the parser registry is loaded. |
-| Correction | Changed the import to type-only and dynamically load `pdf-parse` inside `PDFParser.parse()`, so application startup and parser-registry discovery do not eagerly initialize PDF.js. Commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`. |
-| Remaining risk | This isolates PDF.js from non-PDF startup paths but does not prove PDF extraction works in the current image. The reported missing `@napi-rs/canvas` and runtime `DOMMatrix` errors may still affect actual PDF parsing and require follow-up if reproduced during a PDF job. |
-| Verification | Source correction only. No tests, Docker rebuild, or PDF ingestion was run. |
-| Next action | Rebuild from the current branch; if a PDF job still fails, resolve the missing PDF.js canvas/DOMMatrix runtime dependency without weakening PDF validation or falling back to decoding binary bytes as text. |
-
-
-## I-093 — PDF parser eagerly loads browser canvas runtime during server startup
-
-| Field | Value |
-|---|---|
-| Issue ID | I-093 |
-| Title | PDF.js canvas globals can crash self-hosted startup before a PDF is parsed |
-| Phase | Self-hosted runtime reliability |
-| Severity | P1 |
-| Status | SOURCE-CORRECTED — runtime verification pending |
-| Date identified | 2026-10-09 |
-| Finding | Owner-provided logs show `DOMMatrix is not defined` during startup/ingest poller initialization. The PDF parser statically imported `PDFParse`, which eagerly evaluates the PDF.js runtime when the parser registry is loaded. |
-| Correction | Changed the import to type-only and dynamically load `pdf-parse` inside `PDFParser.parse()`. Commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`. |
-| Remaining risk | This isolates PDF.js from non-PDF startup paths but does not prove PDF extraction works. Missing `@napi-rs/canvas` and `DOMMatrix` errors may still affect actual PDF parsing. |
-| Verification | Source correction only. No tests, Docker rebuild, or PDF ingestion was run. |
-| Next action | Rebuild from the current branch; if PDF jobs still fail, resolve the actual PDF.js canvas/DOMMatrix runtime dependency without weakening PDF validation or decoding binary bytes as text. |
-
-
-### I-093 follow-up — production dependency declaration
-Declared `@napi-rs/canvas@^0.1.80` directly in `package.json` and synchronized the existing locked package entry in `package-lock.json`. Commits: `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`, `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`. Runtime load and PDF extraction remain unverified.
-
-
-## I-090 — WhatsApp Business channel has no server-side connection lifecycle
-
-| Field | Value |
-|---|---|
-| Issue ID | I-090 |
-| Title | WhatsApp Business connect UI must be backed by durable Meta authorization, verified webhooks and message state |
+| Title | WhatsApp Business requires durable Meta authorization, signed webhooks, message state, and gated briefing readiness |
 | Phase | Messaging / WhatsApp Business |
 | Severity | P1 |
-| Status | OPEN — implementation pending |
+| Status | OPEN — lifecycle source slice implemented; outbound delivery and live verification pending |
 | Date identified | 2026-10-09 |
 | Reporter / role | DEV-01 / Forge |
-| Finding | Agent workspace had no WhatsApp-specific connection initiation/callback, webhook verification handler, or durable inbound/message delivery state. Generic agent integrations are not a WhatsApp phone connection. |
-| Immediate correction | Added per-agent Messaging route and Connect WhatsApp Business setup dialog, surfaced through desktop and mobile agent navigation. UI explicitly remains Not connected after opening Meta. |
-| Remaining work | Implement authenticated Meta connection initiation/callback, secure WABA/phone binding with one active phone per agent, webhook challenge/signature validation, idempotent event processing, durable message/delivery state, and server-backed UI readiness. |
-| Related session | SESSION-DEV-20261009-03 |
-| Verification | Source commits returned successfully. No tests/build/runtime/live Meta verification was run or claimed. |
+| Finding | The agent workspace initially had no WhatsApp-specific connection initiation/callback, webhook verification handler, or durable inbound/message delivery state. Generic agent integrations are not a WhatsApp phone connection. |
+| Source correction | Added migration `067_whatsapp_business_lifecycle.sql`; authenticated agent-scoped Meta OAuth initiation and one-time callback; encrypted long-lived-token session/connection storage; business/WABA/phone selection; database uniqueness constraints for one active phone per agent and one active agent per phone; WABA app subscription; webhook challenge and raw-body HMAC signature checks; transactionally deduplicated event processing; durable inbound messages/status updates; server-backed UI health; and a briefing eligibility flag guarded by verified webhook readiness. |
+| Regression/docs | Added `src/modules/integrations/whatsapp-webhook.test.ts` and `docs/deployment/whatsapp-business.md`. |
+| Implementation commits | `27ad17cb8f9bff9d0278ce4eb68900e81fe2ecfe`, `89ce8d7b23e1fadb877c41f14540aa140b2f864b`, `496db2482512d39d632ee2c95c5ec2779a466bd4`, `3b238a36890b9f6d2acb8973a4e9681d6606ce26`, `19c6401062334447277171c3e44c906809378a6d`, `a5ccba51b4ecd06bc279c9f8f67b13c34cb1dc78`, `dc8f21c4cc0ee7a614d6aa2f20402e35dbe33ee5`, `30fca3dfe1d2fc6a847cc8da7ca725a4dcf93f0c`, `392978f3df24a2656c43ed4b12241317ad1df66`. |
+| Remaining work | Implement outbound message send + provider delivery capture; implement actual scheduled daily summary generation/delivery gated by active + webhook-verified + briefing-enabled connection; token expiry/revocation/reconnect handling; focused route-level regressions. The briefing flag is eligibility/preference only and does not mean messages are scheduled or delivered. |
+| Verification | Regression source is authored but not run. No typecheck/build/Docker/CI/Vercel/deployment/live Meta OAuth/webhook/subscription was run or claimed. |
+| Related session | SESSION-DEV-20261009-04 |
