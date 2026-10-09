@@ -25,7 +25,7 @@ type ChangeValue = {
   [key: string]: unknown;
 };
 type WebhookChange = { field?: string; value?: ChangeValue };
-type WebhookPayload = { entry?: Array<{ changes?: WebhookChange[] }> };
+type WebhookPayload = { object?: string; entry?: Array<{ changes?: WebhookChange[] }> };
 
 
 async function persistEvent(input: {
@@ -120,6 +120,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   let payload: WebhookPayload;
   try {
     payload = JSON.parse(raw) as WebhookPayload;
+    if (payload.object !== "whatsapp_business_account") return NextResponse.json({ error: "Unsupported webhook object" }, { status: 400 });
   } catch {
     return NextResponse.json({ error: "Invalid webhook payload" }, { status: 400 });
   }
