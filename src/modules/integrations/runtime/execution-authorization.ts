@@ -1,8 +1,8 @@
 import { query } from "@/lib/db";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
-import { getIntegration } from "../registry/index.js";
+import { getIntegration } from "../registry";
 import type { RunActionParams } from "./types.js";
-import { integrationError } from "./error-normalization.js";
+import { integrationError } from "./error-normalization";
 
 /**
  * Re-check integration authorization at the actual execution boundary.
