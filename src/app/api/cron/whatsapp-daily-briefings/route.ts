@@ -24,6 +24,12 @@ function authorized(req: NextRequest): boolean {
   return Boolean(secret && req.headers.get("authorization") === `Bearer ${secret}`);
 }
 
+function isMetaAuthRejected(status: number, result: unknown): boolean {
+  const error = result && typeof result === "object" && "error" in result
+    ? (result as { error?: { code?: unknown } }).error : undefined;
+  return status === 401 || status === 403 || error?.code === 190 || error?.code === 102;
+}
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (ENCRYPTION_KEY.length < 32) return NextResponse.json({ error: "WhatsApp encryption is not configured" }, { status: 503 });
@@ -146,9 +152,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             `UPDATE whatsapp_daily_briefing_runs
                 SET status = 'failed', error_code = $2, updated_at = now()
               WHERE id = $1`,
-            [run.id, response.status === 401 || response.status === 403 ? "META_AUTH_OR_PERMISSION_REJECTED" : `META_HTTP_${response.status}`],
+            [run.id, authRejected ? "META_AUTH_OR_PERMISSION_REJECTED" : `META_HTTP_${response.status}`],
           );
-          if (response.status === 401 || response.status === 403) {
+          const authRejected = isMetaAuthRejected(response.status, providerResult);
+          if (authRejected) {
             await query(
               `UPDATE whatsapp_business_connections
                   SET status = 'error', daily_briefing_enabled = false, last_error_code = 'META_AUTH_OR_PERMISSION_REJECTED', updated_at = now()
