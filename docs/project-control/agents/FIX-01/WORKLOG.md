@@ -51,3 +51,13 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Failed approach:** Earlier batches corrected only the modules surfaced by earlier logs; deeper explicit suffixes remained.
 - **Lesson/prevention:** Continue tracing each fresh webpack failure through the importing file; don't infer build success from a healthy stale container.
 - **Next action:** Continue the owner-authorized roadmap in `NEXT_ACTION.md`; do not wait for CI/Vercel/Gates and do not claim PASS.
+
+
+## 2026-10-09 — OAuth token contract type alignment
+- **Symptom:** Runner refresh reads `creds.authorization_method`, but `OAuth2TokenData` omitted that property, leaving the persisted OAuth client-auth mode outside the declared contract.
+- **Root cause:** The OAuth consent/refresh contract evolved to persist HEADER/BODY mode without updating the shared runner token type.
+- **Failed approaches:** None in this slice; no runtime build was run.
+- **Remedy:** Declared optional `authorization_method?: "HEADER" | "BODY"` in `OAuth2TokenData` (commit `5d0d64c22c04c32f01a44cbb0ad95b3fee7b4921`). Optionality preserves compatibility with older token records; absent mode continues to use BODY behavior.
+- **Prevention:** Keep persisted OAuth fields and the shared token interface updated together when consent or refresh semantics change.
+- **Evidence:** Source diff/commit only. No build/test/typecheck/CI/Vercel/deployment PASS claimed.
+- **Next action:** Continue the authorized P1/P2 integration-runtime work from `NEXT_ACTION.md`; inspect existing typed tool contracts before adding idempotency and approval/policy hooks. Do not add a second executor or wait for external gates.
