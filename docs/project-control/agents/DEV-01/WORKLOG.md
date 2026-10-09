@@ -43,3 +43,17 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Blockers/dependencies:** Repository search/source inspection found no WhatsApp-specific OAuth/connect API, webhook verification route, or durable WhatsApp message persistence implementation. The UI explicitly states that opening Meta does not connect the number; connection status remains Not connected. This is a real backend capability gap, not a UI success.
 - **Lesson:** Never show “connected” just because a user was sent to an external provider. Channel UI must derive readiness from server-persisted connection and verified webhook state.
 - **Next action:** Implement the server-side Meta WhatsApp Business connection lifecycle: authenticated per-agent connect initiation, durable single-number-per-agent binding, signed/verified webhook subscription and inbound event handling, and persistent message/delivery state; then wire the UI to the real status and callback result. Do not route this to OPS-01 unless deployment/infrastructure work becomes necessary.
+
+
+### SESSION-DEV-20261009-03 / 2026-10-09
+
+- **Task:** Add a reachable WhatsApp Business Messaging entry point to the existing per-agent workspace.
+- **Authorization:** Explicit current owner task; DEV-01 / Forge.
+- **Started from:** `feature/ai-core-from-doable-source`; project-control recovered from current GitHub branch.
+- **Actions:** Added the Messaging route and screen, a Connect WhatsApp Business dialog with Meta Business Manager handoff, and Messaging links in the existing desktop agent sidebar and mobile tabs. No second sidebar added.
+- **Files:** `src/features/admin/screens/agent-messaging-screen.tsx`; `src/app/(admin)/orgs/[id]/agents/[agentId]/messaging/page.tsx`; `src/features/admin/layouts/admin-shell.tsx`; `src/features/admin/screens/agent-workspace/workspace-shell.tsx`.
+- **Commits:** `751db6158fca1b85b6f6c933ad46b45635bfeaf1`, `292e8ea5dd5f7c1548d22a196324035f933de762`, `7d0e28314af14fd1739fa1746f5855632645b4d8`, `8fe3ee7c168c0bbc0d1e837514f1e0a3cab73500`.
+- **Evidence:** GitHub source writes succeeded. Tests/typecheck/build/CI/Vercel/live Meta flow were not run or awaited.
+- **Blockers:** No WhatsApp-specific connect API, webhook verification route, or durable message persistence found. UI remains Not connected and explains that opening Meta alone does not authorize Clara.
+- **Lesson:** Never infer connected status from external navigation; readiness must come from durable server-side connection and verified webhook state.
+- **Next action:** Implement authenticated Meta connection initiation/callback, agent-scoped phone binding, webhook verification/inbound processing, durable message state, then bind UI to server state.
