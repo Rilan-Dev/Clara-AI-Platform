@@ -123,3 +123,16 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers:** No WhatsApp-specific server connection, webhook verification, or durable message-state implementation found. UI explicitly remains Not connected.
 - **Handoff:** None. Route substantial correctness/security bugs to FIX-01 and deployment/infrastructure work to OPS-01.
 - **Next action:** Implement authenticated Meta connection initiation, tenant/agent-scoped phone binding, verified webhook processing, and persistent message state; then bind UI to backend status.
+
+
+### SESSION-DEV-20261009-04 — 2026-10-09
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Continue the exact owner-authorized WhatsApp Business server-side lifecycle after the Messaging UI commit; do not redesign the UI or wait for CI/Vercel/Gates.
+- **Started from:** `feature/ai-core-from-doable-source`; project-control and DEV-01 role-local records recovered from GitHub.
+- **Scope:** Meta OAuth initiation/callback, encrypted WABA/phone binding, webhook challenge/signature and idempotent processing, durable message/delivery state, server-backed UI status, and briefing readiness gate.
+- **Status:** ACTIVE — core connection/webhook source committed; outbound messaging and scheduled briefing worker remain.
+- **Completed:** Added migration 067, authenticated per-agent OAuth start and callback, long-lived token exchange attempt, encrypted token storage, business/WABA phone selection, unique one-active-phone constraints, WABA subscription, webhook verification/signature checks, transactional dedupe and inbound message/status persistence, server-backed Messaging status, briefing eligibility gate, helper regression source, and Meta setup docs.
+- **Pending:** Outbound send/delivery capture; CRON_SECRET-protected scheduled daily summary worker gated on active + verified + briefing-enabled state; token expiry/revocation/reconnect handling; route-level regression source; normal future test/build/live Meta verification.
+- **Blockers/dependencies:** Meta server variables and Meta app callback/webhook/scopes must be configured before live use. Daily briefing flag is preference/eligibility only; no scheduled delivery is claimed.
+- **Handoff:** None. Route substantial correctness/security defects to FIX-01 and deployment/infrastructure-only work to OPS-01.
+- **Next action:** Follow `docs/project-control/NEXT_ACTION.md` and implement outbound message delivery + scheduled briefing worker. Do not poll CI/Vercel/Gates.
