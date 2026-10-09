@@ -1,3 +1,14 @@
+# CURRENT PROJECT STATE — 2026-10-09 — I-6 CLOSED AT SOURCE, OAUTH LIFECYCLE IN PROGRESS
+
+- Branch: `feature/ai-core-from-doable-source`.
+- I-6 MCP Tool Bridge: implementation complete at source level, including immutable policy snapshot before asynchronous resolver discovery. Regression source added; executable verification remains deferred.
+- Integrations & AI Enhancement Roadmap: owner-authorized and in progress.
+- P0 OAuth consent source: one-time state hash, short expiry, encrypted PKCE verifier, organisation-authorized start, atomic callback consumption, provider token exchange, encrypted connection persistence, refresh auth-mode parity, server-side credential validation, and safe connection health UI/API are implemented in source.
+- Verification status: regression sources authored; no tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent were run or awaited. No production recovery or runtime PASS is claimed.
+- Next action: continue bounded connection recovery and then P1 shared integration capability/readiness contracts. See `docs/project-control/NEXT_ACTION.md` for exact steps.
+
+---
+
 ## 2026-10-09 — Integration runner webpack import correction
 
 [architect-verified] Owner-provided self-hosted Docker output exposed five unresolved imports in src/modules/integrations/runtime/runner-core.ts. Changed the registry, credential-vault, context-builder, XRay, and runner-fetch imports from explicit .js suffixes to extensionless relative imports for Next.js webpack resolution.
