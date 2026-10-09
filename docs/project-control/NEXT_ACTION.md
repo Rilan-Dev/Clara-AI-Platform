@@ -1,3 +1,28 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — OAUTH REFRESH CONTRACT + CONNECTION HEALTH
+
+[owner-authorized] Continued the P0 OAuth lifecycle without waiting for CI, Vercel, Gates, or continuous verification.
+
+## Additional source corrections
+- OAuth token credentials now persist the registry's `authorizationMethod` as `authorization_method`.
+- The existing runner refresh path honours HEADER vs BODY client authentication, so a connection established with HTTP Basic client auth will continue to refresh correctly rather than failing after access-token expiry.
+- OAuth start now validates the registered authorization endpoint and persisted redirect URI at use time, prunes stale state records, and honors the registry PKCE method.
+- Organisation integrations API now returns only safe aggregate connection health (`connected`, `expired`, `error`, `revoked`, `disconnected`, latest update timestamp); UI surfaces expired/error status and offers reconnect.
+- Added regression source for OAuth HEADER refresh and callback mode, and expired connection health.
+- Source commits: `78e28640520922db010023a0d0804fff3c9142f7`, `fbd95c6d43b6b9bee15787785f75409111540c44`, `67abff6bb38aca66df886971a6a8f0357727e803`, `0afb5258e9d721857095078ccb2598b2a43d6d88`, `87756d3cc235ab4a356c057319e7159c8733c104`, `fcfc27207bebf75dbc1300b57a227db592fd4c47`, `a4f46d8af88a55e869f292db5ffa9cf63ed496d5`, `d84a8c1523ebcd6b7b5af04f468a01f51159648a`, `2b82214135ff5fe164eaf2fb9feafedc424f6358`.
+
+## Verification disposition
+- Tests were authored but not executed. No typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent was run or awaited.
+- The OAuth lifecycle is source-implemented, not production-verified. Runner webpack fix `b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd` remains newer than the user's pasted local build.
+
+## Next bounded implementation
+1. Continue source review of OAuth start/callback and the organisation connection API; keep token format compatible with `OAuth2TokenData` and `ensureTokenFresh`.
+2. Add any missing failure-path regressions and improve reconnect status without exposing provider response bodies or secrets.
+3. Continue P0 reliability then P1 common integration capability framework; preserve the Unified Tool Runtime and default-off rollout flags.
+
+Do not wait for CI/Vercel/Gates and do not claim live recovery.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — OAUTH CONSENT LIFECYCLE SOURCE IMPLEMENTED
 
 [owner-authorized] I-6 MCP policy snapshot hardening is complete at source level. Development has continued into the P0 OAuth connection lifecycle in the Integrations & AI Enhancement Roadmap.
