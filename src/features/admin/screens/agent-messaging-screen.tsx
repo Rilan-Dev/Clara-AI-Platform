@@ -1,22 +1,117 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowUpRight, CheckCircle2, Clock3, MessageCircle, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { ArrowUpRight, CheckCircle2, Clock3, LoaderCircle, MessageCircle, RefreshCw, ShieldCheck, Unplug } from "lucide-react";
 
-const META_WHATSAPP_MANAGER = "https://business.facebook.com/latest/whatsapp_manager/phone_numbers";
+type PhoneCandidate = {
+  businessId: string; businessName: string; wabaId: string; wabaName: string;
+  phoneNumberId: string; displayPhoneNumber: string; verifiedName: string | null;
+};
+type ConnectionState = {
+  connection: null | {
+    id: string; wabaId: string; wabaName: string | null; phoneNumberId: string;
+    displayPhoneNumber: string; verifiedName: string | null; status: string;
+    webhookVerified: boolean; webhookVerifiedAt: string | null; lastWebhookAt: string | null;
+    lastErrorCode: string | null; updatedAt: string;
+  };
+  webhook: { verified: boolean; lastEventAt: string | null };
+  dailyBriefing: { enabled: boolean; ready: boolean; reason: string | null };
+  pendingSelection: { id: string; candidates: PhoneCandidate[] } | null;
+};
 
 export default function AgentMessagingScreen() {
-  const [showSetup, setShowSetup] = useState(false);
+  const params = useParams<{ id: string; agentId: string }>();
+  const orgId = params?.id;
+  const agentId = params?.agentId;
+  const [state, setState] = useState<ConnectionState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const load = useCallback(async () => {
+    if (!orgId || !agentId) return;
+    setLoading(true);
+    setError("");
+    try {
+      const search = new URLSearchParams(window.location.search);
+      const session = search.get("session");
+      const query = session ? `?session=${encodeURIComponent(session)}` : "";
+      const response = await fetch(`/api/orgs/${encodeURIComponent(orgId)}/agents/${encodeURIComponent(agentId)}/messaging/connection${query}`, { cache: "no-store" });
+      const data = await response.json() as ConnectionState & { error?: string };
+      if (!response.ok) throw new Error(data.error || "Could not load messaging status.");
+      setState(data);
+      const callbackStatus = search.get("whatsapp");
+      if (callbackStatus === "select-phone") setNotice("Meta authorization succeeded. Select the business phone this agent should use.");
+      else if (callbackStatus === "cancelled") setNotice("Meta authorization was cancelled.");
+      else if (callbackStatus === "no-eligible-phone") setNotice("Meta authorization succeeded, but no eligible WhatsApp Business phone was returned.");
+      else if (callbackStatus === "configuration-error") setNotice("WhatsApp OAuth is not fully configured on the Clara server.");
+      else if (callbackStatus === "error") setNotice("WhatsApp authorization did not complete. You can safely try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load messaging status.");
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId, agentId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function mutate(action: string, extra: Record<string, string> = {}) {
+    if (!orgId || !agentId) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/orgs/${encodeURIComponent(orgId)}/agents/${encodeURIComponent(agentId)}/messaging/connection`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra }),
+      });
+      const data = await response.json() as { error?: string; authorizationUrl?: string; warning?: string; webhookSubscribed?: boolean };
+      if (!response.ok) throw new Error(data.error || "WhatsApp connection request failed.");
+      if (action === "connect" && data.authorizationUrl) {
+        window.location.assign(data.authorizationUrl);
+        return;
+      }
+      if (action === "select-phone") {
+        window.history.replaceState({}, "", window.location.pathname);
+        setNotice(data.warning || (data.webhookSubscribed ? "Phone connected. Waiting for the first verified webhook event before enabling daily briefings." : "Phone saved, but webhook subscription needs attention."));
+      } else if (action === "subscribe") {
+        setNotice(data.webhookSubscribed ? "Meta webhook subscription is active. Daily briefings remain locked until a signed webhook event is received." : "Meta could not confirm the webhook subscription. Check the Meta app configuration and retry.");
+      } else if (action === "disconnect") {
+        setNotice("WhatsApp Business was disconnected from this agent.");
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "WhatsApp connection request failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const connection = state?.connection;
+  const connected = Boolean(connection);
+  const ready = Boolean(state?.dailyBriefing.ready);
+  const statusLabel = !connected ? "Not connected" : connection?.webhookVerified ? "Connected · verified" : "Connected · awaiting webhook";
+  const callbackUrl = typeof window !== "undefined" ? window.location.pathname : "";
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-8">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Agent channels</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Messaging</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Connect a business messaging channel to this agent. Each agent can use one WhatsApp Business phone number.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Agent channels</p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight">Messaging</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Connect one WhatsApp Business phone to this agent. Connection and readiness are read from Clara’s server, not browser state.
+          </p>
+        </div>
+        <button type="button" onClick={() => void load()} disabled={loading || busy} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted disabled:opacity-50">
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh status
+        </button>
       </header>
+
+      {notice && <div role="status" className="rounded-lg border border-border bg-muted/40 p-3 text-sm">{notice}</div>}
+      {error && <div role="alert" className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>}
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card">
         <div className="flex flex-wrap items-start gap-4 border-b border-border p-5 md:p-6">
@@ -28,88 +123,90 @@ export default function AgentMessagingScreen() {
               <h2 className="text-lg font-semibold">WhatsApp Business</h2>
               <span className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground">Meta Cloud API</span>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              One WhatsApp Business phone per agent, with verified webhooks and durable message state.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">One active phone per agent, encrypted credentials, signed webhooks and durable message/delivery state.</p>
+            {connection && <p className="mt-2 text-sm font-medium">{connection.displayPhoneNumber}{connection.verifiedName ? ` · ${connection.verifiedName}` : ""}</p>}
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />
-            Not connected
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${ready ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-emerald-500" : "bg-muted-foreground/70"}`} />
+            {loading ? "Loading status…" : statusLabel}
           </span>
         </div>
 
         <div className="grid gap-6 p-5 md:grid-cols-[1fr_250px] md:p-6">
           <div className="space-y-4">
-            <h3 className="font-medium">Connect a business number</h3>
+            <h3 className="font-medium">{connected ? "Business number" : "Connect a business number"}</h3>
             <p className="text-sm leading-6 text-muted-foreground">
-              Start in Meta Business Manager to select the business and phone number you want to use. The number must be eligible for the WhatsApp Business Platform.
+              {connected
+                ? `Connected to ${connection?.wabaName || "a WhatsApp Business Account"}. Inbound processing and daily briefings stay gated until a signed event verifies the webhook path.`
+                : "Authorize Clara with Meta, then choose the WhatsApp Business Account and phone number to bind to this agent."}
             </p>
-            <button
-              type="button"
-              onClick={() => setShowSetup(true)}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              <MessageCircle className="h-4 w-4" aria-hidden="true" />
-              Connect WhatsApp Business
-            </button>
-            <p className="text-xs leading-5 text-muted-foreground">
-              You’ll keep this agent workspace open while you prepare the Meta business account.
-            </p>
+            {!connected && (
+              <button type="button" onClick={() => void mutate("connect")} disabled={busy || loading} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                Connect WhatsApp Business
+              </button>
+            )}
+            {connected && !connection?.webhookVerified && (
+              <button type="button" onClick={() => void mutate("subscribe")} disabled={busy} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+                {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Retry webhook subscription
+              </button>
+            )}
+            {connected && (
+              <button type="button" onClick={() => { if (window.confirm("Disconnect this WhatsApp phone from the agent?")) void mutate("disconnect"); }} disabled={busy} className="ml-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+                <Unplug className="h-4 w-4" /> Disconnect
+              </button>
+            )}
+            <p className="text-xs leading-5 text-muted-foreground">OAuth state is single-use and time-limited. Access tokens are encrypted server-side; they are never sent to the browser.</p>
+            {state?.pendingSelection && (
+              <div className="space-y-3 rounded-xl border border-border p-4">
+                <h3 className="font-medium">Choose a WhatsApp Business phone</h3>
+                <p className="text-sm text-muted-foreground">Select one phone to bind to this agent. Only accounts returned by Meta for this authorization are selectable.</p>
+                {state.pendingSelection.candidates.map((candidate) => (
+                  <div key={candidate.phoneNumberId} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/40 p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{candidate.displayPhoneNumber}</p>
+                      <p className="text-xs text-muted-foreground">{candidate.businessName} · {candidate.wabaName}{candidate.verifiedName ? ` · ${candidate.verifiedName}` : ""}</p>
+                    </div>
+                    <button type="button" onClick={() => void mutate("select-phone", { sessionId: state.pendingSelection!.id, phoneNumberId: candidate.phoneNumberId })} disabled={busy || connected} className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+                      Use this phone
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {callbackUrl && null}
           </div>
 
           <aside className="space-y-3 rounded-xl bg-muted/40 p-4">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>
-                <p className="text-sm font-medium">Verified webhooks</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Inbound events must pass Meta’s verification challenge and signature checks.</p>
+                <p className="text-sm font-medium">Webhook health</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{state?.webhook.verified ? `Verified by a signed Meta event${state.webhook.lastEventAt ? ` · last event ${new Date(state.webhook.lastEventAt).toLocaleString()}` : ""}.` : "Waiting for a valid signed Meta webhook event. Invalid signatures are rejected."}</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>
-                <p className="text-sm font-medium">Durable message state</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Delivery and inbound-message status should survive refreshes and retries.</p>
+                <p className="text-sm font-medium">Message and delivery state</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Inbound message IDs and delivery updates are stored idempotently so Meta retries do not create duplicate records.</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>
                 <p className="text-sm font-medium">Daily briefing</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Scheduled summaries can be delivered after a number is connected.</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{ready ? "Verified connection is ready for the briefing capability." : state?.dailyBriefing.reason || "Briefings are disabled until the connection and webhook are verified."}</p>
               </div>
             </div>
+            {connection?.lastErrorCode && <p className="rounded-md border border-amber-500/30 p-2 text-xs text-muted-foreground">Connection issue: {connection.lastErrorCode}</p>}
+            <a href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-4">
+              Meta developer app settings <ArrowUpRight className="h-3 w-3" />
+            </a>
           </aside>
         </div>
       </section>
-
-      {showSetup && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowSetup(false); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="whatsapp-setup-title" className="w-full max-w-lg rounded-2xl border border-border bg-background p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 id="whatsapp-setup-title" className="text-lg font-semibold">Start WhatsApp Business setup</h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">Open Meta Business Manager and confirm that the business and phone number are ready for the WhatsApp Business Platform.</p>
-              </div>
-              <button type="button" onClick={() => setShowSetup(false)} className="rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-muted" aria-label="Close setup dialog">✕</button>
-            </div>
-            <ol className="my-5 list-decimal space-y-2 pl-5 text-sm leading-6">
-              <li>Select the Meta business portfolio and WhatsApp Business Account.</li>
-              <li>Confirm the phone number and required business verification.</li>
-              <li>Return to Clara to finish authorization and verify webhook delivery.</li>
-            </ol>
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-5 text-muted-foreground">
-              Connection handoff is not yet backed by a Clara-side Meta OAuth/webhook endpoint. Opening Meta does not connect a number or change this status; the server-side connection flow must be completed before messages or daily briefings can be enabled.
-            </div>
-            <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={() => setShowSetup(false)} className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
-              <a href={META_WHATSAPP_MANAGER} target="_blank" rel="noreferrer" onClick={() => setShowSetup(false)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
-                Open Meta Business Manager <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   );
 }
