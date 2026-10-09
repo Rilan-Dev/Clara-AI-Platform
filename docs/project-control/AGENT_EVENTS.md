@@ -293,3 +293,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 corrected viewport bounds on the fullscreen system-prompt editor, removed destructive truncation from the workspace creation CopyField, and added overflow-safe layout to embed API-key display/edit UI. Added regression source-contract coverage (9 tests total).
 - Source commits: `f08a22b362f8e8f22a2f6ae4a54cc24920699308`, `df664109eb702e46d412fa0de782254ea926926a`, `902957dfec2c9c5c10a9a52e463e63be180b5439`; test commit `90e99a0b25907f4501c0d05e5c8b3662b1d348fb`.
 - No local test/typecheck/build or browser visual inspection performed; no pass claimed. PostgreSQL issue remains with OPS-01.
+
+
+## EVT-FIX-017 — 2026-10-10 — Status diagnostics and identifiers
+- FIX-01 removed destructive `break-all` formatting from AI-provider error cards and the Qdrant collection identifier, and removed truncation from the organisation ID in workspace facts. Source-contract suite now contains 10 tests.
+- Source commits: `be2d3984232c7245bac1213fa749fa0d1f7a4866`, `6e418d2144b44070d4ae7f6703512dc4a200f553`, `515355ef503c0874e53ffa58106b9a097fa52e85`; test commit `294b17f5f5f7f4dac75f89c70f6608fc8cce4deb`.
+- No local execution or browser visual inspection; no PASS claimed. OPS-01 continues to own the PostgreSQL incident.
