@@ -99,3 +99,15 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Pending:** No post-correction Docker build or tests executed; compilation is unverified.
 - **Related commits:** `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`, `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`.
 - **Next:** Continue `NEXT_ACTION.md` without waiting for CI/Vercel/Gates; do not claim build PASS.
+
+
+### SESSION-FIX-20261009-04 — 2026-10-09
+- **Agent:** FIX-01 / Sentinel
+- **Invocation:** Diagnose user-provided `docker compose ps` and backend logs, correct confirmed startup failure source, and persist evidence/next action.
+- **Started from:** `feature/ai-core-from-doable-source`; existing backend container age was 14 hours.
+- **Scope:** Migration error classification, PDF.js startup failure, cron configuration warning, and OAuth schema symptom.
+- **Status:** HANDOFF
+- **Completed:** Corrected eager PDF.js runtime loading in `src/modules/ingest/parsers/pdf.ts` (commit `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`). Confirmed the current branch has a single 063 migration and includes migration 065, so the existing container's duplicate-063 log cannot be attributed to the current branch tree without inspecting the image.
+- **Pending:** Rebuild and inspect the actual packaged migration set; verify PDF parsing with the production runtime dependency; set `CRON_SECRET` in the self-hosted environment if the three local cron jobs are intended to run.
+- **Blockers:** No current-image build or runtime verification was performed; the running container is not known to contain current source.
+- **Next action:** Continue the authorized roadmap in `docs/project-control/NEXT_ACTION.md` without waiting for CI/Vercel/Gates; treat the next Docker build and any new runtime errors as separate evidence.
