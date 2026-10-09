@@ -118,3 +118,12 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** FIX-01
 - **Next action:** Continue roadmap implementation without waiting for CI/Vercel/gates; if a later ordinary build is run, diagnose its actual next result.
 - **Commits:** `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`, `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`.
+
+
+## EVT-FIX-006 — OAuth token contract typing
+- **Date:** 2026-10-09
+- **Role:** FIX-01 / Sentinel continuation
+- **Finding:** `ensureTokenFresh()` branches on persisted `authorization_method` to retain OAuth HEADER vs BODY client authentication, but `OAuth2TokenData` did not declare the field.
+- **Correction:** Added optional `authorization_method?: "HEADER" | "BODY"` to the token data contract. No runtime behavior changed; persisted legacy records without the field retain the existing BODY fallback.
+- **Commit:** `5d0d64c22c04c32f01a44cbb0ad95b3fee7b4921`
+- **Verification:** Source-only; no build, test, typecheck, Docker, CI, Vercel, gate, or deployment result is claimed.
