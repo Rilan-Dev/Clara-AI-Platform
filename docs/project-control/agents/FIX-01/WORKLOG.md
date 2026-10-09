@@ -189,3 +189,13 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Verification boundary:** GitHub accepted source/test writes. No local checkout/runtime or browser was available; focused Vitest, `npm run type-check`, and mobile/desktop visual inspection remain unexecuted. No PASS claimed.
 - **Database incident:** OPS-01 retains ownership of missing PostgreSQL relations and seed organisation FK failure. No DB reset, manual table creation, or migration bypass.
 - **Next:** Continue targeted source audit of remaining bespoke overlays and card grids. Run focused Vitest/typecheck and inspect representative mobile/desktop layouts when local execution is available; do not wait on CI/Vercel to continue source work.
+
+
+### SESSION-FIX-20261010-07 / 2026-10-10
+- **Task:** Continue targeted source audit on the current feature branch, focusing on cards and long diagnostic/identifier values.
+- **Findings/fixes:** System Status AI-provider error cards used `break-all`, making diagnostics difficult to read; changed both instances to natural word wrapping with an overflow fallback. Workspace Facts truncated the Organisation ID; changed it to wrap so the complete identifier remains visible. The Knowledge Base detail collection card still had a separate `break-all` instance despite the earlier audit; replaced it with natural wrapping and a final overflow fallback.
+- **Source commits:** `src/features/admin/screens/system-status-screen.tsx` `be2d3984232c7245bac1213fa749fa0d1f7a4866`; `src/features/admin/screens/org-settings-screen.tsx` `6e418d2144b44070d4ae7f6703512dc4a200f553`; `src/features/admin/screens/kb-detail-screen.tsx` `515355ef503c0874e53ffa58106b9a097fa52e85`.
+- **Regression coverage:** Expanded `src/components/ui/layout-primitives.test.ts` to 10 source-contract tests; commit `294b17f5f5f7f4dac75f89c70f6608fc8cce4deb`.
+- **Verification boundary:** Source writes accepted by GitHub; no local Vitest/typecheck/build or browser visual inspection available/performed. No PASS claimed.
+- **Database incident:** OPS-01 retains ownership of missing PostgreSQL relations and the seed organisation FK failure. No manual table creation, database reset or migration bypass.
+- **Next:** Continue auditing bespoke dialogs/cards, including organization billing confirmation and other long-value summaries. Run focused Vitest/typecheck and representative mobile/desktop checks when local execution becomes available; continue without waiting for CI/Vercel.
