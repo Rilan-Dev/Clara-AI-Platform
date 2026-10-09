@@ -258,7 +258,7 @@ export default function AgentMessagingScreen() {
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>
                 <p className="text-sm font-medium">Daily briefing</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{!ready ? state?.dailyBriefing.reason || "Briefings are disabled until the connection, webhook, and recipient consent are verified." : state?.dailyBriefing.enabled ? "Enabled for this verified connection. The scheduled job runs daily at 03:00 UTC using the configured approved Meta template." : "Connection and recipient consent are verified. Enable briefing eligibility to include this agent in the scheduled job."}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{!ready ? state?.dailyBriefing.reason || "Briefings are disabled until the connection, webhook, and recipient consent are verified." : state?.dailyBriefing.enabled ? "Enabled for this verified connection. The scheduled job checks every 15 minutes and sends at most once per UTC date using the configured approved Meta template." : "Connection and recipient consent are verified. Enable briefing eligibility to include this agent in the scheduled job."}</p>
                 {connection?.dailyBriefingLastSentOn && <p className="mt-1 text-xs text-muted-foreground">Last sent date (UTC): {connection.dailyBriefingLastSentOn}</p>}
               </div>
             </div>
