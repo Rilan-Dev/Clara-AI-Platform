@@ -99,10 +99,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const graphUrl = new URL("https://graph.facebook.com/v23.0/me/businesses");
     graphUrl.searchParams.set("fields", "id,name,owned_whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}");
     graphUrl.searchParams.set("limit", "100");
-    graphUrl.searchParams.set("access_token", accessToken);
     let graphResponse: Response;
     try {
-      graphResponse = await fetch(graphUrl, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(12_000) });
+      graphResponse = await fetch(graphUrl, { method: "GET", headers: { Authorization: `Bearer ${accessToken}` }, redirect: "manual", signal: AbortSignal.timeout(12_000) });
     } catch {
       return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
     }
