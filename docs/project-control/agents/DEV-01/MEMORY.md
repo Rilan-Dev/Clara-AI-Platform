@@ -43,3 +43,13 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Remedy:** Add Messaging to the existing agent sidebar and mobile tabs and keep status Not connected until a server-side Meta connection lifecycle exists.
 - **Prevention:** UI state must be backed by durable tenant/agent-scoped connection state and verified webhook status; external provider navigation is setup guidance only.
 - **Related record:** SESSION-DEV-20261009-03; commits 751db6158fca1b85b6f6c933ad46b45635bfeaf1, 292e8ea5dd5f7c1548d22a196324035f933de762, 7d0e28314af14fd1739fa1746f5855632645b4d8, 8fe3ee7c168c0bbc0d1e837514f1e0a3cab73500.
+
+
+- **Date/session:** 2026-10-09 / SESSION-DEV-20261009-03
+- **Agent:** DEV-01 / Forge
+- **Issue/symptom:** Agent workspace had no Messaging navigation path or WhatsApp Business connection action; no WhatsApp-specific connect API, webhook verifier, or durable message store was found.
+- **Root cause:** Generic agent integrations grant AI tool access; that is not a WhatsApp phone connection.
+- **Failed approach:** Treating an external Meta page visit as a completed WhatsApp connection would falsely imply account authorization and webhook readiness.
+- **Remedy:** Add Messaging to the existing sidebar/mobile navigation and keep the channel Not connected until a server-side Meta connection lifecycle exists.
+- **Prevention:** UI readiness must be backed by durable tenant/agent-scoped connection state and verified webhook status.
+- **Related record:** SESSION-DEV-20261009-03; commits 751db6158fca1b85b6f6c933ad46b45635bfeaf1, 292e8ea5dd5f7c1548d22a196324035f933de762, 7d0e28314af14fd1739fa1746f5855632645b4d8, 8fe3ee7c168c0bbc0d1e837514f1e0a3cab73500.
