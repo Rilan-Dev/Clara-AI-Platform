@@ -104,3 +104,18 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Evidence:** Commit `039847f0c6cd8496dcdeec163eb087b366f52f9b`. Owner logs remain evidence from a running image of unknown source commit. No tests/build/DB operations executed.
 - **Lesson:** A migration failure that is logged and swallowed must not be followed by DB consumers that assume the schema is ready. Keep HTTP available for diagnosis but gate background DB workloads.
 - **Next action:** Rebuild current branch; inspect fresh migration output. If duplicate 063 persists, inspect the packaged migration directory. If the organisation FK failure persists, capture current seed stage output before modifying seed/data.
+
+
+### SESSION-FIX-20261010-01 / 2026-10-10
+- **Task:** Investigate missing PostgreSQL relations and correct shared popup/dialog width and text wrapping.
+- **Authorization:** Explicit owner request to recover state, trace root cause first, make the smallest authorized correction, add regression protection where appropriate, and record findings; no unrelated scope.
+- **Started from:** `feature/ai-core-from-doable-source`; user-provided PostgreSQL logs dated 2026-10-08.
+- **Actions:** Read shared AGENT_MEMORY and central events/sessions/issues/verification/handoff/backlog plus FIX-01 memory/worklog and current phase/next action. Inspected `src/instrumentation.node.ts`, `src/lib/db/migrate.ts`, `src/lib/db/seed/production.ts`, and shared dialog/card primitives. Confirmed current instrumentation has a fail-closed `schemaReady` guard for local cron, ingest and subscription workers; current historical DB logs cannot establish whether the running image contained that correction. Fixed shared dialog dimensions and text layout.
+- **Files/code:** `src/components/ui/dialog.tsx`.
+- **Evidence:** Commit `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`. Current source inspection only for database path. No browser UI test, test suite, typecheck, build, Docker rebuild, migration, or runtime log comparison was run.
+- **Root cause:** DB errors consistent with pollers/seed running against an incomplete schema; likely stale runtime image or migration failure, not proven on the current branch. UI layout issue was in shared DialogContent width/height/overflow and min-width/text wrapping behavior.
+- **Failed approaches:** No manual schema creation/database reset; no unrelated migration/seed rewrite; no per-page modal overrides.
+- **Remedy:** Viewport-relative dialog width and max height, vertical scrolling, shrink-safe layout, and robust wrapping for long content. Existing migration readiness guard retained.
+- **Lesson:** Missing-relation logs are not fixed until the running image and migration status are tied to the current source; do not hand-create tables. Shared primitive fixes cover more screens than scattered CSS patches.
+- **Blockers/dependencies:** Current runtime image SHA and migration output not provided; UI behavior not visually verified.
+- **Next action:** Continue current roadmap. At next ordinary runtime verification, record image SHA + migration status and check whether the missing relations persist; inspect representative dialogs at narrow widths and with long text.
