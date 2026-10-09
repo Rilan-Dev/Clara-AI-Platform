@@ -1,3 +1,16 @@
+## 2026-10-09 — Self-hosted Next.js build blocker: runner module resolution
+
+[architect-verified] The owner supplied a Docker build log showing Next.js webpack cannot resolve five explicit .js-suffixed relative imports in src/modules/integrations/runtime/runner-core.ts. The target TypeScript modules exist, but this webpack path is failing to resolve the NodeNext-style suffixes. Updated those five imports to extensionless relative specifiers so Next's webpack resolver can select the TypeScript source files.
+
+- Source correction: b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd
+- Scope: registry index, credential vault, context builder, XRay, and runner fetch imports in the integration runner.
+- No Docker build, CI, Vercel build, Gate, or continuous verification was run or awaited after this correction.
+- The user's current container remains healthy on the previously built image; this source commit is not evidence that the new image has built or been deployed.
+
+Next implementation: continue the active integrations runtime work from the roadmap/project-control records, resolving any further concrete source blockers without waiting for external gates.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — INTEGRATIONS & AI ENHANCEMENT IMPLEMENTATION
 
 [owner-authorized] The user authorized proceeding with the Integrations & AI Enhancement Roadmap. This supersedes earlier stop/await text for the bounded work below, but does not authorize production promotion or claims of live recovery.
