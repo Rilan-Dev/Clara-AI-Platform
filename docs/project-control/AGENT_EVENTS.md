@@ -368,3 +368,7 @@ Added `src/app/api/cron/whatsapp-connection-health/route.test.ts` for CRON_SECRE
 - Messaging now gives an explicit reconnect affordance and explains that briefing eligibility remains disabled for unhealthy saved connections until the connection and webhook are healthy. Regression source added.
 - Daily briefing cron now quarantines stale `sending` runs with no provider message ID after 30 minutes as terminal `SEND_OUTCOME_UNKNOWN`, raises attempt_count to the retry limit, and avoids an automatic resend that could duplicate a message. Route regression source covers this condition.
 - Commits: `ab9a776eced829f8e88847d1c42a72170a70f8e3`, `2ab69e96434de51baadd8ebfaad6a85e563ffe97`, `afe11cf0ff1a95e4e6524f2e02b90cc168f785fb`, `3d506bf3e91734e9b9851702e0651dcc2d6c49cf`. Tests/typecheck not run; no provider delivery PASS claimed.
+
+
+## EVT-FIX-20261010-07 — Public contact card audit
+The public contact page now uses shrink-safe layout wrappers, bounded card width and border-box form controls. Added regression coverage. Commits: `59a671286a55ff04bd34ba41003c5db015b5afa2`, `518c238d84e93f4d214e0ff802c9b317fd834e01`. Runtime tests/typecheck and screenshot-based visual verification remain pending.
