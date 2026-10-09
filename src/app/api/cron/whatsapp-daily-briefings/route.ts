@@ -184,7 +184,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       } catch {
         // Never log access tokens or provider response bodies. A "sending" run is not retried automatically because Meta may have accepted it before a network failure.
         await query(
-          `UPDATE whatsapp_daily_briefing_runs SET status = 'failed', error_code = 'SEND_OR_PERSIST_FAILED', updated_at = now() WHERE id = $1 AND status = 'sending'`,
+          `UPDATE whatsapp_daily_briefing_runs SET error_code = 'SEND_OR_PERSIST_FAILED', updated_at = now() WHERE id = $1 AND status = 'sending'`,
           [run.id],
         ).catch(() => []);
         failed++;
