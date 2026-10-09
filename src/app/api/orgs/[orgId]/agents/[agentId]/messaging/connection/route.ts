@@ -52,9 +52,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       id: string; waba_id: string; waba_name: string | null; phone_number_id: string;
       display_phone_number: string; verified_name: string | null; status: string;
       webhook_verified: boolean; webhook_verified_at: string | null; last_webhook_at: string | null;
-      last_error_code: string | null; daily_briefing_enabled: boolean; updated_at: string;
+      last_error_code: string | null; daily_briefing_enabled: boolean; briefing_recipient_phone: string | null; briefing_recipient_opt_in_at: string | null; daily_briefing_last_sent_on: string | null; updated_at: string;
     }>(`SELECT id, waba_id, waba_name, phone_number_id, display_phone_number, verified_name,
-              status, webhook_verified, webhook_verified_at, last_webhook_at, last_error_code, daily_briefing_enabled, updated_at
+              status, webhook_verified, webhook_verified_at, last_webhook_at, last_error_code, daily_briefing_enabled, briefing_recipient_phone, briefing_recipient_opt_in_at, daily_briefing_last_sent_on, updated_at
          FROM whatsapp_business_connections WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
          ORDER BY updated_at DESC LIMIT 1`, [orgId, agentId]))[0] ?? null;
 
@@ -69,7 +69,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       ))[0];
       if (row) pending = row;
     }
-    const ready = Boolean(connection && connection.status === "active" && connection.webhook_verified);
+    const connectionReady = Boolean(connection && connection.status === "active" && connection.webhook_verified);
+    const ready = Boolean(connectionReady && connection?.briefing_recipient_phone && connection?.briefing_recipient_opt_in_at);
     return NextResponse.json({
       connection: connection ? {
         id: connection.id, wabaId: connection.waba_id, wabaName: connection.waba_name,
@@ -77,10 +78,20 @@ export async function GET(req: NextRequest, { params }: Params) {
         verifiedName: connection.verified_name, status: connection.status,
         webhookVerified: connection.webhook_verified, webhookVerifiedAt: connection.webhook_verified_at,
         lastWebhookAt: connection.last_webhook_at, lastErrorCode: connection.last_error_code,
+        briefingRecipientPhone: connection.briefing_recipient_phone,
+        briefingRecipientOptInAt: connection.briefing_recipient_opt_in_at,
+        dailyBriefingLastSentOn: connection.daily_briefing_last_sent_on,
         updatedAt: connection.updated_at,
       } : null,
       webhook: { verified: connection?.webhook_verified ?? false, lastEventAt: connection?.last_webhook_at ?? null },
-      dailyBriefing: { enabled: Boolean(ready && connection?.daily_briefing_enabled), ready, reason: ready ? null : "Connect a WhatsApp Business phone and verify webhook delivery first." },
+      dailyBriefing: {
+        enabled: Boolean(ready && connection?.daily_briefing_enabled),
+        ready,
+        reason: !connectionReady ? "Connect a WhatsApp Business phone and verify webhook delivery first."
+          : !connection?.briefing_recipient_phone || !connection?.briefing_recipient_opt_in_at
+            ? "Add an opted-in recipient before enabling daily briefings."
+            : null,
+      },
       pendingSelection: pending,
     });
   } catch (err) {
@@ -97,7 +108,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const auth = await requireAuth(req);
     const access = await requireAgentPermission(auth, agentId, "config:update");
     if (access.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
-    const body = await req.json().catch(() => ({})) as { action?: string; sessionId?: string; phoneNumberId?: string };
+    const body = await req.json().catch(() => ({})) as { action?: string; sessionId?: string; phoneNumberId?: string; recipientPhone?: string; optIn?: boolean };
     if (body.action === "connect") {
       const appId = process.env.META_APP_ID?.trim();
       const callbackOrigin = resolvePublicOrigin(req);
@@ -167,15 +178,33 @@ export async function POST(req: NextRequest, { params }: Params) {
       });
     }
 
+    if (body.action === "save-briefing-recipient") {
+      const phone = body.recipientPhone?.trim() ?? "";
+      if (!/^\\+[1-9]\\d{7,14}$/.test(phone) || body.optIn !== true) {
+        return NextResponse.json({ error: "Enter a valid E.164 phone number and confirm the recipient's opt-in." }, { status: 400 });
+      }
+      const saved = await query<{ id: string }>(
+        `UPDATE whatsapp_business_connections
+            SET briefing_recipient_phone = $3, briefing_recipient_opt_in_at = now(),
+                daily_briefing_enabled = false, updated_at = now()
+          WHERE org_id = $1 AND agent_id = $2 AND status = 'active' AND webhook_verified = true
+          RETURNING id`,
+        [orgId, agentId, phone],
+      );
+      if (!saved[0]) return NextResponse.json({ error: "Save the briefing recipient only after the WhatsApp connection and webhook are verified." }, { status: 409 });
+      return NextResponse.json({ ok: true, recipientPhone: phone, optedIn: true });
+    }
+
     if (body.action === "enable-briefing") {
       const enabled = await query<{ id: string }>(
         `UPDATE whatsapp_business_connections
             SET daily_briefing_enabled = true, updated_at = now()
           WHERE org_id = $1 AND agent_id = $2 AND status = 'active' AND webhook_verified = true
+            AND briefing_recipient_phone IS NOT NULL AND briefing_recipient_opt_in_at IS NOT NULL
           RETURNING id`,
         [orgId, agentId],
       );
-      if (!enabled[0]) return NextResponse.json({ error: "Daily briefings require an active phone and a verified webhook." }, { status: 409 });
+      if (!enabled[0]) return NextResponse.json({ error: "Daily briefings require an active verified phone and an opted-in recipient." }, { status: 409 });
       return NextResponse.json({ ok: true, enabled: true });
     }
 
