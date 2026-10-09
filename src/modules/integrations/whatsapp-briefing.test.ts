@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWhatsAppDailySummary, getWhatsAppMetaSendErrorCode, isValidE164Phone } from "./whatsapp-briefing";
+import { buildWhatsAppDailySummary, classifyWhatsAppGraphHealth, getWhatsAppMetaSendErrorCode, isValidE164Phone } from "./whatsapp-briefing";
 
 describe("WhatsApp briefing safeguards", () => {
   it("accepts only E.164 recipient numbers", () => {
@@ -32,4 +32,12 @@ describe("WhatsApp briefing safeguards", () => {
     expect(getWhatsAppMetaSendErrorCode(500, null)).toBe("META_HTTP_500");
   });
 
+  it("distinguishes revoked permissions from transient Graph API failures", () => {
+    expect(classifyWhatsAppGraphHealth(200, { id: "123" })).toBe("healthy");
+    expect(classifyWhatsAppGraphHealth(200, { data: [] })).toBe("unavailable");
+    expect(classifyWhatsAppGraphHealth(400, { error: { code: 190 } })).toBe("rejected");
+    expect(classifyWhatsAppGraphHealth(400, { error: { code: 10 } })).toBe("rejected");
+    expect(classifyWhatsAppGraphHealth(429, { error: { code: 4 } })).toBe("unavailable");
+    expect(classifyWhatsAppGraphHealth(503, null)).toBe("unavailable");
+  });
 });
