@@ -130,7 +130,7 @@ export function EmbedApiKeyPanel() {
 
       {/* Current key display */}
       <div className="rounded-xl border border-border bg-card p-5 space-y-4 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground/70">Current Key</span>
             {info?.isSet ? (
