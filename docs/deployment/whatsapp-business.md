@@ -31,7 +31,7 @@ Do not commit values to the repository, place secrets in `NEXT_PUBLIC_*` variabl
 3. The authenticated agent owner selects a phone returned by that authorization. Unique indexes enforce one active phone per agent and prevent one active phone ID from being assigned to two agents.
 4. Clara subscribes the selected WABA to the app. The public webhook GET validates Meta's challenge; POST verifies `X-Hub-Signature-256` over the exact raw request body before processing.
 5. Webhook event keys and provider message IDs are unique. Inbound messages and delivery-status transitions are persisted transactionally; retries do not create duplicate event/message rows.
-6. Messaging status and webhook health come from server state. Daily briefing eligibility cannot be enabled unless the active connection has received a valid signed webhook event. Disconnect clears the briefing flag.
+6. Messaging status and webhook health come from server state. The authenticated UI can probe WABA access against Meta; a rejected token/permission marks the connection unhealthy and disables briefing eligibility. Daily briefing eligibility cannot be enabled unless the active connection has received a valid signed webhook event and a recipient opt-in is recorded. Disconnect clears the briefing flag and recipient consent.
 
 ## Scheduled daily briefing worker
 
