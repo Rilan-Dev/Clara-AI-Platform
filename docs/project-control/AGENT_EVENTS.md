@@ -176,3 +176,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** DEV-01
 - **Suggested next action:** Implement authenticated Meta WhatsApp connection lifecycle and durable webhook/message state; bind UI status to server truth.
 - **Related records:** SESSION-DEV-20261009-03; `docs/project-control/NEXT_ACTION.md`; `src/features/admin/screens/agent-messaging-screen.tsx`.
+
+
+### EVT-DEV-004 — 2026-10-09
+- **Agent/session:** DEV-01 / SESSION-DEV-20261009-04
+- **Type:** CORRECTION
+- **Summary:** Advanced WhatsApp Business from UI-only to a source-level server lifecycle: agent-authorized Meta OAuth with one-time state, encrypted token/session persistence, one-active-phone constraints, WABA subscription, raw-body HMAC verification, idempotent transactional webhook event processing, durable inbound message/status rows, and server-backed connection/briefing readiness. The daily briefing flag remains eligibility/preference only; no outbound sender or scheduled summary worker exists yet.
+- **Impact:** Product capability/security boundary improved; live provider behavior and runtime correctness remain unverified.
+- **Owner:** DEV-01
+- **Suggested next action:** Implement outbound message sending and provider delivery persistence, then a `CRON_SECRET`-protected daily summary worker that only selects active, webhook-verified, briefing-enabled connections. Add route-level regression source for tenant isolation, OAuth replay, phone uniqueness, and briefing gating.
+- **Related records:** I-090; SESSION-DEV-20261009-04; `src/lib/db/migrations/067_whatsapp_business_lifecycle.sql`; `src/app/api/whatsapp/oauth/callback/route.ts`; `src/app/api/webhooks/whatsapp/route.ts`; `docs/deployment/whatsapp-business.md`.
