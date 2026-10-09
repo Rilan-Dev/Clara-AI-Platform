@@ -43,5 +43,5 @@ Do not commit values to the repository, place secrets in `NEXT_PUBLIC_*` variabl
 ## Current boundaries / follow-up
 
 - The scheduled sender is source-implemented, but no actual scheduled run, provider send, or delivery has been verified. An enabled preference is not proof that a message was delivered.
-- The connection token is long-lived where Meta's exchange succeeds, but token expiry/revocation monitoring and reconnect scheduling remain follow-up work.
+- When Meta returns `expires_in`, the token expiry is persisted and expired connections are marked unhealthy with briefing eligibility disabled. Revocation/permission-health probes and reconnect scheduling remain follow-up work; a missing provider expiry value remains unknown.
 - No live Meta OAuth consent, webhook challenge, WABA subscription, runtime, build, or test execution is claimed. Regression source exists for webhook signature/idempotency and briefing helpers; run normal verification when next appropriate without blocking independent development.
