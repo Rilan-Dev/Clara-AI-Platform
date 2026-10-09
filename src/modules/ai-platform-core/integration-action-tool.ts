@@ -89,7 +89,16 @@ export function buildIntegrationActionTool(): ToolDefinition {
         props: input.props,
       });
       if (!result.success) {
-        throw new ToolExecutionError("EXECUTION_FAILED", result.error ?? `Integration action failed: ${input.actionName}`);
+        throw new ToolExecutionError(
+          "EXECUTION_FAILED",
+          result.error ?? `Integration action failed: ${input.actionName}`,
+          {
+            integrationId: input.integrationId,
+            actionName: input.actionName,
+            ...(result.errorCode ? { runnerErrorCode: result.errorCode } : {}),
+            ...(result.retryable !== undefined ? { retryable: result.retryable } : {}),
+          },
+        );
       }
       return result.output;
     },
