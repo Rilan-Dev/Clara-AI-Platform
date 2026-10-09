@@ -116,3 +116,13 @@ If shared memory conflicts with current repository state or current requirements
 - **Remedy:** Converted the five remaining relative imports in those three files to extensionless paths, matching the already established local webpack convention.
 - **Prevention:** When a module-resolution build error moves deeper through the import graph, inspect each exact failing specifier and its source extension; don't assume the previous batch covered the whole dependency chain.
 - **Related record:** `connections-manager.ts`, `runner-core.ts`, `runner-fetch.ts`; commits `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`.
+
+
+### FIX-01 / 2026-10-09 — Third webpack import-resolution pass
+- **Date/session:** 2026-10-09 / SESSION-FIX-20261009-03
+- **Issue/symptom:** The next owner-provided Docker build exposed five further unresolved imports in `execution-authorization.ts` and `runner-helpers.ts`: registry index, error normalization, credential vault, runner fetch, and runtime types.
+- **Root cause:** These files retained explicit `.js` suffixes for TypeScript source imports; the registry import used an explicit `../registry/index.js` despite the actual registry being `src/modules/integrations/registry/index.ts`.
+- **Failed approach:** Correcting only import statements reported in previous webpack output left deeper dependency imports unresolved. The newly pasted build was run against the prior correction state and did not include this newest correction.
+- **Remedy:** Changed only the six remaining explicit `.js` import specifiers in the two affected files to extensionless paths.
+- **Prevention:** Follow each fresh webpack import trace to the importing file and compare the resolved target path and extension; do not stop at the first layer or treat an old running container as proof.
+- **Related record:** `execution-authorization.ts`, `runner-helpers.ts`; commits `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`, `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`; I-092.
