@@ -35,7 +35,7 @@ Do not commit values to the repository, place secrets in `NEXT_PUBLIC_*` variabl
 
 ## Scheduled daily briefing worker
 
-- `src/app/api/cron/whatsapp-daily-briefings/route.ts` is registered in `vercel.json` for **03:00 UTC daily**. Self-hosted `local-cron` reads the same schedule from `vercel.json` and requires `CRON_SECRET`.
+- `src/app/api/cron/whatsapp-daily-briefings/route.ts` is registered in `vercel.json` every 15 minutes (UTC), selecting up to three eligible connections per invocation and sending each connection at most once per UTC date. Self-hosted `local-cron` reads the same schedule from `vercel.json` and requires `CRON_SECRET`.
 - The job selects only active connections with `webhook_verified=true`, `daily_briefing_enabled=true`, a recipient number, and a recorded opt-in. It rechecks the gate immediately before sending.
 - Configure an approved Meta template named by `WHATSAPP_DAILY_BRIEFING_TEMPLATE_NAME` whose body contains one text parameter `{{1}}`. The worker sends a deterministic digest of inbound message excerpts from the previous 24 hours as that template parameter; it is not yet an LLM-generated conversation summary.
 - `whatsapp_daily_briefing_runs` records the unique connection/date run and result. Outbound provider message IDs and statuses are persisted in `whatsapp_messages`; signed Meta status webhooks update delivery state. Ambiguous network/persistence outcomes are left in `sending` with an error code rather than retried automatically, to avoid duplicate sends.
