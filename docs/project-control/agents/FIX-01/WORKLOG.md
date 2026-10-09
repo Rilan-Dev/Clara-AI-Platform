@@ -220,3 +220,14 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Verification boundary:** GitHub source and test writes accepted and re-fetched. Local Vitest/typecheck and browser visual inspection remain unexecuted; no runtime/layout PASS claimed.
 - **Database incident:** OPS-01 retains PostgreSQL missing relations and seed FK failure; no manual table creation, reset or migration bypass.
 - **Next:** Continue auditing similar flex-contained text and custom dialogs across the current branch. Execute focused tests/typecheck and inspect mobile/desktop when local execution is available; do not wait for CI/Vercel.
+
+
+### SESSION-FIX-20261010-10 / 2026-10-10
+- **Task:** Follow the reported width defect into other user-facing conversation surfaces and fix equivalent bubble layouts.
+- **Additional finding:** The live agent conversation had the same pattern: welcome/assistant and user message bubbles relied on percentage max-widths inside flex rows, with no minimum-width reset or long-token overflow fallback. Assistant response wrapper used `max-w-[90%]` and user bubbles used `max-w-[85%]`, which could conflict with intrinsic long text and narrow viewport space.
+- **Fix:** Added `min-w-0` to conversation rows, bounded the welcome and assistant bubbles to the space remaining after the avatar, and applied natural wrapping/overflow fallback to welcome, user, and assistant text. Removed the old unbounded percentage-only bubble constraints.
+- **Source commit:** `src/features/agent-conversation/components/conversation-chat-window.tsx` `ef49a5a4d13409be85f325f0644e65c2259326b4`.
+- **Regression coverage:** Added a thirteenth source-contract test for live conversation bubble bounds; commit `c42cb59fc726985dc6ad71ecb1626233b0c9c8ca`.
+- **Verification boundary:** GitHub accepted and source was re-fetched; no local Vitest/typecheck or browser visual review performed. No PASS claimed.
+- **Database incident:** OPS-01 retains missing PostgreSQL relations and seed FK failure. No DB reset, manual schema creation or migration bypass.
+- **Next:** Continue checking analogous flex/card text layouts; execute focused test/typecheck and inspect narrow and desktop viewports when local runtime is available, without waiting for CI/Vercel.
