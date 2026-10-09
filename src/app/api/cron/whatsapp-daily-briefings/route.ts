@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, withTransaction } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
+import { buildWhatsAppDailySummary } from "@/modules/integrations/whatsapp-briefing";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -20,18 +21,6 @@ type BriefingConnection = {
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
   return Boolean(secret && req.headers.get("authorization") === `Bearer ${secret}`);
-}
-
-function buildSummary(date: string, messages: Array<{ from_phone: string | null; body: string | null; message_type: string }>): string {
-  const header = `Clara daily WhatsApp briefing · ${date}\n${messages.length} inbound message(s) in the last 24 hours.`;
-  if (messages.length === 0) return `${header}\nNo new inbound messages were received.`.slice(0, 950);
-  const lines = messages.slice(0, 24).reverse().map((message) => {
-    const sender = message.from_phone || "Unknown contact";
-    const excerpt = (message.body || `[${message.message_type} message]`).replace(/\s+/g, " ").trim().slice(0, 120);
-    return `• ${sender}: ${excerpt}`;
-  });
-  const omitted = messages.length - lines.length;
-  return `${header}\n${lines.join("\n")}${omitted > 0 ? `\n…and ${omitted} earlier message(s).` : ""}`.slice(0, 950);
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -62,13 +51,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     let failed = 0;
     let skipped = 0;
     for (const connection of connections) {
-      const messages = await query<{ from_phone: string | null; body: string | null; message_type: string }>(
-        `SELECT from_phone, body, message_type FROM whatsapp_messages
-          WHERE connection_id = $1 AND direction = 'inbound' AND created_at >= now() - interval '24 hours'
-          ORDER BY created_at DESC LIMIT 30`,
-        [connection.id],
-      );
-      const summary = buildSummary(briefingDate, messages);
+      const [messages, countRows] = await Promise.all([
+        query<{ from_phone: string | null; body: string | null; message_type: string }>(
+          `SELECT from_phone, body, message_type FROM whatsapp_messages
+            WHERE connection_id = $1 AND direction = 'inbound' AND created_at >= now() - interval '24 hours'
+            ORDER BY created_at DESC LIMIT 30`,
+          [connection.id],
+        ),
+        query<{ total: number }>(
+          `SELECT COUNT(*)::int AS total FROM whatsapp_messages
+            WHERE connection_id = $1 AND direction = 'inbound' AND created_at >= now() - interval '24 hours'`,
+          [connection.id],
+        ),
+      ]);
+      const summary = buildWhatsAppDailySummary(briefingDate, messages, countRows[0]?.total ?? messages.length);
       const run = (await query<{ id: string }>(
         `INSERT INTO whatsapp_daily_briefing_runs
            (connection_id, briefing_date, recipient_phone, status, summary_text, attempt_count, started_at, updated_at)
