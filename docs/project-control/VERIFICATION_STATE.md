@@ -1701,3 +1701,11 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - **Source correction:** Changed the dynamic import to `./files-service`; commit `bda45fd90379154e098d39076823829d2b741bd7`.
 - **Not verified:** No post-correction Docker build, tests, typecheck, CI, Vercel, deployment, or new-image runtime check. The old container remained healthy, but the failed build means that does not verify this source.
 - **Disposition:** I-092 remains open; no executable PASS is claimed. Continue authorized work without waiting for external gates.
+## 2026-10-09 — Self-hosted DOMMatrix / PDF parser startup failure
+
+- **Observed:** User-provided logs from the existing `clara-backend` container show `DOMMatrix is not defined` during startup/ingest poller initialization, plus a warning that optional `@napi-rs/canvas` cannot be loaded.
+- **Source correction:** `src/modules/ingest/parsers/pdf.ts` now uses a type-only import and dynamically imports `pdf-parse` only inside the actual PDF parse method. Commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`.
+- **Expected boundary:** This prevents parser registry import from eagerly initializing PDF.js for non-PDF startup paths; it is not proof that PDF extraction itself now works.
+- **Migration log context:** Current branch tree contains one migration with prefix `063` (`063_payment_settings_category.sql`) and includes `065_platform_integration_oauth_apps.sql`. The duplicate-`063` log is therefore consistent with the running container containing an older/different migration bundle, but the image's exact source commit has not been established. The missing OAuth table is consistent with startup migrations aborting before migration 065.
+- **Not verified:** No tests, typecheck, Docker rebuild, PDF parse, database migration, deployment, or runtime recovery was run. Existing container health is not new-image evidence.
+- **Next:** Rebuild using current branch source. If the new image still reports duplicate 063, inspect the exact packaged migration directory; if PDF jobs still report DOMMatrix, add/repair the actual PDF.js canvas runtime dependency.
