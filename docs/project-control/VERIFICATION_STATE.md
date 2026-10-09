@@ -1719,3 +1719,8 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - **Migration context:** The current branch has one migration prefix `063` and includes `065_platform_integration_oauth_apps.sql`. The duplicate-063 log likely comes from an older/different image bundle; the exact image source commit is unknown. The missing OAuth table is consistent with migrations aborting before migration 065.
 - **Not verified:** No tests, typecheck, Docker rebuild, PDF parse, database migration, deployment, or runtime recovery was run. Existing container health is not new-image evidence.
 - **Next:** Rebuild from current branch source. If duplicate 063 persists, inspect the packaged migration directory; if PDF jobs still report DOMMatrix, repair the actual PDF.js canvas runtime dependency.
+
+
+### Follow-up — explicit canvas runtime dependency
+- Declared `@napi-rs/canvas@^0.1.80` as a direct production dependency and added it to the root lockfile dependency set. Commits: `3f1b5db3fdf5b009e05ca5b03ae197cc26af9338`, `9fa3a134e4492de0ba8ab2f323a3df1e7984b85b`.
+- This addresses the missing package declaration indicated by the log; it does not establish that the native canvas module loads correctly in the self-hosted image or that PDF extraction succeeds.
