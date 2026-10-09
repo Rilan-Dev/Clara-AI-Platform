@@ -660,8 +660,8 @@ export default function AnalyticsScreen() {
                     <div key={org.org_id} className="px-4 py-4">
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{org.org_name}</p>
-                          <p className="text-[11px] text-muted-foreground/80 font-mono truncate">{org.org_slug}</p>
+                          <p className="break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">{org.org_name}</p>
+                          <p className="break-words [overflow-wrap:anywhere] text-[11px] font-mono text-muted-foreground/80">{org.org_slug}</p>
                         </div>
                         <span className="shrink-0 text-[11px] px-2 py-0.5 rounded-full font-medium capitalize"
                           style={{ backgroundColor: `${PLAN_COLOR[org.plan_id] ?? "#6366f1"}20`, color: PLAN_COLOR[org.plan_id] ?? "#6366f1" }}>
@@ -679,7 +679,7 @@ export default function AnalyticsScreen() {
                           ["Latency", org.avg_latency ? `${org.avg_latency}ms` : "—"],
                         ].map(([label, value]) => (
                           <div key={label as string} className="rounded-lg bg-muted/50 px-2 py-1.5 text-center">
-                            <div className="text-[13px] font-semibold text-foreground truncate">{value}</div>
+                            <div className="break-words [overflow-wrap:anywhere] text-[13px] font-semibold text-foreground">{value}</div>
                             <div className="text-[11px] text-muted-foreground/70">{label}</div>
                           </div>
                         ))}
