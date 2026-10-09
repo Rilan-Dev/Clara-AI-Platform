@@ -1,3 +1,13 @@
+## 2026-10-09 — OAuth configuration migration fail-closed guard
+
+[architect/ChatGPT] Continued the reported Gmail OAuth application configuration failure with a bounded deployment-safety correction.
+
+- Updated `scripts/migrate.ts` so `SKIP_DB_MIGRATIONS=1` is rejected in production and Vercel environments; the command sets a failing exit code rather than silently publishing an application with potentially missing schema.
+- Commit: `176f9f26a13152f64aae505f1d04fee750f01411`.
+- Existing OAuth schema migration correction remains at `065_platform_integration_oauth_apps.sql` and avoids the duplicate migration number that blocked migration startup.
+- No tests, CI, Vercel build, live database query, deployment, or endpoint smoke test was run/awaited. Root cause on the live production database remains unconfirmed; deployment and migration execution are still required for runtime recovery.
+- The session cookie supplied in the diagnostic curl was not copied into logs or repository content.
+
 ## 2026-10-08 — I-6 resolution-context mutation hardening
 
 [architect/ChatGPT] Continued the owner-authorized I-6 MCP Tool Bridge implementation without waiting for GitHub Actions, Vercel, Gate-C, Gate-D, or continuous verification.
