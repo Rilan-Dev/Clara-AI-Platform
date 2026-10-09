@@ -636,10 +636,49 @@ export function useOpenAIRealtime(opts?: Options) {
     async (toolCall: { id: string; name?: string; arguments?: string }) => {
       if (!toolCall?.id) return;
       const name = toolCall?.name || "";
-      if (name !== "rag_search") return;
+      const isIntegrationTool =
+        name === "integration_availability" || name === "integration_action";
+      if (name !== "rag_search" && !isIntegrationTool) return;
 
       try {
         const args = toolCall.arguments ? JSON.parse(toolCall.arguments) : {};
+        if (isIntegrationTool) {
+          // Public embeds never receive integration tool descriptors and cannot
+          // invoke this authenticated workspace endpoint with an embed key.
+          const kbIdVal = (kbId || "").trim();
+          if (opts?.embedApiKey || !kbIdVal) {
+            throw new Error("Integration tools require an authenticated workspace voice session.");
+          }
+          const res = await fetch(apiUrl("/api/realtime/tool"), {
+            method: "POST",
+            headers: withAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ kbId: kbIdVal, toolName: name, arguments: args }),
+          });
+          const payload = await res.json().catch(() => ({})) as {
+            error?: string;
+            outcome?: { ok?: boolean; data?: unknown; error?: { code?: string; message?: string } };
+          };
+          if (!res.ok || !payload.outcome || typeof payload.outcome.ok !== "boolean") {
+            throw new Error(payload.error || "Realtime integration tool execution failed.");
+          }
+          const output = payload.outcome.ok
+            ? payload.outcome.data
+            : {
+                error: payload.outcome.error?.message || "The integration tool was denied.",
+                code: payload.outcome.error?.code || "EXECUTION_FAILED",
+              };
+          sendJSON({
+            type: "conversation.item.create",
+            item: {
+              type: "function_call_output",
+              call_id: toolCall.id,
+              output: JSON.stringify(output ?? null),
+            },
+          });
+          sendJSON({ type: "response.create" });
+          return;
+        }
+
         const q = String(args.query || "").trim();
         const docId = String(args.documentId || documentId || "").trim();
         const kbIdVal = (kbId || "").trim();
@@ -730,7 +769,7 @@ export function useOpenAIRealtime(opts?: Options) {
         });
         sendJSON({ type: "response.create" });
       } catch (err) {
-        console.error("[useOpenAIRealtime] rag_search failed:", err);
+        console.error("[useOpenAIRealtime] tool call failed:", err);
         // Return a minimal failure result so the model can handle gracefully
         try {
           sendJSON({
@@ -739,7 +778,7 @@ export function useOpenAIRealtime(opts?: Options) {
               type: "function_call_output",
               call_id: toolCall.id,
               output: JSON.stringify({
-                error: (err as Error)?.message || "rag_search failed",
+                error: (err as Error)?.message || "Tool execution failed.",
               }),
             },
           });
