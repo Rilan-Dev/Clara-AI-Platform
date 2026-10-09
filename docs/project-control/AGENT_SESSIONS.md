@@ -250,3 +250,12 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Evidence:** GitHub accepted updates; Vitest/typecheck and mobile/desktop visual inspection have not run. No runtime PASS claimed.
 - **Coordination:** Current NEXT_ACTION.md is DEV-01 WhatsApp briefing work; this UI audit is independent. OPS-01 remains owner for the PostgreSQL incident.
 - **Next:** Continue UI clipping audit, then run focused tests/typecheck and responsive browser review when local execution is available; do not wait on CI/Vercel.
+
+
+### SESSION-FIX-20261010-01 — 2026-10-10
+- **Role:** FIX-01 / Sentinel
+- **Scope:** Landing page and login-card clipping correction.
+- **Implementation:** Landing hero container now has explicit full-width/shrink-safe constraints; long hero and feature-card text wraps. Login card and inputs are width-constrained and form/password wrappers can shrink.
+- **Commits:** `4dcf32954d6e2c31ac3b022977af20dba7565e24`, `06c9343cb0cf3f8ffcc76bfacde63a22f58aeb40`; regression source update follows.
+- **Verification:** Source-only; Vitest/typecheck/browser verification not run.
+- **Pending:** Inspect the live public landing/login pages at narrow mobile and desktop widths, continue remaining auth-card audit, then continue the authorized roadmap without waiting on external gates.
