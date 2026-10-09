@@ -112,7 +112,7 @@ export function AnalyticsDashboard({ analytics }: Props) {
                 return (
                   <tr key={i} className="hover:bg-muted/10 transition-colors">
                     <td className="px-5 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
-                    <td className="px-5 py-2.5 text-foreground font-medium max-w-xs truncate">{q.queryText}</td>
+                    <td className="max-w-xs break-words [overflow-wrap:anywhere] px-5 py-2.5 font-medium text-foreground">{q.queryText}</td>
                     <td className="px-5 py-2.5 text-right tabular-nums text-foreground">{q.count}</td>
                     <td className="px-5 py-2.5 text-right tabular-nums text-muted-foreground">{pct}%</td>
                   </tr>
