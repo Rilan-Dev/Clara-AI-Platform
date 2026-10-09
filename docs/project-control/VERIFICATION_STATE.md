@@ -1,3 +1,14 @@
+## 2026-10-09 — Shared integration readiness consistency
+
+- Missing caller user/agent identity now fails closed in integration availability, action invocation, and I-4 bridge capability discovery.
+- Removed fake placeholder agent ID from availability discovery.
+- AI availability reports active/expired/error/revoked/disconnected state with safe user-facing guidance.
+- Regression source added for missing identity and expired connection status.
+- Commits: `fa5b81f6e60c453986d165b2425bbe0d299ef943`, `38dbb5b4707b4acb41f5b61d527fe2dae1f2e9c6`, `c50313256116ac7f59b34d83d2950e68df37695d`, `55932b645d4e7bb54de4a59e54447f561972de88`, `1e5f3033fa13465e5fbbd5587468cabbe3acecea`, `732eae44fec8a7aa4401fb810bd91f0fcf3d49cf`, `8fd1ab08ed89bcccc9d8f30a1bdb7e8b8e0a930a`, `e74e0de0b68f19f45b12a46629e2a035b5f3761f`, `481988f4b3febf1eefbe4aea6c86a80700d0e3fb`.
+- Regression tests were not executed; no runtime PASS is claimed.
+
+---
+
 ## 2026-10-09 — Connection health and scoped recovery
 
 - Health aggregation now includes only the current caller's credentials and organisation-shared credentials, not unrelated users' private connection records.
