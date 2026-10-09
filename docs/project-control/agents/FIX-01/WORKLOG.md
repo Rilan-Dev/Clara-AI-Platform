@@ -250,3 +250,5 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Verification boundary:** GitHub accepted the writes. Vitest, typecheck and responsive browser review remain unexecuted; no runtime PASS claimed.
 - **Database incident:** OPS-01 retains ownership of PostgreSQL missing relations and seed FK failure. No schema mutation, reset or migration bypass.
 - **Next:** Continue the current-branch audit for clipping in cards/popovers/dialogs; run focused tests/typecheck and mobile/desktop visual review when local execution is available, without waiting for CI/Vercel.
+
+- **Follow-up in same session:** A second pass found the root URL in the empty/pending web-crawl session card still used `truncate`; it now wraps safely too. Commit: `f82471c07fa9cc1a2205b71c09b0ab6470c9e130`.
