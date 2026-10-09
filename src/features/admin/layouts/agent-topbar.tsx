@@ -470,12 +470,12 @@ function PublishedUrlControl({
         <div
           role="dialog"
           aria-label="Published URL controls"
-          className="absolute right-0 top-8 z-40 w-80 rounded-2xl border border-border bg-popover p-3.5 text-popover-foreground shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute right-0 top-8 z-40 w-[min(20rem,calc(100vw-2rem))] min-w-0 rounded-2xl border border-border bg-popover p-3.5 text-popover-foreground shadow-lg animate-in fade-in slide-in-from-top-1 duration-150 [overflow-wrap:anywhere]"
         >
           <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-600/80">
             Public page
           </p>
-          <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-muted-foreground/90">
+          <p className="mt-1 break-words [overflow-wrap:anywhere] font-mono text-[11px] leading-relaxed text-muted-foreground/90">
             {publicPageUrl}
           </p>
           <div className="mt-2.5 flex items-center gap-1.5">
