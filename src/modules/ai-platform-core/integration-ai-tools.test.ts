@@ -102,6 +102,31 @@ describe("integration availability plan entitlement", () => {
     }]);
   });
 
+  it("does not advertise actions when the installed integration package cannot load", async () => {
+    resolveOrgPlanLimits.mockResolvedValue({ plan_id: "pro" });
+    query
+      .mockResolvedValueOnce([{ integration_id: "github", enabled: true, allowed_plans: ["pro"] }])
+      .mockResolvedValueOnce([{ integration_id: "github", status: "active" }]);
+    getIntegrationActions.mockRejectedValueOnce(new Error("piece package unavailable"));
+
+    const { buildIntegrationAvailabilityTool } = await import("./integration-ai-tools");
+    const tool = buildIntegrationAvailabilityTool();
+    const result = await tool.execute(
+      {},
+      { tenantId: "org-1", agentId: "agent-1", userId: "user-1", surface: "chat" } as never,
+    );
+
+    expect(result).toEqual([{
+      id: "github",
+      name: "GitHub",
+      description: "GitHub API",
+      connected: true,
+      connectionStatus: "active",
+      actions: [],
+      help: "GitHub is connected, but no supported actions could be loaded right now.",
+    }]);
+  });
+
   it("returns no capabilities when plan entitlement resolution fails", async () => {
     resolveOrgPlanLimits.mockRejectedValueOnce(new Error("database unavailable"));
 
