@@ -1,3 +1,17 @@
+## 2026-10-09 — P0 OAuth consent lifecycle source implementation
+
+[developer-reported] Added a generic authorization-code flow using the existing platform OAuth app configuration and `integration_connections` storage.
+
+- Migration `066_integration_oauth_states.sql`: state hash only, 10-minute expiry, one-time consumption marker, organisation/user/optional-agent binding, redirect URI, encrypted PKCE verifier, RLS and browser-role revocation.
+- Start route enforces authentication/org config permission, optional agent permission, platform enablement, organisation enablement, plan entitlement, OAuth2 registry metadata and configured app credentials.
+- Callback consumes state atomically, checks callback origin/path and current redirect config, disables automatic HTTP redirects for token exchange, enforces HTTPS token URL and timeout, honours client authentication mode and PKCE method, rechecks current grants/plan, and persists credentials encrypted.
+- OAuth start/callback regression source added; PKCE helper regression source added.
+- Source commits: migration `bd7380f09ad4e56e30ab3c2a69ec416c9ef35652`; helper `28ecb76e96779ac0730b7c2ee1a8798b32b79777`; start `23b99abe58cd82e9f6c9724787a066bb2304de99`; callback `da181a12e5e9d92798bd2d068a2f676eba62f2b4`; UI `df5217af0678b76eaa7983c66656ad8ad0b0a980`; subsequent hardening/tests include `a6c471a86b7afd2f131c4f0602a397af1afc2516`, `fd0665cbfea5725794a285349bf647b82272ce86`, `ef4f5e956557b5e270bf052a31405e8ec5bdcf12`, `d9b119f7260361434cdaef2d0a9ef2b303e21220`, `c442aa3afe5757ca1bc7128d827cdee4f6d73764`.
+- Not run/verified: tests, typecheck, build, Docker rebuild, CI, Vercel, Gates, deployment, live provider consent or production endpoint.
+- No executable PASS or production recovery is claimed.
+
+---
+
 ## 2026-10-09 — I-6 final async policy-snapshot correction
 
 [architect source review] The MCP bridge previously copied policy after awaiting `resolver.resolve`. Since host policy is caller-owned mutable input, an async resolver could mutate `requireUserId` before the ToolDefinition was constructed. The bridge now validates and snapshots policy before any await, and the runtime builder uses one snapshot for the whole request iteration.
