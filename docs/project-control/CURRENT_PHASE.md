@@ -1,3 +1,17 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — SHARED INTEGRATION READINESS CONSISTENCY
+
+- Unified integration availability and action tools now fail closed when caller user/agent identity is missing.
+- Removed the availability tool's placeholder agent UUID fallback.
+- AI availability now reports safe connection health state and reconnect guidance for expired/error/revoked connections.
+- The I-4 bridge enforces the same identity requirement before querying capability grants.
+- Regression source covers missing identity and expired readiness guidance.
+- Commits: `fa5b81f6e60c453986d165b2425bbe0d299ef943`, `38dbb5b4707b4acb41f5b61d527fe2dae1f2e9c6`, `c50313256116ac7f59b34d83d2950e68df37695d`, `55932b645d4e7bb54de4a59e54447f561972de88`, `1e5f3033fa13465e5fbbd5587468cabbe3acecea`, `732eae44fec8a7aa4401fb810bd91f0fcf3d49cf`, `8fd1ab08ed89bcccc9d8f30a1bdb7e8b8e0a930a`, `e74e0de0b68f19f45b12a46629e2a035b5f3761f`, `481988f4b3febf1eefbe4aea6c86a80700d0e3fb`.
+- Tests/build/Docker/CI/Vercel/Gates/deployment/live provider consent were not run or awaited.
+
+**Next:** continue source review of OAuth callback/token refresh/disconnect and the existing integration runtime error taxonomy.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — CONNECTION HEALTH + SCOPED DISCONNECT SOURCE COMPLETE
 
 - Organisation integration health now reports safe status counts and latest update time for the authenticated caller's own/shared connection scope.
