@@ -1,3 +1,32 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — REALTIME VOICE DISPATCH
+
+[architect-verified] Provider chat integration dispatch is implemented in the KB-aware chat route behind the existing default-off agent-loop and provider-tool-calling flags.
+
+### Completed in this continuation
+- Chat route exposes only `integration_availability` and `integration_action` tool descriptors when both flags are enabled and the provider implements `chatStreamWithTools`.
+- Calls run through `runBoundedAgenticLoop` and the existing `getClaraToolRuntime()`; no parallel executor or direct provider API call was introduced.
+- Execution context is minted through `createExecutionContext` from server-resolved org, KB, resolved agent, authenticated user, and optional session. Body-supplied tenant/user/agent values are not used.
+- Providers without tool-calling support retain the existing chat streaming path.
+- Implementation commit: `df124e837b49a17d1e218eca9a585a8313dbdec6`.
+- No tests, CI, Vercel build, Gate-C, or Gate-D were run or awaited.
+
+### Remaining bounded work
+1. Wire realtime voice integration tool invocation to the same authorised Unified Tool Runtime without creating a parallel executor or exposing credentials to the model.
+2. Add focused regressions for chat/voice dispatch and context propagation.
+3. Update project-control records as each implementation slice lands.
+
+### Security / rollout
+- Both chat tool-calling flags remain default-off.
+- Preserve platform → organisation → agent grants, connection readiness, plan entitlement, and user-specific credential selection.
+- No CI/Vercel/Gate waits; external verification remains deferred.
+- Do not claim OAuth consent/token exchange is implemented.
+
+**Next implementation:** inspect the current realtime voice tool invocation seam and connect supported integration tool calls to the same runtime using provenance-verified identity.
+
+**STOP:** no broad unrelated provider rollout, billing redesign, production promotion, or unrelated integrations.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — INTEGRATION RUNTIME DISPATCH
 
 [architect-verified] The active owner-authorized task is organisation integration setup plus AI access. The platform OAuth app configuration route and super-admin UI already exist; this continuation hardens their input boundary and adds focused regression coverage. The next implementation is provider-chat dispatch through the Unified Tool Runtime, followed by realtime voice dispatch through that same runtime.
