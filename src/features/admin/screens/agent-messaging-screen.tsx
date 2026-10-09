@@ -176,14 +176,26 @@ export default function AgentMessagingScreen() {
                   <input type="checkbox" checked={recipientOptIn} onChange={(event) => setRecipientOptIn(event.target.checked)} className="mt-1" />
                   <span>I confirm this recipient has explicitly opted in to receive daily WhatsApp briefings.</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => void mutate("save-briefing-recipient", { recipientPhone, optIn: recipientOptIn })}
-                  disabled={busy || !recipientOptIn || !/^\+[1-9]\d{7,14}$/.test(recipientPhone.trim())}
-                  className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
-                >
-                  Save recipient and consent
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void mutate("save-briefing-recipient", { recipientPhone, optIn: recipientOptIn })}
+                    disabled={busy || !recipientOptIn || !/^\+[1-9]\d{7,14}$/.test(recipientPhone.trim())}
+                    className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                  >
+                    Save recipient and consent
+                  </button>
+                  {connection.briefingRecipientOptInAt && (
+                    <button
+                      type="button"
+                      onClick={() => { if (window.confirm("Clear the saved recipient and withdraw briefing consent?")) void mutate("clear-briefing-recipient"); }}
+                      disabled={busy}
+                      className="rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted disabled:opacity-50"
+                    >
+                      Clear recipient / withdraw consent
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {connected && (
