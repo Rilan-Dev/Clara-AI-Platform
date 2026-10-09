@@ -2,13 +2,13 @@
 - **Agent:** DEV-01 / Forge
 - **Invocation:** Finish explicitly requested I-6 MCP bounded hardening, then continue the Integrations & AI Enhancement Roadmap without waiting for CI/Vercel/Gates.
 - **Started from:** `feature/ai-core-from-doable-source`; I-6 source completion record and owner-provided runner webpack build failure.
-- **Scope:** Complete remaining MCP policy snapshot hardening; correct OAuth state/consent/token persistence and refresh compatibility; surface safe connection health; validate credential writes at the server boundary.
+- **Scope:** Complete remaining MCP policy snapshot hardening; implement OAuth state/consent/token persistence and refresh compatibility; surface safe connection health; validate credential writes; unify integration capability policy.
 - **Status:** ACTIVE
-- **Completed:** I-6 policy is snapshotted before async resolver awaits with regression source; OAuth state migration/helper/start/callback and UI flow added; token refresh honours HEADER/BODY auth mode; connection health is surfaced without credentials; invalid OAuth/basic/custom/secret-text credential shapes are rejected.
-- **Pending:** Continue P0 connection recovery and P1 shared capability/readiness framework. Source review of failure paths is ongoing.
+- **Completed:** I-6 source implementation complete; OAuth state/start/callback and UI consent path authored; token refresh honours HEADER/BODY auth mode; safe connection health, reconnect/disconnect and server-side credential validation added; shared integration capability authorization is reused by the I-4 bridge and AI action tool; AI availability reports runtime-resolvable actions and status-aware guidance.
+- **Pending:** Continue P1/P2 typed action safety and idempotency/approval hooks through the existing Unified Tool Runtime.
 - **Blockers:** No source-level blocker currently identified. Tests/build/Docker/CI/Vercel/Gates/deployment/live OAuth provider flow have not been run or awaited.
 - **Handoff:** None.
-- **Next action:** Continue bounded integration connection recovery and ensure all future capability discovery/execution still delegates to the existing Unified Tool Runtime.
+- **Next action:** Continue bounded implementation using `docs/project-control/NEXT_ACTION.md`; do not wait for external gates and do not claim production recovery.
 
 ---
 
