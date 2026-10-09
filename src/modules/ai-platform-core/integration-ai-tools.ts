@@ -20,6 +20,9 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
       requireSessionId: false,
     },
     async execute(raw, context: PlatformExecutionContext) {
+      // Availability is identity-scoped: never use a placeholder agent ID or
+      // allow a shared connection to substitute for missing caller provenance.
+      if (!context.userId || !context.agentId) return [];
       const value = raw as { integrationId?: string };
       let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
       try {
@@ -44,7 +47,7 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
          AND pi.enabled = TRUE
         WHERE ai.agent_id = $1
           AND ai.enabled = TRUE
-      `, [context.agentId ?? "00000000-0000-0000-0000-000000000000", context.tenantId]);
+      `, [context.agentId, context.tenantId]);
       // Connection readiness is user-sensitive, so availability requires user-scoped readiness.
       const connected = await query<{integration_id:string}>(`
         SELECT DISTINCT integration_id
@@ -53,7 +56,7 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
           AND status = 'active'
           AND (agent_id = $2 OR agent_id IS NULL)
           AND (user_id = $3 OR user_id IS NULL)
-      `, [context.tenantId, context.agentId ?? null, context.userId]);
+      `, [context.tenantId, context.agentId, context.userId]);
 
       const allowed = new Set(
         rows
