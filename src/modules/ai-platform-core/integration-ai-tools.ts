@@ -49,13 +49,14 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
           AND ai.enabled = TRUE
       `, [context.agentId, context.tenantId]);
       // Connection readiness is user-sensitive, so availability requires user-scoped readiness.
-      const connected = await query<{integration_id:string}>(`
-        SELECT DISTINCT integration_id
+      const connectionRows = await query<{integration_id:string;status:"active"|"expired"|"error"|"revoked"}>(`
+        SELECT integration_id, status
         FROM integration_connections
         WHERE org_id = $1
-          AND status = 'active'
+          AND status IN ('active', 'expired', 'error', 'revoked')
           AND (agent_id = $2 OR agent_id IS NULL)
           AND (user_id = $3 OR user_id IS NULL)
+        ORDER BY updated_at DESC
       `, [context.tenantId, context.agentId, context.userId]);
 
       const allowed = new Set(
@@ -63,21 +64,40 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
           .filter(r => Array.isArray(r.allowed_plans) && (r.allowed_plans.includes(limits.plan_id) || r.allowed_plans.includes("*")))
           .map(r => r.integration_id),
       );
-      const ready = new Set(connected.map(r => r.integration_id));
+      const connectionStatusById = new Map<string, "active"|"expired"|"error"|"revoked">();
+      const priority = { active: 4, expired: 3, error: 2, revoked: 1 } as const;
+      for (const row of connectionRows) {
+        const previous = connectionStatusById.get(row.integration_id);
+        if (!previous || priority[row.status] > priority[previous]) {
+          connectionStatusById.set(row.integration_id, row.status);
+        }
+      }
 
       return listIntegrations()
         .filter(def => !value.integrationId || def.id === value.integrationId)
         .filter(def => allowed.has(def.id))
-        .map(def => ({
-          id: def.id,
-          name: def.displayName,
-          description: def.description,
-          connected: ready.has(def.id),
-          actions: def.actions,
-          help: ready.has(def.id)
+        .map(def => {
+          const status = connectionStatusById.get(def.id) ?? "disconnected";
+          const connected = status === "active";
+          const help = status === "active"
             ? `Use the connected ${def.displayName} integration through its supported actions.`
-            : `${def.displayName} is enabled for this agent but still needs credentials connected.`,
-        }));
+            : status === "expired"
+              ? `${def.displayName} connection expired; reconnect the provider account before running actions.`
+              : status === "error"
+                ? `${def.displayName} connection needs attention; reconnect or update credentials.`
+                : status === "revoked"
+                  ? `${def.displayName} connection was revoked; reconnect to restore access.`
+                  : `${def.displayName} is enabled for this agent but has no usable connection yet.`;
+          return {
+            id: def.id,
+            name: def.displayName,
+            description: def.description,
+            connected,
+            connectionStatus: status,
+            actions: def.actions,
+            help,
+          };
+        });
     },
   };
 }
