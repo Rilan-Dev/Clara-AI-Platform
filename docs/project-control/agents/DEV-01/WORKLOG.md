@@ -29,3 +29,17 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Blockers/dependencies:** Architect review pending. No deployment performed.
 - **Lesson:** Realtime model tool descriptors are not an authorization boundary; every tool call must re-enter a same-origin authenticated endpoint and derive tenant/agent/user/session identity server-side before invoking the shared runtime.
 - **Next action:** Architect review this bounded implementation; route any substantial defect to FIX-01. No unrelated implementation is authorized by this task.
+
+
+### SESSION-DEV-20261009-03 / 2026-10-09
+
+- **Task:** Add a reachable WhatsApp Business Messaging entry point to the existing per-agent workspace and expose the connection-start action.
+- **Authorization:** Explicit current owner task; DEV-01 / Forge. No CI/Vercel gate or repeated verification wait.
+- **Started from:** `feature/ai-core-from-doable-source`; project-control recovered from the current GitHub branch.
+- **Actions:** Added the Messaging route and screen, a Connect WhatsApp Business dialog with a Meta Business Manager handoff, and the Messaging link in the existing desktop agent sidebar and mobile tabs. Preserved the single existing sidebar; no second rail was added.
+- **Files/code:** `src/features/admin/screens/agent-messaging-screen.tsx`; `src/app/(admin)/orgs/[id]/agents/[agentId]/messaging/page.tsx`; `src/features/admin/layouts/admin-shell.tsx`; `src/features/admin/screens/agent-workspace/workspace-shell.tsx`.
+- **Commits:** `751db6158fca1b85b6f6c933ad46b45635bfeaf1`, `292e8ea5dd5f7c1548d22a196324035f933de762`, `7d0e28314af14fd1739fa1746f5855632645b4d8`, `8fe3ee7c168c0bbc0d1e837514f1e0a3cab73500`.
+- **Evidence:** Source writes returned successful GitHub commits. No tests/typecheck/build/CI/Vercel/live Meta flow was run or awaited.
+- **Blockers/dependencies:** Repository search/source inspection found no WhatsApp-specific OAuth/connect API, webhook verification route, or durable WhatsApp message persistence implementation. The UI explicitly states that opening Meta does not connect the number; connection status remains Not connected. This is a real backend capability gap, not a UI success.
+- **Lesson:** Never show “connected” just because a user was sent to an external provider. Channel UI must derive readiness from server-persisted connection and verified webhook state.
+- **Next action:** Implement the server-side Meta WhatsApp Business connection lifecycle: authenticated per-agent connect initiation, durable single-number-per-agent binding, signed/verified webhook subscription and inbound event handling, and persistent message/delivery state; then wire the UI to the real status and callback result. Do not route this to OPS-01 unless deployment/infrastructure work becomes necessary.
