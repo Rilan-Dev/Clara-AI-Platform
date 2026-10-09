@@ -1,3 +1,27 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — CONNECTION HEALTH + CREDENTIAL VALIDATION
+
+[owner-authorized] The OAuth lifecycle source slice now includes a server-side credential boundary and health summaries.
+
+## Completed source work in this slice
+- OAuth state schema, start route, callback route, UI consent initiation, encrypted connection persistence, PKCE support, one-time state consumption, entitlement rechecks, and safe aggregate health reporting are in source.
+- Token storage now preserves OAuth HEADER/BODY client authentication mode, and the existing refresh path honors it.
+- The organisation connection API now validates credentials independently of UI input. OAuth connections without an access token are rejected (preventing client ID/secret alone from becoming a falsely active connection); basic auth requires username/password; secret-text and custom-auth required fields are checked; authType `none` rejects credential writes.
+- Added helper regression source for valid/invalid credential shapes and updated API health regression source.
+- Commits: `1449d36377a14c96a34625618b39405eb9d26749`, `ff01cda2c64b0f1391321440c22ee99e0afdf351`, `675cd39bc4e831f5fdba7b4859daa4f3c921341f`.
+
+## Verification disposition
+- Tests are authored but not run. No typecheck/build/Docker/CI/Vercel/Gates/deployment/live OAuth provider test was run or awaited.
+- The feature is source-implemented and still requires ordinary future verification/deployment before production use. No live OAuth issue is claimed fixed.
+
+## Next bounded implementation
+1. Continue P0 connection recovery: audit error/revoked/expired transitions and safe disconnect/reconnect behavior.
+2. Continue P1 common capability framework by making health/readiness metadata consistent across the existing integration bridge and Unified Tool Runtime, without creating a parallel executor.
+3. Preserve platform → organisation → agent grants, plan entitlement, user-specific credentials, encrypted token storage, and no secrets in model context.
+
+Do not wait for CI/Vercel/Gates. Do not promote production or start broad provider rollout.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — OAUTH REFRESH CONTRACT + CONNECTION HEALTH
 
 [owner-authorized] Continued the P0 OAuth lifecycle without waiting for CI, Vercel, Gates, or continuous verification.
