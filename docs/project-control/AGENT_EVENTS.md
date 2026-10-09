@@ -137,3 +137,12 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Correction:** Changed `await import("./files-service.js")` to `await import("./files-service")` only. No business logic, auth, secrets, or webpack configuration changed.
 - **Commit:** `bda45fd90379154e098d39076823829d2b741bd7`
 - **Verification:** Correction is source-committed; rebuild has not yet been run. No build PASS or production recovery is claimed.
+## EVT-FIX-008 — Self-hosted PDF parser startup isolation
+- **Date:** 2026-10-09
+- **Role:** FIX-01 / Sentinel
+- **Evidence:** Owner-provided `docker compose logs --tail=150 clara-backend` shows repeated `ReferenceError: DOMMatrix is not defined`, ingest poller startup failure, and a warning that `@napi-rs/canvas` is unavailable.
+- **Root cause identified in source:** `src/modules/ingest/parsers/pdf.ts` statically imported `PDFParse`, causing the PDF.js runtime to be evaluated when the parser registry is imported, rather than only when parsing a PDF.
+- **Correction:** Changed the import to type-only and moved the runtime import inside `PDFParser.parse()`. Commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`.
+- **Scope:** Startup module loading only; no PDF parsing algorithm, authorization, or upload validation changed.
+- **Verification:** Source committed only. No tests/build/PDF job run. Actual PDF parsing may still require a canvas/DOMMatrix dependency fix.
+- **Next action:** Continue development without waiting for external gates; rebuild on the next normal verification pass and address any reproduced PDF-runtime error.
