@@ -25,3 +25,20 @@ export function getWhatsAppMetaSendErrorCode(status: number, result: unknown): s
   }
   return `META_HTTP_${status}`;
 }
+
+export type WhatsAppHealthResult = "healthy" | "rejected" | "unavailable";
+
+export function classifyWhatsAppGraphHealth(status: number, result: unknown): WhatsAppHealthResult {
+  if (status >= 200 && status < 300) {
+    return result && typeof result === "object" && "id" in result
+      ? "healthy"
+      : "unavailable";
+  }
+  const error = result && typeof result === "object" && "error" in result
+    ? (result as { error?: { code?: unknown } }).error
+    : undefined;
+  if (status === 401 || status === 403 || [10, 102, 190, 200].includes(Number(error?.code))) {
+    return "rejected";
+  }
+  return "unavailable";
+}
