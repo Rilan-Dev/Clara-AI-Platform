@@ -28,6 +28,16 @@ const ASSISTANT_CONFIG_FIXTURE = {
   defaultLanguage: "en",
 };
 
+vi.mock("@/modules/auth/core/rbac", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/modules/auth/core/rbac")>();
+  return { ...actual, getAuthContext: vi.fn(async () => null) };
+});
+
+vi.mock("@/modules/auth/core/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/modules/auth/core/db")>();
+  return { ...actual, getKbAccessContext: vi.fn(async () => []) };
+});
+
 vi.mock("@/modules/knowledge-bases/core/db", () => ({
   getKnowledgeBaseById: vi.fn(async (kbId: string) =>
     kbId === KB_FIXTURE.id ? { ...KB_FIXTURE } : null,
@@ -37,7 +47,7 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
 }));
 
 vi.mock("@/lib/db", () => ({
-  query: vi.fn(async () => [{ org_id: "org-openai-1" }]),
+  query: vi.fn(async () => [{ org_id: "org-openai-1", agent_id: "agent-openai-1" }]),
 }));
 
 vi.mock("@/lib/db/migrate", () => ({
@@ -137,6 +147,8 @@ function sessionRequest(body: Record<string, unknown>): NextRequest {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.OPENAI_API_KEY = "sk-test-baseline";
+  delete process.env.ENABLE_AI_PLATFORM_AGENT_LOOP;
+  delete process.env.ENABLE_AI_PLATFORM_TOOL_CALLING;
 });
 
 describe("postRealtimeSession — locked happy path (kbId)", () => {
@@ -194,6 +206,32 @@ describe("postRealtimeSession — locked happy path (kbId)", () => {
     );
     expect(parameters.required).toEqual(["query"]);
     expect(parameters.properties.ragMode.enum).toEqual(["classic", "hybrid", "agentic"]);
+  });
+
+  it("adds integration tools only when both flags and authenticated KB membership are present", async () => {
+    process.env.ENABLE_AI_PLATFORM_AGENT_LOOP = "true";
+    process.env.ENABLE_AI_PLATFORM_TOOL_CALLING = "true";
+    const { getAuthContext } = await import("@/modules/auth/core/rbac");
+    const { getKbAccessContext } = await import("@/modules/auth/core/db");
+    vi.mocked(getAuthContext).mockResolvedValue({
+      user: { id: "user-openai-1", isSuperAdmin: false },
+      session: { id: "session-openai-1" },
+    } as never);
+    vi.mocked(getKbAccessContext).mockResolvedValue([{
+      orgId: "org-openai-1",
+      membership: {} as never,
+      permissions: new Set(["kb:read"]),
+    }]);
+
+    await postRealtimeSession(sessionRequest({ kbId: KB_FIXTURE.id }));
+    const session = (createOpenAIRealtimeClientSecret as ReturnType<typeof vi.fn>).mock
+      .calls[0][0].session as Record<string, unknown>;
+    const tools = session.tools as Array<{ name: string }>;
+    expect(tools.map((tool) => tool.name)).toEqual([
+      "rag_search",
+      "integration_availability",
+      "integration_action",
+    ]);
   });
 
   it("runs rate limit and plan guard BEFORE assistant-config lookup", async () => {
