@@ -57,15 +57,16 @@ export async function GET(req: NextRequest, { params }: Params) {
       [orgId, agentId],
     );
 
-    const connection = (await query<{
+    const latestConnection = (await query<{
       id: string; waba_id: string; waba_name: string | null; phone_number_id: string;
       display_phone_number: string; verified_name: string | null; status: string;
       webhook_verified: boolean; webhook_verified_at: string | null; last_webhook_at: string | null;
       last_error_code: string | null; access_token_expires_at: string | null; daily_briefing_enabled: boolean; briefing_recipient_phone: string | null; briefing_recipient_opt_in_at: string | null; daily_briefing_last_sent_on: string | null; updated_at: string;
     }>(`SELECT id, waba_id, waba_name, phone_number_id, display_phone_number, verified_name,
               status, webhook_verified, webhook_verified_at, last_webhook_at, last_error_code, access_token_expires_at, daily_briefing_enabled, briefing_recipient_phone, briefing_recipient_opt_in_at, daily_briefing_last_sent_on, updated_at
-         FROM whatsapp_business_connections WHERE org_id = $1 AND agent_id = $2 AND status IN ('active','error','revoked')
+         FROM whatsapp_business_connections WHERE org_id = $1 AND agent_id = $2
          ORDER BY updated_at DESC LIMIT 1`, [orgId, agentId]))[0] ?? null;
+    const connection = latestConnection?.status === "disconnected" ? null : latestConnection;
 
     const sessionId = req.nextUrl.searchParams.get("session");
     let pending: { id: string; candidates: Candidate[] } | null = null;
