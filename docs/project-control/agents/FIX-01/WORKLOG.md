@@ -199,3 +199,13 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Verification boundary:** Source writes accepted by GitHub; no local Vitest/typecheck/build or browser visual inspection available/performed. No PASS claimed.
 - **Database incident:** OPS-01 retains ownership of missing PostgreSQL relations and the seed organisation FK failure. No manual table creation, database reset or migration bypass.
 - **Next:** Continue auditing bespoke dialogs/cards, including organization billing confirmation and other long-value summaries. Run focused Vitest/typecheck and representative mobile/desktop checks when local execution becomes available; continue without waiting for CI/Vercel.
+
+
+### SESSION-FIX-20261010-08 / 2026-10-10
+- **Task:** Continue the current-branch source audit of remaining cards and long text values.
+- **Findings/fixes:** Found another collection identifier `break-all` case in KB details and corrected it to natural wrapping. Removed truncation from recent-agent names/descriptions and analytics top-query text so the actual values remain readable rather than silently hidden in the card. The previous audit also corrected AI provider diagnostic errors and workspace organisation IDs.
+- **Source commits:** `src/features/admin/screens/org-agents-screen.tsx` `03d4131fbd87e458483da77fd5103cbd6cb8124a`; `src/features/admin/screens/analytics-screen.tsx` `ca58ea8a429bc4c12524e1949112ccbef8950f9e`; KB detail commit `515355ef503c0874e53ffa58106b9a097fa52e85`; system status commit `be2d3984232c7245bac1213fa749fa0d1f7a4866`; org settings commit `6e418d2144b44070d4ae7f6703512dc4a200f553`.
+- **Regression coverage:** Expanded focused source-contract test file to 11 tests; commit `53c1501ca5a42d8110ed26869388c2ac4df6d7eb`.
+- **Verification boundary:** GitHub accepted source/test changes. Local Vitest, `npm run type-check`, and browser-based mobile/desktop inspection remain unexecuted; no PASS claimed.
+- **Database incident:** OPS-01 retains missing PostgreSQL relations and seed organisation FK failure. No manual table creation, reset, or migration bypass.
+- **Next:** Continue auditing custom overlays and card grids. Run focused tests/typecheck and visual inspection when local execution is available, without waiting on CI/Vercel.
