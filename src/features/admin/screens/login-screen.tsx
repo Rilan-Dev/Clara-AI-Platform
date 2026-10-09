@@ -112,7 +112,7 @@ function LoginForm() {
           <h1 className="text-2xl font-bold text-foreground">Welcome to Clara AI</h1>
           <p className="text-muted-foreground text-sm mt-1">Sign in to manage Clara AI</p>
         </div>
-        <div className="w-full min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
+        <div className="w-full min-w-0 max-w-full rounded-2xl border border-border bg-card p-4 shadow-sm [overflow-wrap:anywhere] sm:p-6">
           {needsVerification ? (
             <div className="space-y-4 text-center">
               <div className="mx-auto w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
@@ -161,12 +161,12 @@ function LoginForm() {
               </button>
             </div>
           ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="min-w-0 space-y-4">
             <div>
               <label htmlFor="login-email" className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
               <input id="login-email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required
                 aria-invalid={error ? true : undefined} aria-describedby={error ? "login-error" : undefined}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus:border-primary transition-colors" />
+                className="block w-full min-w-0 max-w-full box-border bg-background border border-border rounded-xl px-4 py-3 text-base sm:py-2.5 sm:text-sm text-foreground placeholder:text-muted-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 focus:border-primary transition-colors" />
             </div>
             <div>
               <label htmlFor="login-password" className="block text-xs font-medium text-muted-foreground mb-1.5">Password</label>
