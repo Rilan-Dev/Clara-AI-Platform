@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import fs from "node:fs";
 import path from "node:path";
+import { findDuplicateMigrationNumbers } from "../src/lib/db/migration-validation";
 /**
  * scripts/db-reset.ts — destructive: drop the public schema, re-run the clean
  * migration baseline, and seed.
@@ -24,10 +25,7 @@ function validateMigrationFiles(): void {
     .filter((file) => file.endsWith(".sql"))
     .sort();
 
-  const numbers = files.map((file) => file.split("_")[0]);
-  const duplicates = [...new Set(
-    numbers.filter((number, index) => numbers.indexOf(number) !== index),
-  )];
+  const duplicates = findDuplicateMigrationNumbers(files);
 
   if (duplicates.length > 0) {
     throw new Error(
