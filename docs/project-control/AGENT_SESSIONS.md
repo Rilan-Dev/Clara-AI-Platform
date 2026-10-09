@@ -268,3 +268,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Commits:** `e88747825ffb3923543e056e14c46b0c88cafe1c`, `b45db54a1342b9153face2848232428c1c00a6ef`, `2de0043febf3d0f20f7e2c996ae6da2cbd729736`, `eac422cfaa8cf7199ad56968448d0ab7fc2b1c43`; test/docs commits recorded separately.
 - **Verification:** Live browser DOM checks returned HTTP 200 for landing and login mobile presets. Screenshot capture endpoint failed upstream; no visual pass claimed. Vitest and typecheck not run because no local repository runtime is attached.
 - **Next:** Continue public/auth screen audit and normal roadmap work independently of CI/Vercel.
+
+
+### SESSION-FIX-20261010-03 — 2026-10-10
+- **Role:** FIX-01 / Sentinel, with independent roadmap continuation
+- **Scope:** Finish source-level UI/auth audit; resume the current WhatsApp lifecycle roadmap without external-gate polling.
+- **Implementation:** Public/auth cards and input widths hardened; fixed Meta error classification ordering in daily briefing sender; added scheduled connection health probe with expiry/revocation gating and health-check timestamp migration.
+- **Verification:** Live DOM audit HTTP 200 for landing/login desktop and mobile presets, plus signup/forgot mobile. Browser screenshot endpoint returned upstream 502; visual verdict pending. Vitest/typecheck not run due absent local repo runtime.
+- **Next:** Route-level WhatsApp expiry/uniqueness tests, safe reconnect, ambiguous sending-run reconciliation, grounded AI briefing evaluation; continue UI audit. OPS-01 still owns the PostgreSQL missing-relations/seed incident.
