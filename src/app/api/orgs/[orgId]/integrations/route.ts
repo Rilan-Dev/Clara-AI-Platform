@@ -5,6 +5,7 @@ import { requireAuth, requireAgentPermission, requireOrgPermission } from "@/mod
 import { getOrgPlanLimits, resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
+import { validateConnectionCredentials } from "@/modules/integrations/connection-validation";
 
 type Params = { params: Promise<{ orgId: string }> };
 
@@ -192,6 +193,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
 
     if (body.credentials === undefined) return NextResponse.json({ error: "credentials are required" }, { status: 400 });
+    const credentialError = validateConnectionCredentials(def.authType, body.credentials, def.customAuthFields ?? []);
+    if (credentialError) return NextResponse.json({ error: credentialError }, { status: 400 });
 
     // Connection creation and implicit organisation enablement must be one
     // transaction. This prevents a failed connection insert from leaving the
