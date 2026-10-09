@@ -63,3 +63,10 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Prevention:** Never expose OAuth tokens or trust client-supplied tenant/agent IDs without RBAC; do not enable daily briefing eligibility before a valid signed webhook event. A preference bit is not proof that outbound messaging or scheduled delivery exists.
 - **Verification boundary:** Helper regression source authored but not executed; no build, typecheck, live Meta consent, webhook challenge, subscription, or deployment PASS.
 - **Next:** Implement outbound send/delivery persistence and the CRON_SECRET-protected daily summary worker, then token expiry/revocation and route-level regressions.
+
+
+- **Date/session:** 2026-10-09 / SESSION-DEV-20261009-04
+- **Agent:** DEV-01 / Forge
+- **Lesson:** A daily WhatsApp send needs more than a connected phone. Require explicit recipient opt-in, an approved Meta template, a CRON_SECRET-protected schedule, one run per connection/date, and durable provider message IDs/statuses. If a network/persistence failure leaves send acceptance ambiguous, do not blindly retry; that can duplicate messages.
+- **Boundary:** The first scheduled briefing implementation is a deterministic digest of inbound message excerpts. Do not call it an AI summary or claim delivery until a real provider run is evidenced.
+- **Next:** Implement token expiry/revocation/reconnect and route-level regression source; reconcile ambiguous sends safely.
