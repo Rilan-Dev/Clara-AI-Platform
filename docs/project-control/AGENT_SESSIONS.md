@@ -170,3 +170,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Evidence:** GitHub source writes accepted; changed files re-fetched and inspected. Test/typecheck/build/browser checks remain outstanding and are not claimed as passing.
 - **Dependencies:** OPS-01 owns missing PostgreSQL relations and seed FK runtime investigation; no schema reset or manual table creation.
 - **Next:** Continue targeted source audit; run focused Vitest and typecheck plus mobile/desktop browser inspection when local execution is available.
+
+
+## SESSION-FIX-20261010-04 — FIX-01 / Sentinel — 2026-10-10
+- **Goal:** Audit further bespoke overlays and long URL/identifier presentation.
+- **Result:** Fixed subscription/plan editor overlays, billing-history drawer, publish-review dialog, knowledge-base creation dialog, and published URL wrapping; extended focused layout contract tests.
+- **Evidence:** GitHub accepted source and test writes; no local execution, typecheck/build, or browser visual check was available. No PASS claimed.
+- **Routing:** OPS-01 remains responsible for PostgreSQL missing relations and seed FK failure; no DB changes.
+- **Next:** Continue custom overlay/card source audit; run focused Vitest and typecheck and inspect mobile/desktop when local execution is available.
