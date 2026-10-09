@@ -153,6 +153,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       expires_in: expiresIn,
       claimed_at: Math.floor(Date.now() / 1000),
       token_url: tokenUrl.toString(),
+      authorization_method: definition.oauth2Config.authorizationMethod ?? "BODY",
       client_id: app.client_id,
       client_secret: app.client_secret,
       data: tokenData,
