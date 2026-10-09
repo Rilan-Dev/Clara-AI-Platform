@@ -34,6 +34,18 @@ A fresh chat may invoke any agent at any time. The next agent must be able to di
 - **Handoff:** <AGENT_HANDOFF entry or none>
 - **Next action:** <exact next action>
 
+### SESSION-FIX-20261009-01 — 2026-10-09
+- **Agent:** FIX-01 / Sentinel
+- **Invocation:** Recover current project-control context and fix the owner-provided Docker build failure with the smallest authorized source correction.
+- **Started from:** feature/ai-core-from-doable-source at c922529f73d129d4da1241b40cf894985bfac9dc, as evidenced by the supplied log and current fetched branch state.
+- **Scope:** Resolve the five reported relative import failures; record symptom, cause, failed approach, remedy, prevention, evidence and next action. No unrelated scope.
+- **Status:** HANDOFF
+- **Completed:** Changed the three relative imports in context-builder.ts and two in runner-core.ts from explicit .js suffixes to extensionless specifiers.
+- **Pending:** No post-change test/build/Docker run was performed; rebuild outcome is unknown.
+- **Blockers:** None identified at source level; executable confirmation is deferred.
+- **Handoff:** EVT-FIX-003.
+- **Next action:** Continue the existing authorized roadmap from docs/project-control/NEXT_ACTION.md; do not wait for CI/Vercel/Gates and do not claim production recovery.
+
 ## Concurrency rule
 
 Multiple sessions may be ACTIVE simultaneously. Session records are coordination evidence only; they do not grant authorization and do not require another agent to stop.
