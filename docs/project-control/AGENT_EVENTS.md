@@ -305,3 +305,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 corrected remaining Qdrant collection `break-all` formatting and changed recent-agent names/descriptions and analytics top-query text to natural wrapping rather than truncation. Regression suite now contains 11 source-contract tests.
 - Commits: `515355ef503c0874e53ffa58106b9a097fa52e85`, `03d4131fbd87e458483da77fd5103cbd6cb8124a`, `ca58ea8a429bc4c12524e1949112ccbef8950f9e`; test commit `53c1501ca5a42d8110ed26869388c2ac4df6d7eb`.
 - No local tests/typecheck or browser visual review run; no PASS claimed. OPS-01 owns the PostgreSQL incident.
+
+
+## EVT-FIX-019 — 2026-10-10 — Demo text and OAuth form width containment
+- FIX-01 traced the reported width issue to demo chat bubbles relying on `max-w-[85%]` inside flex rows with avatar siblings, without `min-w-0`/explicit remaining-width constraints. Constrained the chat container, bubbles, and citations; made OAuth modal footer wrap and form controls shrink safely.
+- Commits: landing demo `a2ddf694fcb6c4e76f5c0c85879ebed13ee632aa`, bubble correction `982801734aad1757336d118067ec145be5bd8299`, OAuth form `018d87da30f5479d61f447d5263c2acaa388fdad`; test commit `a3a0112b4907bc18ad1a216830b216344c2f671b`.
+- Source-contract suite now has 12 tests. Tests/typecheck/browser review not executed; no PASS claimed. OPS-01 owns database incident.
