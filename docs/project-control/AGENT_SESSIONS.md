@@ -218,3 +218,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Evidence:** GitHub accepted changes. No local Vitest/typecheck or browser visual review; no PASS claimed.
 - **Routing:** OPS-01 owns PostgreSQL missing relations and seed FK failure. No DB changes.
 - **Next:** Continue similar source audit; run focused checks and mobile/desktop inspection when local execution is available, without waiting on CI/Vercel.
+
+
+## SESSION-FIX-20261010-10 — FIX-01 / Sentinel — 2026-10-10
+- **Goal:** Search for equivalent width issues beyond the landing demo and OAuth modal.
+- **Result:** Corrected the same intrinsic-width/flex-bubble issue in the live conversation window, including welcome text, user messages, and assistant responses. Regression suite now has 13 source-contract tests.
+- **Evidence:** GitHub accepted source/test updates; no local test/typecheck/browser PASS.
+- **Routing:** OPS-01 owns PostgreSQL missing relations and seed FK failure; no DB modifications.
+- **Next:** Continue related card/dialog text-width audit and perform focused tests plus mobile/desktop visual review when local execution is available.
