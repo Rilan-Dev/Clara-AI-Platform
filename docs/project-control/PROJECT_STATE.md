@@ -1,3 +1,16 @@
+# CURRENT PROJECT STATE — 2026-10-09 — I-6 COMPLETE; OAUTH + SHARED POLICY IMPLEMENTED AT SOURCE LEVEL
+
+- Branch: `feature/ai-core-from-doable-source`.
+- I-6 MCP Tool Bridge: implementation complete at source level, including immutable policy snapshots before async resolver discovery. Regression source authored; executable verification remains deferred.
+- Integrations & AI Enhancement Roadmap: owner-authorized and in progress.
+- OAuth consent source includes one-time state hashing, expiry, encrypted PKCE verifier, org-authorized start, atomic callback consumption, HTTPS/no-redirect token exchange, entitlement rechecks, encrypted tenant-scoped token persistence, HEADER/BODY refresh parity, and safe callback status.
+- Connection reliability source includes server-side credential validation, user-scoped health summaries, expired/error/revoked status, explicit disconnect/reconnect, and exact agent-scope deletion.
+- Shared integration capability policy is centralized in `src/modules/ai-platform-core/integrations/integration-policy.ts` and reused by the I-4 bridge and AI action tool. Authorization query errors are sanitized; availability exposes only runtime-resolvable actions and safe readiness guidance.
+- Verification status: regression sources authored; tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent were not run or awaited. No production recovery or runtime PASS is claimed.
+- Next action: continue P1/P2 typed action safety and idempotency/approval hooks through the existing Unified Tool Runtime. See `docs/project-control/NEXT_ACTION.md`.
+
+---
+
 # CURRENT PROJECT STATE — 2026-10-09 — I-6 CLOSED AT SOURCE, OAUTH LIFECYCLE IN PROGRESS
 
 - Branch: `feature/ai-core-from-doable-source`.
