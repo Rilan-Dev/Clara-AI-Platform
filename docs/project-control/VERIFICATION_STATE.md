@@ -1,3 +1,15 @@
+## 2026-10-09 — WhatsApp recipient opt-in and scheduled briefing sender source
+
+- Added recipient E.164 validation and explicit opt-in persistence; briefing eligibility requires an active connection, signed webhook verification, recipient phone and opt-in timestamp.
+- Added `src/app/api/cron/whatsapp-daily-briefings/route.ts`, registered in `vercel.json` for 03:00 UTC. The job requires `CRON_SECRET` and an approved Meta template, checks readiness before send, stores one run per connection/date, and records outbound provider message IDs/statuses.
+- The initial summary is a deterministic digest of inbound excerpts from the last 24 hours; it is not an LLM-generated summary. Ambiguous send/persistence outcomes are not automatically retried to avoid duplicate messages.
+- Added regression source for recipient validation/digest bounds in `src/modules/integrations/whatsapp-briefing.test.ts`.
+- **Not run / not claimed:** tests, typecheck, build, Docker, CI, Vercel, deployment, live Meta OAuth, token exchange, WABA subscription, webhook challenge, scheduled cron execution, or outbound provider send/delivery. No runtime PASS is inferred.
+- **Still pending:** token expiry/revocation/reconnect health, route-level tenant/state/uniqueness/readiness regressions, ambiguous-run reconciliation/provider status races, and possible grounded AI summary upgrade.
+- Next: follow `docs/project-control/NEXT_ACTION.md` without polling external gates.
+
+---
+
 ## 2026-10-09 — WhatsApp Business lifecycle source slice
 
 - Source committed: migration 067; authenticated per-agent Meta OAuth start/callback; encrypted pending token/session and active connection; unique one-active-phone-per-agent and phone-owner constraints; WABA app subscription; webhook challenge and raw-body HMAC signature verification; transactional idempotent event persistence; durable inbound messages and delivery-status updates; server-derived Messaging health; and briefing eligibility guard requiring active connection plus a valid signed webhook event.
