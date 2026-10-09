@@ -39,7 +39,7 @@ describe("WhatsApp Meta OAuth callback", () => {
     const fetchMock = vi.fn();
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     try {
-      const response = await GET(callback(),);
+      const response = await GET(callback());
       expect(response.status).toBe(400);
       expect(queryMock).toHaveBeenCalledTimes(1);
       expect(permissionMock).not.toHaveBeenCalled();
