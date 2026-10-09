@@ -154,16 +154,18 @@ export default function AgentMessagingScreen() {
 
         <div className="grid gap-6 p-5 md:grid-cols-[1fr_250px] md:p-6">
           <div className="space-y-4">
-            <h3 className="font-medium">{connected ? "Business number" : "Connect a business number"}</h3>
+            <h3 className="font-medium">{connected ? "Business number" : connection ? "Reconnect business number" : "Connect a business number"}</h3>
             <p className="text-sm leading-6 text-muted-foreground">
               {connected
                 ? `Connected to ${connection?.wabaName || "a WhatsApp Business Account"}. Inbound processing and daily briefings stay gated until a signed event verifies the webhook path.`
-                : "Authorize Clara with Meta, then choose the WhatsApp Business Account and phone number to bind to this agent."}
+                : connection
+                  ? "The previous connection needs attention. Re-authorize Clara with Meta and select the business phone again. Daily briefings remain disabled until the connection and webhook are healthy."
+                  : "Authorize Clara with Meta, then choose the WhatsApp Business Account and phone number to bind to this agent."}
             </p>
             {!connected && (
               <button type="button" onClick={() => void mutate("connect")} disabled={busy || loading} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
                 {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-                Connect WhatsApp Business
+                {connection ? "Reconnect WhatsApp Business" : "Connect WhatsApp Business"}
               </button>
             )}
             {connected && (
