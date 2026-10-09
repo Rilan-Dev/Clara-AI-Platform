@@ -66,7 +66,7 @@ export default function SignupVerifyScreen() {
         <p className="text-muted-foreground text-base leading-relaxed mb-2">
           We&apos;ve sent a verification link to
         </p>
-        <p className="text-primary font-semibold text-lg mb-6 break-all">{email}</p>
+        <p className="text-primary font-semibold text-lg mb-6 break-words [overflow-wrap:anywhere]">{email}</p>
 
         {/* Info card */}
         <div className="border border-border bg-card rounded-2xl p-5 mb-6 text-left space-y-3">
