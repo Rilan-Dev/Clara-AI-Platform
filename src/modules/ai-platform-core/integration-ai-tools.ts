@@ -2,6 +2,7 @@ import { z } from "zod";
 import { query } from "@/lib/db";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
+import { getIntegrationActions } from "@/modules/integrations/runtime/runner-core";
 import type { PlatformExecutionContext } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
 
@@ -73,14 +74,25 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
         }
       }
 
-      return listIntegrations()
+      return Promise.all(listIntegrations()
         .filter(def => !value.integrationId || def.id === value.integrationId)
         .filter(def => allowed.has(def.id))
-        .map(def => {
+        .map(async def => {
           const status = connectionStatusById.get(def.id) ?? "disconnected";
           const connected = status === "active";
+          // Advertise only actions that the runtime can actually resolve from
+          // the registry/package boundary. Raw registry names may be hidden or
+          // absent from the installed piece package.
+          let actionNames: string[] = [];
+          try {
+            actionNames = (await getIntegrationActions(def.id)).map(action => action.name);
+          } catch {
+            actionNames = [];
+          }
           const help = status === "active"
-            ? `Use the connected ${def.displayName} integration through its supported actions.`
+            ? actionNames.length > 0
+              ? `Use the connected ${def.displayName} integration through its supported actions.`
+              : `${def.displayName} is connected, but no supported actions could be loaded right now.`
             : status === "expired"
               ? `${def.displayName} connection expired; reconnect the provider account before running actions.`
               : status === "error"
@@ -94,10 +106,10 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
             description: def.description,
             connected,
             connectionStatus: status,
-            actions: def.actions,
+            actions: actionNames,
             help,
           };
-        });
+        }));
     },
   };
 }
