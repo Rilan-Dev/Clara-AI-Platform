@@ -119,7 +119,7 @@ export default function LandingPage() {
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
       <section className="relative pt-16 pb-12 sm:pt-28 sm:pb-32 px-4 sm:px-6 min-h-[100dvh] flex items-center">
-        <div className="relative z-10 max-w-6xl mx-auto text-center">
+        <div className="relative z-10 w-full min-w-0 max-w-6xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -135,7 +135,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.8 }}
-            className="text-[30px] leading-[1.08] sm:text-6xl sm:leading-[1.02] md:text-8xl font-black text-foreground mb-5 sm:mb-8 tracking-tight"
+            className="min-w-0 break-words [overflow-wrap:anywhere] text-[30px] leading-[1.08] sm:text-6xl sm:leading-[1.02] md:text-8xl font-black text-foreground mb-5 sm:mb-8 tracking-tight"
           >
             Your knowledge.
             <br />
@@ -148,7 +148,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
-            className="text-[15px] sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-7 sm:mb-12 leading-relaxed"
+            className="min-w-0 break-words [overflow-wrap:anywhere] text-[15px] sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-7 sm:mb-12 leading-relaxed"
           >
             Deploy a custom AI assistant trained on your documents in minutes.
             RAG-powered, voice-enabled, embeddable anywhere.
@@ -256,13 +256,13 @@ export default function LandingPage() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 whileHover={{ y: -6 }}
-                className="glass-card rounded-2xl p-4 sm:p-6 group cursor-default"
+                className="glass-card min-w-0 rounded-2xl p-4 sm:p-6 group cursor-default [overflow-wrap:anywhere]"
               >
                 <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 group-hover:shadow-lg ${f.glow} transition-all duration-300`}>
                   <f.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-primary transition-colors">{f.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{f.desc}</p>
+                <h3 className="min-w-0 break-words [overflow-wrap:anywhere] text-lg font-bold text-foreground mb-2 group-hover:text-primary transition-colors">{f.title}</h3>
+                <p className="min-w-0 break-words [overflow-wrap:anywhere] text-muted-foreground text-sm leading-relaxed">{f.desc}</p>
               </motion.div>
             ))}
           </div>
