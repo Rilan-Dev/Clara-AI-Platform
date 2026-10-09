@@ -6,6 +6,7 @@ import { requireAgentPermission, requireAuth, requireOrgPermission } from "@/mod
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { getIntegration } from "@/modules/integrations/registry";
 import { createOAuthState } from "@/modules/integrations/oauth-state";
+import { validateRedirectUri } from "@/modules/integrations/oauth-app-validation";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,15 @@ export async function GET(request: NextRequest, { params }: Params): Promise<Nex
     }
 
     const pkceMethod = definition.oauth2Config.pkceMethod ?? "S256";
+    const authorizationEndpoint = new URL(definition.oauth2Config.authUrl);
+    if (authorizationEndpoint.protocol !== "https:" || authorizationEndpoint.username || authorizationEndpoint.password || authorizationEndpoint.hash) {
+      return NextResponse.json({ error: "Provider authorization endpoint is not safe." }, { status: 500 });
+    }
+    const redirectError = validateRedirectUri(app.redirect_uri);
+    if (redirectError) {
+      return NextResponse.json({ error: "Platform OAuth redirect URI is invalid." }, { status: 409 });
+    }
+
     const created = createOAuthState(new Date(), pkceMethod);
     const usePkce = definition.oauth2Config.pkce === true;
     // Opportunistically remove expired/recently consumed records so short-lived
@@ -98,7 +108,7 @@ export async function GET(request: NextRequest, { params }: Params): Promise<Nex
       ],
     );
 
-    const authorizationUrl = new URL(definition.oauth2Config.authUrl);
+    const authorizationUrl = authorizationEndpoint;
     for (const [key, value] of Object.entries(definition.oauth2Config.extraParams ?? {})) {
       if (!["client_id", "redirect_uri", "response_type", "scope", "state", "code_challenge", "code_challenge_method"].includes(key)) {
         authorizationUrl.searchParams.set(key, value);
