@@ -3,6 +3,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query, withTransaction } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
 import { buildWhatsAppDailySummary } from "@/modules/integrations/whatsapp-briefing";
+import { advanceWhatsAppMessageStatus } from "@/modules/integrations/whatsapp-message-status";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -179,16 +180,25 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             [providerMessageId],
           )).rows[0];
           if (earlyStatus) {
-            const providerDate = earlyStatus.timestamp && /^\d{1,12}$/.test(earlyStatus.timestamp)
-              ? new Date(Number(earlyStatus.timestamp) * 1000) : new Date();
+            const seconds = earlyStatus.timestamp && /^\d{1,12}$/.test(earlyStatus.timestamp)
+              ? Number(earlyStatus.timestamp) : Number.NaN;
+            const providerDate = Number.isSafeInteger(seconds) && seconds >= 0 && seconds <= 4_102_444_800
+              ? new Date(seconds * 1000) : new Date();
             const safeStatus = ["sent", "delivered", "read", "failed", "deleted"].includes(earlyStatus.status)
               ? earlyStatus.status : "unknown";
-            await client.query(
-              `UPDATE whatsapp_messages SET status = CASE WHEN status = 'read' THEN 'read' ELSE $2 END,
-                 status_updated_at = GREATEST(status_updated_at, $3), updated_at = now()
-               WHERE provider_message_id = $1`,
-              [providerMessageId, safeStatus, providerDate],
-            );
+            const existingMessage = (await client.query<{ status: string }>(
+              `SELECT status FROM whatsapp_messages WHERE provider_message_id = $1 FOR UPDATE`,
+              [providerMessageId],
+            )).rows[0];
+            if (existingMessage) {
+              const nextStatus = advanceWhatsAppMessageStatus(existingMessage.status, safeStatus);
+              await client.query(
+                `UPDATE whatsapp_messages SET status = $2,
+                   status_updated_at = GREATEST(status_updated_at, $3), updated_at = now()
+                 WHERE provider_message_id = $1`,
+                [providerMessageId, nextStatus, providerDate],
+              );
+            }
           }
           await client.query(
             `UPDATE whatsapp_daily_briefing_runs
