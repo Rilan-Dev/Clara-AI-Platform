@@ -227,3 +227,15 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Impact:** Operators can check current Meta WABA access and are offered reconnection when provider credentials/permissions are rejected.
 - **Verification:** Source only; tests and live Meta verification remain unexecuted.
 - **Next:** Proactive token revocation/permission health, route-level uniqueness/duplicate retry coverage, and safe reconciliation of ambiguous sends.
+
+
+### EVT-FIX-010 — 2026-10-09 — Gate background DB workers on migration success
+- **Agent/session:** FIX-01 / SESSION-FIX-20261009-05
+- **Type:** CORRECTION
+- **Summary:** Owner-provided PostgreSQL logs showed repeated missing-table queries after migration failure. Self-hosted startup now disables local cron, ingest/reindex polling, and subscription sweeps unless migrations complete successfully; HTTP remains available for diagnosis.
+- **Impact:** Reduces repeated background errors against an incomplete schema and prevents queue consumers from running before required tables exist.
+- **Owner:** FIX-01
+- **Commit:** `039847f0c6cd8496dcdeec163eb087b366f52f9b`
+- **Verification:** Source-only; Docker/runtime behavior not verified.
+- **Suggested next action:** Rebuild the current branch, then inspect fresh startup logs and migration output. Investigate the demo-organisation FK error only if it reproduces with current seed source.
+- **Related records:** I-094; `src/instrumentation.node.ts`; `docs/project-control/VERIFICATION_STATE.md`.
