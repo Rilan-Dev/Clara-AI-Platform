@@ -20,7 +20,7 @@ export function buildWhatsAppDailySummary(date: string, messages: BriefingMessag
 export function getWhatsAppMetaSendErrorCode(status: number, result: unknown): string {
   const error = result && typeof result === "object" && "error" in result
     ? (result as { error?: { code?: unknown } }).error : undefined;
-  if (status === 401 || status === 403 || error?.code === 190 || error?.code === 102) {
+  if (status === 401 || status === 403 || [10, 102, 190, 200].includes(Number(error?.code))) {
     return "META_AUTH_OR_PERMISSION_REJECTED";
   }
   return `META_HTTP_${status}`;
