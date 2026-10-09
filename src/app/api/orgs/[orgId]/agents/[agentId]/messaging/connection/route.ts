@@ -155,7 +155,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       const inserted = await query<{ id: string }>(
         `WITH candidate AS (
            SELECT s.id AS session_id, s.org_id, s.agent_id, s.user_id,
-                  pgp_sym_decrypt(s.access_token_encrypted, $1) AS access_token,
+                  pgp_sym_decrypt(s.access_token_encrypted, $1) AS access_token, s.access_token_expires_at,
                   c->>'wabaId' AS waba_id, c->>'wabaName' AS waba_name,
                   c->>'phoneNumberId' AS phone_number_id,
                   c->>'displayPhoneNumber' AS display_phone_number,
@@ -169,9 +169,9 @@ export async function POST(req: NextRequest, { params }: Params) {
          )
          INSERT INTO whatsapp_business_connections
            (org_id, agent_id, user_id, waba_id, waba_name, phone_number_id,
-            display_phone_number, verified_name, access_token_encrypted, status, webhook_verified)
+            display_phone_number, verified_name, access_token_encrypted, access_token_expires_at, status, webhook_verified)
          SELECT org_id, agent_id, user_id, waba_id, waba_name, phone_number_id,
-                display_phone_number, verified_name, pgp_sym_encrypt(access_token, $1), 'active', false
+                display_phone_number, verified_name, pgp_sym_encrypt(access_token, $1), access_token_expires_at, 'active', false
            FROM candidate
          RETURNING id`,
         [ENCRYPTION_KEY, body.sessionId, orgId, agentId, auth.user.id, body.phoneNumberId],
