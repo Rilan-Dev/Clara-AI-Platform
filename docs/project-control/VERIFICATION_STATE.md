@@ -1,3 +1,14 @@
+## 2026-10-09 — I-6 final async policy-snapshot correction
+
+[architect source review] The MCP bridge previously copied policy after awaiting `resolver.resolve`. Since host policy is caller-owned mutable input, an async resolver could mutate `requireUserId` before the ToolDefinition was constructed. The bridge now validates and snapshots policy before any await, and the runtime builder uses one snapshot for the whole request iteration.
+
+- Implementation commit: `826169686c91c5095ac5d717eb27a048c020a57a`.
+- Regression source commit: `6f824ce9f75e38645c6b33e06b37559977650d0a`.
+- I-6 implementation status: **COMPLETE — SOURCE LEVEL**.
+- Not executed: test suite, typecheck, production build, Docker rebuild, CI, Vercel, Gates, live DB migration, deployment. No executable or deployment PASS is claimed.
+
+---
+
 ## 2026-10-09 — Runner webpack resolution correction
 
 [architect-verified] Applied the source correction prompted by the owner-provided Docker build log: five explicit .js relative imports in src/modules/integrations/runtime/runner-core.ts are now extensionless for webpack resolution.
