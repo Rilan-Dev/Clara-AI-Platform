@@ -55,3 +55,7 @@ When changing OAuth consent/refresh persistence, update `OAuth2TokenData` alongs
 
 ### 2026-10-09 — Dynamic TypeScript import suffixes
 A dynamic import such as `await import("./files-service.js")` can fail webpack when the actual source module is `files-service.ts`. Align the import with the extensionless TypeScript import convention used by the neighboring runtime modules. Fix demonstrated imports individually; do not infer a build PASS from source changes or an older healthy container. Correction commit: `bda45fd90379154e098d39076823829d2b741bd7`.
+
+
+### 2026-10-09 — PDF.js runtime must not load during general server bootstrap
+When the parser registry is imported at server startup, a static `pdf-parse` runtime import can evaluate PDF.js and fail on missing browser canvas globals such as `DOMMatrix`, even before any PDF is parsed. Keep the dependency type-only at module scope and dynamically load it inside the PDF parse method. This isolates non-PDF startup paths, but does not replace the need for a working canvas/DOMMatrix dependency during actual PDF extraction. Source commit: `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`; runtime verification pending.
