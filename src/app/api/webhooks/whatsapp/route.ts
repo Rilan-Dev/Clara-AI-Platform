@@ -5,6 +5,14 @@ import { constantTimeEquals, verifyMetaWebhookSignature, whatsappEventKey, whats
 
 export const dynamic = "force-dynamic";
 
+function providerDate(value?: string): Date | null {
+  if (!value || !/^\\d{1,12}$/.test(value)) return null;
+  const seconds = Number(value);
+  if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds > 4_102_444_800) return null;
+  const date = new Date(seconds * 1000);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 type IncomingMessage = {
   id?: string; from?: string; timestamp?: string; type?: string;
   text?: { body?: string }; [key: string]: unknown;
@@ -105,7 +113,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const declaredLength = Number(req.headers.get("content-length") ?? 0);
   if (declaredLength > 1_000_000) return NextResponse.json({ error: "Webhook payload too large" }, { status: 413 });
   const raw = await req.text();
-  if (raw.length > 1_000_000) return NextResponse.json({ error: "Webhook payload too large" }, { status: 413 });
+  if (Buffer.byteLength(raw, "utf8") > 1_000_000) return NextResponse.json({ error: "Webhook payload too large" }, { status: 413 });
   if (!appSecret || !verifyMetaWebhookSignature(raw, req.headers.get("x-hub-signature-256"), appSecret)) {
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
   }
