@@ -217,4 +217,16 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(card).toMatch(/break-words/);
     expect(card).toMatch(/overflow-wrap:anywhere/);
   });
+  it("keeps landing hero/feature cards and login form cards from clipping long content", () => {
+    const landing = source("../../features/platform/screens/landing-screen.tsx");
+    const login = source("../../features/admin/screens/login-screen.tsx");
+
+    expect(landing).toMatch(/relative z-10 w-full min-w-0 max-w-6xl/);
+    expect(landing).toMatch(/min-w-0 break-words \[overflow-wrap:anywhere\]/);
+    expect(landing).toMatch(/glass-card min-w-0 rounded-2xl/);
+    expect(login).toMatch(/w-full min-w-0 max-w-full rounded-2xl border border-border bg-card/);
+    expect(login).toMatch(/form onSubmit=\{handleSubmit\} className="min-w-0 space-y-4"/);
+    expect(login).toMatch(/block w-full min-w-0 max-w-full box-border bg-background/);
+    expect(login).toMatch(/overflow-wrap:anywhere/);
+  });
 });
