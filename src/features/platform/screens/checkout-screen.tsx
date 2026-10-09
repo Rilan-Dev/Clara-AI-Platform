@@ -174,8 +174,8 @@ export default function CheckoutScreen() {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background px-4 py-10 sm:py-20 flex items-start justify-center">
-      <div className="w-full max-w-md">
+    <div className="min-h-[100dvh] w-full min-w-0 bg-background px-4 py-8 sm:py-12 md:py-20 flex items-start justify-center">
+      <div className="w-full min-w-0 max-w-md">
 
         {/* Logo */}
         <div className="text-center mb-8">
@@ -183,13 +183,13 @@ export default function CheckoutScreen() {
             <LogoMark className="w-9 h-9 rounded-xl" iconClassName="w-5 h-5" />
             <span className="font-bold text-foreground text-lg">Clara AI</span>
           </Link>
-          <h1 className="text-2xl font-black text-foreground mb-1">Complete your subscription</h1>
+          <h1 className="text-2xl font-black text-foreground mb-1 break-words [overflow-wrap:anywhere]">Complete your subscription</h1>
           <p className="text-muted-foreground text-sm">Cancel anytime · No hidden fees</p>
         </div>
 
         {/* Plan summary */}
-        <div className={`border rounded-2xl p-5 mb-5 ${plan.color}`}>
-          <div className="flex items-center justify-between mb-3">
+        <div className={`w-full min-w-0 max-w-full border rounded-2xl p-4 sm:p-5 mb-5 [overflow-wrap:anywhere] ${plan.color}`}>
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 mb-3">
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-foreground">{plan.name} Plan</span>
@@ -201,7 +201,7 @@ export default function CheckoutScreen() {
               </div>
               <div className="text-xs text-muted-foreground mt-0.5">Clara AI Platform</div>
             </div>
-            <div className="text-right">
+            <div className="min-w-0 text-left sm:text-right">
               <div className="text-2xl font-black text-foreground leading-none">
                 <span className="text-xs font-semibold text-muted-foreground mr-1">
                   {gateway === "razorpay" ? "INR" : "USD"}
@@ -240,7 +240,7 @@ export default function CheckoutScreen() {
         )}
 
         {/* Gateway selector + pay button */}
-        <div className="border border-border bg-card rounded-2xl p-5">
+        <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-5 [overflow-wrap:anywhere]">
 
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Choose payment method
@@ -249,7 +249,7 @@ export default function CheckoutScreen() {
           <div
             role="radiogroup"
             aria-label="Payment method"
-            className="grid grid-cols-2 gap-3 mb-5"
+            className="grid min-w-0 grid-cols-2 gap-2 sm:gap-3 mb-5"
             onKeyDown={(e) => {
               // Arrow keys move between the two options (radio behaviour).
               if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
@@ -263,7 +263,7 @@ export default function CheckoutScreen() {
               role="radio"
               aria-checked={gateway === "stripe"}
               tabIndex={gateway === "stripe" ? 0 : -1}
-              className={`flex flex-col items-center justify-center gap-2.5 border rounded-xl p-4 min-h-[88px] transition-all
+              className={`flex min-w-0 flex-col items-center justify-center gap-2.5 border rounded-xl p-3 sm:p-4 min-h-[88px] transition-all
                 ${gateway === "stripe"
                   ? "border-primary bg-primary/10 ring-2 ring-primary/50"
                   : "border-border bg-card hover:bg-muted/50"}`}>
@@ -286,7 +286,7 @@ export default function CheckoutScreen() {
               role="radio"
               aria-checked={gateway === "razorpay"}
               tabIndex={gateway === "razorpay" ? 0 : -1}
-              className={`flex flex-col items-center justify-center gap-2.5 border rounded-xl p-4 min-h-[88px] transition-all
+              className={`flex min-w-0 flex-col items-center justify-center gap-2.5 border rounded-xl p-3 sm:p-4 min-h-[88px] transition-all
                 ${gateway === "razorpay"
                   ? "border-cyan-500 bg-cyan-500/10 ring-2 ring-cyan-500/50"
                   : "border-border bg-card hover:bg-muted/50"}`}>
@@ -309,11 +309,11 @@ export default function CheckoutScreen() {
           <div className="bg-muted/50 rounded-xl px-4 py-3 mb-4 space-y-1.5">
             {gateway === "stripe" ? (
               <>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex min-w-0 flex-wrap items-start gap-2 text-xs text-muted-foreground [overflow-wrap:anywhere]">
                   <Lock className="w-3 h-3 text-primary" />
                   Secured by Stripe — PCI DSS Level 1 certified
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex min-w-0 flex-wrap items-start gap-2 text-xs text-muted-foreground [overflow-wrap:anywhere]">
                   <Shield className="w-3 h-3 text-primary" />
                   Visa · Mastercard · Amex · Apple Pay · Google Pay
                 </div>
@@ -324,11 +324,11 @@ export default function CheckoutScreen() {
               </>
             ) : (
               <>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex min-w-0 flex-wrap items-start gap-2 text-xs text-muted-foreground [overflow-wrap:anywhere]">
                   <Lock className="w-3 h-3 text-cyan-600" />
                   Secured by Razorpay — PCI DSS compliant
                 </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex min-w-0 flex-wrap items-start gap-2 text-xs text-muted-foreground [overflow-wrap:anywhere]">
                   <Shield className="w-3 h-3 text-cyan-600" />
                   UPI · Net Banking · Cards · Wallets · EMI
                 </div>
