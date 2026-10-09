@@ -6,7 +6,7 @@ import { xray } from "./xray";
 import { fetchCtx, createTracedFetch, redactText, redactValue, type HttpTraceEntry } from "./runner-fetch";
 import { validateActionProps } from "./action-input-validation";
 import { integrationError, normalizeIntegrationError } from "./error-normalization";
-import { assertIntegrationExecutionAuthorized } from "./execution-authorization.js";
+import { assertIntegrationExecutionAuthorized } from "./execution-authorization";
 import {
   customActions,
   pieceCache,
@@ -14,7 +14,7 @@ import {
   resolveAuth,
   ensureTokenFresh,
   logUsage,
-} from "./runner-helpers.js";
+} from "./runner-helpers";
 
 // ─── actionName resolution (normalize model-written names) ────────────
 //
