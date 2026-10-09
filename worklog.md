@@ -1,3 +1,17 @@
+## 2026-10-09 — Integrations & AI enhancement roadmap implementation
+
+[architect/ChatGPT] Began owner-authorized implementation with a bounded P0 reliability slice.
+
+- Added `src/lib/db/migration-validation.ts` to centralize duplicate migration-prefix detection.
+- Added `src/lib/db/migration-validation.test.ts` for unique and duplicate migration prefix behavior.
+- Moved the main migration runner's preflight ahead of database connection acquisition and bootstrap queries.
+- Reused the same validator in the destructive DB reset preflight.
+- Commits: `e0fc892e9b94b851cde247ebf36ed7dde5db8dfe`, `8bf3b378b9fadb39e5435a4e21e7489ef32b00b7`, `e28b6ee8b8536123069eee85bb64392b5eede592`, `690730bb95ce91f8f86a8e413fff09f7f69ef619`.
+- Tests/typecheck/build/CI/Vercel/live DB/deployment were not run or awaited. No claim is made that the production OAuth endpoint is fixed.
+- Next: inspect existing integration connection/token persistence and OAuth contracts, then implement the smallest safe OAuth state/callback/token lifecycle slice with focused regressions.
+
+---
+
 ## 2026-10-09 — OAuth configuration migration fail-closed guard
 
 [architect/ChatGPT] Continued the reported Gmail OAuth application configuration failure with a bounded deployment-safety correction.
