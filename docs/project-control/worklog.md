@@ -1,3 +1,15 @@
+## 2026-10-09 — DEV-01 / Forge — realtime voice dispatch architect review
+
+- **Role:** DEV-01 / Forge; performed the bounded architect-review action recorded in `NEXT_ACTION.md`.
+- **Branch:** `feature/ai-core-from-doable-source`.
+- **Review scope:** `src/modules/assistant/api/realtime.ts`, `src/modules/assistant/api/realtime-tool.ts`, `src/app/api/realtime/tool/route.ts`, `src/modules/assistant/core/hooks/useOpenAIRealtime.ts`, and the authored realtime regression sources.
+- **Outcome:** PASS_WITH_FOLLOWUP — SOURCE REVIEW ONLY. No substantial defect requiring FIX-01 handoff was identified.
+- **Reviewed invariants:** default-off dual flags; fixed two-tool allowlist; authenticated non-platform-admin; KB membership and `kb:read`; server-derived org/agent/user/session identity; body-supplied identity ignored; shared Unified Tool Runtime; embed-key sessions explicitly blocked in the client dispatch.
+- **Verification:** source review only. Tests/typecheck/build/CI/Vercel/Gates/deployment were not executed or awaited.
+- **Lesson:** a model-provided function call is untrusted input; browser checks improve UX but the authenticated server route and Unified Tool Runtime remain the enforcement boundary.
+- **Blockers/evidence gap:** focused regressions have not been executed; this review does not prove runtime correctness or deployment readiness.
+- **Exact next action:** stop and await the next owner-authorized bounded task. Do not start unrelated implementation, a new phase, or deployment.
+
 # Clara Project Worklog
 
 ## 2026-10-08 — I-6 MCP Tool Bridge implementation
