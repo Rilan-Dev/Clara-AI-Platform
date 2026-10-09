@@ -120,7 +120,7 @@ function LoginForm() {
               </div>
               <div>
                 <p className="text-foreground font-medium">Email verification required</p>
-                <p className="text-sm text-muted-foreground mt-1 break-all">
+                <p className="text-sm text-muted-foreground mt-1 break-words [overflow-wrap:anywhere]">
                   We sent a confirmation link to <span className="text-foreground/80 font-medium">{email}</span>.
                   Verify your email before continuing to your Clara AI workspace.
                 </p>
