@@ -108,3 +108,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** FIX-01
 - **Suggested next action:** Continue the authorized roadmap from `NEXT_ACTION.md`; when normal verification is next run, rebuild and assess the next actual result. Do not claim the image build is fixed without a new build.
 - **Related records:** commits `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`; `VERIFICATION_STATE.md`; `agents/FIX-01/WORKLOG.md`.
+
+
+### EVT-FIX-005 — 2026-10-09
+- **Agent/session:** FIX-01 / SESSION-FIX-20261009-03
+- **Type:** CORRECTION
+- **Summary:** Follow-on Docker webpack log identified unresolved imports in `execution-authorization.ts` and `runner-helpers.ts`. Six explicit `.js` import specifiers targeting TypeScript modules were converted to extensionless paths.
+- **Impact:** Removes the exact reported import-resolution blockers at source level; next build outcome remains unknown.
+- **Owner:** FIX-01
+- **Next action:** Continue roadmap implementation without waiting for CI/Vercel/gates; if a later ordinary build is run, diagnose its actual next result.
+- **Commits:** `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`, `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`.
