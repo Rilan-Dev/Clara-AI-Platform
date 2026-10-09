@@ -1,3 +1,22 @@
+# INCIDENT CORRECTION — 2026-10-09 — PLATFORM OAUTH APP CONFIGURATION 500
+
+[architect-verified] The reported `GET /api/platform/integrations/gmail/oauth-app` response `Could not load OAuth application configuration` is consistent with a migration-bootstrap blocker in the active branch: two migration files used prefix `063`, while `runMigrations()` explicitly rejects duplicate migration numbers before applying schema changes.
+
+### Source correction
+- Renamed the OAuth app schema migration to `src/lib/db/migrations/065_platform_integration_oauth_apps.sql`, leaving `064_sarvam_realtime_streaming.sql` in sequence.
+- Added the new migration file and removed the duplicate-numbered original.
+- Commits: `a85d58837719a6c7ac8aef4a28c909a262289bec`, `800826364c4b23be625629ebf9922687de84f342`.
+- No tests, CI, Vercel build, Gate, or live deployment verification was run or awaited.
+- This is a source-level root-cause correction; the live endpoint will remain broken until the active source is deployed and migration startup runs successfully.
+
+### Security note
+The user-provided curl included a session bearer/cookie token. Treat it as exposed and revoke/logout that session or rotate the token using the platform's supported session controls. Do not copy it into issues, logs, or repository files.
+
+### Next implementation
+Resume the currently authorized integration runtime task: wire realtime voice integration tool invocation through the same authorised Unified Tool Runtime used by provider chat, preserve provenance-verified tenant/agent/user context, add focused regression source, and update project-control records. Do not wait for CI/Vercel/Gates.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — REALTIME VOICE DISPATCH
 
 [architect-verified] Provider chat integration dispatch is implemented in the KB-aware chat route behind the existing default-off agent-loop and provider-tool-calling flags.
