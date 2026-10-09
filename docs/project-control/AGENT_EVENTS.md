@@ -98,3 +98,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** ChatGPT / architect review
 - **Suggested next action:** Review the implementation commits and test source; route any substantial bug to FIX-01. Do not wait/poll for CI/Vercel to perform this review.
 - **Related records:** `docs/project-control/NEXT_ACTION.md`; `src/modules/assistant/api/realtime-tool.ts`; commits a2dee343b099edef6ad6337fef976047c3f59aa5, c36b5b67beabad175ea9530293846ef8763b3151, f3e8efda5b7a12173e313ee4f476774c62092e52, a64e8f3258b9ab8e59f4f0258c600b1e0ddf13e9, a218e2a354e0c83e7944dbe9b32ad6bebbb574bf, f830efd8fb03f778a4277b2817cc2e684266c3cb, 29e470aea416cd3cc1af56e0a27a1320013498f5, e6da6968d3d7d6e422b309e5188562578f2adb56.
+
+
+### EVT-FIX-004 — 2026-10-09
+- **Agent/session:** FIX-01 / SESSION-FIX-20261009-02
+- **Type:** CORRECTION
+- **Summary:** Follow-on review of the owner-provided Docker webpack failure found five remaining explicit `.js` sibling imports in `connections-manager.ts`, `runner-core.ts`, and `runner-fetch.ts`, targeting TypeScript files. Converted only those import specifiers to extensionless paths.
+- **Impact:** local production-image build source blocker; rebuild outcome remains unverified.
+- **Owner:** FIX-01
+- **Suggested next action:** Continue the authorized roadmap from `NEXT_ACTION.md`; when normal verification is next run, rebuild and assess the next actual result. Do not claim the image build is fixed without a new build.
+- **Related records:** commits `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`; `VERIFICATION_STATE.md`; `agents/FIX-01/WORKLOG.md`.
