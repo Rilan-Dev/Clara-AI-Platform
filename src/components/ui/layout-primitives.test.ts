@@ -131,6 +131,16 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(orgSettings).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("preserves long agent names and analytics query text in cards", () => {
+    const orgAgents = source("../../features/admin/screens/org-agents-screen.tsx");
+    const analytics = source("../../features/admin/screens/analytics-screen.tsx");
+
+    expect(orgAgents).not.toMatch(/className="truncate text-sm font-medium text-foreground hover:text-primary"/);
+    expect(orgAgents).toMatch(/overflow-wrap:anywhere/);
+    expect(analytics).not.toMatch(/q\.query_text.*truncate/);
+    expect(analytics).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
