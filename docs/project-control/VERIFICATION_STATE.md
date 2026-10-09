@@ -1,3 +1,14 @@
+## 2026-10-09 — Connection health and scoped recovery
+
+- Health aggregation now includes only the current caller's credentials and organisation-shared credentials, not unrelated users' private connection records.
+- Disconnect SQL matches exact agent scope using `IS NOT DISTINCT FROM`; absent agent ID no longer means every agent connection.
+- UI includes confirmed disconnect and OAuth reconnect/status paths.
+- Regression source added for expired status, credential validation and exact disconnect scope.
+- Commits: `6472dae88f4b1a835839f22c1d2bf9aa5a27da4f`, `bf8f6c0706ca0df432e5ddf3c75a15152585846e`, `d9442aa0b0311a9623b8f21916b053174260e843`, `5e1cd4a9399d3ccf05c0726dc70bf36ff1bb02b1`, `e4f94669d9a1cf8a832cb15dc33b38430a442374`.
+- Tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live OAuth provider flow were not run or awaited.
+
+---
+
 ## 2026-10-09 — Server-side integration credential validation
 
 - Added `validateConnectionCredentials` and enforced it in the organisation integration POST route before a connection can be persisted.
