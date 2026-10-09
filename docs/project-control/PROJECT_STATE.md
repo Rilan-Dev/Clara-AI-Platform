@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-09 — OAUTH APP CONFIGURATION MIGRATION COLLISION
+
+[architect-verified] The reported OAuth application configuration GET 500 is consistent with duplicate numbered DB migrations: the OAuth-app table migration and payment-settings migration both used `063`, and the migration runner intentionally rejects duplicate numeric prefixes. The OAuth-app migration was renumbered to `065_platform_integration_oauth_apps.sql` after `064_sarvam_realtime_streaming.sql`.
+
+- New migration commit: `a85d58837719a6c7ac8aef4a28c909a262289bec`
+- Duplicate removal commit: `800826364c4b23be625629ebf9922687de84f342`
+- No CI, Vercel build, Gate, or live endpoint verification was run/awaited.
+- Source correction is not a production deployment claim.
+
+**Next implementation:** continue realtime voice integration dispatch through the Unified Tool Runtime, as directed by `NEXT_ACTION.md`.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-09 — PROVIDER CHAT DISPATCH IMPLEMENTED
 
 [architect-verified] The KB-aware provider chat route now has a default-off integration tool-calling path. When both `ENABLE_AI_PLATFORM_AGENT_LOOP` and `ENABLE_AI_PLATFORM_TOOL_CALLING` are explicitly enabled, and the configured provider implements `chatStreamWithTools`, the route exposes only `integration_availability` and `integration_action` to the model and delegates their execution through `getClaraToolRuntime()`. The runtime context is minted from server-resolved organisation, KB, agent, authenticated user, and optional session identity; request-body identity is not trusted.
