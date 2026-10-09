@@ -284,3 +284,12 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Implementation:** Hardened pricing card widths and feature/FAQ wrapping; checkout plan summary and payment panel shrink/wrap behavior; receipt rows and transaction reference; signup-verification content cards. Added source-contract test coverage.
 - **Verification:** No local runtime; Vitest/typecheck not run. Live DOM checks are HTTP 200 but predate latest branch commits. Screenshot service failed upstream 502; visual PASS not claimed.
 - **Next:** Finish remaining public/auth surfaces and continue WhatsApp roadmap work without external-gate polling.
+
+
+### SESSION-FIX-20261010-05 — 2026-10-10
+- **Role:** FIX-01 / Sentinel
+- **Scope:** Route-level regression for scheduled WhatsApp health checks.
+- **Implementation:** Added coverage for unauthorized cron requests, expiry transitions, Meta auth/permission rejection, and transient rate limits.
+- **Commit:** `023ba0b25b615f3badd6ff5b30b47b93afe7d832`.
+- **Verification:** Tests authored, not run. Local clone attempt could not resolve github.com; no local repository/dependency runtime available.
+- **Next:** Safe reconnect and expiry coverage, ambiguous sending-run reconciliation, then continue grounded AI briefing evaluation and remaining UI audit without waiting for CI/Vercel.
