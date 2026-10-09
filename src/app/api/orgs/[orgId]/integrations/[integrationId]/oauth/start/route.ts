@@ -71,6 +71,13 @@ export async function GET(request: NextRequest, { params }: Params): Promise<Nex
     const pkceMethod = definition.oauth2Config.pkceMethod ?? "S256";
     const created = createOAuthState(new Date(), pkceMethod);
     const usePkce = definition.oauth2Config.pkce === true;
+    // Opportunistically remove expired/recently consumed records so short-lived
+    // OAuth state does not grow without bound on deployments without a scheduler.
+    await query(
+      `DELETE FROM integration_oauth_states
+        WHERE expires_at < now() - interval '1 day'
+           OR consumed_at < now() - interval '1 day'`,
+    );
     await query(
       `INSERT INTO integration_oauth_states
          (state_hash, integration_id, org_id, user_id, agent_id, redirect_uri,
