@@ -352,3 +352,9 @@ FIX-01 extended responsive clipping fixes to signup plan/account wizard, forgot-
 - Added migration 068 for health-probe timestamps and a new authenticated-by-secret scheduled WABA health endpoint. It expires stale tokens, probes active WABA access in bounded batches, marks auth/permission-rejected connections unhealthy and disables briefing eligibility, and does not mark transient provider/network failures as revocation.
 - Added Vercel cron schedule every 15 minutes and tests for health classification. Commits: `4b51268cc6b892d94d3db5b3e071fcebdb89b1cf`, `4f7dbcc1826fc19a77bd6b45a07b77255162c1b7`, `c1bf0e723720aa70b299bf396580634c3cf25960`, `c3aa12fa670a15316d8e8c80acf6d2c646182fc2`, `ab4436eb6f21114f67706ef227336679ec36af9c`, `bf753134206cb69d1dfcd52352c5c68694ca92a6`, `996080bfcf93cd039291cd78f96d3936dc6c8ac6`, `9497f19585ad386ea721536bb20092e0634c84c5`.
 - No test/typecheck/build/deployment PASS claimed. Browser DOM checks succeeded at HTTP 200 but screenshot capture failed upstream, so visual review remains pending.
+
+
+## EVT-FIX-20261010-04 — Pricing and checkout card audit
+- Extended the UI clipping audit to pricing cards/feature lists/FAQ, checkout plan summary/payment method panels, checkout-success receipt rows and transaction reference, and the legacy signup verification screen.
+- Added regression assertions for those surfaces. Commits: `cb2cf12daad6690e370df6d79b948e696de900a8`, `1b46a4f70634e90aeb0786fd401331d9f5930090`, `eede473e8a51462ba0397cd9dacc54ee087101ac`, `cbfc751f0c51e7bffe1fd119e10933195535383f`, `96f30aeabcafa4aa6a5495e36cec75f2d03d6b93`.
+- Tests/typecheck and visual review remain pending. Browser screenshot service returned upstream 502; DOM crawl timestamps predate the latest commits. No PASS claimed.
