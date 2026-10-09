@@ -68,3 +68,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **EVT-FIX-001 — 2026-10-09** — FIX-01 completed the Tailwind v4/PostCSS Docker build blocker on `feature/ai-core-from-doable-source`; added `@tailwindcss/postcss` 4.3.3, switched PostCSS registration, and regenerated the lock dependency closure. Source commits: `ed56e33d49a391025d605919183cb8cdc581fd20`, `d119c02853ef2a33eb508c69418745eeab385782`, `0d1666efa24950a1a23a995cea57ba4a7adfd4da`.
 
 - **EVT-FIX-002 — 2026-10-09** — Local Docker `npm ci` exposed one remaining lockfile-sync defect from the Tailwind migration: `@tailwindcss/node@4.3.3` requires `magic-string@^0.30.21`, while the lockfile only had the unrelated `magic-string@1.4.3` tree. Added the required nested `node_modules/@tailwindcss/node/node_modules/magic-string@0.30.21` lock entry. Commit: `a9d50dfafd29e9645705363906b128883148e4cc`. No application logic changed.
+
+
+### EVT-DEV-001 — 2026-10-09
+- **Agent/session:** DEV-01 / SESSION-DEV-20261009-01
+- **Type:** HANDOFF
+- **Summary:** Implemented the authorized realtime voice integration dispatch slice through the existing Unified Tool Runtime. Session descriptors remain default-off and require authenticated KB access; the server route derives identity rather than trusting request-body IDs. Regression source was added but not executed.
+- **Impact:** local feature capability; architect review required before verification status can advance.
+- **Owner:** ChatGPT / architect review
+- **Suggested next action:** Review the implementation commits and test source; route any substantial bug to FIX-01. Do not wait/poll for CI/Vercel to perform this review.
+- **Related records:** `docs/project-control/NEXT_ACTION.md`; `src/modules/assistant/api/realtime-tool.ts`; commits a2dee343b099edef6ad6337fef976047c3f59aa5, c36b5b67beabad175ea9530293846ef8763b3151, f3e8efda5b7a12173e313ee4f476774c62092e52, a64e8f3258b9ab8e59f4f0258c600b1e0ddf13e9, a218e2a354e0c83e7944dbe9b32ad6bebbb574bf, f830efd8fb03f778a4277b2817cc2e684266c3cb, 29e470aea416cd3cc1af56e0a27a1320013498f5, e6da6968d3d7d6e422b309e5188562578f2adb56.
