@@ -1684,3 +1684,13 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - Evidence class: owner-provided build log + source inspection/correction.
 - Not verified: post-correction Docker build, test suite, typecheck, CI, Vercel, Gates, deployment, or production recovery. No executable PASS is claimed.
 - Next: continue `NEXT_ACTION.md` without waiting for external gates; inspect any later build failure on its own evidence.
+
+
+## 2026-10-09 — Third runtime webpack import correction
+
+Owner-provided build output showed unresolved imports in `execution-authorization.ts` and `runner-helpers.ts`. Six explicit `.js` suffixes were removed from imports targeting TypeScript modules.
+
+- Source commits: `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`, `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`.
+- Evidence: owner-provided pre-correction build log and source changes.
+- Not verified: post-correction Docker build, tests, typecheck, CI, Vercel, gates, deployment, or runtime health on the new image.
+- No executable PASS is claimed; continue `NEXT_ACTION.md` without waiting for external gates.
