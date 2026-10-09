@@ -337,3 +337,7 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 removed truncation from top-query analytics text, organisation usage names/slugs and metric values, configuration option labels/descriptions/preset names, and language picker names.
 - Commits: `0d22fb9cb26b86c3495e1c06809a514382460c7b`, `7dc2f59cadcee1a8a4d57fe98c17bcb68a933c69`, `22c83d90b470259f963e458e9acf22b2c04ec206`, `0769bb726ba0d5d427cb40f3955c2a6f9472abd6`; test commit `6dac46b7bf397c9751e18e611f9ff6f06ac5fecf` (16 source-contract tests).
 - Runtime tests/typecheck/browser review remain pending; no PASS claimed. OPS-01 retains PostgreSQL incident. This independent FIX-01 work does not supersede current NEXT_ACTION.md owner/workstream.
+
+
+## 2026-10-10 — FIX-01 landing/login card clipping follow-up
+Owner reported the same clipping/design issue on the public landing page and login card. FIX-01 adjusted the landing hero wrapper and feature-card text to be shrink-safe/wrappable, and constrained the login card/form fields to their container. Regression source was added to `src/components/ui/layout-primitives.test.ts`. Source commits: `4dcf32954d6e2c31ac3b022977af20dba7565e24`, `06c9343cb0cf3f8ffcc76bfacde63a22f58aeb40`. Runtime test and deployed-browser verification remain pending; no PASS claimed.
