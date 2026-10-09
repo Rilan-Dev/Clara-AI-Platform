@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { withTransaction } from "@/lib/db";
 import { constantTimeEquals, verifyMetaWebhookSignature, whatsappEventKey, whatsappOpaqueEventKey } from "@/modules/integrations/whatsapp-webhook";
+import { advanceWhatsAppMessageStatus } from "@/modules/integrations/whatsapp-message-status";
 
 export const dynamic = "force-dynamic";
 
@@ -84,14 +85,21 @@ async function persistEvent(input: {
         ? input.status.status : "unknown";
       const timestamp = typeof input.status.timestamp === "string" && /^\d{1,12}$/.test(input.status.timestamp)
         ? new Date(Number(input.status.timestamp) * 1000) : new Date();
-      await client.query(
-        `UPDATE whatsapp_messages
-            SET status = CASE WHEN status = 'read' THEN 'read' ELSE $2 END,
-                status_updated_at = GREATEST(status_updated_at, $3), updated_at = now(),
-                payload = payload || $4::jsonb
-          WHERE provider_message_id = $1 AND connection_id = $5`,
-        [input.status.id, status, timestamp, JSON.stringify({ lastProviderStatus: input.status }), connection.id],
-      );
+      const currentMessage = (await client.query<{ status: string }>(
+        `SELECT status FROM whatsapp_messages
+          WHERE provider_message_id = $1 AND connection_id = $2 FOR UPDATE`,
+        [input.status.id, connection.id],
+      )).rows[0];
+      if (currentMessage) {
+        const nextStatus = advanceWhatsAppMessageStatus(currentMessage.status, status);
+        await client.query(
+          `UPDATE whatsapp_messages
+              SET status = $2, status_updated_at = GREATEST(status_updated_at, $3), updated_at = now(),
+                  payload = payload || $4::jsonb
+            WHERE provider_message_id = $1 AND connection_id = $5`,
+          [input.status.id, nextStatus, timestamp, JSON.stringify({ lastProviderStatus: input.status }), connection.id],
+        );
+      }
     }
     await client.query("UPDATE whatsapp_webhook_events SET processed_at = now() WHERE id = $1", [inserted.rows[0].id]);
   });
