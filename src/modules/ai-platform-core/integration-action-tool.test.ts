@@ -34,8 +34,7 @@ describe("integration action tool scope propagation", () => {
     query
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
       .mockResolvedValueOnce([{ enabled: true }])
-      .mockResolvedValueOnce([{ enabled: true }])
-      .mockResolvedValueOnce([{ id: "connection-1" }]);
+      .mockResolvedValueOnce([{ enabled: true }]);
     runAction.mockResolvedValue({ success: true, output: { ok: true } });
 
     const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
@@ -60,8 +59,8 @@ describe("integration action tool scope propagation", () => {
     }));
     expect(runAction.mock.calls[0][0]).not.toHaveProperty("projectId");
     expect(query).toHaveBeenLastCalledWith(
-      expect.stringContaining("(user_id=$4 OR user_id IS NULL)"),
-      ["org-1", "example", "agent-1", "user-1"],
+      expect.stringContaining("a.org_id=$2"),
+      ["agent-1", "org-1", "example"],
     );
   });
 
@@ -69,8 +68,7 @@ describe("integration action tool scope propagation", () => {
     query
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
       .mockResolvedValueOnce([{ enabled: true }])
-      .mockResolvedValueOnce([{ enabled: true }])
-      .mockResolvedValueOnce([{ id: "connection-1" }]);
+      .mockResolvedValueOnce([{ enabled: true }]);
     runAction.mockResolvedValue({
       success: false,
       output: null,
@@ -97,6 +95,12 @@ describe("integration action tool scope propagation", () => {
   });
 
   it("does not treat another user's connection as current-user readiness", async () => {
+    const { getIntegration } = await import("@/modules/integrations/registry");
+    vi.mocked(getIntegration).mockReturnValueOnce({
+      id: "example",
+      displayName: "Example",
+      authType: "oauth2",
+    } as never);
     query
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["*"] }])
       .mockResolvedValueOnce([{ enabled: true }])
