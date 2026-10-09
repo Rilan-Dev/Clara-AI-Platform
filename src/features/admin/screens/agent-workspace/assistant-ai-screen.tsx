@@ -480,7 +480,7 @@ function AISelectionCard({
         <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={`${capabilityLabel(surface)} configuration`}>
           <button type="button" aria-label="Close configuration" onClick={() => setSurface(null)}
             className="absolute inset-0 bg-black/35 backdrop-blur-[1px]" />
-          <aside className="absolute right-0 top-0 flex h-full w-full max-w-2xl flex-col border-l border-border bg-card shadow-2xl animate-in slide-in-from-right duration-200">
+          <aside className="absolute right-0 top-0 flex h-full w-full min-w-0 max-w-[100vw] flex-col overflow-x-hidden [overflow-wrap:anywhere] border-l border-border bg-card shadow-2xl animate-in slide-in-from-right duration-200">
             <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">AI runtime</p>
@@ -493,7 +493,7 @@ function AISelectionCard({
                 className="rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">Close</button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5">
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
               {loadingCapability === surface && !localOptions[surface] ? (
                 <div className="space-y-3">
                   <div className="h-14 animate-pulse rounded-xl bg-muted/60" />
