@@ -80,3 +80,14 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Evidence:** Owner log reports `DOMMatrix is not defined` and missing `@napi-rs/canvas`; source correction commit `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`.
 - **Failed approaches:** None attempted in runtime; no Docker commands were run from this session. Do not treat lazy loading as proof that PDF extraction itself works.
 - **Next action:** When rebuilt from current branch, inspect any remaining duplicate migration prefix in the actual image; if a real PDF parse still fails on DOMMatrix, resolve the production PDF.js canvas runtime dependency.
+
+
+### SESSION-FIX-20261009-04 / 2026-10-09
+- **Task:** Diagnose owner-provided self-hosted backend logs and isolate the PDF.js startup failure.
+- **Authorization:** Owner supplied runtime logs in the active FIX-01 continuation; narrow source correction and incident recording.
+- **Started from:** `feature/ai-core-from-doable-source`; current local container age is 14 hours, so its image is not assumed current.
+- **Actions:** Inspected migration tree, startup instrumentation, PDF parser, parser factory, and Dockerfile. Current branch contains one migration prefix 063 and includes migration 065; the duplicate-063 log likely comes from a different/older image bundle, but the exact image source commit is unknown. The OAuth table error is consistent with migration startup aborting before migration 065.
+- **Files/code:** `src/modules/ingest/parsers/pdf.ts` now uses a type-only `PDFParse` import and dynamically loads `pdf-parse` only during `PDFParser.parse()`.
+- **Evidence:** Owner log reports `DOMMatrix is not defined` and missing `@napi-rs/canvas`; source correction commit `cdcad9f89105f4aa9d3c867e88cf73ef34efcfba`.
+- **Failed approaches:** No runtime commands were run. Do not treat lazy loading as proof that PDF extraction itself works.
+- **Next action:** When rebuilt from current branch, inspect any remaining duplicate migration prefix in the actual image; if a PDF parse still fails on DOMMatrix, resolve the production PDF.js canvas runtime dependency.
