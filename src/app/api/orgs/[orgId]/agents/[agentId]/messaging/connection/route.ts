@@ -207,7 +207,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (body.action === "disconnect") {
       const result = await query(
         `UPDATE whatsapp_business_connections SET status = 'disconnected', daily_briefing_enabled = false, updated_at = now()
-          WHERE org_id = $1 AND agent_id = $2 AND status = 'active'`,
+          WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
+          RETURNING id`,
         [orgId, agentId],
       );
       return NextResponse.json({ ok: true, disconnected: result.length > 0 });
