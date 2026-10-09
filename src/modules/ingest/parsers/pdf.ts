@@ -1,5 +1,5 @@
 import { DocumentParser, ParsedDocument } from "../types";
-import { PDFParse } from "pdf-parse";
+import type { PDFParse } from "pdf-parse";
 
 // pdf-parse@2.x exposes PDFParse as the supported Node API. The old
 // pdf-parse/lib/pdf-parse.js entrypoint belongs to the v1 package layout and
@@ -93,7 +93,11 @@ export class PDFParser implements DocumentParser {
 
     let parser: PDFParse | undefined;
     try {
-      parser = new PDFParse({ data: buffer });
+      // pdf-parse eagerly loads its PDF.js runtime, which expects DOMMatrix and
+      // other browser canvas globals. Do not load it when the application imports
+      // the parser registry at server startup; resolve it only for an actual PDF.
+      const { PDFParse: PDFParseRuntime } = await import("pdf-parse");
+      parser = new PDFParseRuntime({ data: buffer });
       const data = await parser.getText();
       const text = typeof data.text === "string" ? data.text.trim() : "";
 
