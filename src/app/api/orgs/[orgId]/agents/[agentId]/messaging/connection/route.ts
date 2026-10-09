@@ -33,8 +33,13 @@ async function verifyWabaAccess(wabaId: string, token: string): Promise<"ok" | "
       method: "GET", headers: { Authorization: `Bearer ${token}` },
       redirect: "manual", signal: AbortSignal.timeout(10_000),
     });
-    if (response.status === 401 || response.status === 403) return "rejected";
-    if (!response.ok) return "unavailable";
+    if (!response.ok) {
+      const errorBody: unknown = await response.json().catch(() => null);
+      const graphError = errorBody && typeof errorBody === "object" && "error" in errorBody
+        ? (errorBody as { error?: { code?: unknown } }).error : undefined;
+      if (response.status === 401 || response.status === 403 || graphError?.code === 190 || graphError?.code === 102) return "rejected";
+      return "unavailable";
+    }
     const data: unknown = await response.json().catch(() => null);
     return data && typeof data === "object" && "id" in data && (data as { id?: unknown }).id === wabaId
       ? "ok" : "unavailable";
