@@ -1,3 +1,16 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — PROVIDER CHAT DISPATCH IMPLEMENTED
+
+[architect-verified] Provider chat dispatch has been added to the KB-aware chat route behind both existing default-off flags. Only the integration availability/action tools are exposed. Tool calls execute through the Clara Unified Tool Runtime and use a factory-created execution context based on server-resolved tenant/KB/agent/user identity.
+
+- Implementation: `df124e837b49a17d1e218eca9a585a8313dbdec6`.
+- Providers lacking `chatStreamWithTools` remain on the original chat streaming path.
+- No tests, CI, Vercel build, or Gates were run or awaited.
+- Status: IN PROGRESS — realtime voice runtime dispatch remains.
+
+**Next implementation:** wire realtime voice integration invocation to the same runtime; add focused regressions and update project-control records.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — INTEGRATION RUNTIME DISPATCH
 
 [architect-verified] Active bounded task: organisation integration setup plus AI access. OAuth app configuration input validation is implemented and focused regression source added. Provider chat and realtime voice dispatch are not yet complete, so the task remains IN PROGRESS.
