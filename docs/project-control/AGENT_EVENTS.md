@@ -269,3 +269,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Owner:** FIX-01
 - **Suggested next action:** Run the focused Vitest test/typecheck when local execution is available and visually inspect representative popovers/dialogs/cards at mobile and desktop widths. Continue checking feature-level overrides; do not claim UI-wide verification from source assertions.
 - **Related records:** `docs/project-control/agents/FIX-01/WORKLOG.md`; `docs/project-control/AGENT_MEMORY.md`; `src/components/ui/layout-primitives.test.ts`; commits `da0f74909bfa4e92d1268ef4e0eb384d07ad9ed6` and related UI commits.
+
+
+## EVT-FIX-013 — 2026-10-10 — Feature-level dialog wrapping
+- FIX-01 continued the UI audit beyond shared primitives. Organisation integration credential and platform OAuth dialogs now have viewport-bounded height, internal scrolling, shrink-safe headers/content and overflow wrapping; AI capability drawer is viewport-constrained; KB collection identifiers use readable wrapping instead of blanket `break-all`.
+- Regression test extended for these feature-specific contracts. Source commits: `51e6bb6e63558366b7965e644e0a02f61bbff951`, `1cc758978a0f89d86d8116f7217a63aa5b8f91cc`, `7934375741d50d91fc80a7615ee54dd6a7d4762e`, `3957e0e56d83fbd73ad00c27712b71a4f57d3ed6`, `13f353079f87c06d7b30d92d8cc00e180dbe1b90`.
+- No local tests/typecheck/build or browser review executed; no pass claimed. PostgreSQL missing-relation and seed FK incident remains with OPS-01; no DB changes.
