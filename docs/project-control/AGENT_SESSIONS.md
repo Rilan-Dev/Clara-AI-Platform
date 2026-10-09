@@ -259,3 +259,12 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Commits:** `4dcf32954d6e2c31ac3b022977af20dba7565e24`, `06c9343cb0cf3f8ffcc76bfacde63a22f58aeb40`; regression source update follows.
 - **Verification:** Source-only; Vitest/typecheck/browser verification not run.
 - **Pending:** Inspect the live public landing/login pages at narrow mobile and desktop widths, continue remaining auth-card audit, then continue the authorized roadmap without waiting on external gates.
+
+
+### SESSION-FIX-20261010-02 — 2026-10-10
+- **Role:** FIX-01 / Sentinel
+- **Scope:** Public/auth card clipping audit.
+- **Implementation:** Responsive fixes for signup wizard/plan cards, forgot-password card, reset-password card/form fields, and email-verification states. Added source-contract test for all four screens.
+- **Commits:** `e88747825ffb3923543e056e14c46b0c88cafe1c`, `b45db54a1342b9153face2848232428c1c00a6ef`, `2de0043febf3d0f20f7e2c996ae6da2cbd729736`, `eac422cfaa8cf7199ad56968448d0ab7fc2b1c43`; test/docs commits recorded separately.
+- **Verification:** Live browser DOM checks returned HTTP 200 for landing and login mobile presets. Screenshot capture endpoint failed upstream; no visual pass claimed. Vitest and typecheck not run because no local repository runtime is attached.
+- **Next:** Continue public/auth screen audit and normal roadmap work independently of CI/Vercel.
