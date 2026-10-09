@@ -1,3 +1,15 @@
+# CURRENT PROJECT STATE — 2026-10-09 — WHATSAPP SERVER LIFECYCLE SOURCE ADDED
+
+- Branch: `feature/ai-core-from-doable-source`.
+- DEV-01 added the Meta WhatsApp OAuth start/callback, encrypted token persistence, WABA/phone selection and uniqueness constraints, WABA subscription, signed webhook endpoint, transactional idempotent event processing, durable inbound message/delivery state, server-backed Messaging status, and a verified-webhook briefing eligibility flag.
+- Added migration `067_whatsapp_business_lifecycle.sql`, regression source for webhook security helpers, and `docs/deployment/whatsapp-business.md`.
+- Source commits include `27ad17cb8f9bff9d0278ce4eb68900e81fe2ecfe`, `89ce8d7b23e1fadb877c41f14540aa140b2f864b`, `496db2482512d39d632ee2c95c5ec2779a466bd4`, `3b238a36890b9f6d2acb8973a4e9681d6606ce26`, `19c6401062334447277171c3e44c906809378a6d`, `a5ccba51b4ecd06bc279c9f8f67b13c34cb1dc78`, `dc8f21c4cc0ee7a614d6aa2f20402e35dbe33ee5`, `30fca3dfe1d2fc6a847cc8da7ca725a4dcf93f0c`, and `392978f3df24a2656c43ed4b12241317ad1df66`.
+- No tests/typecheck/build/Docker/CI/Vercel/live Meta flow or deployment were run or awaited. No runtime PASS is claimed.
+- Remaining: outbound message sending and delivery-state capture, actual scheduled daily summary worker (only the readiness/preference flag exists), token expiry/revocation/reconnect health, and focused route-level regression source.
+- Exact next action: follow `docs/project-control/NEXT_ACTION.md`; do not wait for CI/Vercel/Gates.
+
+---
+
 # CURRENT PROJECT STATE — 2026-10-09 — WHATSAPP MESSAGING UX ENTRY POINT ADDED
 
 - Branch: `feature/ai-core-from-doable-source`.
