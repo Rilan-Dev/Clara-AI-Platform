@@ -113,6 +113,7 @@ describe("organisation integration entitlement enforcement", () => {
     const deleteCall = queryMock.mock.calls.find(
       ([sql]) => typeof sql === "string" && sql.includes("DELETE FROM integration_connections"),
     );
+    expect(deleteCall?.[0]).toContain("agent_id IS NOT DISTINCT FROM $4::uuid");
     expect(deleteCall?.[1]).toEqual(["org-1", "github", "user-1", null]);
   });
 
