@@ -39,3 +39,15 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Blockers/dependencies:** Outcome of a new Docker build is unknown; no infrastructure/daemon failure is indicated by the shown webpack errors.
 - **Lesson:** Correct only the concrete failing imports; deeper imports can surface after earlier failures are removed. A running old container is not evidence that new source compiled.
 - **Next action:** Resume `docs/project-control/NEXT_ACTION.md`; do not wait for CI/Vercel/Gates and do not claim PASS or production recovery.
+
+
+### SESSION-FIX-20261009-03 / 2026-10-09
+- **Task:** Resolve the next concrete webpack missing-module failures.
+- **Authorization:** Owner instruction to trace root cause, make the smallest authorized correction, record evidence/lessons/next action, and avoid unrelated scope.
+- **Started from:** `feature/ai-core-from-doable-source`; latest user build had pulled through `0009c3bf`.
+- **Actions:** Read the current project-control context and inspected the five failing import specifiers in the latest build log. Confirmed the registry module exists as `src/modules/integrations/registry/index.ts` and the other targets are sibling TypeScript modules. Changed six explicit `.js` imports in two files to extensionless imports.
+- **Files:** `src/modules/integrations/runtime/execution-authorization.ts`; `src/modules/integrations/runtime/runner-helpers.ts`.
+- **Evidence:** commits `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8` and `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`. The provided log is pre-correction evidence. No post-correction build/test run.
+- **Failed approach:** Earlier batches corrected only the modules surfaced by earlier logs; deeper explicit suffixes remained.
+- **Lesson/prevention:** Continue tracing each fresh webpack failure through the importing file; don't infer build success from a healthy stale container.
+- **Next action:** Continue the owner-authorized roadmap in `NEXT_ACTION.md`; do not wait for CI/Vercel/Gates and do not claim PASS.
