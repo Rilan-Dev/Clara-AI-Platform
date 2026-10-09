@@ -405,14 +405,14 @@ function WelcomeMessage({
 }) {
   if (!welcomeMessage.trim()) return null;
   return (
-    <div className="flex gap-2.5">
+    <div className="flex min-w-0 items-start gap-2.5">
       <div
         className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
         style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}
       >
         <Sparkles className="h-3.5 w-3.5" />
       </div>
-      <div className="max-w-[85%] rounded-2xl rounded-tl-md border border-border/60 bg-muted/35 px-4 py-3 text-sm leading-relaxed text-foreground/90">
+      <div className="w-fit min-w-0 max-w-[calc(100%-2.625rem)] break-words [overflow-wrap:anywhere] rounded-2xl rounded-tl-md border border-border/60 bg-muted/35 px-4 py-3 text-sm leading-relaxed text-foreground/90">
         <AgentMarkdown content={welcomeMessage} />
       </div>
     </div>
@@ -698,10 +698,10 @@ function MessageRow({
 }) {
   if (message.role === "user") {
     return (
-      <div className="flex justify-end gap-2.5">
-        <div className="max-w-[85%] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm"
+      <div className="flex min-w-0 justify-end gap-2.5">
+        <div className="w-fit min-w-0 max-w-full break-words [overflow-wrap:anywhere] rounded-2xl rounded-tr-md px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm"
           style={{ background: `linear-gradient(135deg, ${primaryColour}, ${accentColour})` }}>
-          <span className="whitespace-pre-wrap">{message.content}</span>
+          <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</span>
         </div>
       </div>
     );
@@ -717,8 +717,8 @@ function MessageRow({
       >
         {(assistantName?.trim()?.charAt(0)?.toUpperCase() ?? "A")}
       </div>
-      <div className="max-w-[90%]">
-        <div className="rounded-2xl rounded-tl-md border border-border/60 bg-muted/30 px-4 py-2.5 text-sm leading-relaxed text-foreground">
+      <div className="min-w-0 max-w-[calc(100%-2.375rem)]">
+        <div className="min-w-0 max-w-full break-words [overflow-wrap:anywhere] rounded-2xl rounded-tl-md border border-border/60 bg-muted/30 px-4 py-2.5 text-sm leading-relaxed text-foreground">
           {streamingAssistant && !message.content.trim() ? (
             // Pre-first-token state: the placeholder bubble itself carries the
             // thinking dots — no second status box is rendered alongside it.
