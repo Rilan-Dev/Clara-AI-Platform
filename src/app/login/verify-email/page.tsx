@@ -102,7 +102,7 @@ function VerifyEmailForm() {
         Otherwise, go back to Clara AI and sign in.
       </p>
       {email && (
-        <p className="text-xs text-muted-foreground/70 break-all">{email}</p>
+        <p className="text-xs text-muted-foreground/70 break-words [overflow-wrap:anywhere]">{email}</p>
       )}
       <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left">
         <p className="text-xs font-semibold text-foreground">What to do next</p>
