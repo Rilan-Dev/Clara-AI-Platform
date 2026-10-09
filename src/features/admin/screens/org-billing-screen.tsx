@@ -635,7 +635,7 @@ export default function OrgBillingScreen() {
         {history && history.invoices.length > 0 ? (
           <div className="space-y-2">
             {history.invoices.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-muted/50 px-4 py-3">
+              <div key={inv.id} className="flex min-w-0 flex-wrap items-start justify-between gap-3 rounded-xl border border-border/70 bg-muted/50 px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-sm text-foreground capitalize">
                     {inv.event_type.replace(/[._]/g, " ")} · <span className="text-muted-foreground">{inv.plan_id ?? "—"}</span>
@@ -664,7 +664,7 @@ export default function OrgBillingScreen() {
                     {entry.action.replace(/[._]/g, " ")}
                     {entry.old_plan_id && entry.new_plan_id && ` · ${entry.old_plan_id} → ${entry.new_plan_id}`}
                   </p>
-                  {entry.note && <p className="text-[11px] text-muted-foreground/70 truncate">{entry.note}</p>}
+                  {entry.note && <p className="break-words [overflow-wrap:anywhere] text-[11px] text-muted-foreground/70">{entry.note}</p>}
                 </div>
                 <span className="text-[11px] text-muted-foreground/70 shrink-0">{formatDate(entry.created_at)}</span>
               </div>
