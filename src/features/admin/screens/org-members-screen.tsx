@@ -249,11 +249,11 @@ export default function OrgMembersScreen() {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground flex items-center gap-2 truncate">
+                      <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground">
                         {m.fullName || m.email}
                         {isSelf && <span className="text-[11px] text-muted-foreground/70">(you)</span>}
                       </p>
-                      <p className="text-xs text-muted-foreground/70 truncate">{m.email}</p>
+                      <p className="break-words [overflow-wrap:anywhere] text-xs text-muted-foreground/70">{m.email}</p>
                       {/* Joined date — desktop noise, hidden on phones */}
                       <p className="hidden lg:block text-[11px] text-muted-foreground/80">Joined {formatDate(m.joinedAt)}</p>
                     </div>
