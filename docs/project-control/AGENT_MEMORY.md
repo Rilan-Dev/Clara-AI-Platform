@@ -69,6 +69,16 @@ Append lessons under the owning agent section:
 - **Related record:** `src/app/api/integrations/oauth/callback/route.ts`; `src/modules/integrations/runtime/runner-helpers.ts`; `src/modules/integrations/types.ts`.
 
 ### FIX-01 / Sentinel
+
+- **Date/session:** 2026-10-09 / SESSION-FIX-20261009-01
+- **Agent:** FIX-01 / Sentinel
+- **Issue/symptom:** Docker production build failed resolving five relative TypeScript modules: `store.js`, `files-service.js`, `connections-manager.js` from `context-builder.ts`, and `action-input-validation.js`, `error-normalization.js` from `runner-core.ts`.
+- **Root cause:** The source used explicit `.js` suffixes for sibling modules implemented as TypeScript files; Next.js webpack did not resolve those five imports in this build path. The target `.ts` modules exist in the same runtime directory.
+- **Failed approach:** Rebuilding the image without correcting source could not change module resolution; bringing the service up with `--no-deps` merely left the previous healthy container running and was not evidence that the new source built.
+- **Remedy:** Changed only those five relative imports to extensionless paths, consistent with the other runner-core imports and the existing Next.js webpack path.
+- **Prevention:** For this Next.js webpack runtime, keep local TypeScript sibling imports extensionless where the build resolver does not map explicit `.js` specifiers to `.ts`. Do not weaken the build or substitute a stale container for a successful image build.
+- **Related record:** `src/modules/integrations/runtime/context-builder.ts`; `src/modules/integrations/runtime/runner-core.ts`; commits `ec1d0cd88d16e626ffbb9af7ed44a6b9e1320210`, `8da4ec31da847a9a024d27ad49c2ee53d67f0372`; EVT-FIX-003.
+
 <!-- Append durable error/root-cause lessons here. -->
 
 ### OPS-01 / Shipwright
