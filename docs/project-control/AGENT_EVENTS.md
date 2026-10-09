@@ -331,3 +331,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - Vitest/typecheck/browser review not run; no PASS claimed. OPS-01 retains PostgreSQL incident.
 
 - **EVT-FIX-022 follow-up:** Also fixed the root URL in pending/empty web-crawl session cards, which a second source review found still used truncation. Commit: `f82471c07fa9cc1a2205b71c09b0ab6470c9e130`.
+
+
+## EVT-FIX-023 — 2026-10-10 — Analytics and configuration text wrapping
+- FIX-01 removed truncation from top-query analytics text, organisation usage names/slugs and metric values, configuration option labels/descriptions/preset names, and language picker names.
+- Commits: `0d22fb9cb26b86c3495e1c06809a514382460c7b`, `7dc2f59cadcee1a8a4d57fe98c17bcb68a933c69`, `22c83d90b470259f963e458e9acf22b2c04ec206`, `0769bb726ba0d5d427cb40f3955c2a6f9472abd6`; test commit `6dac46b7bf397c9751e18e611f9ff6f06ac5fecf` (16 source-contract tests).
+- Runtime tests/typecheck/browser review remain pending; no PASS claimed. OPS-01 retains PostgreSQL incident. This independent FIX-01 work does not supersede current NEXT_ACTION.md owner/workstream.
