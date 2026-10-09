@@ -123,11 +123,11 @@ export default function OrgAgentsScreen() {
                     <div className="min-w-0">
                       <Link
                         href={`/orgs/${agent.orgId}/agents/${agent.id}`}
-                        className="truncate text-sm font-medium text-foreground hover:text-primary"
+                        className="block min-w-0 break-words [overflow-wrap:anywhere] text-sm font-medium text-foreground hover:text-primary"
                       >
                         {agent.name}
                       </Link>
-                      <p className="truncate text-xs text-muted-foreground/80">
+                      <p className="break-words [overflow-wrap:anywhere] text-xs text-muted-foreground/80">
                         {agent.description ?? "No description"} · updated {formatDate(agent.updatedAt ?? agent.createdAt)}
                       </p>
                     </div>
