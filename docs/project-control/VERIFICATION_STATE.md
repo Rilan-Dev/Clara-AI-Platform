@@ -1674,3 +1674,13 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 - **Verification status:** Source correction committed. No post-change tests, typecheck, build, Docker rebuild, CI, Vercel, Gates, deployment, or runtime verification was run or awaited. **Not PASS; build outcome unknown.**
 - **Failed approach/prevention:** Re-running the same build without changing imports cannot fix resolver behavior; `docker compose up -d --no-deps` after a failed build can leave the old image running. Do not weaken build checks or infer recovery from container health.
 - **Next action:** Continue authorized P1/P2 typed action safety and idempotency/approval hooks through the existing Unified Tool Runtime per `NEXT_ACTION.md`; when verification is next performed, rebuild from the corrected source and handle any new error as a separate issue.
+
+
+## 2026-10-09 — Follow-on runtime webpack import correction
+
+[architect-verified source correction] The owner-provided Docker build log reported unresolved TypeScript sibling imports in `connections-manager.ts`, `runner-core.ts`, and `runner-fetch.ts`. Five explicit `.js` suffixes were removed from imports targeting existing TypeScript siblings.
+
+- Source commits: `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`.
+- Evidence class: owner-provided build log + source inspection/correction.
+- Not verified: post-correction Docker build, test suite, typecheck, CI, Vercel, Gates, deployment, or production recovery. No executable PASS is claimed.
+- Next: continue `NEXT_ACTION.md` without waiting for external gates; inspect any later build failure on its own evidence.
