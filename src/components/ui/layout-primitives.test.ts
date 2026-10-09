@@ -229,4 +229,21 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(login).toMatch(/block w-full min-w-0 max-w-full box-border bg-background/);
     expect(login).toMatch(/overflow-wrap:anywhere/);
   });
+
+  it("keeps signup, forgot-password, reset-password and email-verification cards responsive", () => {
+    const signup = source("../../features/platform/screens/signup-screen.tsx");
+    const forgot = source("../../app/login/forgot/page.tsx");
+    const reset = source("../../app/login/reset/page.tsx");
+    const verify = source("../../app/login/verify-email/page.tsx");
+
+    expect(signup).toMatch(/w-full min-w-0 max-w-lg/);
+    expect(signup).toMatch(/w-full min-w-0 max-w-full border border-border bg-card/);
+    expect(signup).toMatch(/flex min-w-0 flex-wrap items-start justify-between gap-3/);
+    expect(signup).toMatch(/block w-full min-w-0 max-w-full box-border/);
+    expect(forgot).toMatch(/w-full min-w-0 max-w-full border border-border bg-card/);
+    expect(forgot).toMatch(/block w-full min-w-0 max-w-full box-border/);
+    expect(reset).toMatch(/w-full min-w-0 max-w-full border border-border bg-card/);
+    expect(reset).toMatch(/block w-full min-w-0 max-w-full box-border/);
+    expect(verify).toMatch(/w-full min-w-0 max-w-full border border-border bg-card/);
+  });
 });
