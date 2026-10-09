@@ -341,3 +341,7 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 
 ## 2026-10-10 — FIX-01 landing/login card clipping follow-up
 Owner reported the same clipping/design issue on the public landing page and login card. FIX-01 adjusted the landing hero wrapper and feature-card text to be shrink-safe/wrappable, and constrained the login card/form fields to their container. Regression source was added to `src/components/ui/layout-primitives.test.ts`. Source commits: `4dcf32954d6e2c31ac3b022977af20dba7565e24`, `06c9343cb0cf3f8ffcc76bfacde63a22f58aeb40`. Runtime test and deployed-browser verification remain pending; no PASS claimed.
+
+
+## EVT-FIX-20261010-02 — Public/authentication card audit
+FIX-01 extended responsive clipping fixes to signup plan/account wizard, forgot-password, reset-password, and email-verification cards. Inputs now use shrink-safe border-box sizing, cards are constrained to their parent width, and signup plan rows wrap on narrow viewports. Source commits: `e88747825ffb3923543e056e14c46b0c88cafe1c`, `b45db54a1342b9153face2848232428c1c00a6ef`, `2de0043febf3d0f20f7e2c996ae6da2cbd729736`, `eac422cfaa8cf7199ad56968448d0ab7fc2b1c43`. Live mobile DOM checks returned HTTP 200 for landing/login; screenshot service returned upstream 502. No Vitest/typecheck/browser visual PASS claimed.
