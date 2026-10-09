@@ -244,7 +244,7 @@ export function PaymentGatewayPanel() {
 
     return (
       <div key={field.key} className="space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-start gap-2">
           <label className="text-sm font-medium text-foreground/80">{field.label}</label>
           {field.isSecret && <Badge variant="outline" className="text-[11px] py-0">secret</Badge>}
           {isConfigured && (
@@ -480,7 +480,7 @@ function WebhookHint({ gateway, path, where, events }: { gateway: string; path: 
     <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
       <p className="text-sm font-medium text-foreground">Register this webhook in {gateway}</p>
       <div className="flex items-center gap-2">
-        <code className="flex-1 truncate rounded-md border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground" title={url}>{url}</code>
+        <code className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] rounded-md border border-border bg-background px-2.5 py-1.5 font-mono text-xs text-foreground" title={url}>{url}</code>
         <Button
           type="button"
           size="sm"
