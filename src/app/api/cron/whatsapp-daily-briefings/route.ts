@@ -34,6 +34,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   try {
     await ensureMigrated();
+    await query(
+      `UPDATE whatsapp_business_connections
+          SET status = 'error', daily_briefing_enabled = false, last_error_code = 'TOKEN_EXPIRED', updated_at = now()
+        WHERE status = 'active' AND access_token_expires_at IS NOT NULL AND access_token_expires_at <= now()`,
+      [],
+    );
     const briefingDate = new Date().toISOString().slice(0, 10);
     const connections = await query<BriefingConnection>(
       `SELECT c.id, c.org_id, c.agent_id, c.waba_id, c.phone_number_id, c.display_phone_number,
@@ -42,6 +48,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
          FROM whatsapp_business_connections c
         WHERE c.status = 'active' AND c.webhook_verified = true AND c.daily_briefing_enabled = true
           AND c.briefing_recipient_phone IS NOT NULL AND c.briefing_recipient_opt_in_at IS NOT NULL
+          AND (c.access_token_expires_at IS NULL OR c.access_token_expires_at > now())
         ORDER BY c.created_at ASC
         LIMIT 100`,
       [ENCRYPTION_KEY],
@@ -127,8 +134,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
             `UPDATE whatsapp_daily_briefing_runs
                 SET status = 'failed', error_code = $2, updated_at = now()
               WHERE id = $1`,
-            [run.id, `META_HTTP_${response.status}`],
+            [run.id, response.status === 401 || response.status === 403 ? "META_AUTH_OR_PERMISSION_REJECTED" : `META_HTTP_${response.status}`],
           );
+          if (response.status === 401 || response.status === 403) {
+            await query(
+              `UPDATE whatsapp_business_connections
+                  SET status = 'error', daily_briefing_enabled = false, last_error_code = 'META_AUTH_OR_PERMISSION_REJECTED', updated_at = now()
+                WHERE id = $1 AND status = 'active'`,
+              [connection.id],
+            );
+          }
           failed++;
           continue;
         }
