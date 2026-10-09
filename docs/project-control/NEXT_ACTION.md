@@ -1,3 +1,27 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — UNIFIED INTEGRATION READINESS CONSISTENCY
+
+[owner-authorized] Continued P1 shared capability/readiness work while preserving the existing Unified Tool Runtime.
+
+## Completed source corrections
+- Integration availability now fails closed before any database/plan query if caller user or agent identity is missing; the placeholder agent UUID fallback was removed.
+- Integration action execution now rejects missing user/agent identity before querying grants.
+- AI availability reports safe connection status (`active`, `expired`, `error`, `revoked`, `disconnected`) and targeted guidance, instead of collapsing every non-active connection into “needs credentials”.
+- The I-4 integration bridge also fails closed on missing caller identity before capability discovery.
+- Added focused regression source for missing identity and expired connection guidance.
+- Commits: `fa5b81f6e60c453986d165b2425bbe0d299ef943`, `38dbb5b4707b4acb41f5b61d527fe2dae1f2e9c6`, `c50313256116ac7f59b34d83d2950e68df37695d`, `55932b645d4e7bb54de4a59e54447f561972de88`, `1e5f3033fa13465e5fbbd5587468cabbe3acecea`, `732eae44fec8a7aa4401fb810bd91f0fcf3d49cf`, `8fd1ab08ed89bcccc9d8f30a1bdb7e8b8e0a930a`, `e74e0de0b68f19f45b12a46629e2a035b5f3761f`, `481988f4b3febf1eefbe4aea6c86a80700d0e3fb`.
+
+## Verification disposition
+Regression source authored only. Tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider consent were not run or awaited.
+
+## Next implementation
+1. Continue the source review of OAuth callback, token refresh and disconnect semantics.
+2. Improve integration readiness and error taxonomy at the existing AI Tool Runtime boundary without exposing provider errors or secrets.
+3. Continue roadmap P1/P2 with shared typed capability metadata and safe invocation; do not add a second executor.
+
+Do not wait for CI/Vercel/Gates.
+
+---
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — P0 CONNECTION RECOVERY BASELINE
 
 [owner-authorized] Continued OAuth and connection reliability work. In addition to the consent/token flow, the organisation connection API now rejects invalid credential shapes, reports safe health summaries, and offers scoped disconnect/reconnect controls.
