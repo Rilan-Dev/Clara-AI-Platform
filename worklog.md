@@ -1,3 +1,9 @@
+## 2026-10-09 — Next.js webpack integration-runner import fix
+
+Owner supplied Docker build output showing five unresolved modules from src/modules/integrations/runtime/runner-core.ts. Updated relative imports to extensionless specifiers for registry index, credential vault, context builder, XRay, and runner fetch. Commit: b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd.
+
+No rebuild, tests, CI, Vercel, or Gate execution was awaited. The source fix is not claimed as deployed. Next: continue the currently authorized integration roadmap and address the next concrete implementation item.
+
 ## 2026-10-09 — Integrations & AI enhancement roadmap implementation
 
 [architect/ChatGPT] Began owner-authorized implementation with a bounded P0 reliability slice.
