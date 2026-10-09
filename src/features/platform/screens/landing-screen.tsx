@@ -191,14 +191,14 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="min-w-0 max-w-full space-y-4 p-3 text-left sm:p-6">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground shrink-0">U</div>
-                  <div className="bg-muted border border-border rounded-2xl rounded-bl-md px-3.5 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm text-foreground/80 max-w-[85%]">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xs text-muted-foreground">U</div>
+                  <div className="w-fit min-w-0 max-w-[calc(100%-2.75rem)] break-words [overflow-wrap:anywhere] rounded-2xl rounded-bl-md border border-border bg-muted px-3.5 py-2.5 text-[13px] text-foreground/80 sm:px-4 sm:py-3 sm:text-sm">
                     Does my policy cover water damage from burst pipes?
                   </div>
                 </div>
-                <div className="flex gap-3 justify-end">
-                  <div className="bg-primary/5 dark:bg-indigo-600/15 border border-primary/20 dark:border-indigo-500/20 rounded-2xl rounded-br-md px-3.5 py-2.5 sm:px-4 sm:py-3 text-[13px] sm:text-sm text-foreground dark:text-indigo-200/90 max-w-[85%]">
+                <div className="flex min-w-0 items-start justify-end gap-3">
+                  <div className="w-fit min-w-0 max-w-[calc(100%-2.75rem)] break-words [overflow-wrap:anywhere] rounded-2xl rounded-br-md border border-primary/20 bg-primary/5 px-3.5 py-2.5 text-[13px] text-foreground dark:border-indigo-500/20 dark:bg-indigo-600/15 dark:text-indigo-200/90 sm:px-4 sm:py-3 sm:text-sm">
                     Yes! Per <span className="text-primary dark:text-indigo-300 font-medium">[S1] Section 4.2 — Water Damage</span>, burst pipe damage is covered up to £50,000 under your Platinum plan, subject to the £500 excess.
                     <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5 break-words text-xs text-muted-foreground dark:text-indigo-300/50">
                       <FileText className="w-3 h-3" />
