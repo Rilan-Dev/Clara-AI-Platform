@@ -55,6 +55,15 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Suggested next action:** Replace the brittle top-level transitive-package copy assumption with a reproducible dependency-closure packaging strategy. Do not disable npm ci or remove ElevenLabs/ioredis runtime dependencies.
 - **Related records:** feature/ai-core-from-doable-source; Dockerfile; package.json; package-lock.json; local BuildKit log; HANDOFF-OPS-20261009-02.
 
+### EVT-FIX-003 — 2026-10-09
+- **Agent/session:** FIX-01 / SESSION-FIX-20261009-01
+- **Type:** CORRECTION
+- **Summary:** Corrected five relative TypeScript imports that the supplied Docker Next.js webpack build could not resolve. The failing imports were in integration runtime context-builder.ts and runner-core.ts; target TypeScript modules were present, so this was an import-specifier/build-resolver mismatch rather than missing source files or a Docker daemon failure.
+- **Impact:** local production-image build source blocker; rebuild outcome remains unverified.
+- **Owner:** FIX-01
+- **Suggested next action:** Continue the authorized roadmap from NEXT_ACTION.md without waiting for CI/Vercel/Gates; when normal verification is next run, rebuild the image and investigate any newly exposed failure separately. Do not claim the reported Docker build is fixed until rebuilt.
+- **Related records:** commits ec1d0cd88d16e626ffbb9af7ed44a6b9e1320210 and 8da4ec31da847a9a024d27ad49c2ee53d67f0372; VERIFICATION_STATE.md; agents/FIX-01/WORKLOG.md.
+
 <!-- Append new events above this marker. -->
 
 ### EVT-OPS-001 — 2026-10-09
