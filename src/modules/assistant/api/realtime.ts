@@ -89,7 +89,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       // ── Plan limit: voice must be enabled on the org's plan ──────────────
       // Runs BEFORE the assistant-config lookup so plan gating is always the
       // first failure a free-plan org sees.
-      const orgRows = await dbQuery<{ org_id: string }>(
+      const orgRows = await dbQuery<{ org_id: string; agent_id: string }>(
         `SELECT a.org_id, a.id AS agent_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
         [kbId]
       );
