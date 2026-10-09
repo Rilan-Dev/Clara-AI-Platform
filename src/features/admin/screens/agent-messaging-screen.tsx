@@ -13,7 +13,7 @@ type ConnectionState = {
     id: string; wabaId: string; wabaName: string | null; phoneNumberId: string;
     displayPhoneNumber: string; verifiedName: string | null; status: string;
     webhookVerified: boolean; webhookVerifiedAt: string | null; lastWebhookAt: string | null;
-    lastErrorCode: string | null; updatedAt: string;
+    lastErrorCode: string | null; briefingRecipientPhone: string | null; briefingRecipientOptInAt: string | null; dailyBriefingLastSentOn: string | null; updatedAt: string;
   };
   webhook: { verified: boolean; lastEventAt: string | null };
   dailyBriefing: { enabled: boolean; ready: boolean; reason: string | null };
@@ -29,6 +29,8 @@ export default function AgentMessagingScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [recipientPhone, setRecipientPhone] = useState("");
+  const [recipientOptIn, setRecipientOptIn] = useState(false);
 
   const load = useCallback(async () => {
     if (!orgId || !agentId) return;
@@ -42,6 +44,8 @@ export default function AgentMessagingScreen() {
       const data = await response.json() as ConnectionState & { error?: string };
       if (!response.ok) throw new Error(data.error || "Could not load messaging status.");
       setState(data);
+      setRecipientPhone(data.connection?.briefingRecipientPhone ?? "");
+      setRecipientOptIn(Boolean(data.connection?.briefingRecipientOptInAt));
       const callbackStatus = search.get("whatsapp");
       if (callbackStatus === "select-phone") setNotice("Meta authorization succeeded. Select the business phone this agent should use.");
       else if (callbackStatus === "cancelled") setNotice("Meta authorization was cancelled.");
@@ -57,7 +61,7 @@ export default function AgentMessagingScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function mutate(action: string, extra: Record<string, string> = {}) {
+  async function mutate(action: string, extra: Record<string, string | boolean> = {}) {
     if (!orgId || !agentId) return;
     setBusy(true);
     setError("");
@@ -80,8 +84,10 @@ export default function AgentMessagingScreen() {
         setNotice(data.webhookSubscribed ? "Meta webhook subscription is active. Daily briefings remain locked until a signed webhook event is received." : "Meta could not confirm the webhook subscription. Check the Meta app configuration and retry.");
       } else if (action === "disconnect") {
         setNotice("WhatsApp Business was disconnected from this agent.");
+      } else if (action === "save-briefing-recipient") {
+        setNotice("Briefing recipient and opt-in recorded. You can enable briefing eligibility once this verified connection is ready.");
       } else if (action === "enable-briefing") {
-        setNotice("Daily briefing eligibility is enabled for this verified connection. Scheduled delivery still depends on the briefing worker.");
+        setNotice("Daily briefing eligibility is enabled for this verified connection.");
       } else if (action === "disable-briefing") {
         setNotice("Daily briefing eligibility is disabled.");
       }
@@ -154,6 +160,31 @@ export default function AgentMessagingScreen() {
                 {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                 Retry webhook subscription
               </button>
+            )}
+            {connected && connection?.webhookVerified && (
+              <div className="space-y-3 rounded-xl border border-border p-4">
+                <h3 className="font-medium">Daily briefing recipient</h3>
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium">WhatsApp number (E.164)</span>
+                  <input
+                    type="tel" value={recipientPhone} onChange={(event) => { setRecipientPhone(event.target.value); setRecipientOptIn(false); }}
+                    placeholder="+14155550123" autoComplete="tel"
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+                  <input type="checkbox" checked={recipientOptIn} onChange={(event) => setRecipientOptIn(event.target.checked)} className="mt-1" />
+                  <span>I confirm this recipient has explicitly opted in to receive daily WhatsApp briefings.</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void mutate("save-briefing-recipient", { recipientPhone, optIn: recipientOptIn })}
+                  disabled={busy || !recipientOptIn || !/^\+[1-9]\d{7,14}$/.test(recipientPhone.trim())}
+                  className="rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                >
+                  Save recipient and consent
+                </button>
+              </div>
             )}
             {connected && (
               <button type="button" onClick={() => { if (window.confirm("Disconnect this WhatsApp phone from the agent?")) void mutate("disconnect"); }} disabled={busy} className="ml-2 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
