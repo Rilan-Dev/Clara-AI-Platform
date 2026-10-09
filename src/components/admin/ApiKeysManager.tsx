@@ -100,8 +100,8 @@ function UpgradeBanner({ quota }: { quota: QuotaInfo }) {
 
 function RawKeyModal({ rawKey, onClose }: { rawKey: string; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-lg max-w-lg w-full p-6 space-y-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-2 backdrop-blur-sm sm:p-4">
+      <div className="my-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-lg overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-lg [overflow-wrap:anywhere] space-y-5 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
             <KeyIcon className="h-5 w-5 text-warning" />
@@ -111,7 +111,7 @@ function RawKeyModal({ rawKey, onClose }: { rawKey: string; onClose: () => void 
             <p className="text-sm text-muted-foreground mt-0.5">Copy it now — it will <strong>never be shown again</strong>.</p>
           </div>
         </div>
-        <div className="rounded-xl bg-muted/60 border border-border p-3 font-mono text-xs break-all select-all">{rawKey}</div>
+        <div className="rounded-xl bg-muted/60 border border-border p-3 font-mono text-xs break-words [overflow-wrap:anywhere] select-all">{rawKey}</div>
         <div className="flex items-center gap-3">
           <CopyButton text={rawKey} label="Copy key" />
           <Button variant="default" size="sm" onClick={onClose} className="ml-auto">I&apos;ve saved it</Button>
@@ -151,7 +151,7 @@ function CreateKeyModal({ kbId, onClose, onCreated, quota }: { kbId: string; onC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-2xl shadow-lg max-w-md w-full p-6 space-y-5">
+      <div className="my-auto max-h-[calc(100dvh-1rem)] w-full min-w-0 max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-4 shadow-lg [overflow-wrap:anywhere] space-y-5 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
         <h3 className="font-semibold text-base">Create API key</h3>
         {quota.limit !== -1 && (
           <p className="text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2">
