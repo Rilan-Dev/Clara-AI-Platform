@@ -1887,3 +1887,22 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Remaining work | Token expiry is persisted when Meta returns `expires_in`; expired-token and Graph 401/403 guards mark connections unhealthy and disable briefings. Add proactive revocation/permission-health probes and safe reconnect; remaining route tests for phone uniqueness conflicts and duplicate webhook retry; reconcile ambiguous `sending` runs and provider status races; optionally upgrade digest to grounded AI summarization. |
 | Verification | Tests authored but not run. No typecheck/build/Docker/CI/Vercel/deployment/live Meta OAuth/webhook/subscription/scheduled delivery was run or claimed. |
 | Related session | SESSION-DEV-20261009-04 |
+
+
+## I-094 — Self-hosted background workers started after schema migration failure
+
+| Field | Value |
+|---|---|
+| Issue ID | I-094 |
+| Title | Background pollers must not query a database after required migrations fail |
+| Phase | Self-hosted runtime reliability |
+| Severity | P1 |
+| Status | SOURCE-CORRECTED — runtime verification pending |
+| Date identified | 2026-10-09 |
+| Finding | Owner-provided PostgreSQL logs show repeated missing-table errors for `event_outbox`, `ingest_jobs`, `kb_reindex_jobs`, and `documents`. The startup hook logs migration failure but then proceeds to start local cron, ingest/reindex pollers, and subscription sweeps, producing repeated queries against an incomplete schema. |
+| Correction | `src/instrumentation.node.ts` now tracks successful migration completion and returns before starting DB background consumers when migrations fail or are explicitly disabled. HTTP stays available for diagnosis; restart retries migrations. |
+| Commit | `039847f0c6cd8496dcdeec163eb087b366f52f9b` |
+| Migration evidence | Current feature branch migration directory has one `063` file and contains `065_platform_integration_oauth_apps.sql`. The supplied duplicate-063 and missing-table logs are from an image whose exact source commit is unknown; rebuild before attributing them to the current tree. |
+| Seed evidence | Current `src/lib/db/seed/production.ts` upserts the demo organisation before inserting its agent. The reported FK error likely came from an older seed/runtime or inconsistent DB state; do not manually insert/delete tenant rows without fresh evidence. |
+| Verification | Source correction only. No Docker rebuild, migration, DB query, or runtime test performed. |
+| Next action | Rebuild the current branch and inspect fresh logs. If duplicate 063 persists, inspect actual packaged migration filenames; if the organisation FK failure persists with current seed code, capture the seed's ordered stage logs and query the target row before changing data. |
