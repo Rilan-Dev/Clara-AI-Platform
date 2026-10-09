@@ -109,6 +109,18 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(emailTemplate).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("keeps fullscreen configuration and workspace copy values viewport-safe", () => {
+    const configEditor = source("../../components/admin/ConfigEditor.tsx");
+    const workspaceWizard = source("../../components/admin/WorkspaceWizard.tsx");
+    const embedKeys = source("../../components/admin/EmbedApiKeyPanel.tsx");
+
+    expect(configEditor).toMatch(/max-h-\[calc\(100dvh-1rem\)\]/);
+    expect(configEditor).toMatch(/w-\[calc\(100vw-1rem\)\]/);
+    expect(workspaceWizard).not.toMatch(/flex-1 truncate rounded-lg border border-border bg-muted\/50/);
+    expect(workspaceWizard).toMatch(/overflow-wrap:anywhere/);
+    expect(embedKeys).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
