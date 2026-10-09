@@ -35,3 +35,16 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers:** Duplicate migration prefix 060 on the failed deployment source.
 - **Handoff:** HANDOFF-OPS-20261009-01
 - **Next action:** Do not poll. Resume only when a new authorized operational task or corrected deployment is available.
+
+
+### SESSION-DEV-20261009-01 — 2026-10-09
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Recover project state from GitHub and continue the next authorized product-development action.
+- **Started from:** `feature/ai-core-from-doable-source`; the authoritative next action was realtime voice integration dispatch through the Unified Tool Runtime.
+- **Scope:** Add gated realtime integration descriptors and authenticated dispatch; preserve current authorization/runtime contracts; author focused regressions and record project continuity.
+- **Status:** HANDOFF
+- **Completed:** Added session tool descriptors behind both default-off flags and authenticated KB membership; added `POST /api/realtime/tool`; connected the OpenAI Realtime client handler; authored regression source for descriptor gating, authorization, identity derivation, and runtime delegation.
+- **Pending:** Architect review; tests/build remain unexecuted.
+- **Blockers:** None known from source authoring; no deployment or runtime result claimed.
+- **Handoff:** EVT-DEV-001 (architect review request; no authority transfer to FIX-01 unless a substantial defect is identified).
+- **Next action:** Architect review the bounded implementation and regression source. Do not start unrelated work without a new authorized NEXT_ACTION.
