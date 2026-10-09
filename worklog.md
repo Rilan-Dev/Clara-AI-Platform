@@ -1,3 +1,15 @@
+## 2026-10-09 — Shared integration capability policy
+
+- Extracted the duplicated platform/org/agent/plan/connection checks into `src/modules/ai-platform-core/integrations/integration-policy.ts`.
+- The I-4 bridge and `integration-action-tool.ts` now reuse the same fail-closed policy; database authorization failures are normalized without leaking driver details.
+- AI availability lists only resolvable actions and reports expired/error/revoked state. Tool failures preserve runner error code/retryability metadata.
+- Added focused regression source for identity requirements, authorization DB failure sanitization, expired status, unavailable action packages and error taxonomy.
+- Representative commits: `55306cc3f1fe62b0295c51089462018fb98eba7b`, `80642166654c16b6c533917783f80c50832d73ee`, `af97578a8557b92064210748760def6be7b49425`, `1df63308197e42351ba2ddb4efc90d20ed8bff71`, `0f51346861e4f2e61b2a8bd863dc70ce17ec37d6`, `5b2c476669b6cb9845cf20e20bdcc012b09293c9`.
+- Tests/typecheck/build/Docker/CI/Vercel/Gates/deployment/live provider flow were not run or awaited.
+- Next: continue typed action safety and idempotency/approval hooks through the existing Unified Tool Runtime.
+
+---
+
 ## 2026-10-09 — Unified integration readiness consistency
 
 - Added explicit identity preconditions to integration availability, integration action execution, and the I-4 bridge capability-discovery boundary.
