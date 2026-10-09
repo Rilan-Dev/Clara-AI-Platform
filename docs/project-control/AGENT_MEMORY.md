@@ -61,6 +61,13 @@ Append lessons under the owning agent section:
 
 <!-- Append durable development lessons here. -->
 
+### DEV-01 / 2026-10-09 — OAuth token refresh contract
+- **Issue/symptom:** A provider OAuth token exchange may succeed with client credentials sent via HTTP Basic, but later refresh can fail if the runtime always places credentials in the form body.
+- **Root cause:** OAuth client-auth mode was not preserved in the stored connection credential contract.
+- **Remedy:** Persist `authorization_method` with OAuth2 token data and make both authorization-code exchange and refresh honor the provider registry's HEADER/BODY setting.
+- **Prevention:** When adding an OAuth consent flow, review the full token lifecycle (authorization code, refresh, expiry, reconnect), not only the initial exchange. Never log token endpoint response bodies or credentials.
+- **Related record:** `src/app/api/integrations/oauth/callback/route.ts`; `src/modules/integrations/runtime/runner-helpers.ts`; `src/modules/integrations/types.ts`.
+
 ### FIX-01 / Sentinel
 <!-- Append durable error/root-cause lessons here. -->
 
