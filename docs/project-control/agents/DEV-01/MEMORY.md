@@ -53,3 +53,13 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Remedy:** Add Messaging to the existing sidebar/mobile navigation and keep the channel Not connected until a server-side Meta connection lifecycle exists.
 - **Prevention:** UI readiness must be backed by durable tenant/agent-scoped connection state and verified webhook status.
 - **Related record:** SESSION-DEV-20261009-03; commits 751db6158fca1b85b6f6c933ad46b45635bfeaf1, 292e8ea5dd5f7c1548d22a196324035f933de762, 7d0e28314af14fd1739fa1746f5855632645b4d8, 8fe3ee7c168c0bbc0d1e837514f1e0a3cab73500.
+
+
+- **Date/session:** 2026-10-09 / SESSION-DEV-20261009-04
+- **Agent:** DEV-01 / Forge
+- **Issue/symptom:** WhatsApp Business was only a UI entry point; there was no server-owned Meta authorization, durable phone binding, signed webhook processing, or message state.
+- **Root cause:** Generic AI tool integrations do not establish a WhatsApp channel connection.
+- **Remedy:** Add a separate agent-scoped WhatsApp lifecycle with hashed one-time OAuth state, encrypted tokens, unique active phone constraints, WABA subscription, raw-body HMAC validation, transactional idempotency, and server-authoritative readiness.
+- **Prevention:** Never expose OAuth tokens or trust client-supplied tenant/agent IDs without RBAC; do not enable daily briefing eligibility before a valid signed webhook event. A preference bit is not proof that outbound messaging or scheduled delivery exists.
+- **Verification boundary:** Helper regression source authored but not executed; no build, typecheck, live Meta consent, webhook challenge, subscription, or deployment PASS.
+- **Next:** Implement outbound send/delivery persistence and the CRON_SECRET-protected daily summary worker, then token expiry/revocation and route-level regressions.
