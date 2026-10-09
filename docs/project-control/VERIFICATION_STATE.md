@@ -1,3 +1,14 @@
+## 2026-10-09 — WhatsApp token expiry and queue-safety follow-up
+
+- Meta `expires_in` is persisted when returned; expired active connections are marked `error` and briefing eligibility is cleared from status/cron handling. Graph 401/403 send responses also mark the connection unhealthy and disable briefings.
+- OAuth phone selection rejects expired pending tokens. Messaging shows attention state and exposes the Connect action for reconnection.
+- The briefing cron now checks every 15 minutes (UTC), processes up to three eligible connections per invocation, avoids already-sent/stuck-sending rows, and stops retrying after three provider-declared failures. Ambiguous sends remain `sending` with an error code to avoid duplicate delivery.
+- Explicit consent withdrawal clears recipient/opt-in and disables briefing eligibility.
+- **Not run / not claimed:** tests, typecheck, build, Docker, CI, Vercel, deployment, live Meta OAuth/token exchange, WABA subscription, webhook challenge, cron invocation, or outbound message delivery.
+- **Still pending:** proactive token revocation/permission probes, safe reconnect regressions, route-level tenant/state/uniqueness/readiness tests, and grounded AI summary evaluation.
+
+---
+
 ## 2026-10-09 — WhatsApp recipient opt-in and scheduled briefing sender source
 
 - Added recipient E.164 validation and explicit opt-in persistence; briefing eligibility requires an active connection, signed webhook verification, recipient phone and opt-in timestamp.
