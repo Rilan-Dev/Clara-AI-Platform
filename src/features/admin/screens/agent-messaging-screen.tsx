@@ -84,6 +84,8 @@ export default function AgentMessagingScreen() {
         setNotice(data.webhookSubscribed ? "Meta webhook subscription is active. Daily briefings remain locked until a signed webhook event is received." : "Meta could not confirm the webhook subscription. Check the Meta app configuration and retry.");
       } else if (action === "disconnect") {
         setNotice("WhatsApp Business was disconnected from this agent.");
+      } else if (action === "verify") {
+        setNotice("Meta confirmed access to the selected WhatsApp Business Account.");
       } else if (action === "save-briefing-recipient") {
         setNotice("Briefing recipient and opt-in saved. Enable daily briefing to include this agent in the scheduled job.");
       } else if (action === "clear-briefing-recipient") {
@@ -157,6 +159,12 @@ export default function AgentMessagingScreen() {
               <button type="button" onClick={() => void mutate("connect")} disabled={busy || loading} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
                 {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
                 Connect WhatsApp Business
+              </button>
+            )}
+            {connected && (
+              <button type="button" onClick={() => void mutate("verify")} disabled={busy} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+                {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                Verify Meta access
               </button>
             )}
             {connected && !connection?.webhookVerified && (
