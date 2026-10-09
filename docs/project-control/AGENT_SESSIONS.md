@@ -87,3 +87,15 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers:** Build evidence unavailable after source correction. No OPS-01 infrastructure action is indicated by this webpack module-resolution symptom.
 - **Handoff:** Resume the existing owner-authorized roadmap in `docs/project-control/NEXT_ACTION.md`; do not wait for CI/Vercel/Gates.
 - **Related commits:** `f507443805130d1068b8fe570bc0940f4e8ace1b`, `8eb329af87f1225342b10b9c299fa8163812a9eb`, `21576b8e5e3db30fd5a61325712e0d89dfe38369`.
+
+
+### SESSION-FIX-20261009-03 — 2026-10-09
+- **Agent:** FIX-01 / Sentinel
+- **Invocation:** Third pass on owner-provided Docker webpack unresolved-module errors.
+- **Started from:** `feature/ai-core-from-doable-source`; user build pulled through `0009c3bf`.
+- **Scope:** Fix only concrete imports reported by the latest build and persist the incident records.
+- **Status:** HANDOFF
+- **Completed:** Changed six explicit `.js` imports in `execution-authorization.ts` and `runner-helpers.ts` to extensionless imports. Registry import now resolves against the TypeScript registry module path.
+- **Pending:** No post-correction Docker build or tests executed; compilation is unverified.
+- **Related commits:** `d9d114c8492892ebf4ce16ae4e6d93baa8ab97a8`, `a47d087cfc5dc68251eb4c421dbdf4b1ac6c373b`.
+- **Next:** Continue `NEXT_ACTION.md` without waiting for CI/Vercel/Gates; do not claim build PASS.
