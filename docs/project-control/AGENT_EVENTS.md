@@ -345,3 +345,10 @@ Owner reported the same clipping/design issue on the public landing page and log
 
 ## EVT-FIX-20261010-02 — Public/authentication card audit
 FIX-01 extended responsive clipping fixes to signup plan/account wizard, forgot-password, reset-password, and email-verification cards. Inputs now use shrink-safe border-box sizing, cards are constrained to their parent width, and signup plan rows wrap on narrow viewports. Source commits: `e88747825ffb3923543e056e14c46b0c88cafe1c`, `b45db54a1342b9153face2848232428c1c00a6ef`, `2de0043febf3d0f20f7e2c996ae6da2cbd729736`, `eac422cfaa8cf7199ad56968448d0ab7fc2b1c43`. Live mobile DOM checks returned HTTP 200 for landing/login; screenshot service returned upstream 502. No Vitest/typecheck/browser visual PASS claimed.
+
+
+## EVT-FIX-20261010-03 — Roadmap resumed; WhatsApp health and failure handling
+- Corrected daily-briefing send error handling so Meta failure classification is computed before the run error code is persisted; added pure classification regression cases.
+- Added migration 068 for health-probe timestamps and a new authenticated-by-secret scheduled WABA health endpoint. It expires stale tokens, probes active WABA access in bounded batches, marks auth/permission-rejected connections unhealthy and disables briefing eligibility, and does not mark transient provider/network failures as revocation.
+- Added Vercel cron schedule every 15 minutes and tests for health classification. Commits: `4b51268cc6b892d94d3db5b3e071fcebdb89b1cf`, `4f7dbcc1826fc19a77bd6b45a07b77255162c1b7`, `c1bf0e723720aa70b299bf396580634c3cf25960`, `c3aa12fa670a15316d8e8c80acf6d2c646182fc2`, `ab4436eb6f21114f67706ef227336679ec36af9c`, `bf753134206cb69d1dfcd52352c5c68694ca92a6`, `996080bfcf93cd039291cd78f96d3936dc6c8ac6`, `9497f19585ad386ea721536bb20092e0634c84c5`.
+- No test/typecheck/build/deployment PASS claimed. Browser DOM checks succeeded at HTTP 200 but screenshot capture failed upstream, so visual review remains pending.
