@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { promises as dns } from "node:dns";
 import { BlockList, isIP } from "node:net";
 import type { XrayCallHandle } from "./xray.js";
-import { integrationError } from "./error-normalization.js";
+import { integrationError } from "./error-normalization";
 
 // ─── Per-call fetch isolation via AsyncLocalStorage ─────
 
