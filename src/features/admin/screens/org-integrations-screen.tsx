@@ -50,11 +50,29 @@ export default function OrgIntegrationsScreen(){
   if(!response.ok) throw new Error(data.error??"Could not load integrations");
   setItems(data.integrations??[]);setPlan(data.plan??{id:"free",maxIntegrations:0});
  };
- useEffect(()=>{if(id)void load().catch(e=>setError(e.message))},[id]);
+ useEffect(()=>{
+  if(id)void load().catch(e=>setError(e.message));
+  const params=new URLSearchParams(window.location.search);
+  const oauth=params.get("oauth");
+  const integrationId=params.get("integrationId");
+  if(oauth==="connected")setNotice(`OAuth connection completed for ${integrationId??"integration"}.`);
+  else if(oauth==="cancelled")setError("The provider authorization was cancelled.");
+  else if(oauth==="error")setError("The OAuth connection could not be completed. Check the platform OAuth configuration and try again.");
+  if(oauth){params.delete("oauth");params.delete("integrationId");const suffix=params.toString();window.history.replaceState({}, "", window.location.pathname+(suffix?`?${suffix}`:""));}
+ },[id]);
  async function access(item:Item,enabled:boolean){
   setBusy(item.id);setError(null);setNotice(null);
   try{const response=await fetch(`/api/orgs/${id}/integrations`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({integrationId:item.id,action:enabled?"enable":"disable"})});const data=await response.json();if(!response.ok)throw new Error(data.error??"Could not update integration access");await load();setNotice(enabled?`${item.displayName} enabled for the organisation.`:`${item.displayName} disabled for the organisation.`)}
   catch(e){setError(e instanceof Error?e.message:"Could not update integration access")}finally{setBusy(null)}
+ }
+ async function startOAuth(item:Item){
+  setBusy(item.id);setError(null);setNotice(null);
+  try{
+   const response=await fetch(`/api/orgs/${id}/integrations/${item.id}/oauth/start`,{headers:{Accept:"application/json"},cache:"no-store"});
+   const data=await response.json();
+   if(!response.ok||typeof data.authorizationUrl!=="string")throw new Error(data.error??"Could not start OAuth connection");
+   window.location.assign(data.authorizationUrl);
+  }catch(e){setError(e instanceof Error?e.message:"Could not start OAuth connection");setBusy(null)}
  }
  async function connect(){
   if(!selected)return;
@@ -80,7 +98,7 @@ export default function OrgIntegrationsScreen(){
    <p className="mt-2 text-xs text-muted-foreground">{i.actions.length} supported actions</p>
    {!i.platformEnabled?<div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Lock className="h-3.5 w-3.5"/>Disabled by platform administrator</div>:
    !i.planAllowed?<div className="mt-4 text-xs text-amber-600">Not included in the {plan.id} plan.</div>:
-   <div className="mt-4 flex flex-wrap gap-2"><button disabled={busy===i.id} onClick={()=>void access(i,!i.organisationEnabled)} className={`rounded-lg px-3 py-2 text-xs font-medium ${i.organisationEnabled?"border border-border":"bg-primary text-primary-foreground"}`}>{busy===i.id?"Saving…":i.organisationEnabled?"Disable for organisation":"Enable for organisation"}</button>{i.organisationEnabled&&i.authType!=="none"&&<button onClick={()=>openConnect(i)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted">{i.connected?"Update credentials":"Configure / connect"}</button>}</div>}
+   <div className="mt-4 flex flex-wrap gap-2"><button disabled={busy===i.id} onClick={()=>void access(i,!i.organisationEnabled)} className={`rounded-lg px-3 py-2 text-xs font-medium ${i.organisationEnabled?"border border-border":"bg-primary text-primary-foreground"}`}>{busy===i.id?"Saving…":i.organisationEnabled?"Disable for organisation":"Enable for organisation"}</button>{i.organisationEnabled&&i.authType!=="none"&&<button disabled={busy===i.id} onClick={()=>i.authType==="oauth2"?void startOAuth(i):openConnect(i)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted">{busy===i.id?"Connecting…":i.authType==="oauth2"?(i.connected?"Reconnect account":"Connect account"):(i.connected?"Update credentials":"Configure / connect")}</button>}</div>}
    {i.connected&&<div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5"/>Credentials connected</div>}
    {i.organisationEnabled&&!i.connected&&i.authType!=="none"&&<p className="mt-3 text-xs text-amber-600">Set up credentials here, then enable this integration on each agent that should use it.</p>}
   </div>)}</div>
