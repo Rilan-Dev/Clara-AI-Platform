@@ -1,3 +1,13 @@
+## 2026-10-09 — Runner webpack resolution correction
+
+[architect-verified] Applied the source correction prompted by the owner-provided Docker build log: five explicit .js relative imports in src/modules/integrations/runtime/runner-core.ts are now extensionless for webpack resolution.
+
+- Source commit: b29a5336dccd9cbc39dd5dc0e943002a07a4fbfd
+- Evidence class: owner-provided build log identified the failures; source change recorded.
+- No post-change build/test/CI/Vercel/Gate result is available or claimed. External verification remains deferred by owner instruction.
+
+---
+
 ## 2026-10-09 — Integrations & AI enhancement implementation start
 
 [architect-verified] Owner authorized proceeding with the roadmap. The first bounded reliability slice centralizes duplicate migration-prefix detection and moves migration preflight ahead of database connection/bootstrap operations.
