@@ -177,6 +177,24 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(analytics).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("wraps long payment URLs, member identities, and uploaded/web source names", () => {
+    const payment = source("../../components/admin/PaymentGatewayPanel.tsx");
+    const members = source("../../features/admin/screens/org-members-screen.tsx");
+    const uploads = source("../../components/admin/UploadZone.tsx");
+    const webSources = source("../../components/admin/WebSourcesPanel.tsx");
+
+    expect(payment).not.toMatch(/flex-1 truncate rounded-md border border-border bg-background/);
+    expect(payment).toMatch(/overflow-wrap:anywhere/);
+    expect(members).not.toMatch(/text-sm font-medium text-foreground flex items-center gap-2 truncate/);
+    expect(members).not.toMatch(/text-xs text-muted-foreground\/70 truncate/);
+    expect(members).toMatch(/overflow-wrap:anywhere/);
+    expect(uploads).not.toMatch(/doc\.(?:title|originalFilename).*truncate/);
+    expect(uploads).toMatch(/overflow-wrap:anywhere/);
+    expect(webSources).not.toMatch(/doc\.(?:title|originalFilename).*truncate/);
+    expect(webSources).not.toMatch(/session\.rootUrl.*truncate/);
+    expect(webSources).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
