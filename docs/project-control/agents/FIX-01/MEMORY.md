@@ -51,3 +51,7 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 
 ### 2026-10-09 — OAuth token type contract
 When changing OAuth consent/refresh persistence, update `OAuth2TokenData` alongside the persisted fields. The refresh path reads optional `authorization_method` to preserve HEADER/BODY client authentication; missing values remain compatible with the existing BODY fallback. Source correction: `5d0d64c22c04c32f01a44cbb0ad95b3fee7b4921`. This is not build verification.
+
+
+### 2026-10-09 — Dynamic TypeScript import suffixes
+A dynamic import such as `await import("./files-service.js")` can fail webpack when the actual source module is `files-service.ts`. Align the import with the extensionless TypeScript import convention used by the neighboring runtime modules. Fix demonstrated imports individually; do not infer a build PASS from source changes or an older healthy container. Correction commit: `bda45fd90379154e098d39076823829d2b741bd7`.
