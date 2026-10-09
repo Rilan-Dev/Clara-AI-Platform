@@ -1,3 +1,14 @@
+# CURRENT PROJECT STATE — 2026-10-09 — WHATSAPP MESSAGING UX ENTRY POINT ADDED
+
+- Branch: `feature/ai-core-from-doable-source`.
+- Current owner-authorized DEV-01 task: WhatsApp Business connection UX and its missing server-side lifecycle.
+- Source commits add the per-agent Messaging page and Connect WhatsApp Business dialog, plus desktop sidebar/mobile tab navigation.
+- The UI does not claim connected status: the repository has no WhatsApp-specific OAuth/connect route, verified webhook handler, or durable message store yet.
+- Verification: GitHub source commits succeeded; tests/typecheck/build/Docker/CI/Vercel/live Meta connection were not run or awaited.
+- Next action: implement server-side Meta WhatsApp connection, tenant/agent-safe phone binding, webhook verification and durable message state, then bind UI to actual connection health. See `docs/project-control/NEXT_ACTION.md`.
+
+---
+
 # CURRENT PROJECT STATE — 2026-10-09 — I-6 COMPLETE; OAUTH + SHARED POLICY IMPLEMENTED AT SOURCE LEVEL
 
 - Branch: `feature/ai-core-from-doable-source`.
