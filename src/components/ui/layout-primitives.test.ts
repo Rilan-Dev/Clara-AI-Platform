@@ -51,6 +51,18 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(kbDetails).not.toMatch(/break-all/);
   });
 
+  it("constrains subscription overlays and publish review on narrow viewports", () => {
+    const subscriptions = source("../../features/admin/screens/subscriptions-screen.tsx");
+    const publishReview = source("../../features/admin/layouts/publish-review-dialog.tsx");
+
+    expect(subscriptions).toMatch(/max-h-\[92dvh\]/);
+    expect(subscriptions).toMatch(/max-w-\[min\(100vw,32rem\)\]/);
+    expect(subscriptions).toMatch(/min-h-0 min-w-0 flex-1 overflow-y-auto/);
+    expect(publishReview).toMatch(/max-w-5xl/);
+    expect(publishReview).toMatch(/min-w-0/);
+    expect(publishReview).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
