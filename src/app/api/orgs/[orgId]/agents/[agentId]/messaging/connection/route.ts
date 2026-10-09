@@ -49,9 +49,9 @@ export async function GET(req: NextRequest, { params }: Params) {
       id: string; waba_id: string; waba_name: string | null; phone_number_id: string;
       display_phone_number: string; verified_name: string | null; status: string;
       webhook_verified: boolean; webhook_verified_at: string | null; last_webhook_at: string | null;
-      last_error_code: string | null; updated_at: string;
+      last_error_code: string | null; daily_briefing_enabled: boolean; updated_at: string;
     }>(`SELECT id, waba_id, waba_name, phone_number_id, display_phone_number, verified_name,
-              status, webhook_verified, webhook_verified_at, last_webhook_at, last_error_code, updated_at
+              status, webhook_verified, webhook_verified_at, last_webhook_at, last_error_code, daily_briefing_enabled, updated_at
          FROM whatsapp_business_connections WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
          ORDER BY updated_at DESC LIMIT 1`, [orgId, agentId]))[0] ?? null;
 
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         updatedAt: connection.updated_at,
       } : null,
       webhook: { verified: connection?.webhook_verified ?? false, lastEventAt: connection?.last_webhook_at ?? null },
-      dailyBriefing: { enabled: ready, ready, reason: ready ? null : "Connect a WhatsApp Business phone and verify webhook delivery first." },
+      dailyBriefing: { enabled: Boolean(ready && connection?.daily_briefing_enabled), ready, reason: ready ? null : "Connect a WhatsApp Business phone and verify webhook delivery first." },
       pendingSelection: pending,
     });
   } catch (err) {
@@ -164,6 +164,27 @@ export async function POST(req: NextRequest, { params }: Params) {
       });
     }
 
+    if (body.action === "enable-briefing") {
+      const enabled = await query<{ id: string }>(
+        `UPDATE whatsapp_business_connections
+            SET daily_briefing_enabled = true, updated_at = now()
+          WHERE org_id = $1 AND agent_id = $2 AND status = 'active' AND webhook_verified = true
+          RETURNING id`,
+        [orgId, agentId],
+      );
+      if (!enabled[0]) return NextResponse.json({ error: "Daily briefings require an active phone and a verified webhook." }, { status: 409 });
+      return NextResponse.json({ ok: true, enabled: true });
+    }
+
+    if (body.action === "disable-briefing") {
+      await query(
+        `UPDATE whatsapp_business_connections SET daily_briefing_enabled = false, updated_at = now()
+          WHERE org_id = $1 AND agent_id = $2`,
+        [orgId, agentId],
+      );
+      return NextResponse.json({ ok: true, enabled: false });
+    }
+
     if (body.action === "subscribe") {
       const connection = (await query<{ id: string; waba_id: string; access_token: string }>(
         `SELECT id, waba_id, pgp_sym_decrypt(access_token_encrypted, $3) AS access_token
@@ -182,7 +203,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     if (body.action === "disconnect") {
       const result = await query(
-        `UPDATE whatsapp_business_connections SET status = 'disconnected', updated_at = now()
+        `UPDATE whatsapp_business_connections SET status = 'disconnected', daily_briefing_enabled = false, updated_at = now()
           WHERE org_id = $1 AND agent_id = $2 AND status = 'active'`,
         [orgId, agentId],
       );
