@@ -1,9 +1,9 @@
-import { getIntegration } from "../registry/index.js";
-import { credentialVault } from "./credential-vault.js";
-import { buildActionContext } from "./context-builder.js";
+import { getIntegration } from "../registry/index";
+import { credentialVault } from "./credential-vault";
+import { buildActionContext } from "./context-builder";
 import type { RunActionParams, RunActionResult } from "./types.js";
-import { xray } from "./xray.js";
-import { fetchCtx, createTracedFetch, redactText, redactValue, type HttpTraceEntry } from "./runner-fetch.js";
+import { xray } from "./xray";
+import { fetchCtx, createTracedFetch, redactText, redactValue, type HttpTraceEntry } from "./runner-fetch";
 import { validateActionProps } from "./action-input-validation.js";
 import { integrationError, normalizeIntegrationError } from "./error-normalization.js";
 import { assertIntegrationExecutionAuthorized } from "./execution-authorization.js";
