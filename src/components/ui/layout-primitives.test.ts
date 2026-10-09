@@ -35,7 +35,7 @@ describe("shared floating-panel and card layout contracts", () => {
     }
   });
 
-  it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
+  it("keeps feature-level OAuth and capability panels responsive", () => {\n    const integrationDialog = source("../../features/admin/screens/org-integrations-screen.tsx");\n    const platformOAuthDialog = source("../../features/admin/screens/platform-integrations-screen.tsx");\n    const capabilityDrawer = source("../../features/admin/screens/agent-workspace/assistant-ai-screen.tsx");\n    const kbDetails = source("../../features/admin/screens/kb-detail-screen.tsx");\n\n    expect(integrationDialog).toMatch(/max-h-\\[calc\\(100dvh-2rem\\)\\]/);\n    expect(integrationDialog).toMatch(/overflow-y-auto/);\n    expect(integrationDialog).toMatch(/overflow-wrap:anywhere/);\n    expect(platformOAuthDialog).toMatch(/max-h-\\[calc\\(100dvh-2rem\\)\\]/);\n    expect(platformOAuthDialog).toMatch(/overflow-y-auto/);\n    expect(capabilityDrawer).toMatch(/max-w-\\[100vw\\]/);\n    expect(capabilityDrawer).toMatch(/overflow-wrap:anywhere/);\n    expect(kbDetails).not.toMatch(/break-all/);\n  });\n\n  it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
     expect(card).toMatch(/break-words/);
