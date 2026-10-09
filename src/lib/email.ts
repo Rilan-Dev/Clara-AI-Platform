@@ -198,7 +198,7 @@ export function wrapEmail(body: string, opts?: { ctaUrl?: string; ctaLabel?: str
            ${opts.ctaLabel ?? "Open Clara AI"}
          </a>
        </div>
-       <p style="font-size:12px;color:#888;word-break:break-all;">
+       <p style="font-size:12px;color:#888;overflow-wrap:anywhere;word-break:normal;">
          Or copy this link: ${opts.ctaUrl}
        </p>`
     : "";
