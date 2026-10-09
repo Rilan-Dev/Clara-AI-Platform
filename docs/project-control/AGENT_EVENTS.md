@@ -287,3 +287,9 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - FIX-01 further corrected published URL controls, profile/security, API-key reveal/create/edit, create-agent, deploy/publish control overlays, organisation detail values, verification email addresses, API endpoint paths and email-template links. Replaced blanket character breaking with natural wrapping and an overflow fallback where relevant.
 - Main source commits: `12d2084e632d2e3ac4f148866ca9c306b6692634`, `2a0dd11877a8a9f0bbf696cf22da67b431a93993`, `83c0e3fb204fb6d02a0c7f85eff40bd0efe88343`, `b3dd007174d26d7211c0731765f3af21ae5946f4`, `6a469d8a8e5913135d138d88dc6dac20239ebae4`, `1daaa3499d4ba23d3c7467ae1f693540c31e73c8`, `23d97b61778841324c0433c6848fe564fa782197`, `67ff1f93b0ace55e0d0779725fc3f74f85a666f3`, `70bb57b56ac4df0cab45ade6b6b2ac5ba3197c90`, `6820bc0b6c378dcb91b220d9b96dafd174b10b9b`, `3968b0a8c874b522e7c56593fdecf1b892e286c7`.
 - Regression suite expanded to 8 source-contract tests (`7ef3079c6030517173ece75654f0ba248443b7cc`). GitHub source was re-fetched, but local tests/typecheck/browser inspection remain outstanding; no PASS claimed. PostgreSQL incident remains with OPS-01.
+
+
+## EVT-FIX-016 — 2026-10-10 — Configuration editor and long identifier layouts
+- FIX-01 corrected viewport bounds on the fullscreen system-prompt editor, removed destructive truncation from the workspace creation CopyField, and added overflow-safe layout to embed API-key display/edit UI. Added regression source-contract coverage (9 tests total).
+- Source commits: `f08a22b362f8e8f22a2f6ae4a54cc24920699308`, `df664109eb702e46d412fa0de782254ea926926a`, `902957dfec2c9c5c10a9a52e463e63be180b5439`; test commit `90e99a0b25907f4501c0d05e5c8b3662b1d348fb`.
+- No local test/typecheck/build or browser visual inspection performed; no pass claimed. PostgreSQL issue remains with OPS-01.
