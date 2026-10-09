@@ -303,3 +303,12 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Commits:** `cb2cf12daad6690e370df6d79b948e696de900a8`, `1b46a4f70634e90aeb0786fd401331d9f5930090`, `eede473e8a51462ba0397cd9dacc54ee087101ac`, `cbfc751f0c51e7bffe1fd119e10933195535383f`, `96f30aeabcafa4aa6a5495e36cec75f2d03d6b93`.
 - **Evidence:** Source changes only. Live browser DOM audit returned HTTP 200 for landing/login mobile+desktop and signup/forgot mobile, but its crawl timestamps predate the current source commits. Screenshot endpoint failed upstream with 502. Do not claim deployed visual verification. Vitest/typecheck not run because no local repository runtime is attached.
 - **Next action:** Continue remaining public/auth and high-risk content cards; when a local repo runtime is available run the focused UI tests and `npm run type-check`. Continue roadmap work from NEXT_ACTION.md without waiting for CI/Vercel.
+
+
+### SESSION-FIX-20261010-05 / 2026-10-10
+- **Task:** Add route-level regression coverage for the new scheduled WhatsApp connection-health worker.
+- **Authorization:** Continuation of the owner-authorized WhatsApp lifecycle roadmap.
+- **Actions:** Added route tests for missing CRON_SECRET, expired-token transition, provider-rejected access disabling briefing eligibility, and transient Graph rate-limit handling that must not revoke a connection.
+- **Files/code:** `src/app/api/cron/whatsapp-connection-health/route.test.ts`.
+- **Evidence:** Test source commit `023ba0b25b615f3badd6ff5b30b47b93afe7d832`. Vitest/typecheck still not executed because this runtime cannot resolve GitHub to clone the repository and no repo checkout/dependency tree is attached.
+- **Next action:** Continue safe reconnect/expiry transition coverage and ambiguous `sending` run reconciliation without duplicate delivery; continue UI audit. Do not wait for CI/Vercel.
