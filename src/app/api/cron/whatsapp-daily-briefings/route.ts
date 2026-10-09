@@ -41,6 +41,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         WHERE status = 'active' AND access_token_expires_at IS NOT NULL AND access_token_expires_at <= now()`,
       [],
     );
+    // A stale "sending" row with no provider message ID has an ambiguous outcome:
+    // Meta may have accepted the request before the network/database failure.
+    // Quarantine it as terminal instead of automatically retrying and risking a duplicate.
+    const ambiguousRuns = await query<{ id: string }>(
+      `UPDATE whatsapp_daily_briefing_runs
+          SET status = 'failed', error_code = 'SEND_OUTCOME_UNKNOWN',
+              attempt_count = GREATEST(attempt_count, 3), updated_at = now()
+        WHERE status = 'sending' AND provider_message_id IS NULL
+          AND started_at < now() - interval '30 minutes'
+        RETURNING id`,
+      [],
+    );
     const briefingDate = new Date().toISOString().slice(0, 10);
     const connections = await query<BriefingConnection>(
       `SELECT c.id, c.org_id, c.agent_id, c.waba_id, c.phone_number_id, c.display_phone_number,
@@ -223,7 +235,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         failed++;
       }
     }
-    return NextResponse.json({ ok: true, date: briefingDate, scanned: connections.length, sent, failed, skipped });
+    return NextResponse.json({ ok: true, date: briefingDate, scanned: connections.length, sent, failed, skipped, ambiguous: ambiguousRuns.length });
   } catch (err) {
     console.error("[whatsapp daily briefing] job failed", err);
     return NextResponse.json({ error: "WhatsApp daily briefing job failed" }, { status: 500 });
