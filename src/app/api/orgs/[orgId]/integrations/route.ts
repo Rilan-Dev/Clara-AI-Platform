@@ -186,7 +186,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           `DELETE FROM integration_connections
             WHERE org_id=$1 AND integration_id=$2
               AND (user_id=$3 OR user_id IS NULL)
-              AND ($4::uuid IS NULL OR agent_id=$4)`,
+              AND agent_id IS NOT DISTINCT FROM $4::uuid`,
           [orgId, body.integrationId, auth.user.id, body.agentId ?? null],
         );
       });
