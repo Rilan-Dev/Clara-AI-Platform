@@ -49,7 +49,7 @@ function VerifyEmailForm() {
 
   if (!token) {
     return (
-      <div className="border border-border bg-card rounded-2xl p-6 text-center shadow-sm">
+      <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-6 text-center shadow-sm [overflow-wrap:anywhere]">
         <p className="text-foreground font-medium">Verification link missing</p>
         <p className="text-sm text-muted-foreground mt-2 mb-4">
           This page needs a valid verification link from your email.
@@ -63,7 +63,7 @@ function VerifyEmailForm() {
 
   if (state === "verifying") {
     return (
-      <div className="border border-border bg-card rounded-2xl p-6 text-center shadow-sm">
+      <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-6 text-center shadow-sm [overflow-wrap:anywhere]">
         <div className="mx-auto w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
           <span className="inline-block w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
         </div>
@@ -75,7 +75,7 @@ function VerifyEmailForm() {
 
   if (state === "error") {
     return (
-      <div className="border border-border bg-card rounded-2xl p-6 text-center space-y-4 shadow-sm">
+      <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-6 text-center space-y-4 shadow-sm [overflow-wrap:anywhere]">
         <div className="mx-auto w-12 h-12 rounded-2xl bg-destructive/10 border border-destructive/30 flex items-center justify-center">
           <AlertCircle className="w-6 h-6 text-destructive" />
         </div>
@@ -92,7 +92,7 @@ function VerifyEmailForm() {
   }
 
   return (
-    <div className="border border-border bg-card rounded-2xl p-6 text-center space-y-4 shadow-sm">
+    <div className="w-full min-w-0 max-w-full border border-border bg-card rounded-2xl p-4 sm:p-6 text-center space-y-4 shadow-sm [overflow-wrap:anywhere]">
       <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
         <ShieldCheck className="w-6 h-6 text-emerald-600" />
       </div>
@@ -122,8 +122,8 @@ function VerifyEmailForm() {
 
 export default function VerifyEmailPage() {
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-[100dvh] w-full min-w-0 bg-background flex items-center justify-center px-4 py-8">
+      <div className="w-full min-w-0 max-w-sm">
         <div className="text-center mb-8">
           <LogoMark className="flex w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mx-auto mb-4 shadow-lg shadow-primary/25" iconClassName="w-6 h-6 sm:w-7 sm:h-7" />
           <h1 className="text-2xl font-bold text-foreground">Email verification</h1>
