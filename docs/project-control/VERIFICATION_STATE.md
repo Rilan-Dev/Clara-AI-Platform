@@ -1663,3 +1663,14 @@ git rev-parse HEAD origin/feature/ai-core-from-doable-source             # equal
 ## 2026-10-09 — Integration discovery source review
 
 [architect-verified] Source changes add fail-closed user/agent identity requirements and restrict connected-tool discovery by active scoped connection, platform enablement, organisation grant, agent grant/ownership, and organisation plan allowlist. Commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`. Source review only; no tests or live provider integrations were run. CI, Vercel, Gate-C and Gate-D remain deferred; no executable PASS is inferred. Chat/realtime dispatch, RAG-preservation regressions, provider capability gating, and secure OAuth setup remain pending.
+
+
+## 2026-10-09 — FIX-01 relative import resolution correction
+
+- **Symptom/evidence:** Owner-provided Docker build on the feature branch failed webpack compilation resolving five relative imports: three in `src/modules/integrations/runtime/context-builder.ts` and two in `src/modules/integrations/runtime/runner-core.ts`. The same log showed the previous `clara-backend` container remained healthy after the failed image build; that container status is not build evidence.
+- **Root cause:** The affected sibling modules exist as TypeScript source files, but the five explicit `.js` import specifiers were not resolved by this Next.js webpack build path.
+- **Correction:** Replaced those five specifiers with extensionless relative imports. Source commits: `ec1d0cd88d16e626ffbb9af7ed44a6b9e1320210`, `8da4ec31da847a9a024d27ad49c2ee53d67f0372`.
+- **Regression protection:** Kept the fix limited to the affected import specifiers and aligned with the already-extensionless imports in `runner-core.ts`; no brittle source-text-only test was added. The production webpack build remains the meaningful integration check.
+- **Verification status:** Source correction committed. No post-change tests, typecheck, build, Docker rebuild, CI, Vercel, Gates, deployment, or runtime verification was run or awaited. **Not PASS; build outcome unknown.**
+- **Failed approach/prevention:** Re-running the same build without changing imports cannot fix resolver behavior; `docker compose up -d --no-deps` after a failed build can leave the old image running. Do not weaken build checks or infer recovery from container health.
+- **Next action:** Continue authorized P1/P2 typed action safety and idempotency/approval hooks through the existing Unified Tool Runtime per `NEXT_ACTION.md`; when verification is next performed, rebuild from the corrected source and handle any new error as a separate issue.
