@@ -80,6 +80,10 @@ export default function AgentMessagingScreen() {
         setNotice(data.webhookSubscribed ? "Meta webhook subscription is active. Daily briefings remain locked until a signed webhook event is received." : "Meta could not confirm the webhook subscription. Check the Meta app configuration and retry.");
       } else if (action === "disconnect") {
         setNotice("WhatsApp Business was disconnected from this agent.");
+      } else if (action === "enable-briefing") {
+        setNotice("Daily briefing eligibility is enabled for this verified connection. Scheduled delivery still depends on the briefing worker.");
+      } else if (action === "disable-briefing") {
+        setNotice("Daily briefing eligibility is disabled.");
       }
       await load();
     } catch (err) {
@@ -93,7 +97,6 @@ export default function AgentMessagingScreen() {
   const connected = Boolean(connection);
   const ready = Boolean(state?.dailyBriefing.ready);
   const statusLabel = !connected ? "Not connected" : connection?.webhookVerified ? "Connected · verified" : "Connected · awaiting webhook";
-  const callbackUrl = typeof window !== "undefined" ? window.location.pathname : "";
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-8">
@@ -157,6 +160,18 @@ export default function AgentMessagingScreen() {
                 <Unplug className="h-4 w-4" /> Disconnect
               </button>
             )}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void mutate(state?.dailyBriefing.enabled ? "disable-briefing" : "enable-briefing")}
+                disabled={busy || loading || !ready}
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                title={!ready ? "A verified WhatsApp connection is required" : undefined}
+              >
+                {state?.dailyBriefing.enabled ? "Disable daily briefing" : "Enable daily briefing"}
+              </button>
+              {!ready && <span className="text-xs text-muted-foreground">Available after a signed webhook event verifies the connection.</span>}
+            </div>
             <p className="text-xs leading-5 text-muted-foreground">OAuth state is single-use and time-limited. Access tokens are encrypted server-side; they are never sent to the browser.</p>
             {state?.pendingSelection && (
               <div className="space-y-3 rounded-xl border border-border p-4">
@@ -175,7 +190,6 @@ export default function AgentMessagingScreen() {
                 ))}
               </div>
             )}
-            {callbackUrl && null}
           </div>
 
           <aside className="space-y-3 rounded-xl bg-muted/40 p-4">
@@ -197,7 +211,7 @@ export default function AgentMessagingScreen() {
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               <div>
                 <p className="text-sm font-medium">Daily briefing</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{ready ? "Verified connection is ready for the briefing capability." : state?.dailyBriefing.reason || "Briefings are disabled until the connection and webhook are verified."}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{!ready ? state?.dailyBriefing.reason || "Briefings are disabled until the connection and webhook are verified." : state?.dailyBriefing.enabled ? "Eligibility is enabled for this verified connection; scheduled delivery still requires the briefing worker." : "Connection is verified. Enable briefing eligibility when you want this agent marked ready for scheduled delivery."}</p>
               </div>
             </div>
             {connection?.lastErrorCode && <p className="rounded-md border border-amber-500/30 p-2 text-xs text-muted-foreground">Connection issue: {connection.lastErrorCode}</p>}
