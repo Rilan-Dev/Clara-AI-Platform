@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — WHATSAPP MESSAGING CONNECTION UX STARTED
+
+- Owner-authorized DEV-01 task: restore a continuous path from an agent workspace to WhatsApp Business connection setup.
+- Added Messaging to the existing desktop sidebar and mobile tab strip and committed a per-agent Messaging page with a Connect WhatsApp Business setup dialog.
+- Meta Business Manager handoff is setup guidance only; the UI remains Not connected because no WhatsApp-specific server connection, webhook verification, or durable message-state implementation was found.
+- No tests/build/CI/Vercel/live Meta OAuth/webhook flow was run or awaited. No runtime PASS is claimed.
+- **Next:** implement authenticated Meta connection lifecycle, one-phone-per-agent binding, verified webhook processing, durable message state, and then wire UI status to backend truth. See `docs/project-control/NEXT_ACTION.md`.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — SHARED INTEGRATION CAPABILITY POLICY IMPLEMENTED
 
 - Added one shared integration capability authorization gate and reused it from the I-4 bridge and AI integration action tool.
