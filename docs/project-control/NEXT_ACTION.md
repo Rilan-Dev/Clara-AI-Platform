@@ -1,30 +1,29 @@
-# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — WHATSAPP SERVER LIFECYCLE SOURCE SLICE
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — WHATSAPP CONNECTION + DAILY BRIEFING SOURCE
 
-[owner-authorized] DEV-01 continued the WhatsApp Business task beyond the initial UI. The server-side connection lifecycle and guarded readiness state are now committed as source; live Meta setup and runtime verification remain unclaimed.
+[owner-authorized] DEV-01 has implemented the main source path from Meta authorization through signed webhook persistence and a gated daily briefing sender. The live Meta app and runtime behavior remain unverified.
 
 ## Implemented source
-- Migration `067_whatsapp_business_lifecycle.sql`: one-time OAuth states, encrypted pending OAuth sessions, WABA/phone connection identity, one active phone per agent and phone ID, durable webhook event rows, and durable message/delivery rows. Browser roles are denied access.
-- Authenticated agent-scoped connect endpoint creates a short-lived hashed state and Meta authorization URL; callback consumes state once, exchanges code and attempts long-lived token exchange, discovers owned/client WABA phone candidates, and stores access tokens encrypted.
-- Owner selects a Meta-returned phone; the database enforces one active phone per agent and one active agent per phone. The selected WABA is subscribed to the Meta app.
-- `/api/webhooks/whatsapp` implements Meta's challenge response, raw-body HMAC signature validation, transactionally deduplicated events, inbound-message persistence, and message delivery-status updates.
-- Messaging UI reads connection/webhook health from the server and allows disconnect/retry-subscription. Daily-briefing eligibility can only be enabled while an active connection has a verified signed webhook event.
-- Added helper regression source for signature rejection, raw-body tampering, constant-time comparison, and event-key idempotency.
-- Setup notes: `docs/deployment/whatsapp-business.md`.
-- Source commits in this slice include `27ad17cb8f9bff9d0278ce4eb68900e81fe2ecfe`, `89ce8d7b23e1fadb877c41f14540aa140b2f864b`, `496db2482512d39d632ee2c95c5ec2779a466bd4`, `3b238a36890b9f6d2acb8973a4e9681d6606ce26`, `19c6401062334447277171c3e44c906809378a6d`, `a5ccba51b4ecd06bc279c9f8f67b13c34cb1dc78`, `dc8f21c4cc0ee7a614d6aa2f20402e35dbe33ee5`, `30fca3dfe1d2fc6a847cc8da7ca725a4dcf93f0c`, and `392978f3df24a2656c43ed4b12241317ad1df66`.
+- Migration `067_whatsapp_business_lifecycle.sql` adds one-time OAuth state, encrypted pending token sessions, active WABA/phone connection identity, one-active-phone uniqueness constraints, durable webhook events/messages, recipient opt-in, and unique daily briefing runs.
+- Authenticated agent-scoped Meta OAuth start/callback rechecks the initiating user's current agent permission, consumes state once, exchanges the code and attempts long-lived token exchange, discovers owned/client WABA phone candidates, encrypts tokens, and lets the user select a phone.
+- Selected WABA is subscribed to Meta. `/api/webhooks/whatsapp` implements challenge verification, raw-body HMAC signature validation, transactional idempotency, inbound message persistence, and delivery-status updates.
+- Messaging reads server-side connection/webhook state, collects an E.164 briefing recipient and explicit opt-in, and prevents enabling briefing eligibility until an active connection has received a valid signed webhook event.
+- `/api/cron/whatsapp-daily-briefings` is registered for 03:00 UTC daily. It requires `CRON_SECRET`, an approved template configured by `WHATSAPP_DAILY_BRIEFING_TEMPLATE_NAME`, and selects only active, webhook-verified, briefing-enabled connections with a recorded recipient opt-in. It persists per-connection/date runs and outbound provider message IDs/status.
+- The current briefing body is a deterministic digest of recent inbound message excerpts, not an LLM-generated summary. Setup instructions and required environment variables are documented in `docs/deployment/whatsapp-business.md`.
+- Regression source exists for webhook signature/idempotency and briefing recipient/digest helpers.
 
 ## Verification / limits
-- Regression test source is authored but not executed. No typecheck, build, Docker, CI, Vercel, deployment, live Meta consent, webhook challenge, WABA subscription, or production PASS was run or awaited.
-- The `daily_briefing_enabled` value is a guarded eligibility/preference flag only. A scheduled summary generator and outbound WhatsApp delivery worker are not present yet. Do not claim daily messages are scheduled or delivered.
-- Meta token expiry/revocation monitoring and automated reconnect remain follow-up work.
+- Tests were authored but not executed. No typecheck, build, Docker, CI, Vercel, deployment, live Meta OAuth, Graph token exchange, WABA subscription, webhook challenge, scheduled run, or actual message delivery was run or awaited. No runtime PASS is claimed.
+- The branch contains source implementation only. Do not claim the channel is live until server configuration and Meta app setup are complete and normal runtime evidence exists.
 
 ## Exact next implementation
-1. Implement the outbound WhatsApp message service using the encrypted active connection, persisting outbound message IDs and status transitions. Require an explicit recipient and recorded opt-in, use an approved Meta template for scheduled outbound briefings outside the customer-service window, and never expose access tokens.
-2. Add a scheduled daily-summary worker that selects only `status='active' AND webhook_verified=true AND daily_briefing_enabled=true` with an opted-in recipient and configured approved template, verifies `CRON_SECRET`, generates a grounded summary from Clara's stored message state, and persists send attempts/results idempotently. If no existing scheduler contract supports this safely, implement the scheduler contract first rather than simulating delivery.
-3. Add focused regression source for tenant/agent isolation, OAuth state replay/cancellation, phone-selection uniqueness, signature rejection, duplicate event retries, and the briefing readiness gate.
-4. Add token expiry/revocation health and safe reconnect handling. Wire real status and delivery results into Messaging.
-5. Keep project-control records current. Route substantial correctness/security bugs to FIX-01 and deployment/infrastructure work to OPS-01. Do not poll or wait for CI/Vercel/Gates.
+1. Add token-expiry/revocation tracking and safe reconnect handling. The current callback attempts a long-lived token exchange but does not persist `expires_in` or automate revocation recovery; an expired token must never be shown as ready or continue sending briefings.
+2. Add focused route-level regression source for OAuth state replay/cancellation, callback user/agent permission, tenant isolation, phone uniqueness conflicts, webhook signature rejection/duplicate retry, briefing consent, and the server-side readiness gate.
+3. Improve scheduled-run reconciliation for ambiguous `sending` records and provider status races without introducing duplicate sends. Keep template/opt-in/customer-service-window requirements enforced.
+4. Evaluate replacing the deterministic excerpt digest with a grounded AI summary using the existing Clara message/RAG policy; do not expose provider tokens or bypass tenant isolation.
+5. Continue source implementation without CI/Vercel polling. Route substantial correctness/security defects to FIX-01 and deployment/infrastructure-only work to OPS-01.
 
 ---
+
 
 
 # IMMEDIATE SELF-HOSTED RUNTIME FOLLOW-UP — 2026-10-09
