@@ -25,12 +25,14 @@ export async function registerNode(): Promise<void> {
     // applies them in the build step instead (see vercel.json buildCommand).
     const migrateOnStart =
       !process.env.VERCEL && (process.env.RUN_MIGRATIONS_ON_START ?? "true").toLowerCase() !== "false";
+    let schemaReady = false;
     if (migrateOnStart) {
       try {
         await runMigrationsOnStartup();
+        schemaReady = true;
       } catch (err) {
-        // Keep serving: a crash loop would take the whole platform down. The
-        // System Status page shows the applied-migration count.
+        // Keep serving HTTP so operators can inspect the System Status page,
+        // but do not launch background consumers against a partial schema.
         console.error("[instrumentation] database migrations FAILED — schema may be out of date:", err);
         await loadRuntimeSettingsOnStartup();
       }
@@ -42,6 +44,16 @@ export async function registerNode(): Promise<void> {
     // scheduled DB maintenance must run on a dedicated worker/cron runtime.
     if (process.env.VERCEL) {
       console.info("[instrumentation] Vercel runtime: background DB workers disabled");
+      return;
+    }
+
+    // Do not let pollers/cron/sweeps hammer a database whose required
+    // migrations failed or were explicitly disabled. HTTP remains available
+    // for diagnosis; a restart after correcting the migration issue retries.
+    if (!schemaReady) {
+      console.error(
+        "[instrumentation] background DB workers disabled because schema migrations did not complete",
+      );
       return;
     }
 
