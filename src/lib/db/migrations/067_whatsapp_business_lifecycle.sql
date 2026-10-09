@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS whatsapp_business_connections (
   CONSTRAINT whatsapp_connection_agent_org_fk FOREIGN KEY (agent_id, org_id)
     REFERENCES agents(id, org_id) ON DELETE CASCADE
 );
+ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS daily_briefing_enabled BOOLEAN NOT NULL DEFAULT false;
+
 CREATE UNIQUE INDEX IF NOT EXISTS whatsapp_one_active_phone_per_agent_idx
   ON whatsapp_business_connections(agent_id) WHERE status = 'active';
 CREATE UNIQUE INDEX IF NOT EXISTS whatsapp_one_active_owner_per_phone_idx
