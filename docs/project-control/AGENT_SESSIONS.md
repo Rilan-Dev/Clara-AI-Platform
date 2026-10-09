@@ -210,3 +210,11 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Evidence:** GitHub accepted writes. Vitest/typecheck/browser checks are not yet run; no PASS claimed.
 - **Routing:** OPS-01 owns missing PostgreSQL relations and seed FK failure; no database mutation.
 - **Next:** Continue the remaining custom overlay/card audit and execute focused checks plus mobile/desktop review when local execution is available, without waiting on CI/Vercel.
+
+
+## SESSION-FIX-20261010-09 — FIX-01 / Sentinel — 2026-10-10
+- **Goal:** Correct the exact width issue demonstrated in the landing demo and OAuth app settings; inspect the surrounding layout for related overflow.
+- **Result:** Chat bubbles now have explicit remaining-row width bounds and shrink-safe natural wrapping; demo container/header/citation rows are responsive. OAuth form fields have explicit shrink/max-width constraints and the footer wraps on narrow viewports. Added regression source-contract coverage; suite contains 12 tests.
+- **Evidence:** GitHub accepted changes. No local Vitest/typecheck or browser visual review; no PASS claimed.
+- **Routing:** OPS-01 owns PostgreSQL missing relations and seed FK failure. No DB changes.
+- **Next:** Continue similar source audit; run focused checks and mobile/desktop inspection when local execution is available, without waiting on CI/Vercel.
