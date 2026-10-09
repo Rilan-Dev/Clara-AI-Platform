@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS whatsapp_oauth_sessions (
   agent_id uuid NOT NULL,
   user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   access_token_encrypted bytea NOT NULL,
+  access_token_expires_at timestamptz,
   candidates jsonb NOT NULL DEFAULT '[]'::jsonb,
   expires_at timestamptz NOT NULL,
   selected_at timestamptz,
@@ -56,6 +57,8 @@ ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS daily_briefin
 ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS briefing_recipient_phone TEXT;
 ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS briefing_recipient_opt_in_at TIMESTAMPTZ;
 ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS daily_briefing_last_sent_on DATE;
+ALTER TABLE whatsapp_business_connections ADD COLUMN IF NOT EXISTS access_token_expires_at TIMESTAMPTZ;
+ALTER TABLE whatsapp_oauth_sessions ADD COLUMN IF NOT EXISTS access_token_expires_at TIMESTAMPTZ;
 
 CREATE UNIQUE INDEX IF NOT EXISTS whatsapp_one_active_phone_per_agent_idx
   ON whatsapp_business_connections(agent_id) WHERE status = 'active';
