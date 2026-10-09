@@ -1,3 +1,13 @@
+## 2026-10-09 — Server-side integration credential validation
+
+- Added `validateConnectionCredentials` and enforced it in the organisation integration POST route before a connection can be persisted.
+- OAuth2 requires `access_token`; basic auth requires both username/password; secret-text and custom-auth credentials are validated against accepted fields; `none` rejects connection writes.
+- Added helper regression source and connection-health response regression source.
+- Commits: `1449d36377a14c96a34625618b39405eb9d26749`, `ff01cda2c64b0f1391321440c22ee99e0afdf351`, `675cd39bc4e831f5fdba7b4859daa4f3c921341f`.
+- Tests, typecheck, build, Docker, CI, Vercel, Gates, deployment and live provider flow were not run or awaited.
+
+---
+
 ## 2026-10-09 — OAuth refresh compatibility and connection health
 
 - Added `authorization_method` to the stored OAuth token contract and updated `ensureTokenFresh` to use the provider-configured HEADER/BODY client-auth mode. Regression source asserts HEADER mode does not place client credentials in the form body.
