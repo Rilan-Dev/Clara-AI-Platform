@@ -33,6 +33,6 @@ Do not commit values to the repository, place secrets in `NEXT_PUBLIC_*` variabl
 
 ## Current boundaries / follow-up
 
-- The daily briefing flag is a guarded readiness/preference bit only. A scheduled summary generator and outbound WhatsApp delivery worker are not implemented by this lifecycle slice; do not represent the flag as proof that a briefing was sent or scheduled.
+- The daily briefing flag is a guarded readiness/preference bit only. A scheduled summary generator and outbound WhatsApp delivery worker are not implemented by this lifecycle slice; do not represent the flag as proof that a briefing was sent or scheduled. Before implementing delivery, collect and persist the recipient number and opt-in, and use an approved Meta message template for scheduled outbound messages outside the customer-service window.
 - The connection token is long-lived where Meta's exchange succeeds, but token expiry/revocation monitoring and reconnect scheduling remain follow-up work.
 - No live Meta OAuth consent, webhook challenge, WABA subscription, runtime, build, or test execution is claimed. Regression source exists for webhook signature and idempotency helpers; run normal verification when next appropriate without blocking independent development.
