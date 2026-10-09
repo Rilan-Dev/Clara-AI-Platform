@@ -25,6 +25,24 @@ function digest(value: string): string {
 }
 
 
+async function verifyWabaAccess(wabaId: string, token: string): Promise<"ok" | "rejected" | "unavailable"> {
+  try {
+    const url = new URL(`https://graph.facebook.com/v23.0/${encodeURIComponent(wabaId)}`);
+    url.searchParams.set("fields", "id");
+    const response = await fetch(url, {
+      method: "GET", headers: { Authorization: `Bearer ${token}` },
+      redirect: "manual", signal: AbortSignal.timeout(10_000),
+    });
+    if (response.status === 401 || response.status === 403) return "rejected";
+    if (!response.ok) return "unavailable";
+    const data: unknown = await response.json().catch(() => null);
+    return data && typeof data === "object" && "id" in data && (data as { id?: unknown }).id === wabaId
+      ? "ok" : "unavailable";
+  } catch {
+    return "unavailable";
+  }
+}
+
 async function subscribeWaba(wabaId: string, token: string): Promise<{ ok: boolean; authRejected: boolean }> {
   try {
     const url = new URL(`https://graph.facebook.com/v23.0/${encodeURIComponent(wabaId)}/subscribed_apps`);
@@ -273,6 +291,36 @@ export async function POST(req: NextRequest, { params }: Params) {
         [connection.id, subscription.ok ? null : subscription.authRejected ? "META_AUTH_OR_PERMISSION_REJECTED" : "WEBHOOK_SUBSCRIBE_FAILED", subscription.authRejected],
       );
       return NextResponse.json({ ok: subscription.ok, webhookSubscribed: subscription.ok }, { status: subscription.ok ? 200 : 502 });
+    }
+
+    if (body.action === "verify") {
+      const connection = (await query<{ id: string; waba_id: string; access_token: string }>(
+        `SELECT id, waba_id, pgp_sym_decrypt(access_token_encrypted, $3) AS access_token
+           FROM whatsapp_business_connections
+          WHERE org_id = $1 AND agent_id = $2 AND status = 'active'
+            AND (access_token_expires_at IS NULL OR access_token_expires_at > now())
+          LIMIT 1`,
+        [orgId, agentId, ENCRYPTION_KEY],
+      ))[0];
+      if (!connection) return NextResponse.json({ error: "No active, non-expired WhatsApp connection is available to verify." }, { status: 404 });
+      const verification = await verifyWabaAccess(connection.waba_id, connection.access_token);
+      if (verification === "rejected") {
+        await query(
+          `UPDATE whatsapp_business_connections
+              SET status = 'error', daily_briefing_enabled = false,
+                  last_error_code = 'META_AUTH_OR_PERMISSION_REJECTED', updated_at = now()
+            WHERE id = $1`,
+          [connection.id],
+        );
+        return NextResponse.json({ error: "Meta rejected this connection token or its WABA permissions. Reconnect the business account." }, { status: 409 });
+      }
+      if (verification !== "ok") return NextResponse.json({ error: "Meta connection health could not be confirmed; try again." }, { status: 502 });
+      await query(
+        `UPDATE whatsapp_business_connections SET updated_at = now()
+          WHERE id = $1 AND status = 'active'`,
+        [connection.id],
+      );
+      return NextResponse.json({ ok: true, verified: true });
     }
 
     if (body.action === "disconnect") {
