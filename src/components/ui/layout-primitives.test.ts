@@ -195,6 +195,22 @@ describe("shared floating-panel and card layout contracts", () => {
     expect(webSources).toMatch(/overflow-wrap:anywhere/);
   });
 
+  it("wraps analytics queries, organisation usage labels, config choices, and language names", () => {
+    const dashboard = source("../../components/admin/AnalyticsDashboard.tsx");
+    const analytics = source("../../features/admin/screens/analytics-screen.tsx");
+    const config = source("../../components/admin/ConfigEditor.tsx");
+    const translator = source("../../components/admin/FirstMessageTranslator.tsx");
+
+    expect(dashboard).not.toMatch(/q\.queryText.*truncate/);
+    expect(dashboard).toMatch(/overflow-wrap:anywhere/);
+    expect(analytics).not.toMatch(/org\.(?:org_name|org_slug).*truncate/);
+    expect(analytics).toMatch(/overflow-wrap:anywhere/);
+    expect(config).not.toMatch(/className="block truncate text-(?:sm|\[11px\])/);
+    expect(config).toMatch(/overflow-wrap:anywhere/);
+    expect(translator).not.toMatch(/flex-1 truncate/);
+    expect(translator).toMatch(/overflow-wrap:anywhere/);
+  });
+
   it("keeps card content shrink-safe and wraps long titles/descriptions", () => {
     const card = source("card.tsx");
     expect(card).toMatch(/min-w-0/);
