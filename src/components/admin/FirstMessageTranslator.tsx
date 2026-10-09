@@ -98,7 +98,7 @@ export function FirstMessageTranslator({
       className="flex items-center gap-2"
     >
       <span aria-hidden>{flag(code)}</span>
-      <span className="flex-1 truncate">{name}</span>
+      <span className="min-w-0 flex-1 break-words [overflow-wrap:anywhere]">{name}</span>
       {isDefault(code) && <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">Default</span>}
       {busyLanguage === code && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
     </CommandItem>
