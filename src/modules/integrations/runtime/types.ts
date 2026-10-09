@@ -187,6 +187,8 @@ export interface OAuth2TokenData {
   token_url: string;
   client_id: string;
   client_secret: string;
+  /** OAuth token-endpoint client authentication mode persisted at consent time. */
+  authorization_method?: "HEADER" | "BODY";
   data: Record<string, unknown>;
 }
 
