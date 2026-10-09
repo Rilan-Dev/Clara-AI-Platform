@@ -1,7 +1,7 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { withTransaction } from "@/lib/db";
+import { constantTimeEquals, verifyMetaWebhookSignature, whatsappEventKey, whatsappOpaqueEventKey } from "@/modules/integrations/whatsapp-webhook";
 
 export const dynamic = "force-dynamic";
 
@@ -19,25 +19,6 @@ type ChangeValue = {
 type WebhookChange = { field?: string; value?: ChangeValue };
 type WebhookPayload = { entry?: Array<{ changes?: WebhookChange[] }> };
 
-function equalSecret(left: string, right: string): boolean {
-  const a = Buffer.from(left, "utf8");
-  const b = Buffer.from(right, "utf8");
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function validSignature(raw: string, header: string | null, secret: string): boolean {
-  if (!header || !header.startsWith("sha256=")) return false;
-  const supplied = header.slice(7);
-  if (!/^[a-f0-9]{64}$/i.test(supplied)) return false;
-  const expected = createHmac("sha256", secret).update(raw, "utf8").digest("hex");
-  return equalSecret(expected, supplied.toLowerCase());
-}
-
-function eventKey(kind: string, item: { id?: string; status?: string; timestamp?: string }): string {
-  return createHmac("sha256", "clara-whatsapp-event-v1")
-    .update([kind, item.id ?? "", item.status ?? "", item.timestamp ?? ""].join(":"))
-    .digest("hex");
-}
 
 async function persistEvent(input: {
   key: string; phoneNumberId: string | null; type: string; payload: Record<string, unknown>;
@@ -113,7 +94,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const token = req.nextUrl.searchParams.get("hub.verify_token") ?? "";
   const challenge = req.nextUrl.searchParams.get("hub.challenge") ?? "";
   const expected = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN?.trim() ?? "";
-  if (mode === "subscribe" && expected.length >= 24 && equalSecret(token, expected) && challenge.length <= 2048) {
+  if (mode === "subscribe" && expected.length >= 24 && constantTimeEquals(token, expected) && challenge.length <= 2048) {
     return new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
   }
   return NextResponse.json({ error: "Webhook verification failed" }, { status: 403 });
@@ -121,13 +102,15 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const appSecret = process.env.META_APP_SECRET?.trim() ?? "";
+  const declaredLength = Number(req.headers.get("content-length") ?? 0);
+  if (declaredLength > 1_000_000) return NextResponse.json({ error: "Webhook payload too large" }, { status: 413 });
   const raw = await req.text();
-  if (!appSecret || !validSignature(raw, req.headers.get("x-hub-signature-256"), appSecret)) {
+  if (raw.length > 1_000_000) return NextResponse.json({ error: "Webhook payload too large" }, { status: 413 });
+  if (!appSecret || !verifyMetaWebhookSignature(raw, req.headers.get("x-hub-signature-256"), appSecret)) {
     return NextResponse.json({ error: "Invalid webhook signature" }, { status: 401 });
   }
   let payload: WebhookPayload;
   try {
-    if (raw.length > 1_000_000) return NextResponse.json({ error: "Webhook payload too large" }, { status: 413 });
     payload = JSON.parse(raw) as WebhookPayload;
   } catch {
     return NextResponse.json({ error: "Invalid webhook payload" }, { status: 400 });
@@ -141,20 +124,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         for (const message of value.messages ?? []) {
           if (!message.id) continue;
           await persistEvent({
-            key: eventKey("message", { id: message.id }),
+            key: whatsappEventKey("message", { id: message.id }),
             phoneNumberId, type: "message", payload: message as Record<string, unknown>, message,
           });
         }
         for (const status of value.statuses ?? []) {
           if (!status.id || !status.status) continue;
           await persistEvent({
-            key: eventKey("status", { id: status.id, status: status.status, timestamp: status.timestamp }),
+            key: whatsappEventKey("status", { id: status.id, status: status.status, timestamp: status.timestamp }),
             phoneNumberId, type: "status", payload: status as Record<string, unknown>, status,
           });
         }
         if (!(value.messages?.length) && !(value.statuses?.length)) {
           const stable = JSON.stringify({ entry, field: change.field, value });
-          const key = createHmac("sha256", "clara-whatsapp-event-v1").update(stable).digest("hex");
+          const key = whatsappOpaqueEventKey(stable);
           await persistEvent({ key, phoneNumberId, type: change.field ?? "account_update", payload: value as Record<string, unknown> });
         }
       }
