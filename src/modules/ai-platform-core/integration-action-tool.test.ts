@@ -144,7 +144,7 @@ describe("integration action tool scope propagation", () => {
         userId: "user-1",
         surface: "chat",
       } as never,
-    )).rejects.toMatchObject({ code: "PLAN_NOT_ENTITLED" });
+    )).rejects.toMatchObject({ code: "AUTHORIZATION_UNAVAILABLE" });
 
     expect(runAction).not.toHaveBeenCalled();
     expect(query).toHaveBeenCalledTimes(1);
