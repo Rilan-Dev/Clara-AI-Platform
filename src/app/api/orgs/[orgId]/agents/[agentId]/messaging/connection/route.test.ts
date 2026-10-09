@@ -67,4 +67,27 @@ describe("WhatsApp connection authorization and briefing gate", () => {
     expect(response.status).toBe(400);
     expect(queryMock).toHaveBeenCalledTimes(1);
   });
+  it("marks a revoked Meta token unhealthy and disables briefing eligibility", async () => {
+    queryMock.mockResolvedValueOnce([] as never);
+    queryMock.mockResolvedValueOnce([{
+      id: "50000000-0000-0000-0000-000000000005",
+      waba_id: "60000000-0000-0000-0000-000000000006",
+      access_token: "revoked-token",
+    }] as never);
+    queryMock.mockResolvedValueOnce([] as never);
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: "invalid token" } }), { status: 403 })) as unknown as typeof fetch;
+    try {
+      const response = await POST(request({ action: "verify" }), {
+        params: Promise.resolve({ orgId, agentId }),
+      });
+      expect(response.status).toBe(409);
+      expect(queryMock).toHaveBeenCalledTimes(3);
+      expect(String(queryMock.mock.calls[2][0])).toContain("daily_briefing_enabled = false");
+      expect(String(queryMock.mock.calls[2][0])).toContain("META_AUTH_OR_PERMISSION_REJECTED");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
 });
