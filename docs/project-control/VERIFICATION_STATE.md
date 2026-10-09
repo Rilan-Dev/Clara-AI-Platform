@@ -1,3 +1,14 @@
+## ARCHITECT REVIEW — 2026-10-09 — REALTIME VOICE INTEGRATION DISPATCH
+
+[architect-verified] Source review completed against the current branch implementation and focused regression source.
+
+- Outcome: **PASS_WITH_FOLLOWUP — SOURCE REVIEW ONLY**.
+- No substantial implementation defect was found that warranted a FIX-01 handoff.
+- Confirmed source boundaries: both rollout flags gate descriptors and invocation; server accepts only `integration_availability` and `integration_action`; authenticated non-super-admin caller and KB membership/`kb:read` are required; organisation, agent, user, and session identity are resolved server-side; request-body identity fields are ignored; execution delegates to `getClaraToolRuntime().invoke(...)`; embed-key sessions are blocked in the voice client.
+- Focused regression source covers disabled flag, authentication, tool allowlist, forged body identity, KB permissions, and runtime delegation, plus descriptor gating.
+- Tests, typecheck, build, CI, Vercel, Gate-C/Gate-D, and deployment were not run. No executable PASS, deployment PASS, or task closure is claimed.
+- Follow-up evidence gap: run the focused regression tests when separately authorized. No new implementation scope is inferred from this review.
+
 ## CURRENT DEVELOPER-REPORTED VERIFICATION STATE — 2026-10-09 — REALTIME VOICE DISPATCH
 
 - Source review performed against current branch files; implementation adds default-off tool descriptors, authenticated server-side dispatch, and browser Realtime API integration through the existing Unified Tool Runtime.
