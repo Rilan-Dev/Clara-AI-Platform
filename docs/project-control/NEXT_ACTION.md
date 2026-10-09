@@ -17,7 +17,7 @@
 
 ## Exact next implementation
 1. Token `expires_in` is now persisted when Meta returns it; status reads and the scheduled worker mark expired connections unhealthy and disable briefing eligibility, while Graph 401/403 send responses mark the connection in error. Next, add revocation/permission-health probes and safe reconnect state, and cover expiry transitions in regression source. If Meta returns no expiry value, that unknown-expiry case remains a limitation.
-2. Add focused route-level regression source for OAuth state replay/cancellation, callback user/agent permission, tenant isolation, phone uniqueness conflicts, webhook signature rejection/duplicate retry, briefing consent, and the server-side readiness gate.
+2. Extend route-level regression source for phone uniqueness conflicts, duplicate webhook retry, token expiry transitions, and monotonic delivery updates. Source tests now cover OAuth state replay/permission recheck, cross-organisation authorization, briefing readiness/recipient consent, HMAC/idempotency helpers, E.164/digest behavior, and monotonic message statuses; they remain unexecuted.
 3. Improve scheduled-run reconciliation for ambiguous `sending` records and provider status races without introducing duplicate sends. Keep template/opt-in/customer-service-window requirements enforced.
 4. Evaluate replacing the deterministic excerpt digest with a grounded AI summary using the existing Clara message/RAG policy; do not expose provider tokens or bypass tenant isolation.
 5. Continue source implementation without CI/Vercel polling. Route substantial correctness/security defects to FIX-01 and deployment/infrastructure-only work to OPS-01.
