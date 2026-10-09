@@ -239,3 +239,13 @@ Routine implementation details belong in the owning agent's WORKLOG.md.
 - **Verification:** Source-only; Docker/runtime behavior not verified.
 - **Suggested next action:** Rebuild the current branch, then inspect fresh startup logs and migration output. Investigate the demo-organisation FK error only if it reproduces with current seed source.
 - **Related records:** I-094; `src/instrumentation.node.ts`; `docs/project-control/VERIFICATION_STATE.md`.
+
+
+### EVT-FIX-010 — 2026-10-10
+- **Agent/session:** FIX-01 / SESSION-FIX-20261010-01
+- **Type:** CORRECTION
+- **Summary:** Investigated owner-provided missing-relation PostgreSQL logs and reported modal text overflow. Current source already prevents self-hosted pollers/crons from starting unless migrations completed; project records say the old runtime image and seed failure were not verified against current branch source. Applied a shared dialog primitive fix for viewport-safe dimensions and readable wrapping.
+- **Impact:** UI correction committed; database runtime root cause remains source-supported but not runtime-confirmed.
+- **Owner:** FIX-01
+- **Suggested next action:** When the next normal runtime verification is performed, compare the running image commit with the feature branch and capture migration logs before deciding whether another DB source change is needed. Exercise the shared dialog with narrow viewport and long content.
+- **Related records:** commit `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`; `src/instrumentation.node.ts`; `src/lib/db/migrate.ts`; `src/lib/db/seed/production.ts`; `src/components/ui/dialog.tsx`; `docs/project-control/agents/FIX-01/WORKLOG.md`.
