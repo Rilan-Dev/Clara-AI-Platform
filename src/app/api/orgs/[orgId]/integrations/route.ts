@@ -36,8 +36,9 @@ export async function GET(req: NextRequest, { params }: Params) {
                 MAX(updated_at) AS last_updated_at
            FROM integration_connections
           WHERE org_id = $1
+            AND (user_id = $2 OR user_id IS NULL)
           GROUP BY integration_id`,
-        [orgId],
+        [orgId, auth.user.id],
       ),
     ]);
     const orgById = new Map(orgRows.map(r => [r.integration_id, r]));
