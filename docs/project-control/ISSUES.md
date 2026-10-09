@@ -1910,4 +1910,7 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Failed approach / prevention | Repeating the same build without source changes cannot fix resolver behavior. `docker compose up -d --no-deps` after a failed build may leave the previous image running and is not evidence of recovery. Preserve build checks. |
 | Next action | Continue the authorized P1/P2 integration-runtime roadmap in `NEXT_ACTION.md` without waiting for external gates; investigate any new build failure as a separate issue when verification is next run. |
 | Related records | EVT-FIX-003; SESSION-FIX-20261009-01; `docs/project-control/agents/FIX-01/WORKLOG.md`; `docs/project-control/VERIFICATION_STATE.md` |
-| Architect review status | Source correction recorded; post-change build not reviewed or claimed. |
+| Follow-on finding (2026-10-09) | The next owner-provided build log exposed five additional explicit `.js` sibling imports: `credential-vault.js` and `execution-authorization.js` in `connections-manager.ts`; `execution-authorization.js` and `runner-helpers.js` in `runner-core.ts`; and `error-normalization.js` in `runner-fetch.ts`. Each target exists as TypeScript source. |
+| Follow-on correction commits | `f507443805130d1068b8fe570bc0940f4e8ace1b`; `8eb329af87f1225342b10b9c299fa8163812a9eb`; `21576b8e5e3db30fd5a61325712e0d89dfe38369` |
+| Follow-on disposition | Five remaining imports changed to extensionless paths. Issue remains source-corrected with post-change build verification pending. |
+| Architect review status | Source corrections recorded; post-change build not reviewed or claimed. |
