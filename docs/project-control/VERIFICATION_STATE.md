@@ -1784,3 +1784,13 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - **Correction:** Shared `src/components/ui/dialog.tsx` updated for viewport-safe width/height, overflow scrolling, min-width handling, and robust text wrapping. Commits: dialog `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`; card `f309ab93f80eb9eaa6246d72d17aa5d2d1c5c88f`.
 - **Not run / not claimed:** No browser visual check, UI regression test, test suite, typecheck, build, Docker rebuild, DB migration, runtime log comparison, or deployment. No runtime/production PASS is claimed.
 - **Next:** On the next normal runtime verification, compare the running image commit with the branch and capture migration output. Do not manually create missing tables or reset the database.
+
+
+## 2026-10-10 — FIX-01 OAuth callback setup correction — SOURCE ONLY
+
+- The platform OAuth settings UI no longer presents the `your-domain/api/.../callback` placeholder. When no saved URI exists, it derives the current browser origin plus `/api/integrations/oauth/callback`, displays it read-only, and explains provider-console registration, scopes/API enablement, and the distinction between saving an OAuth app and connecting an account.
+- Server validation requires the shared callback pathname and rejects query strings and placeholder URLs. Regression source covers canonical path, placeholder/query rejection, HTTPS requirements, and local loopback HTTP in non-production.
+- Source commits: `8c64ed818fdfb1185472ec62f74d3f9e1d79ae25`, `c12071271a9c79870b93093ce78375ddab96b4bd`, `3bb395bef2069d39dd4cf80b9261b73400a99c52`.
+- Doable reference used: its integration credential and platform-admin setup documentation, which distinguishes sign-in OAuth from integration OAuth and calls for exact callback registration and explicit credential/readiness states. Clara keeps its existing shared callback route; it does not copy Doable's per-integration callback architecture.
+- **Not run / not claimed:** no Vitest, typecheck, lint, build, browser verification, live provider consent, token exchange, Docker, CI, Vercel, deployment, or runtime verification. No PASS is inferred.
+- **Remaining:** actual Doable repository source comparison is incomplete; provider-specific developer-console links and a platform-side OAuth smoke/connect-test flow are not implemented by this correction. Live deployment/schema failures belong to OPS-01.
