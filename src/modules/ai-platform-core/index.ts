@@ -85,7 +85,6 @@ export {
   buildClaraToolAuthorizationAdapter,
   buildClaraToolMeteringHook,
   buildClaraToolRuntime,
-  buildClaraToolRuntime,
   buildRagSearchTool,
   getClaraToolRuntime,
   invokeClaraTool,
