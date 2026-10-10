@@ -1,3 +1,22 @@
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-10 — MCP CONFIGURATION, TENANT ISOLATION, CHAT + REALTIME VOICE
+
+[owner-authorized] DEV-01 / Forge is authorized to continue MCP product development from the current branch state. Source audit/roadmap: `docs/superpowers/plans/2026-10-10-mcp-configuration-ui-chat-voice-roadmap.md`.
+
+## Source audit disposition
+- I-6 MCP Tool Bridge is complete at source level; it adapts a host-supplied resolver into the existing Unified Tool Runtime and has regression source.
+- The bridge is not an MCP transport/client or persistent server configuration UI.
+- Existing platform/org/agent integration screens and realtime integration dispatch exist, but do not establish a working configured MCP server end-to-end.
+- No executable tests/typecheck/build/live MCP connection were run or claimed.
+
+## Exact next implementation slice
+1. Inspect active migrations, existing platform integration CRUD, org/agent grant APIs, credential vault and runtime context contracts.
+2. Implement a narrow persisted MCP server/configuration contract and migration with platform approval, encrypted write-only auth, org connection ownership, exact server/tool-pair policy and agent grants. Never persist or return plaintext secrets.
+3. Add platform-admin MCP server management to the existing integrations UI and organisation connection/tool-grant controls to the existing organisation integrations UI; do not add another sidebar.
+4. Connect the first supported transport to a host-owned `McpToolResolver`; fail closed for unsupported transport and enforce SSRF/TLS/timeout/size/redirect safety.
+5. Wire authorized MCP tools into provider chat and realtime voice through the same Unified Tool Runtime, with server-derived identity and authorization rechecks at invocation. Do not expose to platform-admin sessions or public embeds by default.
+6. Add regression source for cross-organisation isolation, revoked grants, platform/plan denial, secret redaction, transport abuse, chat/realtime parity, and stale tool discovery.
+7. Update project-control, DEV-01 memory/worklog, and session records. Do not wait for CI/Vercel; route substantial security/correctness defects to FIX-01 and infrastructure/deployment-only work to OPS-01.
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — WHATSAPP CONNECTION + DAILY BRIEFING SOURCE
 
 [owner-authorized] DEV-01 has implemented the main source path from Meta authorization through signed webhook persistence and a gated daily briefing sender. The live Meta app and runtime behavior remain unverified.
