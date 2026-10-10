@@ -276,7 +276,7 @@ function contextSignal(context: PlatformExecutionContext): AbortSignal | undefin
 async function getAuthorizedServer(context: PlatformExecutionContext, serverId: string, toolName?: string): Promise<ServerAccess | null> {
   if (!process.env.ENABLE_MCP || !["1","true","yes","on"].includes(process.env.ENABLE_MCP.trim().toLowerCase())) return null;
   if (!SURFACES.includes(context.surface) || !context.userId || !context.agentId || !context.sessionId || !context.tenantId || !context.kbId) return null;
-  const [kbAccess] = await getKbAccessContext(context.kbId, context.userId).catch(() => [] as never[]);
+  const [kbAccess] = await getKbAccessContext(context.kbId, context.userId);
   if (!kbAccess?.membership || kbAccess.orgId !== context.tenantId || !kbAccess.permissions.has("kb:read")) return null;
   let plan: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
   try { plan = await resolveOrgPlanLimits(context.tenantId); } catch { return null; }
