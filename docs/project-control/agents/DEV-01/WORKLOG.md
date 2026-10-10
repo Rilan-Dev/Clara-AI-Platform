@@ -149,3 +149,16 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Blockers/dependencies:** Deployment must rebuild/reload the updated module. Exposed cookie/client secret need revocation/rotation before retry.
 - **Lesson:** A named export mismatch may surface as a runtime `is not a function` when build/runtime configuration does not reject the missing export; check the source export and deployed build revision together.
 - **Next action:** Rebuild/redeploy, then retest using fresh credentials; inspect only redacted logs if another failure occurs.
+
+
+### SESSION-DEV-20261011-01 / 2026-10-11
+
+- **Task:** Implement secure Streamable HTTP MCP resolver and wire discovered tools into Chat and realtime voice via the Unified Tool Runtime.
+- **Authorization:** Explicit next action in `docs/project-control/NEXT_ACTION.md`; continuation from SESSION-DEV-20261010-02.
+- **Started from:** `feature/ai-core-from-doable-source`.
+- **Actions:** Added server-side resolver; HTTPS/DNS public-IP pinning/TLS/no-redirect/timeout/cancellation/size guards; JSON-RPC initialize and paginated tools/list; bounded schema conversion and stale-schema check; execution-time platform/plan/org/agent/user/KB/session/surface rechecks; request-scoped runtime composition; Chat and OpenAI realtime advertisement/dispatch; focused endpoint/IP regression source.
+- **Files/code:** `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts`, `mcp-streamable-http-resolver.test.ts`, `mcp-tool-bridge.ts`, `index.ts`, `src/modules/assistant/api/chat.ts`, `src/modules/assistant/api/realtime.ts`, `src/modules/assistant/api/realtime-tool.ts`, and project-control records.
+- **Evidence:** Source commits written to the feature branch and changed files re-fetched for review. No executable verification was run.
+- **Blockers/dependencies:** No local test/typecheck execution or controlled MCP test server available in this source-only workflow; no verified live transport.
+- **Lesson:** Keep MCP definitions bound to a request-scoped execution context; never attach them to the process-global runtime. Recheck current DB grants on every resolution/invocation and do not cache tool discovery until invalidation semantics cover platform, organisation, agent and remote-schema changes.
+- **Next action:** Add mocked transport/runtime regressions, run focused tests and `npm run type-check` when execution is available, fix source issues without waiting for CI/Vercel, then validate a controlled live initialize/list/call before enabling servers.
