@@ -12,7 +12,7 @@ import { isIP } from "node:net";
 import { createHash } from "node:crypto";
 import https from "node:https";
 import type { IncomingHttpHeaders } from "node:http";
-import type { LookupFunction } from "node:dns";
+import type { LookupFunction } from "node:net";
 import { z } from "zod";
 import { query } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
@@ -30,6 +30,11 @@ const MAX_TOOL_PAGES = 8;
 const DISCOVERY_CACHE_TTL_MS = 3_000;
 const MAX_DISCOVERY_CACHE_ENTRIES = 16;
 const PROTOCOL_VERSION = "2025-03-26";
+/** Protocol versions this client can speak, per the MCP revision history.
+ *  A compliant server answers initialize with the requested version when it
+ *  supports it, otherwise with another version it supports; accepting the
+ *  known revisions here is the spec-described client behaviour. */
+const KNOWN_PROTOCOL_VERSIONS = new Set(["2024-11-05", "2025-03-26", "2025-06-18"]);
 const SURFACES: readonly SurfaceKind[] = ["chat", "realtime"];
 
 type JsonObject = Record<string, unknown>;
@@ -210,14 +215,16 @@ async function postRpc(url: URL, method: string, params: JsonObject, sessionId?:
 
 async function listRemoteTools(url: URL, token: string | null, signal?: AbortSignal): Promise<{ tools: JsonObject[]; sessionId?: string; auth: Record<string,string> }> {
   // Authentication must be present on initialize too; keep one shared path.
-  const auth = token ? { authorization: `Bearer ${token}` } : {};
+  const auth: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {};
   const initId = jsonRpcId();
   const initResponse = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", id:initId, method:"initialize", params:{ protocolVersion:PROTOCOL_VERSION, capabilities:{}, clientInfo:{ name:"clara-ai-platform", version:"1.0.0" } } }), auth, signal);
   if (initResponse.status < 200 || initResponse.status >= 300) throw new Error(`MCP endpoint returned HTTP ${initResponse.status}.`);
   const init = decodeRpc(initResponse.body);
-  if (init.protocolVersion !== PROTOCOL_VERSION) throw new Error("MCP server negotiated an unsupported protocol version.");
+  if (typeof init.protocolVersion !== "string" || !KNOWN_PROTOCOL_VERSIONS.has(init.protocolVersion)) throw new Error("MCP server negotiated an unsupported protocol version.");
   const sessionId = typeof initResponse.headers["mcp-session-id"] === "string" ? initResponse.headers["mcp-session-id"] as string : undefined;
-  const notify = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", method:"notifications/initialized" }), { ...auth, ...(sessionId ? { "mcp-session-id":sessionId } : {}) }, signal);
+  const notifyHeaders: Record<string, string> = { ...auth };
+  if (sessionId) notifyHeaders["mcp-session-id"] = sessionId;
+  const notify = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", method:"notifications/initialized" }), notifyHeaders, signal);
   if (notify.status < 200 || notify.status >= 300) throw new Error(`MCP initialization notification returned HTTP ${notify.status}.`);
   const tools: JsonObject[] = [];
   let cursor: string | undefined;
@@ -547,3 +554,162 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
 }
 
 export const streamableHttpMcpToolResolver = new StreamableHttpMcpToolResolver();
+
+// ─── Admin diagnostic probe ─────────────────────────────────────────────────
+// The probe shares the hardened transport used by the runtime resolver (DNS
+// re-resolution with private-range rejection, pinned sockets, no redirects,
+// request/response/time bounds) but is decoupled from the agent-runtime
+// authorization chain: it exists so a platform admin can verify an endpoint
+// and import its real tool allowlist BEFORE anything is enabled for tenants.
+// It never logs or returns the supplied bearer token.
+
+export type McpProbeTool = { name: string; description: string | null };
+export type McpProbeResult = {
+  ok: boolean;
+  endpoint: string;
+  durationMs: number;
+  serverInfo?: { name: string | null; version: string | null; protocolVersion: string | null };
+  tools?: McpProbeTool[];
+  toolCount?: number;
+  error?: string;
+  errorCode?: string;
+};
+
+function httpHint(status: number): string | null {
+  if (status === 401 || status === 403) return "Authorization failed. Check the API key / bearer token for this MCP server.";
+  if (status === 404) return "The MCP endpoint path was not found. Confirm the full URL, including any /mcp or /mcp-server/http suffix.";
+  if (status === 405) return "The endpoint did not accept a POST. Confirm this is a Streamable HTTP MCP endpoint.";
+  if (status === 429) return "The server rate-limited the probe. Retry in a moment.";
+  if (status >= 500) return "The MCP server reported a server-side error.";
+  return null;
+}
+
+/** Decode a JSON-RPC envelope, surfacing the server's error message. */
+function decodeRpcForProbe(body: string): JsonObject {
+  let parsed: unknown;
+  try {
+    const hasSseData = body.split(/\r?\n/).some((line) => line.startsWith("data:"));
+    if (hasSseData) {
+      const payloads = body.split(/\r?\n\r?\n/).flatMap((event) => {
+        const data = event.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).filter(Boolean).join("\n");
+        return data ? [JSON.parse(data) as unknown] : [];
+      });
+      parsed = payloads.find((event) => event && typeof event === "object" && !Array.isArray(event) && ("result" in event || "error" in event));
+    } else {
+      parsed = JSON.parse(body);
+    }
+  } catch {
+    throw new Error("The server did not return a valid JSON-RPC response. Confirm this is a Streamable HTTP MCP endpoint.");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("The server did not return a valid JSON-RPC response. Confirm this is a Streamable HTTP MCP endpoint.");
+  const envelope = parsed as JsonObject;
+  if (envelope.error && typeof envelope.error === "object" && !Array.isArray(envelope.error)) {
+    const detail = envelope.error as JsonObject;
+    const message = typeof detail.message === "string" && detail.message.trim() ? detail.message.trim().slice(0, 300) : "unknown JSON-RPC error";
+    throw new Error(`The MCP server rejected the request: ${message}`);
+  }
+  if (!("result" in envelope) || !envelope.result || typeof envelope.result !== "object" || Array.isArray(envelope.result)) {
+    throw new Error("The MCP server response did not contain a result object.");
+  }
+  return envelope.result as JsonObject;
+}
+
+function probeErrorCode(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/timed out/i.test(message)) return "MCP_TIMEOUT";
+  if (/DNS/i.test(message)) return "MCP_DNS_BLOCKED";
+  if (/HTTP 40[13]/.test(message)) return "MCP_UNAUTHORIZED";
+  if (/HTTP 404/.test(message)) return "MCP_NOT_FOUND";
+  if (/redirect/i.test(message)) return "MCP_REDIRECT";
+  if (/protocol version/i.test(message)) return "MCP_PROTOCOL_VERSION";
+  if (/invalid JSON-RPC|did not return a valid|did not contain a result/i.test(message)) return "MCP_BAD_RESPONSE";
+  if (/size limit|page limit|tool discovery|duplicate tool|invalid tools/i.test(message)) return "MCP_LIMIT";
+  return "MCP_PROBE_FAILED";
+}
+
+/** Live MCP handshake (initialize → notifications/initialized → tools/list)
+ *  against an endpoint, optionally with a bearer token. Never throws — every
+ *  failure is reported in the returned result. */
+export async function probeStreamableHttpServer(endpointUrl: string, bearerToken?: string | null): Promise<McpProbeResult> {
+  const startedAt = Date.now();
+  const base = { endpoint: endpointUrl, durationMs: 0 };
+  let url: URL;
+  try {
+    url = validateMcpEndpoint(endpointUrl);
+  } catch (error) {
+    return { ...base, durationMs: Date.now() - startedAt, ok: false, error: error instanceof Error ? error.message : "Invalid MCP endpoint.", errorCode: "MCP_ENDPOINT_INVALID" };
+  }
+  const token = typeof bearerToken === "string" ? bearerToken.trim() : "";
+  if (token && token.length > 8192) {
+    return { ...base, durationMs: Date.now() - startedAt, ok: false, error: "Bearer token is too long.", errorCode: "MCP_TOKEN_INVALID" };
+  }
+  const auth: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {};
+  try {
+    // initialize
+    const initResponse = await requestOnce(url, JSON.stringify({ jsonrpc: "2.0", id: jsonRpcId(), method: "initialize", params: { protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name: "clara-ai-platform", version: "1.0.0" } } }), auth);
+    if (initResponse.status < 200 || initResponse.status >= 300) {
+      const hint = httpHint(initResponse.status);
+      return { ...base, durationMs: Date.now() - startedAt, ok: false, error: `The MCP endpoint returned HTTP ${initResponse.status}.${hint ? " " + hint : ""}`, errorCode: probeErrorCode(`HTTP ${initResponse.status}`) };
+    }
+    const init = decodeRpcForProbe(initResponse.body);
+    const negotiated = typeof init.protocolVersion === "string" ? init.protocolVersion : null;
+    if (!negotiated || !KNOWN_PROTOCOL_VERSIONS.has(negotiated)) {
+      return { ...base, durationMs: Date.now() - startedAt, ok: false, error: `The server negotiated protocol version ${negotiated ?? "(none)"}, which this platform does not speak.`, errorCode: "MCP_PROTOCOL_VERSION" };
+    }
+    const serverInfoRaw = init.serverInfo && typeof init.serverInfo === "object" && !Array.isArray(init.serverInfo) ? init.serverInfo as JsonObject : {};
+    const sessionId = typeof initResponse.headers["mcp-session-id"] === "string" ? initResponse.headers["mcp-session-id"] as string : undefined;
+    // notifications/initialized
+    const notifyHeaders: Record<string, string> = { ...auth };
+    if (sessionId) notifyHeaders["mcp-session-id"] = sessionId;
+    const notify = await requestOnce(url, JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }), notifyHeaders);
+    if (notify.status < 200 || notify.status >= 300) {
+      return { ...base, durationMs: Date.now() - startedAt, ok: false, error: `MCP initialization notification returned HTTP ${notify.status}.`, errorCode: probeErrorCode(`HTTP ${notify.status}`) };
+    }
+    // paginated tools/list
+    const tools: McpProbeTool[] = [];
+    let cursor: string | undefined;
+    let pageCount = 0;
+    const seenCursors = new Set<string>();
+    let effectiveSessionId = sessionId;
+    do {
+      pageCount += 1;
+      if (pageCount > MAX_TOOL_PAGES) throw new Error("MCP server exceeded the tool discovery page limit.");
+      const listed = await postRpc(url, "tools/list", cursor ? { cursor } : {}, effectiveSessionId, undefined, auth);
+      effectiveSessionId = listed.sessionId ?? effectiveSessionId;
+      const page = listed.result.tools;
+      if (!Array.isArray(page) || page.some((tool) => !tool || typeof tool !== "object" || Array.isArray(tool)) || tools.length + page.length > MAX_TOOLS) {
+        throw new Error("MCP server returned an invalid tools list.");
+      }
+      for (const tool of page as JsonObject[]) {
+        const name = typeof tool.name === "string" ? tool.name : "";
+        if (!/^[a-zA-Z0-9_.:-]{1,160}$/.test(name)) throw new Error("MCP server returned an invalid tool name.");
+        const description = typeof tool.description === "string" ? tool.description.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 300) : null;
+        tools.push({ name, description });
+      }
+      const nextCursor = listed.result.nextCursor;
+      if (typeof nextCursor === "string") {
+        if (!nextCursor || nextCursor.length > 1024 || seenCursors.has(nextCursor)) throw new Error("MCP server returned an invalid tool cursor.");
+        seenCursors.add(nextCursor);
+        cursor = nextCursor;
+      } else {
+        cursor = undefined;
+      }
+    } while (cursor);
+    if (new Set(tools.map((tool) => tool.name)).size !== tools.length) throw new Error("MCP server returned duplicate tool names.");
+    return {
+      ...base,
+      durationMs: Date.now() - startedAt,
+      ok: true,
+      serverInfo: {
+        name: typeof serverInfoRaw.name === "string" ? serverInfoRaw.name.slice(0, 160) : null,
+        version: typeof serverInfoRaw.version === "string" ? serverInfoRaw.version.slice(0, 80) : null,
+        protocolVersion: negotiated,
+      },
+      tools,
+      toolCount: tools.length,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "The probe failed.";
+    return { ...base, durationMs: Date.now() - startedAt, ok: false, error: message, errorCode: probeErrorCode(message) };
+  }
+}

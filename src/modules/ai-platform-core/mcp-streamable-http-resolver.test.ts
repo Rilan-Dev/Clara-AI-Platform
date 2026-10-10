@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMcpPublicIpAddress, validateMcpEndpoint } from "./mcp-streamable-http-resolver";
+import { isMcpPublicIpAddress, probeStreamableHttpServer, validateMcpEndpoint } from "./mcp-streamable-http-resolver";
 
 describe("Streamable HTTP MCP endpoint guard", () => {
   it.each([
@@ -47,5 +47,37 @@ describe("Streamable HTTP MCP endpoint guard", () => {
     const endpoint = validateMcpEndpoint("https://mcp.vendor.com/mcp");
     expect(endpoint.protocol).toBe("https:");
     expect(endpoint.hostname).toBe("mcp.vendor.com");
+  });
+});
+
+describe("MCP admin probe (offline validation paths)", () => {
+  it("reports an invalid endpoint without throwing", async () => {
+    const result = await probeStreamableHttpServer("not-a-url");
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe("MCP_ENDPOINT_INVALID");
+    expect(typeof result.error).toBe("string");
+    expect(result.error!.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    "http://n8n.example.com/mcp-server/http",
+    "https://localhost/mcp-server/http",
+    "https://10.0.0.5/mcp",
+  ])("rejects unsafe endpoint %s before any network I/O", async (endpoint) => {
+    const result = await probeStreamableHttpServer(endpoint);
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe("MCP_ENDPOINT_INVALID");
+  });
+
+  it("rejects an oversized bearer token", async () => {
+    const result = await probeStreamableHttpServer("https://n8n.example.com/mcp-server/http", "x".repeat(9000));
+    expect(result.ok).toBe(false);
+    expect(result.errorCode).toBe("MCP_TOKEN_INVALID");
+  });
+
+  it("always reports the endpoint and a duration", async () => {
+    const result = await probeStreamableHttpServer("bad");
+    expect(result.endpoint).toBe("bad");
+    expect(result.durationMs).toBeGreaterThanOrEqual(0);
   });
 });
