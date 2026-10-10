@@ -59,6 +59,18 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run validate:model-config
 
+  stylesheet-guard:
+    name: Stylesheet Token Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - name: Assert max-w-* resolves to the container scale (Tailwind v4)
+        run: npm run validate:stylesheet
 
   phase7-focused:
     name: Phase 7 Focused Verification

@@ -28,6 +28,7 @@
     "scan-blocked-domains": "tsx scripts/scan-blocked-domains.ts",
     "validate:model-config": "node scripts/validate-model-config.mjs",
     "validate:model-config:db": "node scripts/validate-model-config.mjs --db",
+    "validate:stylesheet": "node scripts/validate-stylesheet.mjs",
     "vercel-build": "npm run db:migrate && next build --webpack"
   },
   "dependencies": {
