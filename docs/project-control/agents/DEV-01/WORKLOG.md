@@ -113,3 +113,16 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Actions:** Added authenticated `verify` action to check access to the selected WABA using the encrypted active token. HTTP 401/403 marks the connection `error`, disables daily briefing eligibility, and presents the reconnect path. Messaging now exposes Verify Meta access and refreshes state after subscription/verification failures.
 - **Regression source:** Added a route test for a rejected Meta token and the resulting unhealthy state/briefing disablement. It is source only and has not been executed.
 - **Boundary:** Proactive periodic health probing remains pending; expiry and send-time 401/403 are guarded, while the manual probe is user-triggered.
+
+
+### SESSION-DEV-20261010-01 / 2026-10-10
+- **Task:** Audit completed/incomplete MCP functionality and plan platform-admin, organisation, agent, chat and realtime voice experience.
+- **Authorization:** Explicit current owner request; DEV-01 / Forge.
+- **Started from:** `feature/ai-core-from-doable-source`; current project-control and role-local records recovered from GitHub.
+- **Actions:** Inspected project state/next action/verification state, DEV-01 memory/worklog and central sessions; inspected I-6 MCP bridge/tests, shared integration policy, integration bridge, realtime dispatch and existing UI paths. Added MCP audit/roadmap and made it authoritative NEXT_ACTION.
+- **Files:** `docs/superpowers/plans/2026-10-10-mcp-configuration-ui-chat-voice-roadmap.md`; `docs/project-control/NEXT_ACTION.md`; `docs/project-control/sessions/SESSION-DEV-20261010-01.md`.
+- **Commits:** `7a57655b4df9a347456dde9f7cb3749cb1fd4c8b`, `d85b3bab2342d548af1313d0c80aee4487442b4c`.
+- **Evidence:** Source inspection and successful document commits. No tests/typecheck/build/CI/Vercel/runtime verification performed or claimed.
+- **Blockers:** Need inspect migration, integration API, credential vault and runtime context before active MCP persistence/transport. Bridge expects a host resolver; no end-to-end MCP transport/configuration path established by this inspection.
+- **Lesson:** Bridge completion does not prove configured servers, tenant-safe credentials, discovery or chat/voice availability. Recheck grants at discovery and execution; never trust client-supplied identity.
+- **Next action:** Implement registry/credential/grant contract and platform/org UI in existing integration surfaces; wire supported transport to chat/realtime via Unified Tool Runtime.
