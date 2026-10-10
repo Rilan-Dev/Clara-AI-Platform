@@ -555,7 +555,7 @@ async function postChatKb(
               kbId,
               agentId: resolved.agentId!,
               userId: authCtx!.user.id,
-              ...(sessionId ? { sessionId } : {}),
+              sessionId: authCtx!.session.id,
               surface: "chat",
               metadata: { mcpSignal: request.signal },
             });
