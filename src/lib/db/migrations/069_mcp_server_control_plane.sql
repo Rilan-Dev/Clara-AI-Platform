@@ -36,15 +36,14 @@ CREATE TABLE IF NOT EXISTS organisation_mcp_connections (
   server_id UUID NOT NULL REFERENCES platform_mcp_servers(id) ON DELETE CASCADE,
   credentials_encrypted BYTEA,
   status TEXT NOT NULL DEFAULT 'disconnected'
-    CHECK (status IN ('connected','error','disconnected','revoked')),
+    CHECK (status IN ('configured','error','disconnected','revoked')),
   connected_by UUID REFERENCES users(id) ON DELETE SET NULL,
   last_error_code TEXT,
   last_connected_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (org_id, server_id),
-  CHECK ((status = 'connected' AND (credentials_encrypted IS NOT NULL OR server_id IS NOT NULL))
-      OR status <> 'connected')
+  CHECK ((status = 'configured' AND credentials_encrypted IS NOT NULL) OR status <> 'configured')
 );
 
 CREATE TABLE IF NOT EXISTS organisation_mcp_tool_grants (
