@@ -332,3 +332,16 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Commits:** `59a671286a55ff04bd34ba41003c5db015b5afa2`, `518c238d84e93f4d214e0ff802c9b317fd834e01`.
 - **Verification:** Source only; Vitest/typecheck and screenshot-based browser inspection remain pending.
 - **Next action:** Continue any remaining public/auth card surfaces and the WhatsApp lifecycle roadmap without waiting for CI/Vercel.
+
+
+### SESSION-FIX-20261011-01 / 2026-10-11
+- **Task:** Root-cause the repeated Stripe `invoice.paid` FK failure from the user's freshly rebuilt backend.
+- **Authorization:** Direct owner invocation of FIX-01/Sentinel for root-cause-first diagnosis, minimal authorized correction, regression protection where appropriate, and cross-agent routing.
+- **Symptom:** `invoice.paid` event `evt_1UP9JaSH7giJdRbDjderTSey` repeatedly fails with SQLSTATE 23503 because `billing_events.org_id=d8f78644-3198-41db-bcc3-278ecad0ecb4` is absent from `organisations`. App sends an alert email; Stripe retries.
+- **Root cause (confirmed immediate, underlying cause pending):** `invoiceOrgId(inv)` returns an ID from Stripe invoice/subscription metadata; `src/app/api/webhooks/stripe/route.ts` uses it in an unconditional `billing_events` insert. The referenced tenant row does not exist in the active database. The log says migrations already applied, so this is not evidence of a missing schema migration.
+- **Failed approaches:** None executed. Explicitly reject placeholder tenant insertion, FK removal, DB reset/reseed, or silently acknowledging a paid invoice without reconciling subscription/customer/tenant state.
+- **Remedy:** Routed database/environment correlation to OPS-01 in `BACKLOG-OPS-20261011-STRIPE-ORPHAN-ORG`. No application patch made because current evidence points first to a tenant-data/environment mismatch and changing payment webhook behavior could hide a paid invoice or break entitlement/receipt correctness.
+- **Prevention:** Check invoice → subscription/customer → org_subscriptions → organisations in the same live DB; migration success is not proof that referenced tenant data exists. Keep FK enforcement.
+- **Evidence:** User-provided Docker build/startup/log output; source trace in `src/app/api/webhooks/stripe/route.ts` and `src/lib/stripe-activation.ts`.
+- **Verification:** Source trace only. No direct DB/Stripe query, tests, typecheck, or runtime fix performed. Incident unresolved pending OPS-01 evidence.
+- **Next action:** OPS-01 performs read-only mapping and verifies container DB/environment. If evidence establishes an app-side lifecycle defect, route the exact source defect back to FIX-01 with query evidence.
