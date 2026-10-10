@@ -109,3 +109,7 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 
 - **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01 addendum
 - **Lesson:** Keep persisted credential configuration distinct from a verified transport handshake. Only move `configured` to `connected` after a valid server discovery, and keep the encrypted credential present for either state. A UI status must not imply a live connection before the handshake is observed.
+
+
+- **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01 cache clarification
+- **Lesson:** A tiny cache can remove repeated `tools/list` round trips during one request if it is bound to the exact immutable execution-context identity and credential fingerprint, contains only remote metadata, and does not cache authorization. Recheck DB permissions on every resolution and bypass the cache for invocation/schema validation. Do not turn this into a cross-request cache without explicit invalidation for policy and remote schema changes.
