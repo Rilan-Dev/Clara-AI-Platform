@@ -105,3 +105,7 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Safety lesson:** The runtime tool descriptor is not the authority. At invocation re-check platform enablement, plan, connection, exact approved server/tool pair, org and agent grants, current user membership/KB read permission, context/session and surface. Keep server enablement and `ENABLE_MCP` off until tests and a controlled live handshake are observed.
 - **Trade-off:** No shared discovery cache is used yet because grant/schema invalidation is not implemented. This is safer against stale grants but adds repeated upstream round trips; optimize only after invalidation is reliable.
 - **Verification boundary:** Source inspection and GitHub writes only. Never describe the resolver or Chat/realtime MCP path as passing, live, or production-ready until tests/typecheck/build and a controlled handshake actually run.
+
+
+- **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01 addendum
+- **Lesson:** Keep persisted credential configuration distinct from a verified transport handshake. Only move `configured` to `connected` after a valid server discovery, and keep the encrypted credential present for either state. A UI status must not imply a live connection before the handshake is observed.
