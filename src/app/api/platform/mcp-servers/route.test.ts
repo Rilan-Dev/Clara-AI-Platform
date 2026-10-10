@@ -40,4 +40,42 @@ describe("platform MCP registry validation", () => {
     }));
     expect(unsupportedSurface.status).toBe(400);
     expect(queryMock).not.toHaveBeenCalled();
-  });});
+  });
+  it("rejects unknown auth modes, short bearer tokens, and bearer tokens on oauth servers", async () => {
+    const { POST } = await import("./route");
+    for (const body of [
+      { serverKey:"server-four",displayName:"S4",endpointUrl:"https://mcp.example.com/mcp",authMode:"basic" },
+      { serverKey:"server-five",displayName:"S5",endpointUrl:"https://mcp.example.com/mcp",authMode:"bearer",bearerToken:"short" },
+      { serverKey:"server-six",displayName:"S6",endpointUrl:"https://mcp.example.com/mcp",authMode:"oauth",bearerToken:"token-1234567890" },
+    ]) {
+      const response = await POST(new NextRequest("http://localhost/api/platform/mcp-servers", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }));
+      expect(response.status).toBe(400);
+    }
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+  it("registers oauth servers without a platform credential and stores bearer tokens encrypted", async () => {
+    const { POST } = await import("./route");
+    queryMock.mockResolvedValue({ rows: [{ id: "server-oauth-1" }] });
+    const oauth = await POST(new NextRequest("http://localhost/api/platform/mcp-servers", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ serverKey:"notion-mcp",displayName:"Notion tools",endpointUrl:"https://mcp.notion.com/mcp",authMode:"oauth" }),
+    }));
+    expect(oauth.status).toBe(201);
+    const oauthInsert = queryMock.mock.calls.at(-1)![0] as string;
+    expect(oauthInsert).toContain("platform_credentials_encrypted");
+    // OAuth mode stores no credential until the admin signs in.
+    expect(queryMock.mock.calls.at(-1)![1]).toContain(null);
+
+    const bearer = await POST(new NextRequest("http://localhost/api/platform/mcp-servers", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ serverKey:"n8n-mcp",displayName:"Automation tools",endpointUrl:"https://n8n.example.com/mcp-server/http",authMode:"bearer",bearerToken:"n8n-api-key-123456" }),
+    }));
+    expect(bearer.status).toBe(201);
+    const bearerInsert = queryMock.mock.calls.at(-1)![0] as string;
+    expect(bearerInsert).toContain("pgp_sym_encrypt");
+    expect(queryMock.mock.calls.at(-1)![1]).toContain(JSON.stringify({ type: "bearer", bearerToken: "n8n-api-key-123456" }));
+  });
+});
