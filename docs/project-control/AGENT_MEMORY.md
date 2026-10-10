@@ -174,3 +174,14 @@ Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/ap
 - **Disposition:** Route the live database/Stripe-to-tenant reconciliation to OPS-01. FIX-01 makes no speculative billing or database mutation. Do not create an organisation, disable the FK, insert a placeholder tenant, reset/seed the database, or acknowledge/ignore a paid invoice in application code before tracing subscription/customer mappings and billing invariants.
 - **Prevention:** For FK errors, inspect the exact failed relation/key and correlate Stripe invoice → subscription/customer metadata → `org_subscriptions` → `organisations` in the same deployed database. Verify running image/commit and migration status first. Any eventual app-side orphan-event guard must preserve paid-event reconciliation and avoid silently losing receipts or entitlements.
 - **Verification:** Source trace only; no database query, Stripe API retrieval, tests, or code correction executed by FIX-01. Runtime status remains unresolved.
+
+
+## 2026-10-11 — FIX-01 MCP missing platform bearer credential response
+
+- **Symptom:** `POST /api/platform/mcp-servers/test` returns HTTP 502 with `MCP_NO_PLATFORM_CREDENTIAL` for a registered bearer-auth server when the stored credential is absent and the request omits `bearerToken`.
+- **Root cause:** The route correctly detected missing local credential configuration and did not call the upstream resolver, but mislabeled this local client/configuration error as a Bad Gateway response.
+- **Remedy:** Changed only this specific missing-platform-bearer response to HTTP 400. Added `src/app/api/platform/mcp-servers/test/route.test.ts` asserting the status/error code and that the upstream handshake is not called. Commits: `426e06fde3da96ee60b155ecafcf3b6c59825105`, `9e63b8bffcacf391557ad281303294a6e5352d18`.
+- **Failed approach:** An initial scripted patch failed its exact-text guard and made no change; the edit was retried with a narrower unique response-block match.
+- **Prevention:** Distinguish local missing configuration (4xx) from a remote MCP endpoint/handshake failure (502). Never infer upstream health from a missing-credential response.
+- **Security:** If an operator pastes a session/bearer cookie into a diagnostic, advise revocation/rotation and never echo it into project records.
+- **Verification:** Source committed; test authored but not executed. Production behavior is not verified. The request without `bearerToken` still cannot perform a handshake; configure a stored credential or supply a temporary token in the request.
