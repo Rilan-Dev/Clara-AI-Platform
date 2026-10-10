@@ -126,3 +126,13 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Blockers:** Need inspect migration, integration API, credential vault and runtime context before active MCP persistence/transport. Bridge expects a host resolver; no end-to-end MCP transport/configuration path established by this inspection.
 - **Lesson:** Bridge completion does not prove configured servers, tenant-safe credentials, discovery or chat/voice availability. Recheck grants at discovery and execution; never trust client-supplied identity.
 - **Next action:** Implement registry/credential/grant contract and platform/org UI in existing integration surfaces; wire supported transport to chat/realtime via Unified Tool Runtime.
+
+### SESSION-DEV-20261010-02 / 2026-10-10
+- **Task:** Implement first MCP server registry and connection/grant contract plus platform/org/agent UI.
+- **Actions:** Inspected migrations 060–062, existing encryption and integration APIs/UI; added migration 069, platform MCP registry API, org-scoped connection/grant API, platform/org/agent panels, and regression test source.
+- **Files:** `src/lib/db/migrations/069_mcp_server_control_plane.sql`; `src/app/api/platform/mcp-servers/route.ts`; `src/app/api/orgs/[orgId]/mcp-servers/route.ts`; matching `.test.ts` files; `src/features/admin/screens/{mcp-servers-panel,org-mcp-servers-panel,agent-mcp-tools-panel}.tsx`; existing integration screens; `docs/project-control/NEXT_ACTION.md`; session record.
+- **Evidence:** Successful GitHub source commits; source rereads for key files. Tests were authored, not executed. No typecheck/build/runtime/CI/Vercel PASS claimed.
+- **Security:** Org tokens use existing server-side pgcrypto encryption; APIs do not return credentials; org/agent grants are separate; server disabled by default; URL registration rejects HTTPS/IP/private obvious endpoint patterns; credential save status is `configured`, not `connected`.
+- **Pending:** Live transport and DNS-rebinding-resistant resolver, real tool discovery/schema conversion, chat and realtime runtime registration, invocation-time reauthorization, runtime audit and end-to-end tests.
+- **Lesson:** Config-time URL filtering is not enough for SSRF protection; actual transport must validate DNS/IP targets at connect time. Stored credentials are not proof of connectivity.
+- **Next action:** Implement secure Streamable HTTP resolver and register the authorized tool set in Chat and realtime voice through Unified Tool Runtime.
