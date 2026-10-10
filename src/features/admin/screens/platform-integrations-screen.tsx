@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, ShieldCheck, ShieldOff, KeyRound, Copy, X } from "lucide-react";
 import { getOAuthSetupGuide } from "@/modules/integrations/oauth-setup-guides";
 
+import McpServersPanel from "@/features/admin/screens/mcp-servers-panel";
+
 type OAuthApp = { integrationId:string; configured:boolean; credentialSource?:"database"|"unconfigured"; secretConfigured?:boolean; clientId:string; redirectUri:string; scopes:string[] };
 type Integration = { id:string; displayName:string; description:string; logoUrl:string; category:string; authType:string; actions:string[]; platformEnabled:boolean; allowedPlans:string[]; requiresOAuthApp?:boolean; oauth2Config?:{scopes?:string[];authUrl?:string} };
 export default function PlatformIntegrationsScreen(){
@@ -28,6 +30,7 @@ export default function PlatformIntegrationsScreen(){
   <div><h1 className="text-2xl font-semibold">Integrations</h1><p className="mt-1 text-sm text-muted-foreground">Control which integrations Clara makes available to organisations and configure platform-managed OAuth app credentials.</p></div>
   {error&&<div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-600">{error}</div>}
   {notice&&<div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-700">{notice}</div>}
+  <McpServersPanel />
   <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"><Search className="h-4 w-4 text-muted-foreground"/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search integrations..." className="w-full bg-transparent text-sm outline-none"/></div>
   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(i=><div key={i.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
    <div className="flex items-start gap-3"><div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-muted"><img src={i.logoUrl} alt="" className="h-8 w-8 object-contain"/></div><div className="min-w-0 flex-1"><h2 className="font-semibold">{i.displayName}</h2><p className="mt-0.5 text-xs text-muted-foreground">{i.category} · {i.authType}</p></div><span className={`rounded-full px-2 py-1 text-[11px] ${i.platformEnabled?"bg-emerald-500/10 text-emerald-600":"bg-muted text-muted-foreground"}`}>{i.platformEnabled?"Enabled":"Disabled"}</span></div>
