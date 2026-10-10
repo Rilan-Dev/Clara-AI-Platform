@@ -1,3 +1,10 @@
+# URGENT CURRENT ACTION — GMAIL OAUTH APP SAVE FAILURE — 2026-10-11
+
+1. Revoke the exposed Clara platform session and rotate the exposed Google OAuth client secret; update the server-side configuration with the replacement secret. Do not put credentials in logs or project-control docs.
+2. Deploy/rebuild the branch containing commit `bfc5fc00de27309598b4bcfe4813f8626de9b8b0` so the corrected named export is present in the runtime bundle.
+3. Retry the Gmail OAuth app save with a fresh session and rotated secret. If it still fails, collect the server-side exception and stack only; redact cookies, client secrets, tokens and request bodies.
+4. Verification remains pending until the save is observed to succeed. Do not poll CI/Vercel continuously.
+
 # CURRENT NEXT ACTION UPDATE — MCP RESOLVER + CHAT/REALTIME SOURCE WIRING — 2026-10-11
 
 DEV-01 has now added the first Streamable HTTP resolver behind `McpToolResolver` and source-level Chat / OpenAI realtime tool advertisement and dispatch through the Unified Tool Runtime. This supersedes the prior exact action to begin the resolver, but does not establish a verified runtime.
