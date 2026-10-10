@@ -155,3 +155,12 @@ The platform OAuth form must never ask admins to register a generic `your-domain
 
 ## 2026-10-10 — Doable integration OAuth source comparison
 Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`. Useful patterns: derive public redirect origin separately from internal service URL; support an explicit public redirect override for reverse proxies; resolve OAuth credentials from admin DB then per-integration and shared Google/GitHub env; never return client secrets; make credential source/readiness visible. Adapt these principles to Clara's own route/schema/runtime; do not copy Doable's different storage/routing implementation.
+
+
+### OAuth setup follow-up — 2026-10-10
+
+- Provider-specific setup guidance belongs in a pure helper with tests; unknown integration IDs must fall back to generic steps instead of guessed links.
+- Safe OAuth-app readiness metadata may expose credential source and a boolean that a secret is configured, but never the encrypted secret itself.
+- Keep platform-managed OAuth credentials database-backed and encrypted. Do not add environment-variable fallback until precedence, rotation, audit, and deployment ownership are explicitly designed.
+- Source commits for the latest follow-up: `7fb942255f2dd3daf13e9a9e32270d70ff02938c`, `f1ebf20ef6242204ccb144b570f0ace5a874e052`, `9652855d4408737f3a6930f02caced07002eb65f`, `3a0a3e8864f0497facd85626b22e537a8225e1df`, `c55294c100647b9d3287503a7909197aa0960c85`, `f97140906cc4c63e7840d007e2a5d3c5b42ba986`.
+- Authored tests are not executed evidence. In an environment without a checkout or GitHub DNS, record the execution blocker separately from test results. Keep I-096 open until provider-backed OAuth and runtime evidence are recorded.
