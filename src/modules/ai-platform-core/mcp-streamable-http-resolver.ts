@@ -218,7 +218,7 @@ async function listRemoteTools(url: URL, token: string | null, signal?: AbortSig
   if (init.protocolVersion !== PROTOCOL_VERSION) throw new Error("MCP server negotiated an unsupported protocol version.");
   const sessionId = typeof initResponse.headers["mcp-session-id"] === "string" ? initResponse.headers["mcp-session-id"] as string : undefined;
   const notify = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", method:"notifications/initialized" }), { ...auth, ...(sessionId ? { "mcp-session-id":sessionId } : {}) }, signal);
-  if (notify.status >= 300 && notify.status < 400) throw new Error("MCP redirects are not allowed.");
+  if (notify.status < 200 || notify.status >= 300) throw new Error(`MCP initialization notification returned HTTP ${notify.status}.`);
   const tools: JsonObject[] = [];
   let cursor: string | undefined;
   let pageCount = 0;
