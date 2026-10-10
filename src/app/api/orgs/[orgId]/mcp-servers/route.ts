@@ -88,10 +88,10 @@ export async function POST(req: NextRequest, { params }: Params) {
         `INSERT INTO organisation_mcp_connections(org_id,server_id,credentials_encrypted,status,connected_by,last_error_code,last_connected_at)
          VALUES($1,$2,pgp_sym_encrypt($3,$4),'connected',$5,NULL,now())
          ON CONFLICT(org_id,server_id) DO UPDATE SET credentials_encrypted=EXCLUDED.credentials_encrypted,
-           status='connected',connected_by=EXCLUDED.connected_by,last_error_code=NULL,last_connected_at=now(),updated_at=now()`,
+           status='configured',connected_by=EXCLUDED.connected_by,last_error_code=NULL,last_connected_at=now(),updated_at=now()`,
         [orgId, body.serverId, secret, ENCRYPTION_KEY, auth.user.id],
       );
-      return NextResponse.json({ ok:true, connectionStatus:"connected" }, { status: 201 });
+      return NextResponse.json({ ok:true, connectionStatus:"configured" }, { status: 201 });
     }
 
     if (body.action === "disconnect") {
@@ -124,11 +124,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!tool?.approved) return NextResponse.json({ error: "This MCP tool has not been approved by platform administration", code:"MCP_TOOL_NOT_APPROVED" }, { status: 403 });
     if (body.action === "grant-tool") {
       if (body.enabled) {
+        let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
+        try { limits = await resolveOrgPlanLimits(orgId); }
+        catch { return NextResponse.json({ error: "MCP plan entitlement could not be verified" }, { status: 503 }); }
+        if (!Array.isArray(server.allowed_plans) || (!server.allowed_plans.includes(limits.plan_id) && !server.allowed_plans.includes("*"))) {
+          return NextResponse.json({ error: "The current plan is not entitled to this MCP server", code: "PLAN_NOT_ENTITLED" }, { status: 402 });
+        }
         const connection = (await query<{status:string}>(
           `SELECT status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,
           [orgId, body.serverId],
         ))[0];
-        if (connection?.status !== "connected") return NextResponse.json({ error: "Connect this MCP server before granting tools" }, { status: 409 });
+        if (connection?.status !== "configured") return NextResponse.json({ error: "Connect this MCP server before granting tools" }, { status: 409 });
       }
       await query(
         `INSERT INTO organisation_mcp_tool_grants(org_id,server_id,tool_name,enabled,created_by)
@@ -153,7 +159,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       query<{enabled:boolean}>(`SELECT enabled FROM organisation_mcp_tool_grants WHERE org_id=$1 AND server_id=$2 AND tool_name=$3`,[orgId,body.serverId,body.toolName]),
       query<{status:string}>(`SELECT status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,[orgId,body.serverId]),
     ]);
-    if (body.enabled && (!orgGrant[0]?.enabled || connection[0]?.status !== "connected")) {
+    if (body.enabled && (!orgGrant[0]?.enabled || connection[0]?.status !== "configured")) {
       return NextResponse.json({ error: "Organisation connection and tool grant are required before enabling this agent tool" }, { status: 409 });
     }
     await query(
