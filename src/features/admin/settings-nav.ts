@@ -14,6 +14,7 @@
 
 import {
   Bot,
+  Cable,
   CreditCard,
   FileText,
   KeyRound,
@@ -28,7 +29,7 @@ import {
 } from "lucide-react";
 
 export type SettingsSection =
-  | "account" | "appearance" | "ai" | "environment" | "embed"
+  | "account" | "appearance" | "ai" | "environment" | "embed" | "mcp"
   | "payments" | "email" | "templates" | "phone" | "announcements" | "integrations";
 
 export type SettingsGroup = "You" | "Platform" | "AI & voice" | "Billing" | "Communications" | "Channels";
@@ -121,6 +122,16 @@ export const ADMIN_SETTINGS_PAGES: SettingsPage[] = [
     label: "Voice & AI runtime",
     title: "Voice & AI runtime",
     description: "ElevenLabs and Sarvam feature switches, Speech Engine, webhook secrets and platform-wide limits.",
+    group: "AI & voice",
+    audience: "Platform admin",
+  },
+  {
+    id: "mcp",
+    href: "/settings/mcp",
+    icon: Cable,
+    label: "MCP servers",
+    title: "MCP servers",
+    description: "Register platform-approved Model Context Protocol servers and manage their tool allowlists for Chat and Voice.",
     group: "AI & voice",
     audience: "Platform admin",
   },
