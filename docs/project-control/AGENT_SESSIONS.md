@@ -354,3 +354,14 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Status:** SOURCE FIX COMMITTED; runtime verification pending.
 - **Root cause/fix:** Exported the previously non-exported `normalizeScopes` helper imported by the platform OAuth-app PUT route. Commit: `bfc5fc00de27309598b4bcfe4813f8626de9b8b0`.
 - **Next:** Rebuild/redeploy and retry with rotated OAuth secret/fresh session; no CI/Vercel polling.
+
+
+### SESSION-FIX-20261011-01 — 2026-10-11
+- **Role:** FIX-01 / Sentinel
+- **Scope:** Root-cause-first investigation of Stripe `invoice.paid` foreign-key failure.
+- **Repository/runtime evidence:** User reports branch `feature/ai-core-from-doable-source`, pull fast-forward to `1fbd3bf2`, Docker build success, backend startup and `[migrate] All migrations already applied`. Repeated event `evt_1UP9JaSH7giJdRbDjderTSey` fails because organisation `d8f78644-3198-41db-bcc3-278ecad0ecb4` is absent.
+- **Source trace:** `invoiceOrgId()` reads Stripe metadata; webhook inserts returned ID into `billing_events` without proving tenant existence. Immediate failure is data referential mismatch; deeper cause is unknown.
+- **Changes:** No runtime/application code changed. Added durable memory/event/backlog/worklog record and routed read-only database/Stripe correlation to OPS-01.
+- **Failed approaches avoided:** No placeholder org, FK bypass, database reset/reseed, migration changes, or webhook semantics change.
+- **Verification:** Source inspection only; no direct database query, Stripe API lookup, tests, typecheck, or live correction. Not resolved; no PASS claimed.
+- **Next:** OPS-01 correlates event invoice/subscription/customer to `org_subscriptions` and `organisations` in the actual container DB. FIX-01 resumes only if evidence identifies an application-side lifecycle defect.
