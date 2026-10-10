@@ -1,3 +1,13 @@
+# MCP CONTROL-PLANE UPDATE — 2026-10-10
+
+- MCP control-plane source slice added on `feature/ai-core-from-doable-source`: migration 069; platform super-admin registry API; org-scoped encrypted connection and org/agent grant API; existing platform/org/agent integration UI panels; focused regression source.
+- Credentials are encrypted and never returned by API; saved credentials are marked `configured`, not `connected`. Server defaults disabled.
+- **Runtime remains incomplete:** no live transport/discovery/handshake or MCP tool registration in actual Chat/realtime voice is established. Keep servers disabled until resolver/runtime wiring lands.
+- Current exact next action is in `docs/project-control/NEXT_ACTION.md`; detailed session in `docs/project-control/sessions/SESSION-DEV-20261010-02.md`.
+- Verification boundary: source commits and rereads only; tests were authored but not run; no migration/build/deployment/runtime PASS claimed.
+
+---
+
 # CURRENT PROJECT STATE — 2026-10-09 — WHATSAPP CONNECTION + BRIEFING SENDER SOURCE ADDED
 
 - Branch: `feature/ai-core-from-doable-source`.
