@@ -60,8 +60,8 @@ export function isMcpPublicIpAddress(ip: string): boolean {
     const normalized = ip.toLowerCase().split("%")[0]!;
     // Only global-unicast 2000::/3 is accepted. This excludes unspecified,
     // loopback, ULA, link-local, multicast, IPv4-mapped and documentation IPs.
-    if (!/^2[0-9a-f]{3}:/.test(normalized)) return false;
-    if (/^2001:db8:/i.test(normalized) || /^2001:0000:/i.test(normalized) || /^2002:/i.test(normalized)) return false;
+    if (!/^[23][0-9a-f]{3}:/.test(normalized)) return false;
+    if (/^2001:db8:/i.test(normalized) || /^2001:0000:/i.test(normalized) || /^2001:2:/i.test(normalized) || /^2001:10:/i.test(normalized) || /^2001:20:/i.test(normalized) || /^2002:/i.test(normalized) || /^3fff:/i.test(normalized)) return false;
     return true;
   }
   return false;
