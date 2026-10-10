@@ -73,7 +73,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       id:string; auth_mode:string; allowed_plans:string[]; platform_enabled:boolean;
     }>(`SELECT id,auth_mode,allowed_plans,platform_enabled FROM platform_mcp_servers WHERE id=$1`, [body.serverId]))[0];
     if (!server) return NextResponse.json({ error: "MCP server not found" }, { status: 404 });
-    if (!server.platform_enabled) return NextResponse.json({ error: "MCP server is disabled by platform administration", code:"MCP_SERVER_DISABLED" }, { status: 403 });
+    const enablingAccess = body.action === "connect" || ((body.action === "grant-tool" || body.action === "grant-agent-tool") && body.enabled === true);
+    if (!server.platform_enabled && enablingAccess) return NextResponse.json({ error: "MCP server is disabled by platform administration", code:"MCP_SERVER_DISABLED" }, { status: 403 });
 
     if (body.action === "connect") {
       let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
@@ -163,6 +164,14 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
     const agent = await requireAgentPermission(auth, body.agentId, body.enabled ? "config:update" : "project:update");
     if (agent.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to this organisation" }, { status: 403 });
+    if (body.enabled) {
+      let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
+      try { limits = await resolveOrgPlanLimits(orgId); }
+      catch { return NextResponse.json({ error: "MCP plan entitlement could not be verified" }, { status: 503 }); }
+      if (!Array.isArray(server.allowed_plans) || (!server.allowed_plans.includes(limits.plan_id) && !server.allowed_plans.includes("*"))) {
+        return NextResponse.json({ error: "The current plan is not entitled to this MCP server", code: "PLAN_NOT_ENTITLED" }, { status: 402 });
+      }
+    }
     const [orgGrant, connection] = await Promise.all([
       query<{enabled:boolean}>(`SELECT enabled FROM organisation_mcp_tool_grants WHERE org_id=$1 AND server_id=$2 AND tool_name=$3`,[orgId,body.serverId,body.toolName]),
       query<{status:string}>(`SELECT status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,[orgId,body.serverId]),
