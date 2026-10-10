@@ -1852,3 +1852,14 @@ Source only. Tests/typecheck/build/browser/live OAuth/deployment were not run. D
 
 ## FIX-01 Doable source comparison update — 2026-10-10
 Actual Doable source has now been inspected: `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`. Follow-up may evaluate source badges and env credential fallback, but only after checking Clara's current OAuth app model and secrets policy. A platform-admin Connect Test should reuse the existing OAuth lifecycle and must not invent a parallel callback/executor. Current callback UI/server validation correction remains source-only; no tests or live OAuth were run.
+
+
+## FIX-01 OAuth follow-up — 2026-10-10 (I-096 remains OPEN)
+
+This is a bounded integration-setup follow-up and does not supersede the repository's other active implementation track.
+
+1. Run focused tests from a working checkout: `npm test -- src/modules/integrations/oauth-app-validation.test.ts src/modules/integrations/oauth-setup-guides.test.ts`; fix any failures before claiming source-test evidence.
+2. Review the provider setup-guide mapping against the current OAuth-enabled registry IDs. Unknown IDs intentionally get generic instructions rather than guessed links. Scopes displayed by Clara remain registry/database-driven; verify each provider's scopes against its current console before production use.
+3. Keep credentials database-only for now. Do not add environment-variable fallback until precedence, secret rotation, auditability, and deployment-secret ownership are explicitly designed.
+4. Ask OPS-01 to verify the deployed callback origin, reverse-proxy headers/base URL, required OAuth-app migration, and runtime config. Do not wait for CI/Vercel to continue source work.
+5. Complete a real provider consent → one-time state consume → callback-origin/path check → token exchange → encrypted connection persistence test using a configured test app. Keep I-096 OPEN until evidence exists.
