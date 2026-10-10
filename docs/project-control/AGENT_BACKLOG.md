@@ -76,3 +76,13 @@ If a task belongs to another agent, create or update a backlog entry and continu
 - **Authorization:** Explicit owner-authorized next action recorded in `docs/project-control/NEXT_ACTION.md`.
 - **Suggested next action:** Add deterministic injection points for DNS/HTTPS transport so DNS rebinding, redirects, timeout/cancellation, size limits and HTTP protocol handling can be tested without public network access; run focused resolver/bridge/Chat/realtime tests and `npm run type-check` when the repository runtime is available.
 - **Related session/event/handoff:** SESSION-DEV-20261011-01; no handoff.
+
+
+### BACKLOG-OPS-20261011-STRIPE-ORPHAN-ORG — 2026-10-11
+- **Work:** Diagnose repeated Stripe `invoice.paid` processing failure caused by a billing event referencing an organisation absent from the active database.
+- **Owner:** OPS-01
+- **State:** READY
+- **Dependency:** Read-only access to the same PostgreSQL database used by the running `clara-backend`, and Stripe invoice/subscription/customer lookup for the event.
+- **Authorization:** Routed from FIX-01 under the standing rule that database/environment/runtime alignment defects belong to OPS-01. No destructive data repair authorized.
+- **Suggested next action:** In the active DB, read-only correlate invoice `evt_1UP9JaSH7giJdRbDjderTSey` and organisation UUID `d8f78644-3198-41db-bcc3-278ecad0ecb4` against Stripe subscription/customer identifiers, `org_subscriptions`, and `organisations`. Verify the container DB target and deployed commit. Determine whether metadata is stale, tenant data is missing, or a lifecycle operation removed a referenced tenant. Do not create placeholders or bypass the FK.
+- **Related session/event/handoff:** EVT-FIX-20261011-01; SESSION-FIX-20261011-01.
