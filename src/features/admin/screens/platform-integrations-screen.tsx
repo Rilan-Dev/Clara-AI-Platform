@@ -41,7 +41,7 @@ export default function PlatformIntegrationsScreen(){
  }
  async function saveOAuth(){
   if(!selected)return;setBusy(selected.id);setError(null);setNotice(null);
-  try{const r=await fetch(`/api/platform/integrations/${encodeURIComponent(selected.id)}/oauth-app`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({clientId,clientSecret,redirectUri,scopes:scopes.split(/\n|,/).map(s=>s.trim()).filter(Boolean)})});const d=await r.json();if(!r.ok)throw new Error(d.error??"Could not save OAuth configuration");setOauth(v=>v?{...v,configured:true,clientId,redirectUri,scopes:scopes.split(/\n|,/).map(s=>s.trim()).filter(Boolean)}:v);setClientSecret("");setNotice(`${selected.displayName} OAuth application settings saved. The client secret is not returned to the browser.`);await load()}
+  try{const r=await fetch(`/api/platform/integrations/${encodeURIComponent(selected.id)}/oauth-app`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({clientId,clientSecret,redirectUri,scopes:scopes.split(/\n|,/).map(s=>s.trim()).filter(Boolean)})});const d=await r.json();if(!r.ok)throw new Error(d.error??"Could not save OAuth configuration");setOauth(v=>v?{...v,configured:true,credentialSource:"database",secretConfigured:true,clientId,redirectUri,scopes:scopes.split(/\n|,/).map(s=>s.trim()).filter(Boolean)}:v);setClientSecret("");setNotice(`${selected.displayName} OAuth application settings saved. The client secret is not returned to the browser.`);await load()}
   catch(e){setError(e instanceof Error?e.message:"Could not save OAuth configuration")}finally{setBusy(null)}
  }
  const closeOAuth=()=>{setSelected(null);setOauth(null);setClientId("");setClientSecret("");setRedirectUri("");setScopes("");setError(null)};
