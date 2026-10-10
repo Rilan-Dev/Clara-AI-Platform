@@ -137,3 +137,15 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Lesson:** Config-time URL filtering is not enough for SSRF protection; actual transport must validate DNS/IP targets at connect time. Stored credentials are not proof of connectivity.
 - **Next action:** Implement secure Streamable HTTP resolver and register the authorized tool set in Chat and realtime voice through Unified Tool Runtime.
 - **Follow-up hardening:** Registration rejects literal IP and numeric-host endpoint forms (`d5b9dcb4`); tool-surface and transport test cases were separated (`f03ae80a`); disabled servers and unapproved tools still permit tenant-side revocation/disconnect (`f393f753`); MCP connection state is explicitly `configured`, not a successful handshake.
+
+### SESSION-DEV-20261011-01 / 2026-10-11
+
+- **Task:** Fix Gmail OAuth app configuration PUT failure from production logs.
+- **Authorization:** User supplied production curl/log evidence; bounded source bug fix on current branch.
+- **Started from:** `feature/ai-core-from-doable-source`.
+- **Actions:** Traced the runtime error to a named import of a non-exported helper; exported `normalizeScopes` from its existing validation module.
+- **Files/code:** `src/modules/integrations/oauth-app-validation.ts`.
+- **Evidence:** Existing `oauth-app-validation.test.ts` already imports and exercises `normalizeScopes`; source commit `bfc5fc00de27309598b4bcfe4813f8626de9b8b0` created. No test/build/deployment/live request executed.
+- **Blockers/dependencies:** Deployment must rebuild/reload the updated module. Exposed cookie/client secret need revocation/rotation before retry.
+- **Lesson:** A named export mismatch may surface as a runtime `is not a function` when build/runtime configuration does not reject the missing export; check the source export and deployed build revision together.
+- **Next action:** Rebuild/redeploy, then retest using fresh credentials; inspect only redacted logs if another failure occurs.
