@@ -4,7 +4,7 @@
 - Added endpoint/IP guard test source and migration 070 for a `connected` handshake state after successful discovery. Existing control-plane tests and the new resolver/runtime tests have not been executed; migration 070 has not been applied.
 - **Not run / not claimed:** Vitest, `npm run type-check`, lint, build, migration, DNS-rebinding/redirect/timeout integration tests, live MCP handshake/tool call, Chat E2E, realtime voice E2E, CI, Vercel or deployment.
 - **Required before enablement:** focused transport and runtime tests plus a controlled live initialize/list/call against an isolated MCP test server. Keep all platform servers disabled and `ENABLE_MCP=false`.
-- **Known follow-up:** discovery is deliberately uncached for revocation safety; optimize only after tenant-scoped cache invalidation covers platform approvals, org grants/disconnect, agent grants and schema changes.
+- **Known follow-up:** verify the bounded 3-second per-execution-context discovery cache/singleflight under concurrency. It rechecks DB authorization per resolution and is bypassed during invocation; no cross-request cache is used. Cache behavior has not been executed in tests.
 
 ---
 
