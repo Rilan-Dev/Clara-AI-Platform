@@ -1,3 +1,14 @@
+# MCP RUNTIME IMPLEMENTATION UPDATE — 2026-10-11
+
+- DEV-01 added `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts` behind the existing `McpToolResolver` interface and connected source-level tool advertisement/dispatch in authenticated Chat and OpenAI realtime voice through the Unified Tool Runtime.
+- The resolver performs per-request DNS validation with a pinned public IP, TLS verification, no redirects, bounded request/response sizes, timeout/cancellation, paginated discovery, schema conversion/validation, stale-schema checks, and execution-time tenant/caller/plan/grant rechecks.
+- No shared discovery cache is used yet. Duplicate per-tool discovery adds latency; cache work is deferred until grant/schema invalidation can be made reliable.
+- **Verification pending:** no tests, typecheck, lint/build, migration, live handshake, Chat/realtime E2E, CI, Vercel or deployment was run. This is not a PASS.
+- Keep platform MCP servers disabled and `ENABLE_MCP=false` until focused execution tests and a controlled live handshake succeed.
+- Details and next steps: `docs/project-control/sessions/SESSION-DEV-20261011-01.md` and `docs/project-control/NEXT_ACTION.md`.
+
+---
+
 # OAUTH APP SAVE FAILURE FIX — 2026-10-11
 
 - Production evidence identified a runtime missing-export error: `normalizeScopes is not a function` in the platform integration OAuth-app PUT route.
