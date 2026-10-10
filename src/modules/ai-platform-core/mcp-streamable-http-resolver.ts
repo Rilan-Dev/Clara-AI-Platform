@@ -19,6 +19,7 @@ import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { getKbAccessContext } from "@/modules/auth/core/db";
 import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
 import type { McpToolDescriptor, McpToolResolutionRequest, McpToolResolver } from "./mcp-tool-bridge";
+import { assertExecutionContext } from "./execution-context";
 
 const REQUEST_TIMEOUT_MS = 8_000;
 const MAX_RESPONSE_BYTES = 1_048_576;
@@ -275,6 +276,7 @@ function contextSignal(context: PlatformExecutionContext): AbortSignal | undefin
 }
 
 async function getAuthorizedServer(context: PlatformExecutionContext, serverId: string, toolName?: string): Promise<ServerAccess | null> {
+  assertExecutionContext(context);
   if (!process.env.ENABLE_MCP || !["1","true","yes","on"].includes(process.env.ENABLE_MCP.trim().toLowerCase())) return null;
   if (!SURFACES.includes(context.surface) || !context.userId || !context.agentId || !context.sessionId || !context.tenantId || !context.kbId) return null;
   const [kbAccess] = await getKbAccessContext(context.kbId, context.userId);
