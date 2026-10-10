@@ -84,7 +84,7 @@ infra
 
 graphify-out
 .vscode
-mcp-servers
+/mcp-servers
 # production benchmark session WAVs (regenerable, large)
 tool-results/voice-bench/prod/*.wav
 tool-results/voice-bench/prod/debug*.json

@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       platformEnabled?: boolean; tools?: unknown;
     };
     if (!body.serverKey || !/^[a-z][a-z0-9_-]{1,62}$/.test(body.serverKey) ||
-        !body.displayName?.trim() || body.displayName.trim().length > 120 ||
+        typeof body.displayName !== "string" || !body.displayName.trim() || body.displayName.trim().length > 120 ||
         !validEndpoint(body.endpointUrl) ||
         (body.transportType ?? "streamable_http") !== "streamable_http" ||
         !["none", "bearer"].includes(body.authMode ?? "none") ||
@@ -77,11 +77,12 @@ export async function POST(req: NextRequest) {
         (body.tools !== undefined && !validTools(body.tools))) {
       return NextResponse.json({ error: "Invalid MCP server configuration. Only HTTPS Streamable HTTP endpoints and supported auth modes are accepted." }, { status: 400 });
     }
+    const displayName = body.displayName.trim();
     const result = await withTransaction(async client => {
       const inserted = await client.query<{id:string}>(
         `INSERT INTO platform_mcp_servers(server_key,display_name,description,transport_type,endpoint_url,auth_mode,platform_enabled,allowed_plans,created_by)
          VALUES($1,$2,$3,'streamable_http',$4,$5,$6,$7::jsonb,$8) RETURNING id`,
-        [body.serverKey, body.displayName.trim(), (body.description ?? "").slice(0, 2000), body.endpointUrl,
+        [body.serverKey, displayName, (body.description ?? "").slice(0, 2000), body.endpointUrl,
           body.authMode ?? "none", body.platformEnabled === true, JSON.stringify(body.allowedPlans ?? ["pro","enterprise"]), auth.user.id],
       );
       const id = inserted.rows[0].id;
@@ -160,5 +161,34 @@ export async function PATCH(req: NextRequest) {
     if (err instanceof NextResponse) return err;
     console.error("[platform MCP PATCH]", err);
     return NextResponse.json({ error: "Failed to update MCP server" }, { status: 500 });
+  }
+}
+
+/** DELETE — remove an MCP server. Every dependent row (platform tools,
+ *  organisation connections, organisation and agent tool grants) is declared
+ *  ON DELETE CASCADE in migration 069, so one transactional delete removes
+ *  the whole footprint without leaving orphaned grants behind. */
+export async function DELETE(req: NextRequest) {
+  try {
+    await ensureMigrated();
+    const auth = await requireAuth(req);
+    await requireSuperAdmin(auth);
+    const body = await req.json() as { id?: string };
+    if (!body.id || !/^[0-9a-f-]{36}$/i.test(body.id)) {
+      return NextResponse.json({ error: "A valid MCP server id is required" }, { status: 400 });
+    }
+    const result = await withTransaction(async client => {
+      const deleted = await client.query<{ id: string; server_key: string }>(
+        `DELETE FROM platform_mcp_servers WHERE id = $1 RETURNING id, server_key`,
+        [body.id],
+      );
+      return deleted.rows[0] ?? null;
+    });
+    if (!result) return NextResponse.json({ error: "MCP server not found" }, { status: 404 });
+    return NextResponse.json({ ok: true, deleted: true, id: result.id, serverKey: result.server_key });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("[platform MCP DELETE]", err);
+    return NextResponse.json({ error: "Failed to delete MCP server" }, { status: 500 });
   }
 }
