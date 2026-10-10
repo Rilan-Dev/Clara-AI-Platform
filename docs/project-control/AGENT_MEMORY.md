@@ -146,3 +146,8 @@ If shared memory conflicts with current repository state or current requirements
 - **Remedy:** Constrain shared popover/hover-card/tooltip/dropdown widths to the viewport, allow overflow wrapping for long tokens, and add max-height/scrolling/shrink safety to dialog-like surfaces. Add focused regression tests for the shared contracts.
 - **Prevention:** Fix shared primitives before per-screen overrides. Follow with a feature-level search for custom width/whitespace classes and perform browser checks at narrow and desktop widths.
 - **Related record:** FIX-01 `SESSION-FIX-20261010-02`; `src/components/ui/layout-primitives.test.ts`; commit `da0f74909bfa4e92d1268ef4e0eb384d07ad9ed6`.
+
+
+## 2026-10-10 — FIX-01 OAuth configuration UX lesson
+
+The platform OAuth form must never ask admins to register a generic `your-domain/api/.../callback` placeholder. Clara's current shared callback contract is `/api/integrations/oauth/callback`; the UI should derive the origin from the current deployment, display the URI read-only, and the server must independently validate the same path. Keep platform OAuth app setup separate from end-user consent/connection status. Doable's docs also distinguish sign-in OAuth from integration OAuth and show credential source/readiness; adapt the principle, not its different callback routing architecture. This record is not authorization and does not claim live verification.
