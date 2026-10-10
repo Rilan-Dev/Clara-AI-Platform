@@ -174,6 +174,7 @@ async function listRemoteTools(url: URL, token: string | null, signal?: AbortSig
   const initResponse = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", id:initId, method:"initialize", params:{ protocolVersion:PROTOCOL_VERSION, capabilities:{}, clientInfo:{ name:"clara-ai-platform", version:"1.0.0" } } }), auth, signal);
   if (initResponse.status < 200 || initResponse.status >= 300) throw new Error(`MCP endpoint returned HTTP ${initResponse.status}.`);
   const init = decodeRpc(initResponse.body);
+  if (init.protocolVersion !== PROTOCOL_VERSION) throw new Error("MCP server negotiated an unsupported protocol version.");
   const sessionId = typeof initResponse.headers["mcp-session-id"] === "string" ? initResponse.headers["mcp-session-id"] as string : undefined;
   const notify = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", method:"notifications/initialized" }), { ...auth, ...(sessionId ? { "mcp-session-id":sessionId } : {}) }, signal);
   if (notify.status >= 300 && notify.status < 400) throw new Error("MCP redirects are not allowed.");
@@ -198,10 +199,15 @@ async function listRemoteTools(url: URL, token: string | null, signal?: AbortSig
   return { tools, ...(effectiveSessionId ? { sessionId: effectiveSessionId } : {}), auth };
 }
 
+function assertSchemaKeys(schema: JsonObject, allowed: readonly string[]): void {
+  if (Object.keys(schema).some((key) => !allowed.includes(key))) throw new Error("Unsupported MCP schema keyword.");
+}
+
 function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
   if (depth > 8 || !raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Unsupported MCP input schema.");
   const schema = raw as JsonObject;
   if (schema.type === "string") {
+    assertSchemaKeys(schema, ["type", "minLength", "maxLength", "enum", "description", "title", "default"]);
     let value: z.ZodType<unknown> = z.string();
     if (typeof schema.minLength === "number") value = (value as z.ZodString).min(Math.max(0, Math.min(4096, schema.minLength)));
     if (typeof schema.maxLength === "number") value = (value as z.ZodString).max(Math.max(0, Math.min(4096, schema.maxLength)));
@@ -210,13 +216,30 @@ function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
     }
     return value;
   }
-  if (schema.type === "number" || schema.type === "integer") return schema.type === "integer" ? z.number().int() : z.number().finite();
-  if (schema.type === "boolean") return z.boolean();
+  if (schema.type === "number" || schema.type === "integer") {
+    assertSchemaKeys(schema, ["type", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "description", "title", "default"]);
+    let value = schema.type === "integer" ? z.number().int() : z.number().finite();
+    if (typeof schema.minimum === "number") value = value.min(schema.minimum);
+    if (typeof schema.maximum === "number") value = value.max(schema.maximum);
+    if (typeof schema.exclusiveMinimum === "number") value = value.gt(schema.exclusiveMinimum);
+    if (typeof schema.exclusiveMaximum === "number") value = value.lt(schema.exclusiveMaximum);
+    return value;
+  }
+  if (schema.type === "boolean") {
+    assertSchemaKeys(schema, ["type", "description", "title", "default"]);
+    return z.boolean();
+  }
   if (schema.type === "array") {
+    assertSchemaKeys(schema, ["type", "items", "minItems", "maxItems", "description", "title"]);
     if (typeof schema.maxItems === "number" && schema.maxItems > 256) throw new Error("Unsupported MCP array bound.");
-    return z.array(toZodSchema(schema.items, depth + 1)).max(typeof schema.maxItems === "number" ? Math.max(0,schema.maxItems) : 256);
+    const minItems = typeof schema.minItems === "number" ? Math.max(0, Math.min(256, schema.minItems)) : 0;
+    const maxItems = typeof schema.maxItems === "number" ? Math.max(0,schema.maxItems) : 256;
+    if (minItems > maxItems) throw new Error("Invalid MCP array bounds.");
+    return z.array(toZodSchema(schema.items, depth + 1)).min(minItems).max(maxItems);
   }
   if (schema.type === "object" || schema.type === undefined) {
+    assertSchemaKeys(schema, ["type", "properties", "required", "additionalProperties", "description", "title"]);
+    if (schema.additionalProperties !== undefined && schema.additionalProperties !== false) throw new Error("MCP additionalProperties must be false or omitted.");
     const properties = schema.properties && typeof schema.properties === "object" && !Array.isArray(schema.properties) ? schema.properties as JsonObject : {};
     const keys = Object.keys(properties);
     if (keys.length > 64 || keys.some((key) => !/^[a-zA-Z0-9_.:-]{1,128}$/.test(key))) throw new Error("Unsupported MCP object schema.");
@@ -236,16 +259,29 @@ function normalizeProviderSchema(raw: unknown, depth = 0): JsonObject {
   if (depth > 8 || !raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Unsupported MCP input schema.");
   const schema = raw as JsonObject;
   if (schema.type === "string") {
+    assertSchemaKeys(schema, ["type", "minLength", "maxLength", "enum", "description", "title", "default"]);
     const output: JsonObject = { type: "string" };
     if (typeof schema.minLength === "number") output.minLength = Math.max(0, Math.min(4096, schema.minLength));
     if (typeof schema.maxLength === "number") output.maxLength = Math.max(0, Math.min(4096, schema.maxLength));
     if (Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.length <= 100 && schema.enum.every((v) => typeof v === "string")) output.enum = [...schema.enum];
     return output;
   }
-  if (schema.type === "number" || schema.type === "integer") return { type: schema.type };
-  if (schema.type === "boolean") return { type: "boolean" };
-  if (schema.type === "array") return { type: "array", items: normalizeProviderSchema(schema.items, depth + 1), ...(typeof schema.maxItems === "number" ? { maxItems: Math.max(0, Math.min(256, schema.maxItems)) } : {}) };
+  if (schema.type === "number" || schema.type === "integer") {
+    assertSchemaKeys(schema, ["type", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "description", "title", "default"]);
+    return { type: schema.type, ...(typeof schema.minimum === "number" ? { minimum: schema.minimum } : {}), ...(typeof schema.maximum === "number" ? { maximum: schema.maximum } : {}), ...(typeof schema.exclusiveMinimum === "number" ? { exclusiveMinimum: schema.exclusiveMinimum } : {}), ...(typeof schema.exclusiveMaximum === "number" ? { exclusiveMaximum: schema.exclusiveMaximum } : {}) };
+  }
+  if (schema.type === "boolean") {
+    assertSchemaKeys(schema, ["type", "description", "title", "default"]);
+    return { type: "boolean" };
+  }
+  if (schema.type === "array") {
+    assertSchemaKeys(schema, ["type", "items", "minItems", "maxItems", "description", "title"]);
+    const minItems = typeof schema.minItems === "number" ? Math.max(0, Math.min(256, schema.minItems)) : 0;
+    return { type: "array", items: normalizeProviderSchema(schema.items, depth + 1), minItems, ...(typeof schema.maxItems === "number" ? { maxItems: Math.max(0, Math.min(256, schema.maxItems)) } : {}) };
+  }
   if (schema.type === "object" || schema.type === undefined) {
+    assertSchemaKeys(schema, ["type", "properties", "required", "additionalProperties", "description", "title"]);
+    if (schema.additionalProperties !== undefined && schema.additionalProperties !== false) throw new Error("MCP additionalProperties must be false or omitted.");
     const properties = schema.properties && typeof schema.properties === "object" && !Array.isArray(schema.properties) ? schema.properties as JsonObject : {};
     if (Object.keys(properties).length > 64) throw new Error("Unsupported MCP object schema.");
     const normalized: JsonObject = {};
