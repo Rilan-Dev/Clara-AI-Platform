@@ -144,7 +144,7 @@ export async function POST(req: NextRequest, { params }: Params) {
           `SELECT status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,
           [orgId, body.serverId],
         ))[0];
-        if (connection?.status !== "configured") return NextResponse.json({ error: "Connect this MCP server before granting tools" }, { status: 409 });
+        if (!["configured", "connected"].includes(connection?.status ?? "")) return NextResponse.json({ error: "Connect this MCP server before granting tools" }, { status: 409 });
       }
       await query(
         `INSERT INTO organisation_mcp_tool_grants(org_id,server_id,tool_name,enabled,created_by)
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       query<{enabled:boolean}>(`SELECT enabled FROM organisation_mcp_tool_grants WHERE org_id=$1 AND server_id=$2 AND tool_name=$3`,[orgId,body.serverId,body.toolName]),
       query<{status:string}>(`SELECT status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,[orgId,body.serverId]),
     ]);
-    if (body.enabled && (!orgGrant[0]?.enabled || connection[0]?.status !== "configured")) {
+    if (body.enabled && (!orgGrant[0]?.enabled || !["configured", "connected"].includes(connection[0]?.status ?? ""))) {
       return NextResponse.json({ error: "Organisation connection and tool grant are required before enabling this agent tool" }, { status: 409 });
     }
     await query(
