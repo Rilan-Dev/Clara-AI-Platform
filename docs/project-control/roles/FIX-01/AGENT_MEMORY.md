@@ -23,3 +23,8 @@
 
 ## Current evidence boundary
 Source commits are recorded in `docs/project-control/ISSUES.md`, `docs/project-control/VERIFICATION_STATE.md`, and root `worklog.md`. Tests were authored but not executed. No live provider, deployment, build, or runtime PASS is claimed.
+
+
+## 2026-10-10 — OAuth setup follow-up
+
+Provider console instructions live in the pure `src/modules/integrations/oauth-setup-guides.ts` helper with regression source. Unknown IDs should not produce guessed provider links. The OAuth API may expose `credentialSource` and `secretConfigured` readiness only; never return secret bytes. Keep environment fallback deferred until credential precedence/rotation/audit semantics are designed. Tests authored in `oauth-setup-guides.test.ts` have not run because this execution environment has no checkout and GitHub DNS is unavailable. I-096 remains open.
