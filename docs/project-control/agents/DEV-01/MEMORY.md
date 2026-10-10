@@ -91,3 +91,8 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **SSRF lesson:** Registration-time HTTPS/DNS-host validation is only an early guard. The actual transport must resolve DNS and reject private, loopback, link-local and metadata targets on every connection, prevent unsafe redirects, verify TLS and bound time/response size.
 - **Runtime boundary:** Current implementation does not yet perform MCP transport/discovery or wire MCP tools into actual chat/realtime. Keep server disabled until resolver/runtime implementation exists. Do not claim runtime PASS.
 - **Next:** Implement `McpToolResolver` for Streamable HTTP and connect it to Chat/realtime via Unified Tool Runtime with invocation-time reauthorization.
+
+- **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01
+  - Production OAuth-app PUT stack trace `normalizeScopes is not a function` was caused by `normalizeScopes` being declared but not exported from `src/modules/integrations/oauth-app-validation.ts`, despite a named import in the route.
+  - The existing `oauth-app-validation.test.ts` directly imports this helper; retain its scope validation/deduplication coverage.
+  - Never record or repeat secrets from diagnostic curl commands. If a user pastes session cookies or OAuth client secrets, advise immediate session revocation and secret rotation.
