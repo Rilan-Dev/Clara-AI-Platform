@@ -11,7 +11,7 @@ describe("platform MCP registry validation", () => {
   beforeEach(() => vi.clearAllMocks());
   it("rejects non-HTTPS and private-address endpoints before writing configuration", async () => {
     const { POST } = await import("./route");
-    for (const endpointUrl of ["http://mcp.example.com/mcp", "https://127.0.0.1/mcp", "https://localhost/mcp", "https://169.254.169.254/latest/meta-data", "https://[::1]/mcp", "https://2130706433/mcp"]) {
+    for (const endpointUrl of ["http://mcp.example.com/mcp", "https://127.0.0.1/mcp", "https://localhost/mcp", "https://169.254.169.254/latest/meta-data", "https://[::1]/mcp", "https://2130706433/mcp", "https://mcp.example.com/mcp?token=secret"]) {
       const response = await POST(new NextRequest("http://localhost/api/platform/mcp-servers", {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ serverKey:"unsafe-server",displayName:"Unsafe server",endpointUrl,authMode:"none" }),
