@@ -96,3 +96,12 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
   - Production OAuth-app PUT stack trace `normalizeScopes is not a function` was caused by `normalizeScopes` being declared but not exported from `src/modules/integrations/oauth-app-validation.ts`, despite a named import in the route.
   - The existing `oauth-app-validation.test.ts` directly imports this helper; retain its scope validation/deduplication coverage.
   - Never record or repeat secrets from diagnostic curl commands. If a user pastes session cookies or OAuth client secrets, advise immediate session revocation and secret rotation.
+
+
+- **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01
+- **Agent:** DEV-01 / Forge
+- **Issue/symptom:** MCP registry and grants existed, but there was no host-owned Streamable HTTP transport or Chat/realtime runtime path.
+- **Remedy:** Implement the resolver behind `McpToolResolver`; use per-request DNS validation and pinned IP lookup, strict TLS/no redirects, bounded HTTP and schema handling, and current authorization checks before discovery and invocation. Chat uses a fresh Clara runtime composed with MCP definitions; realtime resolves aliases to exact current grants before constructing a one-tool runtime.
+- **Safety lesson:** The runtime tool descriptor is not the authority. At invocation re-check platform enablement, plan, connection, exact approved server/tool pair, org and agent grants, current user membership/KB read permission, context/session and surface. Keep server enablement and `ENABLE_MCP` off until tests and a controlled live handshake are observed.
+- **Trade-off:** No shared discovery cache is used yet because grant/schema invalidation is not implemented. This is safer against stale grants but adds repeated upstream round trips; optimize only after invalidation is reliable.
+- **Verification boundary:** Source inspection and GitHub writes only. Never describe the resolver or Chat/realtime MCP path as passing, live, or production-ready until tests/typecheck/build and a controlled handshake actually run.
