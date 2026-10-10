@@ -55,7 +55,7 @@ export function isMcpPublicIpAddress(ip: string): boolean {
     // Only global-unicast 2000::/3 is accepted. This excludes unspecified,
     // loopback, ULA, link-local, multicast, IPv4-mapped and documentation IPs.
     if (!/^2[0-9a-f]{3}:/.test(normalized)) return false;
-    if (/^2001:db8:/i.test(normalized)) return false;
+    if (/^2001:db8:/i.test(normalized) || /^2001:0000:/i.test(normalized) || /^2002:/i.test(normalized)) return false;
     return true;
   }
   return false;
@@ -253,6 +253,13 @@ function readTool(raw: JsonObject, serverId: string, approvedSurfaces: readonly 
   } catch { return null; }
 }
 
+function contextSignal(context: PlatformExecutionContext): AbortSignal | undefined {
+  const candidate = context.metadata?.mcpSignal;
+  if (!candidate || typeof candidate !== "object") return undefined;
+  const signal = candidate as AbortSignal;
+  return typeof signal.aborted === "boolean" && typeof signal.addEventListener === "function" ? signal : undefined;
+}
+
 async function getAuthorizedServer(context: PlatformExecutionContext, serverId: string, toolName?: string): Promise<ServerAccess | null> {
   if (!process.env.ENABLE_MCP || !["1","true","yes","on"].includes(process.env.ENABLE_MCP.trim().toLowerCase())) return null;
   if (!SURFACES.includes(context.surface) || !context.userId || !context.agentId || !context.tenantId || !context.kbId) return null;
@@ -287,7 +294,7 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
       const access = await getAuthorizedServer(request.context, request.serverId, request.toolName);
       if (!access) return null;
       const endpoint = validateMcpEndpoint(access.endpoint_url);
-      const remote = await listRemoteTools(endpoint, access.bearer_token);
+      const remote = await listRemoteTools(endpoint, access.bearer_token, contextSignal(request.context));
       const approved = Array.isArray(access.allowed_surfaces) ? access.allowed_surfaces.filter((surface): surface is SurfaceKind => SURFACES.includes(surface as SurfaceKind)) : [];
       if (!approved.length) return null;
       const tool = remote.tools.find((candidate) => candidate.name === request.toolName);
@@ -303,14 +310,14 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
       const access = await getAuthorizedServer(context, descriptor.serverId, descriptor.name);
       if (!access) throw new Error("MCP access is no longer authorized.");
       const endpoint = validateEndpoint(access.endpoint_url);
-      const remote = await listRemoteTools(endpoint, access.bearer_token);
+      const remote = await listRemoteTools(endpoint, access.bearer_token, contextSignal(context));
       const surfaces = Array.isArray(access.allowed_surfaces) ? access.allowed_surfaces.filter((surface): surface is SurfaceKind => SURFACES.includes(surface as SurfaceKind)) : [];
       if (!surfaces.includes(context.surface) || !remote.tools.some((tool) => tool.name === descriptor.name)) throw new Error("MCP tool grant or discovery is stale.");
       const parsed = descriptor.inputSchema.safeParse(input);
       if (!parsed.success) throw new Error("MCP tool arguments did not match the approved schema.");
       const sessionId = remote.sessionId;
       const id = jsonRpcId();
-      const response = await requestOnce(endpoint, JSON.stringify({ jsonrpc:"2.0", id, method:"tools/call", params:{ name:descriptor.name, arguments:parsed.data } }), { ...remote.auth, ...(sessionId ? { "mcp-session-id":sessionId } : {}) });
+      const response = await requestOnce(endpoint, JSON.stringify({ jsonrpc:"2.0", id, method:"tools/call", params:{ name:descriptor.name, arguments:parsed.data } }), { ...remote.auth, ...(sessionId ? { "mcp-session-id":sessionId } : {}) }, contextSignal(context));
       if (response.status < 200 || response.status >= 300) throw new Error(`MCP endpoint returned HTTP ${response.status}.`);
       const result = decodeRpc(response.body);
       // Bound upstream data to a JSON-compatible response and avoid leaking
