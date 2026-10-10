@@ -9,6 +9,7 @@
  */
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { createHash } from "node:crypto";
 import https from "node:https";
 import type { IncomingHttpHeaders } from "node:http";
 import type { LookupFunction } from "node:dns";
@@ -25,6 +26,8 @@ const REQUEST_TIMEOUT_MS = 8_000;
 const MAX_RESPONSE_BYTES = 1_048_576;
 const MAX_REQUEST_BYTES = 65_536;
 const MAX_TOOLS = 128;
+const DISCOVERY_CACHE_TTL_MS = 3_000;
+const MAX_DISCOVERY_CACHE_ENTRIES = 256;
 const PROTOCOL_VERSION = "2025-03-26";
 const SURFACES: readonly SurfaceKind[] = ["chat", "realtime"];
 
@@ -240,6 +243,56 @@ function assertSchemaKeys(schema: JsonObject, allowed: readonly string[]): void 
   if (Object.keys(schema).some((key) => !allowed.includes(key))) throw new Error("Unsupported MCP schema keyword.");
 }
 
+const discoveryCache = new Map<string, { expiresAt: number; tools: JsonObject[] }>();
+const discoveryInFlight = new Map<string, Promise<JsonObject[]>>();
+const executionContextIds = new WeakMap<object, number>();
+let nextExecutionContextId = 1;
+
+function executionContextId(context: PlatformExecutionContext): number {
+  let id = executionContextIds.get(context as object);
+  if (id === undefined) {
+    id = nextExecutionContextId++;
+    executionContextIds.set(context as object, id);
+  }
+  return id;
+}
+
+async function discoverToolsForContext(
+  context: PlatformExecutionContext,
+  access: ServerAccess,
+  signal?: AbortSignal,
+): Promise<JsonObject[]> {
+  if (signal?.aborted) throw new Error("MCP request cancelled.");
+  const credentialFingerprint = createHash("sha256").update(access.bearer_token ?? "").digest("hex");
+  const key = JSON.stringify([
+    context.tenantId, context.userId, context.agentId, context.kbId, context.sessionId,
+    context.surface, executionContextId(context), access.id, access.endpoint_url, access.auth_mode, credentialFingerprint,
+  ]);
+  const cached = discoveryCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.tools;
+  if (cached) discoveryCache.delete(key);
+  const existing = discoveryInFlight.get(key);
+  if (existing) return existing;
+
+  const pending = (async () => {
+    const endpoint = validateMcpEndpoint(access.endpoint_url);
+    const remote = await listRemoteTools(endpoint, access.bearer_token, signal);
+    discoveryCache.set(key, { expiresAt: Date.now() + DISCOVERY_CACHE_TTL_MS, tools: remote.tools });
+    while (discoveryCache.size > MAX_DISCOVERY_CACHE_ENTRIES) {
+      const oldestKey = discoveryCache.keys().next().value;
+      if (oldestKey === undefined) break;
+      discoveryCache.delete(oldestKey);
+    }
+    return remote.tools;
+  })();
+  discoveryInFlight.set(key, pending);
+  try {
+    return await pending;
+  } finally {
+    if (discoveryInFlight.get(key) === pending) discoveryInFlight.delete(key);
+  }
+}
+
 function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
   if (depth > 8 || !raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Unsupported MCP input schema.");
   const schema = raw as JsonObject;
@@ -425,11 +478,10 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
     try {
       const access = await getAuthorizedServer(request.context, request.serverId, request.toolName);
       if (!access) return null;
-      const endpoint = validateMcpEndpoint(access.endpoint_url);
-      const remote = await listRemoteTools(endpoint, access.bearer_token, contextSignal(request.context));
       const approved = Array.isArray(access.allowed_surfaces) ? access.allowed_surfaces.filter((surface): surface is SurfaceKind => SURFACES.includes(surface as SurfaceKind)) : [];
       if (!approved.length || !approved.includes(request.context.surface)) return null;
-      const tool = remote.tools.find((candidate) => candidate.name === request.toolName);
+      const tools = await discoverToolsForContext(request.context, access, contextSignal(request.context));
+      const tool = tools.find((candidate) => candidate.name === request.toolName);
       if (!tool) return null;
       const descriptor = readTool(tool, access.id, approved);
       if (!descriptor) return null;
