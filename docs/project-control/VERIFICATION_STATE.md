@@ -1,3 +1,11 @@
+## 2026-10-11 — Gmail OAuth app save runtime failure
+
+- Owner-provided production log: `TypeError: (0 , k.normalizeScopes) is not a function` in the platform integration OAuth-app PUT handler.
+- Source root cause found: `normalizeScopes` was defined but not exported from `src/modules/integrations/oauth-app-validation.ts`, while the route imports it as a named export.
+- Fix committed on `feature/ai-core-from-doable-source`: `bfc5fc00de27309598b4bcfe4813f8626de9b8b0`.
+- Existing unit test source already imports and exercises the helper. **Not run:** unit tests, typecheck, build, container rebuild, deployment or live OAuth save. Do not claim PASS until observed.
+- Security follow-up: diagnostic command exposed a session cookie and OAuth client secret; rotate/revoke before retry.
+
 ## 2026-10-09 — WhatsApp OAuth, briefing gate, and delivery-order regression source
 
 - Added route-level regression source for OAuth state replay and current agent permission recheck, cross-organisation denial, and the server-side briefing gate/recipient consent path.
