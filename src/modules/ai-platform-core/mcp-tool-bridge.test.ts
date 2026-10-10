@@ -276,7 +276,7 @@ describe("MCP tool bridge", () => {
     );
     const baseOutcome = await runtime!.invoke("base_tool", {}, context);
     expect(baseOutcome.ok).toBe(true);
-    expect(baseOutcome.result).toEqual({ preserved: true });
+    expect(baseOutcome.data).toEqual({ preserved: true });
     vi.unstubAllEnvs();
   });
 
