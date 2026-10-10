@@ -242,6 +242,44 @@ describe("MCP tool bridge", () => {
     vi.unstubAllEnvs();
   });
 
+  it("composes MCP tools into a fresh Unified Tool Runtime without dropping existing Clara tools", async () => {
+    vi.stubEnv("ENABLE_MCP", "true");
+    const baseRuntime = createRuntime();
+    baseRuntime.registerTool({
+      name: "base_tool",
+      description: "Existing request-scoped tool",
+      inputSchema: z.object({}),
+      authorization: {
+        allowedSurfaces: ["chat"],
+        requiredPermission: null,
+        requiredCapability: null,
+        requireUserId: true,
+        requireSessionId: false,
+      },
+      async execute() { return { preserved: true }; },
+    });
+    const resolver: McpToolResolver = {
+      async resolve() { return descriptor; },
+      async invoke() { return { mcp: true }; },
+    };
+
+    const runtime = await buildMcpToolRuntime(
+      context,
+      [{ serverId: "demo", toolName: "lookup", context }],
+      policy,
+      resolver,
+      baseRuntime,
+    );
+
+    expect(runtime?.listTools().map((tool) => tool.name)).toEqual(
+      expect.arrayContaining(["base_tool", mcpToolName("demo", "lookup")]),
+    );
+    const baseOutcome = await runtime!.invoke("base_tool", {}, context);
+    expect(baseOutcome.ok).toBe(true);
+    expect(baseOutcome.result).toEqual({ preserved: true });
+    vi.unstubAllEnvs();
+  });
+
   it("preserves the caller execution context through resolver invocation", async () => {
     let receivedContext: unknown;
     const resolver: McpToolResolver = {
