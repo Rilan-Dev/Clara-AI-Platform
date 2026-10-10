@@ -41,8 +41,8 @@ describe("Streamable HTTP MCP endpoint guard", () => {
   });
 
   it("accepts a DNS-hosted HTTPS endpoint without embedded credentials", () => {
-    const endpoint = validateMcpEndpoint("https://mcp.vendor.example/mcp");
+    const endpoint = validateMcpEndpoint("https://mcp.vendor.com/mcp");
     expect(endpoint.protocol).toBe("https:");
-    expect(endpoint.hostname).toBe("mcp.vendor.example");
+    expect(endpoint.hostname).toBe("mcp.vendor.com");
   });
 });
