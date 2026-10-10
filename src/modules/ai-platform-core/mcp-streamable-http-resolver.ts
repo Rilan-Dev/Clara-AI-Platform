@@ -367,7 +367,7 @@ async function getAuthorizedServer(context: PlatformExecutionContext, serverId: 
             t.allowed_surfaces, NULLIF((pgp_sym_decrypt(c.credentials_encrypted, $5)::jsonb)->>'bearerToken', '') AS bearer_token
        FROM platform_mcp_servers s
        JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
-       JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status='configured'
+       JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status IN ('configured','connected')
        JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name AND g.enabled=true
        JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid AND ag.enabled=true
        JOIN agents a ON a.id=ag.agent_id AND a.org_id=$1
@@ -385,6 +385,21 @@ async function getAuthorizedServer(context: PlatformExecutionContext, serverId: 
   return row;
 }
 
+async function markConnectionConnected(context: PlatformExecutionContext, serverId: string): Promise<void> {
+  try {
+    await query(
+      `UPDATE organisation_mcp_connections c
+          SET status='connected', last_connected_at=now(), last_error_code=NULL, updated_at=now()
+        WHERE c.org_id=$1 AND c.server_id=$2 AND c.status IN ('configured','connected')
+          AND EXISTS (SELECT 1 FROM platform_mcp_servers s WHERE s.id=c.server_id AND s.platform_enabled=true)`,
+      [context.tenantId, serverId],
+    );
+  } catch {
+    // Connection health is informative only; a health-write failure must not
+    // weaken or widen authorization and must not fail an otherwise valid tool.
+  }
+}
+
 export class StreamableHttpMcpToolResolver implements McpToolResolver {
   async resolve(request: McpToolResolutionRequest): Promise<McpToolDescriptor | null> {
     try {
@@ -396,7 +411,10 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
       if (!approved.length || !approved.includes(request.context.surface)) return null;
       const tool = remote.tools.find((candidate) => candidate.name === request.toolName);
       if (!tool) return null;
-      return readTool(tool, access.id, approved);
+      const descriptor = readTool(tool, access.id, approved);
+      if (!descriptor) return null;
+      await markConnectionConnected(request.context, access.id);
+      return descriptor;
     } catch {
       return null;
     }
@@ -415,6 +433,7 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
       if (!currentDescriptor || JSON.stringify(currentDescriptor.inputSchemaJson) !== JSON.stringify(descriptor.inputSchemaJson)) {
         throw new Error("MCP tool schema changed after discovery.");
       }
+      await markConnectionConnected(context, access.id);
       const parsed = currentDescriptor.inputSchema.safeParse(input);
       if (!parsed.success) throw new Error("MCP tool arguments did not match the approved schema.");
       const sessionId = remote.sessionId;
