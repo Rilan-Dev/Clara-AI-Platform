@@ -1,3 +1,12 @@
+## NEWEST IMMEDIATE ACTION — FIXED DUPLICATE EXPORT; REBUILD REQUIRED — 2026-10-11
+
+- Owner-provided Docker build failed because `src/modules/ai-platform-core/index.ts` exported `buildClaraToolRuntime` twice.
+- Removed the duplicate export in commit `d755aea0de75509cabfe2ed4c76e7cae2468db2e`.
+- **Next action:** `git pull origin feature/ai-core-from-doable-source`, then rebuild `clara-backend`. Do not infer success from the old container remaining healthy. If build passes, recreate backend and retry Gmail OAuth save with a fresh platform session and the rotated Google OAuth secret. If the build reports a new compiler error, fix that next exact error without waiting for CI/Vercel.
+- Runtime OAuth verification remains pending; do not share tokens or secrets in logs/chat.
+
+---
+
 # URGENT CURRENT ACTION — GMAIL OAUTH APP SAVE FAILURE — 2026-10-11
 
 1. Revoke the exposed Clara platform session and rotate the exposed Google OAuth client secret; update the server-side configuration with the replacement secret. Do not put credentials in logs or project-control docs.
