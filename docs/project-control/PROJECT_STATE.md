@@ -3,7 +3,7 @@
 - DEV-01 added `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts` behind the existing `McpToolResolver` interface and connected source-level tool advertisement/dispatch in authenticated Chat and OpenAI realtime voice through the Unified Tool Runtime.
 - The resolver performs per-request DNS validation with a pinned public IP, TLS verification, no redirects, bounded request/response sizes, timeout/cancellation, paginated discovery, schema conversion/validation, stale-schema checks, and execution-time tenant/caller/plan/grant rechecks.
 - Migration 070 records a successful MCP discovery as `connected` while preserving the encrypted-credential requirement; the org UI shows the last handshake and supports bearer credential rotation. The migration is not applied/verified in this workflow.
-- No shared discovery cache is used yet. Duplicate per-tool discovery adds latency; cache work is deferred until grant/schema invalidation can be made reliable.
+- A bounded 3-second discovery singleflight cache is scoped to one exact execution context and credential fingerprint. Every resolution rechecks DB authorization; invocation bypasses the cache and re-discovers the current schema. No cross-request or cross-tenant cache is used.
 - **Verification pending:** no tests, typecheck, lint/build, migration, live handshake, Chat/realtime E2E, CI, Vercel or deployment was run. This is not a PASS.
 - Keep platform MCP servers disabled and `ENABLE_MCP=false` until focused execution tests and a controlled live handshake succeed.
 - Details and next steps: `docs/project-control/sessions/SESSION-DEV-20261011-01.md` and `docs/project-control/NEXT_ACTION.md`.
