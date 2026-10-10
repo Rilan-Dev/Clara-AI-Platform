@@ -345,3 +345,15 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Evidence:** User-provided Docker build/startup/log output; source trace in `src/app/api/webhooks/stripe/route.ts` and `src/lib/stripe-activation.ts`.
 - **Verification:** Source trace only. No direct DB/Stripe query, tests, typecheck, or runtime fix performed. Incident unresolved pending OPS-01 evidence.
 - **Next action:** OPS-01 performs read-only mapping and verifies container DB/environment. If evidence establishes an app-side lifecycle defect, route the exact source defect back to FIX-01 with query evidence.
+
+
+### SESSION-FIX-20261011-02 / 2026-10-11 — MCP missing bearer credential status
+
+- **Task:** Diagnose the reported 502 from `POST /api/platform/mcp-servers/test`.
+- **Symptom:** Request body contained only `serverId`; route returned `MCP_NO_PLATFORM_CREDENTIAL` because neither a stored platform bearer credential nor a temporary override was available.
+- **Root cause:** The branch correctly failed before contacting the MCP endpoint but returned 502 for a local missing-credential configuration error.
+- **Remedy:** Changed that specific status to 400 and added `src/app/api/platform/mcp-servers/test/route.test.ts`, which asserts the error code/status and no upstream probe. Commits: `426e06fde3da96ee60b155ecafcf3b6c59825105`, `9e63b8bffcacf391557ad281303294a6e5352d18`.
+- **Failed approaches:** First exact-string patch guard did not match and changed nothing; retried with a unique response block. No broad patch or auth bypass was made.
+- **Evidence:** User-supplied request payload/response and source inspection of test route and admin MCP screen.
+- **Verification:** Test authored only; not run. No deployed route or actual MCP endpoint handshake verified. User-provided platform session cookie appeared in the diagnostic; advised revocation/invalidation and replacement.
+- **Next action:** Save a valid platform bearer token in Edit, or supply a temporary token in the test request; retest the endpoint. If the response then remains 502, inspect the returned probe error as a separate upstream/transport/auth issue. Route deployment/runtime verification to OPS-01.
