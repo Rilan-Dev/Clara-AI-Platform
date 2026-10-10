@@ -87,11 +87,38 @@ async function checkedAddresses(hostname: string): Promise<Array<{ address: stri
   return addresses;
 }
 
+async async function checkedAddressesWithDeadline(hostname: string, signal?: AbortSignal): Promise<Array<{ address: string; family: number }>> {
+  if (signal?.aborted) throw new Error("MCP request cancelled.");
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
+  const cancelled = signal
+    ? new Promise<never>((_resolve, reject) => {
+        onAbort = () => reject(new Error("MCP request cancelled."));
+        signal.addEventListener("abort", onAbort, { once: true });
+      })
+    : new Promise<never>(() => {});
+  try {
+    return await Promise.race([
+      checkedAddresses(hostname),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("MCP DNS lookup timed out.")), REQUEST_TIMEOUT_MS);
+      }),
+      cancelled,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+    if (onAbort) signal?.removeEventListener("abort", onAbort);
+  }
+}
+
 async function requestOnce(url: URL, body: string, headers: Record<string,string>, signal?: AbortSignal): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
   if (Buffer.byteLength(body, "utf8") > MAX_REQUEST_BYTES) throw new Error("MCP request exceeded the size limit.");
   if (signal?.aborted) throw new Error("MCP request cancelled.");
   let addresses: Array<{ address: string; family: number }>;
-  try { addresses = await checkedAddresses(url.hostname); } catch { throw new Error("MCP endpoint DNS validation failed."); }
+  try { addresses = await checkedAddressesWithDeadline(url.hostname, signal); } catch (error) {
+    if (error instanceof Error && /timed out|cancelled/i.test(error.message)) throw error;
+    throw new Error("MCP endpoint DNS validation failed.");
+  }
   if (signal?.aborted) throw new Error("MCP request cancelled.");
   const pinned = addresses[0]!;
   const pinnedLookup = ((hostname: string, options: unknown, callback: (...args: unknown[]) => void) => {
