@@ -46,9 +46,11 @@ describe("organisation MCP server isolation and credential contract", () => {
   });
 
   it("rejects agent grants when the target agent belongs to another organisation", async () => {
-    queryMock.mockResolvedValueOnce([{
-      id: "server-1", auth_mode: "none", allowed_plans: ["pro"], platform_enabled: true,
-    }]);
+    queryMock
+      .mockResolvedValueOnce([{
+        id: "server-1", auth_mode: "none", allowed_plans: ["pro"], platform_enabled: true,
+      }])
+      .mockResolvedValueOnce([{ tool_name: "search", approved: true }]);
     requireAgentPermissionMock.mockResolvedValueOnce({ orgId: "org-b" });
     const { POST } = await import("./route");
     const response = await POST(new NextRequest("http://localhost/api/orgs/org-a/mcp-servers", {
