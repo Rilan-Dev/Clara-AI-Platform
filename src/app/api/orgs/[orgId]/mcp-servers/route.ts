@@ -35,7 +35,7 @@ export async function GET(req: NextRequest, { params }: Params) {
                LEFT JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
                LEFT JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name
                LEFT JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid
-              WHERE s.platform_enabled=true
+              WHERE s.platform_enabled=true OR c.org_id IS NOT NULL OR g.org_id IS NOT NULL
               GROUP BY s.id,c.status,c.last_connected_at,c.last_error_code
               ORDER BY s.display_name`, [orgId, agentId]),
       resolveOrgPlanLimits(orgId),
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       `SELECT tool_name,approved FROM platform_mcp_tools WHERE server_id=$1 AND tool_name=$2`,
       [body.serverId, body.toolName],
     ))[0];
-    if (!tool?.approved) return NextResponse.json({ error: "This MCP tool has not been approved by platform administration", code:"MCP_TOOL_NOT_APPROVED" }, { status: 403 });
+    if (!tool || (!tool.approved && body.enabled)) return NextResponse.json({ error: "This MCP tool has not been approved by platform administration", code:"MCP_TOOL_NOT_APPROVED" }, { status: 403 });
     if (body.action === "grant-tool") {
       if (body.enabled) {
         let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
