@@ -16,6 +16,8 @@ describe("Streamable HTTP MCP endpoint guard", () => {
     "fe80::1",
     "::ffff:127.0.0.1",
     "2001:db8::1",
+    "2001:0000::1",
+    "2002::1",
     "not-an-ip",
   ])("rejects non-public or invalid address %s", (address) => {
     expect(isMcpPublicIpAddress(address)).toBe(false);
