@@ -11,7 +11,7 @@ function validEndpoint(value: unknown): value is string {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    const normalizedHost = host.replace(/^\\[|\\]$/g, "");
+    const normalizedHost = host.startsWith("[") && host.endsWith("]") ? host.slice(1, -1) : host;
     if (url.protocol !== "https:" || url.username || url.password || url.hash) return false;
     // Require DNS hostnames at configuration time; the eventual transport must
     // also resolve and reject private/link-local targets on every connection.
