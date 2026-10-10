@@ -227,6 +227,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
               userId: auth.user.id,
               sessionId: auth.session.id,
               surface: "realtime",
+              metadata: { mcpSignal: request.signal },
             });
             const mcpRows = await dbQuery<{ server_id: string; tool_name: string }>(
               `SELECT DISTINCT s.id AS server_id, t.tool_name
