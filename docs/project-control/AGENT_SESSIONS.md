@@ -1,3 +1,15 @@
+### SESSION-DEV-20261011-01 — 2026-10-11
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Implement secure Streamable HTTP MCP resolver and Chat/realtime runtime wiring through the Unified Tool Runtime.
+- **Started from:** `feature/ai-core-from-doable-source`, after SESSION-DEV-20261010-02.
+- **Scope:** MCP transport, discovery/schema validation, execution-time authorization, Chat and OpenAI realtime tool advertisement/dispatch.
+- **Status:** ACTIVE — source implementation committed; verification pending.
+- **Completed:** Resolver with HTTPS/DNS IP pinning/TLS/no redirects/timeouts/cancellation/size bounds; paginated discovery; schema conversion and stale-schema denial; DB-backed caller/tenant/plan/grant rechecks; request-scoped Chat runtime composition; realtime advertisement and dispatch; endpoint/IP regression source.
+- **Pending:** Mocked transport/runtime tests; focused tests and type-check; controlled live handshake; tenant-scoped discovery cache only after invalidation semantics are reliable.
+- **Blockers:** Tests, typecheck/build/migration/live MCP flow were not run in this source-only workflow.
+- **Handoff:** None. Security/correctness remains DEV-01 until a concrete substantial defect requires FIX-01; infra-only issues go to OPS-01.
+- **Next action:** Continue mocked transport and revocation/parity coverage; run focused tests and typecheck locally when available without polling CI/Vercel; keep servers disabled until a controlled live handshake succeeds.
+
 ### SESSION-DEV-20261009-02 — 2026-10-09
 - **Agent:** DEV-01 / Forge
 - **Invocation:** Finish explicitly requested I-6 MCP bounded hardening, then continue the Integrations & AI Enhancement Roadmap without waiting for CI/Vercel/Gates.
