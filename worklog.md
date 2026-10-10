@@ -787,3 +787,5 @@ Disposition:
 - Commits: `7fb942255f2dd3daf13e9a9e32270d70ff02938c`, `f1ebf20ef6242204ccb144b570f0ace5a874e052`, `9652855d4408737f3a6930f02caced07002eb65f`, `3a0a3e8864f0497facd85626b22e537a8225e1df`, `c55294c100647b9d3287503a7909197aa0960c85`, `f97140906cc4c63e7840d007e2a5d3c5b42ba986`.
 - Tests were authored but not run. This session has no local checkout and `git ls-remote` failed because outbound GitHub DNS resolution is unavailable; do not record this as a test failure. No lint, typecheck, build, browser, live OAuth, deployment, or runtime verification was performed.
 - Next: run focused OAuth tests in a checked-out workspace; then test real provider consent/callback/token exchange and route deployment/schema issues to OPS-01. I-096 stays OPEN.
+
+- Additional commit `427383ea8f0f4c13b1c38991da5e24b9ed28a1dd` adds explicit scope guidance for integrations whose registry default scopes are empty. Verify provider-specific permission requirements before live authorization.
