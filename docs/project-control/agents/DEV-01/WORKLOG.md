@@ -162,3 +162,10 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Blockers/dependencies:** No local test/typecheck execution or controlled MCP test server available in this source-only workflow; no verified live transport.
 - **Lesson:** Keep MCP definitions bound to a request-scoped execution context; never attach them to the process-global runtime. Recheck current DB grants on every resolution/invocation and do not cache tool discovery until invalidation semantics cover platform, organisation, agent and remote-schema changes.
 - **Next action:** Add mocked transport/runtime regressions, run focused tests and `npm run type-check` when execution is available, fix source issues without waiting for CI/Vercel, then validate a controlled live initialize/list/call before enabling servers.
+
+
+#### SESSION-DEV-20261011-01 addendum — 2026-10-11
+
+- Added `070_mcp_connection_handshake_status.sql` to distinguish encrypted-but-unverified configuration from a successful MCP discovery handshake.
+- Resolver now records `connected` and `last_connected_at` only after valid approved-tool discovery. Runtime queries and organisation/agent UI accept both `configured` and `connected`; organisation UI shows the last handshake and permits bearer credential rotation.
+- Migration application and all executable verification remain pending; keep MCP servers disabled.
