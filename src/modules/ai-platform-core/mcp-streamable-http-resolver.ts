@@ -167,15 +167,25 @@ async function requestOnce(url: URL, body: string, headers: Record<string,string
 function decodeRpc(body: string): JsonObject {
   let parsed: unknown;
   try {
-    if (body.trimStart().startsWith("data:")) {
-      const data = body.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).filter(Boolean).join("\n");
-      parsed = JSON.parse(data);
-    } else parsed = JSON.parse(body);
-  } catch { throw new Error("MCP server returned an invalid JSON-RPC response."); }
+    const hasSseData = body.split(/\r?\n/).some((line) => line.startsWith("data:"));
+    if (hasSseData) {
+      const payloads = body.split(/\r?\n\r?\n/).flatMap((event) => {
+        const data = event.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).filter(Boolean).join("\n");
+        return data ? [JSON.parse(data) as unknown] : [];
+      });
+      parsed = payloads.find((event) => event && typeof event === "object" && !Array.isArray(event) && ("result" in event || "error" in event));
+    } else {
+      parsed = JSON.parse(body);
+    }
+  } catch {
+    throw new Error("MCP server returned an invalid JSON-RPC response.");
+  }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("MCP server returned an invalid JSON-RPC response.");
   const result = parsed as JsonObject;
   if (result.error) throw new Error("MCP server reported a tool protocol error.");
-  if (!("result" in result)) throw new Error("MCP server response did not contain a result.");
+  if (!("result" in result) || !result.result || typeof result.result !== "object" || Array.isArray(result.result)) {
+    throw new Error("MCP server response did not contain a result object.");
+  }
   return result.result as JsonObject;
 }
 
