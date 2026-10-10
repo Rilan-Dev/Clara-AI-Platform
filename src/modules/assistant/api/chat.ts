@@ -85,7 +85,7 @@ async function resolveChatMcpCapabilities(context: ReturnType<typeof createExecu
     `SELECT DISTINCT s.id AS server_id, t.tool_name
        FROM platform_mcp_servers s
        JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
-       JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status='configured'
+       JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status IN ('configured','connected')
        JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name AND g.enabled=true
        JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid AND ag.enabled=true
        JOIN knowledge_bases kb ON kb.agent_id=ag.agent_id AND kb.id=$3
