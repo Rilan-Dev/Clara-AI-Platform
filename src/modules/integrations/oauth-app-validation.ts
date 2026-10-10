@@ -28,7 +28,7 @@ export function validateRedirectUri(value: string): string | null {
   return null;
 }
 
-function normalizeScopes(value: unknown): string[] | null {
+export function normalizeScopes(value: unknown): string[] | null {
   if (!Array.isArray(value) || !value.every((scope) => typeof scope === "string")) {
     return null;
   }
