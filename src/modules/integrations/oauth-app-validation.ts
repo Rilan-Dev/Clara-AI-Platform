@@ -1,4 +1,6 @@
-function validateRedirectUri(value: string): string | null {
+export const INTEGRATION_OAUTH_CALLBACK_PATH = "/api/integrations/oauth/callback";
+
+export function validateRedirectUri(value: string): string | null {
   let parsed: URL;
   try {
     parsed = new URL(value);
@@ -13,6 +15,15 @@ function validateRedirectUri(value: string): string | null {
   }
   if (parsed.username || parsed.password || parsed.hash) {
     return "Redirect URI must not contain credentials or a fragment.";
+  }
+  if (parsed.search) {
+    return "Redirect URI must not contain a query string; use the canonical Clara OAuth callback URI.";
+  }
+  if (parsed.pathname !== INTEGRATION_OAUTH_CALLBACK_PATH) {
+    return `Redirect URI path must be the canonical Clara callback: ${INTEGRATION_OAUTH_CALLBACK_PATH}`;
+  }
+  if (/your-domain|\.\.\./i.test(parsed.hostname) || /your-domain|\.\.\./i.test(parsed.href)) {
+    return "Replace the example placeholder with the actual Clara deployment callback URI.";
   }
   return null;
 }
