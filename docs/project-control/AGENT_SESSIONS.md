@@ -310,3 +310,16 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Commits:** `59a671286a55ff04bd34ba41003c5db015b5afa2`, `518c238d84e93f4d214e0ff802c9b317fd834e01`.
 - **Verification:** Not run locally; no Vitest/typecheck/browser screenshot PASS claimed.
 - **Next:** Continue remaining UI surfaces and WhatsApp roadmap.
+
+
+### SESSION-DEV-20261010-01 — 2026-10-10
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Audit MCP completed/pending functionality and plan platform-admin/org UI plus chat/realtime voice usage.
+- **Started from:** `feature/ai-core-from-doable-source`; recovered NEXT_ACTION and role-local memory/worklog.
+- **Scope:** MCP source audit, gap analysis, UI/authorization architecture and project-control continuity.
+- **Status:** ACTIVE
+- **Completed:** Inspected I-6 bridge/test, integration policy/bridge, realtime dispatch and existing UI paths; added MCP roadmap and updated NEXT_ACTION.
+- **Pending:** Persistent server registry/credential contract, platform-admin and org UI/API, host transport/resolver, chat/realtime MCP registration, isolation/security regression source.
+- **Blockers:** None to planning; inspect migration and credential-vault conventions before schema/API changes.
+- **Handoff:** None.
+- **Next action:** Implement registry/credential/grant contract and platform/org UI in existing integration surfaces; retain Unified Tool Runtime and default-deny surfaces until explicitly wired.
