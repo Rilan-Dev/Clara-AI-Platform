@@ -7,12 +7,7 @@
  * followed; credentials are decrypted only in-process and never logged or
  * returned; discovery and invocation both re-check tenant/agent/plan grants.
  */
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
 import { createHash } from "node:crypto";
-import https from "node:https";
-import type { IncomingHttpHeaders } from "node:http";
-import type { LookupFunction } from "node:net";
 import { z } from "zod";
 import { query } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
@@ -21,10 +16,17 @@ import { getKbAccessContext } from "@/modules/auth/core/db";
 import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
 import type { McpToolDescriptor, McpToolResolutionRequest, McpToolResolver } from "./mcp-tool-bridge";
 import { assertExecutionContext } from "./execution-context";
+import {
+  MCP_MAX_RESPONSE_BYTES as MAX_RESPONSE_BYTES,
+  mcpHttpRequest,
+  validateMcpEndpoint,
+} from "./mcp-http-transport";
+import { parseMcpPlatformCredential, resolveMcpAccessToken } from "./mcp-oauth";
 
-const REQUEST_TIMEOUT_MS = 8_000;
-const MAX_RESPONSE_BYTES = 1_048_576;
-const MAX_REQUEST_BYTES = 65_536;
+// Re-exported for API and test compatibility: the guards now live in the
+// shared transport module so the OAuth client can reuse them without cycles.
+export { isMcpPublicIpAddress, validateMcpEndpoint } from "./mcp-http-transport";
+
 const MAX_TOOLS = 128;
 const MAX_TOOL_PAGES = 8;
 const DISCOVERY_CACHE_TTL_MS = 3_000;
@@ -39,137 +41,20 @@ const SURFACES: readonly SurfaceKind[] = ["chat", "realtime"];
 
 type JsonObject = Record<string, unknown>;
 type ServerAccess = {
-  id: string; endpoint_url: string; auth_mode: "none" | "bearer";
+  id: string; endpoint_url: string; auth_mode: "none" | "bearer" | "oauth";
   allowed_plans: unknown; tool_name: string; allowed_surfaces: unknown;
+  org_bearer_token: string | null;
+  platform_credential: string | null;
   bearer_token: string | null;
 };
 
-function inV4Range(ip: string, base: string, bits: number): boolean {
-  const toInt = (value: string) => value.split(".").reduce((n, octet) => (n * 256) + Number(octet), 0) >>> 0;
-  const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
-  return (toInt(ip) & mask) === (toInt(base) & mask);
-}
-
-export function isMcpPublicIpAddress(ip: string): boolean {
-  const family = isIP(ip);
-  if (family === 4) {
-    const blocked: Array<[string, number]> = [
-      ["0.0.0.0",8],["10.0.0.0",8],["100.64.0.0",10],["127.0.0.0",8],
-      ["169.254.0.0",16],["172.16.0.0",12],["192.0.0.0",24],["192.0.2.0",24],
-      ["192.88.99.0",24],["192.168.0.0",16],["198.18.0.0",15],["198.51.100.0",24],
-      ["203.0.113.0",24],["224.0.0.0",4],["240.0.0.0",4],
-    ];
-    return !blocked.some(([base,bits]) => inV4Range(ip,base,bits));
-  }
-  if (family === 6) {
-    const normalized = ip.toLowerCase().split("%")[0]!;
-    // Only global-unicast 2000::/3 is accepted. This excludes unspecified,
-    // loopback, ULA, link-local, multicast, IPv4-mapped and documentation IPs.
-    if (!/^[23][0-9a-f]{3}:/.test(normalized)) return false;
-    if (/^2001:db8:/i.test(normalized) || /^2001:0000:/i.test(normalized) || /^2001:2:/i.test(normalized) || /^2001:10:/i.test(normalized) || /^2001:20:/i.test(normalized) || /^2002:/i.test(normalized) || /^3fff:/i.test(normalized)) return false;
-    return true;
-  }
-  return false;
-}
-
-export function validateMcpEndpoint(raw: string): URL {
-  let url: URL;
-  try { url = new URL(raw); } catch { throw new Error("MCP endpoint is invalid."); }
-  if (url.protocol !== "https:" || url.username || url.password || url.hash || url.search ||
-      !url.hostname || url.hostname.endsWith(".localhost") || url.hostname === "localhost" ||
-      url.hostname.endsWith(".local") || url.hostname.endsWith(".internal") ||
-      url.hostname.endsWith(".test") || url.hostname.endsWith(".invalid") ||
-      url.hostname.endsWith(".example") || url.hostname === "metadata.google.internal") {
-    throw new Error("MCP endpoint is not an allowed HTTPS URL.");
-  }
-  if (isIP(url.hostname.replace(/^\[|\]$/g, ""))) {
-    throw new Error("MCP endpoint must use a DNS hostname, not an IP literal.");
-  }
-  return url;
-}
-
-async function checkedAddresses(hostname: string): Promise<Array<{ address: string; family: number }>> {
-  const addresses = await lookup(hostname, { all: true, verbatim: true });
-  if (!addresses.length || addresses.some((entry) => !isMcpPublicIpAddress(entry.address))) {
-    throw new Error("MCP endpoint DNS resolved to a non-public address.");
-  }
-  return addresses;
-}
-
-async function checkedAddressesWithDeadline(hostname: string, signal?: AbortSignal): Promise<Array<{ address: string; family: number }>> {
-  if (signal?.aborted) throw new Error("MCP request cancelled.");
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let onAbort: (() => void) | undefined;
-  const cancelled = signal
-    ? new Promise<never>((_resolve, reject) => {
-        onAbort = () => reject(new Error("MCP request cancelled."));
-        signal.addEventListener("abort", onAbort, { once: true });
-      })
-    : new Promise<never>(() => {});
-  try {
-    return await Promise.race([
-      checkedAddresses(hostname),
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error("MCP DNS lookup timed out.")), REQUEST_TIMEOUT_MS);
-      }),
-      cancelled,
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-    if (onAbort) signal?.removeEventListener("abort", onAbort);
-  }
-}
-
-async function requestOnce(url: URL, body: string, headers: Record<string,string>, signal?: AbortSignal): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
-  if (Buffer.byteLength(body, "utf8") > MAX_REQUEST_BYTES) throw new Error("MCP request exceeded the size limit.");
-  if (signal?.aborted) throw new Error("MCP request cancelled.");
-  let addresses: Array<{ address: string; family: number }>;
-  try { addresses = await checkedAddressesWithDeadline(url.hostname, signal); } catch (error) {
-    if (error instanceof Error && /timed out|cancelled/i.test(error.message)) throw error;
-    throw new Error("MCP endpoint DNS validation failed.");
-  }
-  if (signal?.aborted) throw new Error("MCP request cancelled.");
-  const pinned = addresses[0]!;
-  const pinnedLookup = ((hostname: string, options: unknown, callback: (...args: unknown[]) => void) => {
-    if (hostname.toLowerCase() !== url.hostname.toLowerCase()) {
-      callback(new Error("Unexpected DNS lookup hostname."));
-      return;
-    }
-    const opts = options as { all?: boolean } | number | undefined;
-    if (typeof opts === "object" && opts?.all) callback(null, addresses);
-    else callback(null, pinned.address, pinned.family);
-  }) as unknown as LookupFunction;
-  const agent = new https.Agent({ keepAlive: false, rejectUnauthorized: true, lookup: pinnedLookup });
-  return new Promise((resolve, reject) => {
-    const req = https.request(url, {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": PROTOCOL_VERSION, ...headers },
-      rejectUnauthorized: true,
-      agent,
-    }, (res) => {
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400) {
-        res.resume(); reject(new Error("MCP redirects are not allowed.")); return;
-      }
-      const chunks: Buffer[] = [];
-      let size = 0;
-      res.on("data", (chunk: Buffer | string) => {
-        const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        size += bytes.length;
-        if (size > MAX_RESPONSE_BYTES) { req.destroy(new Error("MCP response exceeded the size limit.")); return; }
-        chunks.push(bytes);
-      });
-      res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks).toString("utf8") }));
-    });
-    const timer = setTimeout(() => req.destroy(new Error("MCP request timed out.")), REQUEST_TIMEOUT_MS);
-    const onAbort = () => req.destroy(new Error("MCP request cancelled."));
-    req.on("error", (error) => reject(error));
-    req.on("close", () => {
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", onAbort);
-      agent.destroy();
-    });
-    signal?.addEventListener("abort", onAbort, { once: true });
-    req.end(body);
+async function requestOnce(url: URL, body: string, headers: Record<string,string>, signal?: AbortSignal) {
+  // MCP JSON-RPC framing on top of the shared hardened transport.
+  return mcpHttpRequest(url, {
+    method: "POST",
+    body,
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": PROTOCOL_VERSION, ...headers },
+    signal,
   });
 }
 
@@ -453,7 +338,8 @@ async function getAuthorizedServer(context: PlatformExecutionContext, serverId: 
   try { plan = await resolveOrgPlanLimits(context.tenantId); } catch { return null; }
   const rows = await query<ServerAccess>(
     `SELECT s.id, s.endpoint_url, s.auth_mode, s.allowed_plans, t.tool_name,
-            t.allowed_surfaces, NULLIF((pgp_sym_decrypt(c.credentials_encrypted, $5)::jsonb)->>'bearerToken', '') AS bearer_token
+            t.allowed_surfaces, NULLIF((pgp_sym_decrypt(c.credentials_encrypted, $5)::jsonb)->>'bearerToken', '') AS org_bearer_token,
+            pgp_sym_decrypt(s.platform_credentials_encrypted, $5) AS platform_credential
        FROM platform_mcp_servers s
        JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
        JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status IN ('configured','connected')
@@ -469,8 +355,19 @@ async function getAuthorizedServer(context: PlatformExecutionContext, serverId: 
   );
   const row = rows[0];
   if (!row || !Array.isArray(row.allowed_plans) || !(row.allowed_plans.includes(plan.plan_id) || row.allowed_plans.includes("*"))) return null;
-  if (row.auth_mode === "bearer" && !row.bearer_token) return null;
-  if (row.auth_mode === "none") row.bearer_token = null;
+  // Credential resolution. A tenant-supplied bearer token always wins for
+  // bearer servers; otherwise the platform-managed credential applies (an
+  // admin-stored bearer token, or an OAuth access token with silent refresh).
+  if (row.auth_mode === "none") { row.bearer_token = null; return row; }
+  if (row.auth_mode === "bearer") {
+    const platform = parseMcpPlatformCredential(row.platform_credential);
+    row.bearer_token = row.org_bearer_token ?? (platform?.type === "bearer" ? platform.bearerToken : null);
+    if (!row.bearer_token) return null;
+    return row;
+  }
+  const accessToken = await resolveMcpAccessToken(row.id, row.platform_credential);
+  if (!accessToken) return null;
+  row.bearer_token = accessToken;
   return row;
 }
 
