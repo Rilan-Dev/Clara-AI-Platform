@@ -1863,3 +1863,5 @@ This is a bounded integration-setup follow-up and does not supersede the reposit
 3. Keep credentials database-only for now. Do not add environment-variable fallback until precedence, secret rotation, auditability, and deployment-secret ownership are explicitly designed.
 4. Ask OPS-01 to verify the deployed callback origin, reverse-proxy headers/base URL, required OAuth-app migration, and runtime config. Do not wait for CI/Vercel to continue source work.
 5. Complete a real provider consent → one-time state consume → callback-origin/path check → token exchange → encrypted connection persistence test using a configured test app. Keep I-096 OPEN until evidence exists.
+
+- Scope guidance follow-up: `427383ea8f0f4c13b1c38991da5e24b9ed28a1dd` now makes empty default scopes explicit. Confirm the provider's required permissions before a live connect test.
