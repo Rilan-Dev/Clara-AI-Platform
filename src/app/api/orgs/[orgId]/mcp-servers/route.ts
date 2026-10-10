@@ -4,6 +4,7 @@ import { query, withTransaction } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
 import { requireAgentPermission, requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
+import { probeStreamableHttpServer } from "@/modules/ai-platform-core/mcp-streamable-http-resolver";
 
 type Params = { params: Promise<{ orgId: string }> };
 export const dynamic = "force-dynamic";
@@ -21,7 +22,13 @@ export async function GET(req: NextRequest, { params }: Params) {
       if (agent.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to this organisation" }, { status: 403 });
     }
     const [servers, limits] = await Promise.all([
-      query(`SELECT s.id, s.server_key AS "serverKey", s.display_name AS "displayName",
+      query<{
+        id: string; serverKey: string; displayName: string; description: string;
+        transportType: string; endpointUrl: string; platformEnabled: boolean;
+        authMode: "none" | "bearer"; allowedPlans: string[]; connectionStatus: string | null;
+        lastConnectedAt: string | null; lastErrorCode: string | null;
+        tools: Array<{ name: string; approved: boolean; allowedSurfaces: string[]; organisationEnabled: boolean; agentEnabled: boolean }>;
+      }>(`SELECT s.id, s.server_key AS "serverKey", s.display_name AS "displayName",
                     s.description, s.transport_type AS "transportType", s.endpoint_url AS "endpointUrl",
                     s.platform_enabled AS "platformEnabled",
                     s.auth_mode AS "authMode", s.allowed_plans AS "allowedPlans",
@@ -44,7 +51,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const planId = limits.plan_id;
     return NextResponse.json({
       plan: { id: planId },
-      servers: servers.map((s: {allowedPlans: unknown}) => ({
+      servers: servers.map(s => ({
         ...s,
         planAllowed: Array.isArray(s.allowedPlans) && (s.allowedPlans.includes(planId) || s.allowedPlans.includes("*")),
       })),
@@ -63,19 +70,73 @@ export async function POST(req: NextRequest, { params }: Params) {
     const auth = await requireAuth(req);
     await requireOrgPermission(auth, orgId, "config:update");
     const body = await req.json() as {
-      serverId?: string; action?: "connect"|"disconnect"|"grant-tool"|"grant-agent-tool";
+      serverId?: string; action?: "connect"|"disconnect"|"test"|"grant-tool"|"grant-agent-tool";
       credentials?: { bearerToken?: string }; toolName?: string; enabled?: boolean; agentId?: string;
     };
     if (!body.serverId || !/^[0-9a-f-]{36}$/i.test(body.serverId) ||
-        !["connect","disconnect","grant-tool","grant-agent-tool"].includes(body.action ?? "")) {
+        !["connect","disconnect","test","grant-tool","grant-agent-tool"].includes(body.action ?? "")) {
       return NextResponse.json({ error: "serverId and a supported action are required" }, { status: 400 });
     }
     const server = (await query<{
-      id:string; auth_mode:string; allowed_plans:string[]; platform_enabled:boolean;
-    }>(`SELECT id,auth_mode,allowed_plans,platform_enabled FROM platform_mcp_servers WHERE id=$1`, [body.serverId]))[0];
+      id:string; auth_mode:string; allowed_plans:string[]; platform_enabled:boolean; endpoint_url:string;
+    }>(`SELECT id,auth_mode,allowed_plans,platform_enabled,endpoint_url FROM platform_mcp_servers WHERE id=$1`, [body.serverId]))[0];
     if (!server) return NextResponse.json({ error: "MCP server not found" }, { status: 404 });
     const enablingAccess = body.action === "connect" || ((body.action === "grant-tool" || body.action === "grant-agent-tool") && body.enabled === true);
     if (!server.platform_enabled && enablingAccess) return NextResponse.json({ error: "MCP server is disabled by platform administration", code:"MCP_SERVER_DISABLED" }, { status: 403 });
+
+    // Live handshake test with the organisation's stored credentials. Unlike
+    // connect (which only stores the encrypted secret) this performs a real
+    // initialize + tools/list round-trip and records the outcome, so admins
+    // get immediate feedback instead of waiting for a chat-time dispatch.
+    // A failed test keeps the stored credentials (status 'error') — the fix is
+    // usually a rotated token, re-entered through connect.
+    if (body.action === "test") {
+      const connection = (await query<{ credentials_encrypted: Buffer | null; status: string }>(
+        `SELECT credentials_encrypted, status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,
+        [orgId, body.serverId],
+      ))[0];
+      if (!connection || !connection.credentials_encrypted) {
+        return NextResponse.json({ error: "Save the connection credentials before testing", code:"NOT_CONFIGURED" }, { status: 409 });
+      }
+      let bearerToken: string | null = null;
+      if (server.auth_mode === "bearer") {
+        const decrypted = (await query<{ bearer_token: string | null }>(
+          `SELECT NULLIF((pgp_sym_decrypt(credentials_encrypted, $3)::jsonb)->>'bearerToken', '') AS bearer_token
+             FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,
+          [orgId, body.serverId, ENCRYPTION_KEY],
+        ))[0];
+        if (!decrypted?.bearer_token) {
+          return NextResponse.json({ error: "Stored credentials do not contain a bearer token", code:"NOT_CONFIGURED" }, { status: 409 });
+        }
+        bearerToken = decrypted.bearer_token;
+      }
+      const probe = await probeStreamableHttpServer(server.endpoint_url, bearerToken);
+      if (probe.ok) {
+        await query(
+          `UPDATE organisation_mcp_connections SET status='connected', last_connected_at=now(),
+             last_error_code=NULL, updated_at=now() WHERE org_id=$1 AND server_id=$2`,
+          [orgId, body.serverId],
+        );
+      } else {
+        await query(
+          `UPDATE organisation_mcp_connections SET status='error', last_error_code=$3, updated_at=now()
+             WHERE org_id=$1 AND server_id=$2`,
+          [orgId, body.serverId, probe.errorCode ?? "MCP_PROBE_FAILED"],
+        );
+      }
+      return NextResponse.json({
+        ok: probe.ok,
+        connectionStatus: probe.ok ? "connected" : "error",
+        probe: {
+          ok: probe.ok,
+          durationMs: probe.durationMs,
+          serverInfo: probe.serverInfo ?? null,
+          toolCount: probe.toolCount ?? 0,
+          tools: probe.tools ?? [],
+          ...(probe.error ? { error: probe.error, errorCode: probe.errorCode } : {}),
+        },
+      }, { status: probe.ok ? 200 : 502 });
+    }
 
     if (body.action === "connect") {
       let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
