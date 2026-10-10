@@ -175,3 +175,10 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 
 - Added a 3-second bounded singleflight cache only for remote tool metadata within the same immutable execution context and credential fingerprint. Every resolve still rechecks authoritative DB authorization; side-effecting invocation bypasses this cache and rechecks current grants/schema immediately before `tools/call`.
 - This is not a cross-request or cross-tenant cache. The earlier no-cache guidance applies to shared caches without reliable invalidation. Cache concurrency remains untested.
+
+## 2026-10-11 — FIX-01 build failure: duplicate named export
+
+- **Observed:** Owner-provided Docker build at branch head `985b2a07` failed Next.js webpack compilation: `src/modules/ai-platform-core/index.ts` exported `buildClaraToolRuntime` twice. Docker therefore did not produce a new backend image; the healthy container logs afterward are from the previous image and still showed the earlier `normalizeScopes` runtime exception.
+- **Correction:** Removed the duplicate `buildClaraToolRuntime` export. Commit: `d755aea0de75509cabfe2ed4c76e7cae2468db2e`.
+- **Verification:** Source correction committed only. No post-fix build/typecheck/tests or production OAuth save was executed. Do not treat the old container as updated.
+- **Next:** Rebuild `clara-backend` from the feature branch. If another compiler error appears, fix that exact failure. Once build succeeds, recreate the backend and retry OAuth save with a fresh session and rotated Google client secret; never reuse the exposed credentials.
