@@ -414,17 +414,22 @@ async function seedDemoOrgAccess(client: PoolClient, logger: Logger) {
 async function seedPlatformIntegrations(client: PoolClient, logger: Logger) {
   const definitions = listIntegrations();
   for (const def of definitions) {
+    // Catalog rows are seeded DISABLED — the default-disabled invariant from
+    // migration 071. A platform admin configures an integration (OAuth app or
+    // platform credentials) and then explicitly enables it; the seed must
+    // never force-enable, including on re-runs against a configured database.
     await client.query(
       `INSERT INTO platform_integrations (integration_id, enabled, allowed_plans)
-       VALUES ($1, TRUE, '[\"starter\",\"pro\",\"enterprise\"]'::jsonb)
+       VALUES ($1, FALSE, '[\"starter\",\"pro\",\"enterprise\"]'::jsonb)
        ON CONFLICT (integration_id) DO UPDATE SET
-         enabled = TRUE,
          allowed_plans = EXCLUDED.allowed_plans,
          updated_at = now()`,
       [def.id],
     );
   }
-  logger.log(`[seed:prod] integration catalog ready → ${definitions.length} registered integrations`);
+  logger.log(
+    `[seed:prod] integration catalog ready → ${definitions.length} registered integrations (disabled; configure then enable via Settings → Integrations)`,
+  );
 }
 
 async function seedDemoIntegrationAccess(client: PoolClient, logger: Logger) {
