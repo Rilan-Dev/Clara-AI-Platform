@@ -1,3 +1,11 @@
+# OAUTH APP SAVE FAILURE FIX — 2026-10-11
+
+- Production evidence identified a runtime missing-export error: `normalizeScopes is not a function` in the platform integration OAuth-app PUT route.
+- Fixed source by exporting `normalizeScopes` from `src/modules/integrations/oauth-app-validation.ts` (commit `bfc5fc00de27309598b4bcfe4813f8626de9b8b0` on `feature/ai-core-from-doable-source`).
+- This is a source fix only. The deployed container must rebuild/reload the module before retest; live save is not verified.
+- The pasted diagnostic command contained a session cookie and Google OAuth client secret. Rotate/revoke them before retry. Never store those values in project-control records.
+- Detailed record: `docs/project-control/sessions/SESSION-DEV-20261011-01.md`.
+
 # MCP CONTROL-PLANE UPDATE — 2026-10-10
 
 - MCP control-plane source slice added on `feature/ai-core-from-doable-source`: migration 069; platform super-admin registry API; org-scoped encrypted connection and org/agent grant API; existing platform/org/agent integration UI panels; focused regression source.
