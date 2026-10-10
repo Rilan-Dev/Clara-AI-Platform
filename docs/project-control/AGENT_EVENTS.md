@@ -372,3 +372,15 @@ Added `src/app/api/cron/whatsapp-connection-health/route.test.ts` for CRON_SECRE
 
 ## EVT-FIX-20261010-07 — Public contact card audit
 The public contact page now uses shrink-safe layout wrappers, bounded card width and border-box form controls. Added regression coverage. Commits: `59a671286a55ff04bd34ba41003c5db015b5afa2`, `518c238d84e93f4d214e0ff802c9b317fd834e01`. Runtime tests/typecheck and screenshot-based visual verification remain pending.
+
+
+## EVT-FIX-20261011-01 — Stripe invoice.paid references missing organisation
+
+- **Symptom:** Rebuilt backend is healthy and migrations report applied, but Stripe `invoice.paid` event `evt_1UP9JaSH7giJdRbDjderTSey` repeatedly fails with SQLSTATE 23503 on `billing_events_org_id_fkey`; missing key is organisation `d8f78644-3198-41db-bcc3-278ecad0ecb4`.
+- **Root-cause trace:** `invoiceOrgId()` reads subscription/invoice metadata; webhook inserts that ID into `billing_events` without verifying it maps to an organisation in the active database. The direct failure is a Stripe-to-database tenant referential mismatch. Why the tenant is absent is not yet established.
+- **Failed approaches prohibited:** Do not disable/drop the FK, create a placeholder organisation, reset/reseed production data, or change webhook acknowledgement semantics to suppress retries without reconciling the paid event.
+- **Remedy/route:** OPS-01 to correlate the exact invoice/subscription/customer against `org_subscriptions` and `organisations` in the same DB used by the running container, verify DB/image/environment alignment, then report the authoritative tenant mapping. FIX-01 holds application changes until evidence proves an application-side lifecycle defect.
+- **Prevention lesson:** Migration success proves schema application, not tenant-row consistency. Trace metadata-to-row relationships before changing schema or billing logic.
+- **Evidence:** User-provided Docker logs; source inspection of `src/app/api/webhooks/stripe/route.ts` and `src/lib/stripe-activation.ts`.
+- **Verification:** Not resolved. No DB/Stripe API access, tests, or source patch performed.
+- **Next:** OPS-01 investigation; preserve the exact event ID and org UUID in internal logs, never expose customer secrets.
