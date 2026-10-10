@@ -384,3 +384,12 @@ The public contact page now uses shrink-safe layout wrappers, bounded card width
 - **Evidence:** User-provided Docker logs; source inspection of `src/app/api/webhooks/stripe/route.ts` and `src/lib/stripe-activation.ts`.
 - **Verification:** Not resolved. No DB/Stripe API access, tests, or source patch performed.
 - **Next:** OPS-01 investigation; preserve the exact event ID and org UUID in internal logs, never expose customer secrets.
+
+
+## EVT-FIX-20261011-02 — MCP missing credential mislabeled as 502
+
+- **Symptom:** MCP test route returned 502 with `MCP_NO_PLATFORM_CREDENTIAL` when the registered server had no stored platform bearer credential and the caller supplied no temporary `bearerToken`.
+- **Root cause:** A local configuration/input failure was assigned the same HTTP status as an upstream handshake failure; the resolver was not called in this case.
+- **Remedy:** Missing platform bearer credential now returns HTTP 400. Added a route regression asserting error code/status and no upstream probe. Commits: `426e06fde3da96ee60b155ecafcf3b6c59825105`, `9e63b8bffcacf391557ad281303294a6e5352d18`.
+- **Verification:** Regression source authored, not executed; no live MCP handshake or deployed behavior verified.
+- **Prevention:** Keep local config failures in 4xx responses and upstream endpoint/handshake failures in 502 responses. Do not include user-provided auth cookies in durable logs.
