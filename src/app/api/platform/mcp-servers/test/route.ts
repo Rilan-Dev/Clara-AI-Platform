@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
             ok: false, endpoint, durationMs: 0,
             error: "No platform bearer token is stored for this server. Add one in Edit (or test with a temporary token above) before testing.",
             errorCode: "MCP_NO_PLATFORM_CREDENTIAL",
-          } }, { status: 502 });
+          } }, { status: 400 });
         }
         const result = await probeStreamableHttpServer(endpoint, credential.bearerToken);
         return NextResponse.json({ probe: result }, { status: result.ok ? 200 : 502 });
