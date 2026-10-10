@@ -34,6 +34,7 @@ export interface McpToolDescriptor {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: z.ZodType<unknown>;
+  readonly inputSchemaJson?: Readonly<Record<string, unknown>>;
   readonly allowedSurfaces?: readonly SurfaceKind[];
 }
 
@@ -399,6 +400,7 @@ export async function buildMcpToolRuntime(
   requests: readonly McpToolResolutionRequest[],
   policy: McpToolBridgePolicy,
   resolver: McpToolResolver,
+  baseRuntime?: ToolRuntime,
 ): Promise<ToolRuntime | null> {
   assertExecutionContext(context);
   let boundPolicy: McpToolBridgePolicy;
@@ -416,7 +418,7 @@ export async function buildMcpToolRuntime(
   // RAG/integration capabilities, which would widen the MCP capability set.
   // Reuse the same Clara authorization/metering bindings without importing any
   // unrelated tool definitions.
-  const runtime = createToolRuntime({
+  const runtime = baseRuntime ?? createToolRuntime({
     authorizationAdapter: buildClaraToolAuthorizationAdapter(),
     meteringHook: buildClaraToolMeteringHook(),
   });
