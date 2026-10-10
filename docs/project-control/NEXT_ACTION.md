@@ -1823,3 +1823,28 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 - **Next implementation:** wire provider chat and realtime voice tool calls to this same authorized runtime/context while preserving existing Clara/Qdrant RAG, provider capability differences, cancellation, and metering; then add focused regressions. Also continue secure platform OAuth client configuration/callback work.
 - Inspect Doable and reusable-library references for multi-provider capability/tool-loop patterns when useful, but keep Clara authorization and Unified Tool Runtime authoritative.
 - Do not claim all providers support tool calling unless their adapter explicitly implements it. Never expose credentials to model-visible tool definitions.
+
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-10 — FIX-01 OAUTH CONFIGURATION CLARITY
+
+[owner-authorized] Continue bounded integration/OAuth configuration work without waiting for DEV-01, CI, Vercel, or external gates.
+
+## Completed source correction
+- Replaced the generic OAuth callback placeholder with a deployment-derived, read-only canonical callback URI: `/api/integrations/oauth/callback`.
+- Replaced stale setup warning copy with actionable provider-console steps and clear save-vs-connect semantics.
+- Server-side redirect validation now enforces the same callback path and rejects query strings/placeholders.
+- Focused regression source updated for canonical callback validation.
+
+Commits: `8c64ed818fdfb1185472ec62f74d3f9e1d79ae25`, `c12071271a9c79870b93093ce78375ddab96b4bd`, `3bb395bef2069d39dd4cf80b9261b73400a99c52`.
+
+## Verification
+Source only. Tests/typecheck/build/browser/live OAuth/deployment were not run. Do not infer a PASS.
+
+## Next bounded work
+1. Continue actual Doable source comparison for platform OAuth app setup and credential resolution, not docs alone.
+2. Add registry-backed provider console setup links and scope/API enablement guidance only where grounded in provider metadata.
+3. Consider a platform-admin OAuth test flow only if it can safely use a dedicated test identity/organisation and existing OAuth start/callback runtime; do not create a second OAuth executor.
+4. Preserve encrypted client secrets/tokens, one-time state, exact callback validation, org/agent/plan authorization and the Unified Tool Runtime.
+5. Route migration, deployment, proxy-origin and runtime-environment defects to OPS-01. Do not wait for CI/Vercel/Gates.
