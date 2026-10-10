@@ -1,3 +1,22 @@
+# CURRENT NEXT ACTION UPDATE — MCP CONTROL PLANE SLICE IMPLEMENTED — 2026-10-10
+
+DEV-01 / Forge has implemented the first source-level MCP registry and configuration/grant slice. This supersedes the earlier wording that the registry/UI was only planned; the runtime transport and chat/realtime registration remain pending.
+
+## Implemented in source
+- Migration `069_mcp_server_control_plane.sql`: platform server registry, approved tool allowlist/surfaces, encrypted org-owned credentials, org tool grants, agent tool grants, indexes, RLS and Data API revocations.
+- `/api/platform/mcp-servers`: super-admin-only list/create/update and exact tool approval; HTTPS DNS-host endpoint validation, supported transport/auth validation, server disabled by default.
+- `/api/orgs/[orgId]/mcp-servers`: org-authorized listing/configuration, encrypted write-only bearer token, plan entitlement checks, explicit org/agent grants, cross-org agent ownership check, revoke/disconnect flow.
+- Existing platform Integrations screen now contains MCP Servers management; existing organisation Integrations screen now contains organisation MCP configuration; existing Agent Integrations screen now contains per-agent MCP tool grants.
+- Source regression tests added for endpoint safety validation, org scope, cross-org agent grant denial and credential redaction.
+- Saved credentials are explicitly marked `configured`, not `connected`; no successful live MCP handshake is claimed.
+
+## Exact next action
+1. Implement the supported Streamable HTTP MCP client/resolver behind the existing `McpToolResolver` interface, with DNS resolution validation on every connection, private/link-local/metadata IP blocking, TLS verification, no redirects by default, timeout/cancellation and response-size limits.
+2. Add safe tool discovery, schema conversion/validation, redacted operational errors, tenant-scoped cache invalidation and exact server/tool policy snapshots.
+3. Register MCP tools in the real Chat runtime and realtime voice tool advertisement/dispatch through the existing Unified Tool Runtime. Recheck platform enabled, plan, org connection/grant, agent grant, caller/user, session and surface at invocation; default-deny embed and platform-admin sessions.
+4. Add runtime parity/revocation/stale-discovery/timeout tests and focused execution tests. Do not claim tests passed unless run and observed.
+5. Continue without polling CI/Vercel. Route substantial correctness/security defects to FIX-01 and deployment/infrastructure-only work to OPS-01.
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-10 — MCP CONFIGURATION, TENANT ISOLATION, CHAT + REALTIME VOICE
 
 [owner-authorized] DEV-01 / Forge is authorized to continue MCP product development from the current branch state. Source audit/roadmap: `docs/superpowers/plans/2026-10-10-mcp-configuration-ui-chat-voice-roadmap.md`.
