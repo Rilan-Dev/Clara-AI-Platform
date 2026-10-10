@@ -1,3 +1,12 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-11 — MCP STREAMABLE HTTP + CHAT/REALTIME RUNTIME SOURCE
+
+- Owner-authorized DEV-01 continuation: implement secure MCP transport behind `McpToolResolver` and expose approved tools through the existing Unified Tool Runtime.
+- Source now includes HTTPS/DNS IP pinning/TLS/no-redirect/timeouts/cancellation/size bounds; JSON-RPC initialization and paginated discovery; bounded schema conversion; execution-time caller/tenant/plan/grant checks; request-scoped Chat composition; and OpenAI realtime advertisement/dispatch.
+- **Verification pending:** no tests, type-check, build, migration, controlled live handshake, Chat/realtime E2E, CI, Vercel or deployment run. Keep platform servers disabled and `ENABLE_MCP=false`.
+- Follow `docs/project-control/NEXT_ACTION.md` and `docs/project-control/sessions/SESSION-DEV-20261011-01.md` for the next authorized work.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-09 — WHATSAPP CONNECTION + BRIEFING SOURCE IMPLEMENTED
 
 - Owner-authorized DEV-01 scope: server-side Meta WhatsApp lifecycle and readiness-gated daily briefing source.
