@@ -14,7 +14,7 @@ export default function PlatformIntegrationsScreen(){
  async function toggle(i:Integration){setBusy(i.id);setError(null);setNotice(null);try{const r=await fetch("/api/platform/integrations",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({integrationId:i.id,enabled:!i.platformEnabled})});const d=await r.json();if(!r.ok)throw new Error(d.error??"Could not update integration");await load();setNotice(`${i.displayName} ${!i.platformEnabled?"enabled":"disabled"}.`)}catch(e){setError(e instanceof Error?e.message:"Could not update integration")}finally{setBusy(null)}}
  async function openOAuth(i:Integration){
   setBusy(i.id);setError(null);setNotice(null);
-  try{const r=await fetch(`/api/platform/integrations/${encodeURIComponent(i.id)}/oauth-app`,{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error??"Could not load OAuth configuration");setSelected(i);setOauth(d);setClientId(d.clientId??"");setClientSecret("");setRedirectUri(d.redirectUri||`${window.location.origin}/api/integrations/oauth/callback`);setScopes((d.scopes??i.oauth2Config?.scopes??[]).join("\n"))}
+  try{const r=await fetch(`/api/platform/integrations/${encodeURIComponent(i.id)}/oauth-app`,{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error??"Could not load OAuth configuration");setSelected(i);setOauth(d);setClientId(d.clientId??"");setClientSecret("");setRedirectUri(`${window.location.origin}/api/integrations/oauth/callback`);setScopes((d.scopes??i.oauth2Config?.scopes??[]).join("\n"))}
   catch(e){setError(e instanceof Error?e.message:"Could not load OAuth configuration")}finally{setBusy(null)}
  }
  async function saveOAuth(){
