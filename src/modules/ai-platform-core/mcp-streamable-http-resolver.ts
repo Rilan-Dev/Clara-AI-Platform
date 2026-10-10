@@ -169,13 +169,25 @@ async function listRemoteTools(url: URL, token: string | null, signal?: AbortSig
   const sessionId = typeof initResponse.headers["mcp-session-id"] === "string" ? initResponse.headers["mcp-session-id"] as string : undefined;
   const notify = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", method:"notifications/initialized" }), { ...auth, ...(sessionId ? { "mcp-session-id":sessionId } : {}) }, signal);
   if (notify.status >= 300 && notify.status < 400) throw new Error("MCP redirects are not allowed.");
-  const listed = await postRpc(url, "tools/list", {}, sessionId, signal, auth);
-  const tools = listed.result.tools;
-  if (!Array.isArray(tools) || tools.length > MAX_TOOLS || tools.some((tool) => !tool || typeof tool !== "object" || Array.isArray(tool))) {
-    throw new Error("MCP server returned an invalid tools list.");
-  }
-  const effectiveSessionId = listed.sessionId ?? sessionId;
-  return { tools: tools as JsonObject[], ...(effectiveSessionId ? { sessionId: effectiveSessionId } : {}), auth };
+  const tools: JsonObject[] = [];
+  let cursor: string | undefined;
+  let effectiveSessionId = sessionId;
+  do {
+    const listed = await postRpc(url, "tools/list", cursor ? { cursor } : {}, effectiveSessionId, signal, auth);
+    effectiveSessionId = listed.sessionId ?? effectiveSessionId;
+    const page = listed.result.tools;
+    if (!Array.isArray(page) || page.some((tool) => !tool || typeof tool !== "object" || Array.isArray(tool)) || tools.length + page.length > MAX_TOOLS) {
+      throw new Error("MCP server returned an invalid tools list.");
+    }
+    tools.push(...page as JsonObject[]);
+    const nextCursor = listed.result.nextCursor;
+    if (nextCursor !== undefined && (typeof nextCursor !== "string" || !nextCursor || nextCursor.length > 1024)) {
+      throw new Error("MCP server returned an invalid tool cursor.");
+    }
+    cursor = typeof nextCursor === "string" ? nextCursor : undefined;
+  } while (cursor);
+  if (new Set(tools.map((tool) => tool.name)).size !== tools.length) throw new Error("MCP server returned duplicate tool names.");
+  return { tools, ...(effectiveSessionId ? { sessionId: effectiveSessionId } : {}), auth };
 }
 
 function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
@@ -315,8 +327,13 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
       const endpoint = validateMcpEndpoint(access.endpoint_url);
       const remote = await listRemoteTools(endpoint, access.bearer_token, contextSignal(context));
       const surfaces = Array.isArray(access.allowed_surfaces) ? access.allowed_surfaces.filter((surface): surface is SurfaceKind => SURFACES.includes(surface as SurfaceKind)) : [];
-      if (!surfaces.includes(context.surface) || !remote.tools.some((tool) => tool.name === descriptor.name)) throw new Error("MCP tool grant or discovery is stale.");
-      const parsed = descriptor.inputSchema.safeParse(input);
+      const currentTool = remote.tools.find((tool) => tool.name === descriptor.name);
+      if (!surfaces.includes(context.surface) || !currentTool) throw new Error("MCP tool grant or discovery is stale.");
+      const currentDescriptor = readTool(currentTool, access.id, surfaces);
+      if (!currentDescriptor || JSON.stringify(currentDescriptor.inputSchemaJson) !== JSON.stringify(descriptor.inputSchemaJson)) {
+        throw new Error("MCP tool schema changed after discovery.");
+      }
+      const parsed = currentDescriptor.inputSchema.safeParse(input);
       if (!parsed.success) throw new Error("MCP tool arguments did not match the approved schema.");
       const sessionId = remote.sessionId;
       const id = jsonRpcId();
