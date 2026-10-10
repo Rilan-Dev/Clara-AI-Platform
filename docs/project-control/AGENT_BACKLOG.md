@@ -67,3 +67,12 @@ If a task belongs to another agent, create or update a backlog entry and continu
 - **Authorization:** Explicit owner continuation request; current `NEXT_ACTION.md`.
 - **Suggested next action:** Implement host-owned `McpToolResolver` with connection-time DNS/IP validation, TLS/no-redirect/timeout/response-size controls, discovery/schema validation and tenant-scoped cache; then register tools into chat and realtime voice with invocation-time authorization.
 - **Related session/event/handoff:** SESSION-DEV-20261010-02; no handoff yet.
+
+### BACKLOG-DEV-20261011-01 — 2026-10-11
+- **Work:** Verify and harden the MCP Streamable HTTP resolver and Chat/realtime Unified Tool Runtime paths with mocked transport, permission-revocation, stale-schema and parity tests; then execute focused tests/typecheck and a controlled live handshake.
+- **Owner:** DEV-01
+- **State:** ACTIVE
+- **Dependency:** Local execution/test environment and an isolated controlled MCP server for end-to-end handshake. Do not wait for CI/Vercel.
+- **Authorization:** Explicit owner-authorized next action recorded in `docs/project-control/NEXT_ACTION.md`.
+- **Suggested next action:** Add deterministic injection points for DNS/HTTPS transport so DNS rebinding, redirects, timeout/cancellation, size limits and HTTP protocol handling can be tested without public network access; run focused resolver/bridge/Chat/realtime tests and `npm run type-check` when the repository runtime is available.
+- **Related session/event/handoff:** SESSION-DEV-20261011-01; no handoff.
