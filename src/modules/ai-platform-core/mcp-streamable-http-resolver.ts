@@ -241,7 +241,8 @@ function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
     if (typeof schema.minLength === "number" && typeof schema.maxLength === "number" && schema.minLength > schema.maxLength) throw new Error("Invalid MCP string bounds.");
     if (typeof schema.minLength === "number") value = (value as z.ZodString).min(Math.max(0, Math.min(4096, schema.minLength)));
     if (typeof schema.maxLength === "number") value = (value as z.ZodString).max(Math.max(0, Math.min(4096, schema.maxLength)));
-    if (Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.length <= 100 && schema.enum.every((v) => typeof v === "string")) {
+    if (schema.enum !== undefined) {
+      if (!Array.isArray(schema.enum) || schema.enum.length === 0 || schema.enum.length > 100 || !schema.enum.every((v) => typeof v === "string")) throw new Error("Unsupported MCP string enum.");
       value = z.enum(schema.enum as [string,...string[]]);
     }
     return value;
@@ -249,6 +250,10 @@ function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
   if (schema.type === "number" || schema.type === "integer") {
     assertSchemaKeys(schema, ["$schema", "$comment", "type", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "description", "title", "default"]);
     let value = schema.type === "integer" ? z.number().int() : z.number().finite();
+    for (const key of ["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"] as const) {
+      if (schema[key] !== undefined && (typeof schema[key] !== "number" || !Number.isFinite(schema[key]))) throw new Error("Invalid MCP numeric bound.");
+    }
+    if (typeof schema.minimum === "number" && typeof schema.maximum === "number" && schema.minimum > schema.maximum) throw new Error("Invalid MCP numeric bounds.");
     if (typeof schema.minimum === "number") value = value.min(schema.minimum);
     if (typeof schema.maximum === "number") value = value.max(schema.maximum);
     if (typeof schema.exclusiveMinimum === "number") value = value.gt(schema.exclusiveMinimum);
@@ -270,6 +275,8 @@ function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
   if (schema.type === "object" || schema.type === undefined) {
     assertSchemaKeys(schema, ["$schema", "$comment", "type", "properties", "required", "additionalProperties", "description", "title"]);
     if (schema.additionalProperties !== undefined && schema.additionalProperties !== false) throw new Error("MCP additionalProperties must be false or omitted.");
+    if (schema.properties !== undefined && (!schema.properties || typeof schema.properties !== "object" || Array.isArray(schema.properties))) throw new Error("Invalid MCP object properties.");
+    if (schema.required !== undefined && (!Array.isArray(schema.required) || schema.required.some((v) => typeof v !== "string"))) throw new Error("Invalid MCP required list.");
     const properties = schema.properties && typeof schema.properties === "object" && !Array.isArray(schema.properties) ? schema.properties as JsonObject : {};
     const keys = Object.keys(properties);
     if (keys.length > 64 || keys.some((key) => !/^[a-zA-Z0-9_.:-]{1,128}$/.test(key))) throw new Error("Unsupported MCP object schema.");
@@ -296,7 +303,10 @@ function normalizeProviderSchema(raw: unknown, depth = 0): JsonObject {
     if (typeof schema.minLength === "number" && typeof schema.maxLength === "number" && schema.minLength > schema.maxLength) throw new Error("Invalid MCP string bounds.");
     if (typeof schema.minLength === "number") output.minLength = schema.minLength;
     if (typeof schema.maxLength === "number") output.maxLength = schema.maxLength;
-    if (Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.length <= 100 && schema.enum.every((v) => typeof v === "string")) output.enum = [...schema.enum];
+    if (schema.enum !== undefined) {
+      if (!Array.isArray(schema.enum) || schema.enum.length === 0 || schema.enum.length > 100 || !schema.enum.every((v) => typeof v === "string")) throw new Error("Unsupported MCP string enum.");
+      output.enum = [...schema.enum];
+    }
     return output;
   }
   if (schema.type === "number" || schema.type === "integer") {
