@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: Params) {
                LEFT JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1
                LEFT JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
                LEFT JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name
-               LEFT JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$3::uuid
+               LEFT JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid
               WHERE s.platform_enabled=true
               GROUP BY s.id,c.status,c.last_connected_at,c.last_error_code
               ORDER BY s.display_name`, [orgId, agentId]),
