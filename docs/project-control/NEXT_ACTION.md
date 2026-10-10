@@ -14,6 +14,7 @@ DEV-01 has now added the first Streamable HTTP resolver behind `McpToolResolver`
 - Chat advertises eligible MCP tools and uses a fresh request-scoped Clara runtime with MCP capabilities.
 - OpenAI realtime advertises eligible MCP tools and the authenticated realtime tool route dispatches the exact granted pair through a Unified Tool Runtime.
 - Focused endpoint/IP safety test source added.
+- Migration 070 distinguishes saved credentials (`configured`) from a successful discovery handshake (`connected`); the UI shows the last handshake and permits bearer credential rotation. This migration is source-authored but not applied or tested.
 
 ## Verification boundary
 No Vitest, type-check, lint, build, migration, DNS-rebinding integration test, live MCP handshake, Chat E2E, realtime E2E, CI, Vercel, or deployment was run. No PASS is claimed. Keep platform servers disabled and `ENABLE_MCP=false` until source is executable-tested and a controlled live handshake succeeds.
