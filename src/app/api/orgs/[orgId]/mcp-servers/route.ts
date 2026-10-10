@@ -14,6 +14,12 @@ export async function GET(req: NextRequest, { params }: Params) {
     const { orgId } = await params;
     const auth = await requireAuth(req);
     await requireOrgPermission(auth, orgId, "config:read");
+    const agentId = req.nextUrl.searchParams.get("agentId");
+    if (agentId) {
+      if (!/^[0-9a-f-]{36}$/i.test(agentId)) return NextResponse.json({ error: "Invalid agentId" }, { status: 400 });
+      const agent = await requireAgentPermission(auth, agentId, "project:read");
+      if (agent.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to this organisation" }, { status: 403 });
+    }
     const [servers, limits] = await Promise.all([
       query(`SELECT s.id, s.server_key AS "serverKey", s.display_name AS "displayName",
                     s.description, s.transport_type AS "transportType", s.endpoint_url AS "endpointUrl",
@@ -21,15 +27,17 @@ export async function GET(req: NextRequest, { params }: Params) {
                     c.status AS "connectionStatus", c.last_connected_at AS "lastConnectedAt",
                     c.last_error_code AS "lastErrorCode",
                     COALESCE(jsonb_agg(jsonb_build_object('name', t.tool_name, 'approved', t.approved,
-                      'allowedSurfaces', t.allowed_surfaces, 'organisationEnabled', COALESCE(g.enabled,false)))
+                      'allowedSurfaces', t.allowed_surfaces, 'organisationEnabled', COALESCE(g.enabled,false),
+                      'agentEnabled', COALESCE(ag.enabled,false)))
                       FILTER (WHERE t.tool_name IS NOT NULL), '[]'::jsonb) AS tools
                FROM platform_mcp_servers s
                LEFT JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1
                LEFT JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
                LEFT JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name
+               LEFT JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$3::uuid
               WHERE s.platform_enabled=true
               GROUP BY s.id,c.status,c.last_connected_at,c.last_error_code
-              ORDER BY s.display_name`, [orgId]),
+              ORDER BY s.display_name`, [orgId, agentId]),
       resolveOrgPlanLimits(orgId),
     ]);
     const planId = limits.plan_id;
