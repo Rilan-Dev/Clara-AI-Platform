@@ -169,3 +169,9 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - Added `070_mcp_connection_handshake_status.sql` to distinguish encrypted-but-unverified configuration from a successful MCP discovery handshake.
 - Resolver now records `connected` and `last_connected_at` only after valid approved-tool discovery. Runtime queries and organisation/agent UI accept both `configured` and `connected`; organisation UI shows the last handshake and permits bearer credential rotation.
 - Migration application and all executable verification remain pending; keep MCP servers disabled.
+
+
+#### SESSION-DEV-20261011-01 cache clarification — 2026-10-11
+
+- Added a 3-second bounded singleflight cache only for remote tool metadata within the same immutable execution context and credential fingerprint. Every resolve still rechecks authoritative DB authorization; side-effecting invocation bypasses this cache and rechecks current grants/schema immediately before `tools/call`.
+- This is not a cross-request or cross-tenant cache. The earlier no-cache guidance applies to shared caches without reliable invalidation. Cache concurrency remains untested.
