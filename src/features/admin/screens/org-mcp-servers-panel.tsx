@@ -9,7 +9,8 @@ import {
 type McpTool = { name: string; approved: boolean; allowedSurfaces: string[]; organisationEnabled: boolean; agentEnabled: boolean };
 type McpServer = {
   id: string; serverKey: string; displayName: string; description: string;
-  endpointUrl: string; authMode: "none" | "bearer"; platformEnabled: boolean;
+  endpointUrl: string; authMode: "none" | "bearer" | "oauth"; platformEnabled: boolean;
+  hasPlatformCredential: boolean; oauthStatus: string;
   planAllowed: boolean; allowedPlans: string[]; connectionStatus: string | null;
   lastConnectedAt: string | null; lastErrorCode: string | null; tools: McpTool[];
 };
@@ -27,6 +28,12 @@ function connectionMeta(s: McpServer) {
     case "error": return { label: `Error: ${s.lastErrorCode ?? "unknown"}`, dot: "bg-red-500", chip: "border-red-500/25 bg-red-500/10 text-red-600", icon: AlertCircle };
     default: return { label: "Not connected", dot: "bg-muted-foreground/40", chip: "border-border bg-muted text-muted-foreground", icon: CircleSlash };
   }
+}
+
+function authChip(s: McpServer) {
+  if (s.authMode === "oauth") return <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Platform OAuth</span>;
+  if (s.authMode === "bearer") return <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{s.hasPlatformCredential ? "Platform key" : "Own token"}</span>;
+  return <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">No auth</span>;
 }
 
 export default function OrgMcpServersPanel() {
@@ -95,19 +102,22 @@ export default function OrgMcpServersPanel() {
 
   const saveConnection = async () => {
     if (!connectTarget) return;
-    if (connectTarget.authMode === "bearer" && token.trim().length < 8) { setDialogError("Enter the API key / bearer token for this MCP server."); return; }
+    const needsOwnToken = connectTarget.authMode === "bearer" && !connectTarget.hasPlatformCredential;
+    if (needsOwnToken && token.trim().length < 8) { setDialogError("Enter the API key / bearer token for this MCP server."); return; }
     setBusy(connectTarget.id); setDialogError(null);
     try {
       const r = await fetch(`/api/orgs/${id}/mcp-servers`, {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ serverId: connectTarget.id, action: "connect", ...(connectTarget.authMode === "bearer" ? { credentials: { bearerToken: token.trim() } } : {}) }),
+        body: JSON.stringify({ serverId: connectTarget.id, action: "connect", ...(connectTarget.authMode === "bearer" && token.trim() ? { credentials: { bearerToken: token.trim() } } : {}) }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Could not save the connection");
       const target = connectTarget;
       setConnectTarget(null); setToken("");
       await load();
-      setNotice(`${target.displayName} credentials saved encrypted. Run a connection test to verify the handshake.`);
+      setNotice(target.authMode === "oauth"
+        ? `${target.displayName} connected — it uses the platform's OAuth sign-in. Run a connection test to verify the handshake.`
+        : `${target.displayName} credentials saved encrypted. Run a connection test to verify the handshake.`);
     } catch (e) {
       setDialogError(e instanceof Error ? e.message : "Could not save the connection");
     } finally { setBusy(null); }
@@ -153,6 +163,7 @@ export default function OrgMcpServersPanel() {
                 <h3 className="truncate font-semibold" title={s.displayName}>{s.displayName}</h3>
                 <span className={`h-2 w-2 shrink-0 rounded-full ${meta.dot}`} title={meta.label}/>
                 <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${meta.chip}`}><meta.icon className="h-2.5 w-2.5"/>{meta.label}</span>
+                {authChip(s)}
                 {approvedTools.length > 0 && <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-medium text-sky-700"><Wrench className="h-2.5 w-2.5"/>{approvedTools.filter(t => t.organisationEnabled).length}/{approvedTools.length} granted</span>}
               </div>
               <p className="mt-0.5 truncate text-xs text-muted-foreground [overflow-wrap:anywhere]">{s.endpointUrl}</p>
@@ -211,14 +222,23 @@ export default function OrgMcpServersPanel() {
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <div className="shrink-0 rounded-xl bg-primary/10 p-2"><KeyRound className="h-5 w-5 text-primary"/></div>
-          <div className="min-w-0"><h2 id="mcp-connect-title" className="text-lg font-semibold">Connect {connectTarget.displayName}</h2><p className="mt-1 text-sm text-muted-foreground">{connectTarget.authMode === "bearer" ? "Save the credentials this organisation will use for MCP calls. They are encrypted server-side and never shown again." : "This server needs no credentials — confirm the connection to continue."}</p></div>
+          <div className="min-w-0"><h2 id="mcp-connect-title" className="text-lg font-semibold">Connect {connectTarget.displayName}</h2><p className="mt-1 text-sm text-muted-foreground">
+            {connectTarget.authMode === "oauth"
+              ? "This server is authorized through the platform's OAuth sign-in — no credentials are needed here."
+              : connectTarget.authMode === "bearer" && connectTarget.hasPlatformCredential
+                ? "You can use the platform's stored key, or supply this organisation's own token. Either way it is encrypted server-side."
+                : connectTarget.authMode === "bearer"
+                  ? "Save the credentials this organisation will use for MCP calls. They are encrypted server-side and never shown again."
+                  : "This server needs no credentials — confirm the connection to continue."}
+          </p></div>
         </div>
         <button onClick={() => { setConnectTarget(null); setToken(""); setDialogError(null); }} aria-label="Close" className="rounded-lg p-2 hover:bg-muted"><X className="h-4 w-4"/></button>
       </div>
       {dialogError && <div role="alert" className="mt-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-600"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0"/>{dialogError}</div>}
+      {connectTarget.authMode === "oauth" && connectTarget.oauthStatus !== "connected" && <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0"/>The platform administrator has not completed the OAuth sign-in for this server yet — the connection cannot be used until they do.</div>}
       {connectTarget.authMode === "bearer" && <label className="mt-4 block space-y-1.5">
-        <span className="text-sm font-medium">API key / bearer token *</span>
-        <input type="password" value={token} onChange={e => setToken(e.target.value)} autoComplete="new-password" placeholder="n8n API key (n8n Settings → n8n API)" className="w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"/>
+        <span className="text-sm font-medium">API key / bearer token{connectTarget.hasPlatformCredential ? " (optional)" : " *"}</span>
+        <input type="password" value={token} onChange={e => setToken(e.target.value)} autoComplete="new-password" placeholder={connectTarget.hasPlatformCredential ? "Leave blank to use the platform's stored key" : "API key or token issued by this MCP server"} className="w-full min-w-0 rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30"/>
         <span className="text-xs text-muted-foreground">Create the key in the MCP server's own settings. Saving only stores the encrypted value — run Test connection afterwards to verify the handshake.</span>
       </label>}
       <div className="mt-6 flex min-w-0 flex-wrap items-center justify-end gap-2">
