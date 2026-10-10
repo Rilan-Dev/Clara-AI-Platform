@@ -1838,3 +1838,11 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - **Source evidence only:** GitHub file commits and source rereads. Tests were authored but not executed. No migration application, typecheck, build, Docker, CI/Vercel, runtime connection or production deployment was verified.
 - **Not claimed:** live MCP handshake, tool discovery, Chat MCP invocation, realtime voice MCP invocation, or end-to-end authorization at runtime.
 - **Still pending:** secure Streamable HTTP resolver with DNS rebinding/private-address protection at connection time; discovery/schema conversion; invocation-time platform/plan/org/agent/user/surface rechecks; Chat and realtime voice registration; runtime tests and executed focused verification.
+
+## 2026-10-11 — Latest owner-provided Docker build failure
+
+- Build at source head `985b2a07` failed on duplicate export `buildClaraToolRuntime` in `src/modules/ai-platform-core/index.ts`.
+- Source fix committed as `d755aea0de75509cabfe2ed4c76e7cae2468db2e` by removing the duplicate export.
+- Build must be rerun against the fixed branch. The old `clara-backend` container remained running after the failed build and is not evidence of the fixed source being deployed.
+- Gmail OAuth save remains unverified. The earlier `normalizeScopes is not a function` trace is from that old image; the prior source export fix is present in the branch, but cannot take effect until a successful rebuild/recreate and fresh retest.
+- No tests, typecheck, post-fix build, deployment, or runtime PASS is claimed.
