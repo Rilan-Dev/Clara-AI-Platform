@@ -57,3 +57,13 @@ If a task belongs to another agent, create or update a backlog entry and continu
 - **Suggested next action:** Derive standalone runtime copying from the actual npm-resolved dependency closure or use a reproducible packaging method; preserve lockfile resolution and ElevenLabs/ioredis behavior.
 - **Related session/event/handoff:** EVT-OPS-004; HANDOFF-OPS-20261009-02.
 
+
+
+### BACKLOG-DEV-20261010-MCP-RUNTIME — 2026-10-10
+- **Work:** Implement secure Streamable HTTP MCP resolver and wire authorized MCP tools into actual Chat and realtime voice execution through the Unified Tool Runtime.
+- **Owner:** DEV-01
+- **State:** ACTIVE
+- **Dependency:** MCP control-plane source slice committed in SESSION-DEV-20261010-02; runtime entry-point tracing and DNS/IP SSRF-safe transport remain.
+- **Authorization:** Explicit owner continuation request; current `NEXT_ACTION.md`.
+- **Suggested next action:** Implement host-owned `McpToolResolver` with connection-time DNS/IP validation, TLS/no-redirect/timeout/response-size controls, discovery/schema validation and tenant-scoped cache; then register tools into chat and realtime voice with invocation-time authorization.
+- **Related session/event/handoff:** SESSION-DEV-20261010-02; no handoff yet.
