@@ -1810,3 +1810,13 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - **Next:** Execute the focused test command in a checked-out workspace, then coordinate provider-backed verification and deployed callback/migration/runtime checks with OPS-01. I-096 remains OPEN.
 
 - Additional scope UI commit: `427383ea8f0f4c13b1c38991da5e24b9ed28a1dd`; empty default scopes are now explicitly called out for provider-console confirmation. Source-only; no tests or live OAuth verified.
+
+
+## 2026-10-10 — MCP control-plane source slice
+
+- Added migration 069 for platform MCP registry/tool approvals, organisation-owned encrypted credentials, organisation tool grants, and agent tool grants; enabled RLS and revoked Data API access where roles exist.
+- Added super-admin platform MCP registry API, organisation-scoped connection/grant API with plan and cross-organisation agent checks, and MCP management panels embedded in the existing platform/org/agent integration screens.
+- Added regression source for HTTPS endpoint/private-IP validation, org scoping, cross-org agent denial, and bearer-token redaction.
+- **Source evidence only:** GitHub file commits and source rereads. Tests were authored but not executed. No migration application, typecheck, build, Docker, CI/Vercel, runtime connection or production deployment was verified.
+- **Not claimed:** live MCP handshake, tool discovery, Chat MCP invocation, realtime voice MCP invocation, or end-to-end authorization at runtime.
+- **Still pending:** secure Streamable HTTP resolver with DNS rebinding/private-address protection at connection time; discovery/schema conversion; invocation-time platform/plan/org/agent/user/surface rechecks; Chat and realtime voice registration; runtime tests and executed focused verification.
