@@ -770,3 +770,10 @@ Disposition:
 - **Failed approaches / prevention:** Do not use generic host/path placeholders or claim the OAuth lifecycle is unimplemented when the routes exist. Callback generation must stay aligned with the server route and server validation must independently enforce the same contract.
 - **Evidence class:** Source inspection + committed source/regression changes. No tests, typecheck, build, browser, live OAuth consent/token exchange, deployment, or runtime verification was run. No PASS inferred.
 - **Next action:** Continue bounded OAuth configuration UX against actual Doable source when the repo source path can be inspected; consider registry-backed provider-console links and source-derived scopes. Route schema/deployment failures to OPS-01; do not wait for DEV-01/CI/Vercel.
+
+
+### FIX-01 Doable source-library comparison — 2026-10-10
+- Follow-up source inspection succeeded in `Rilan-Dev/Doable`: `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`.
+- Doable derives its public API origin separately from its internal API URL, documents the exact OAuth callback and Google console setup, supports `INTEGRATIONS_OAUTH_REDIRECT_URI` for reverse proxies/tunnels, resolves credentials in DB → per-integration env → shared Google/GitHub env order, strips secrets from admin responses, and distinguishes global/workspace/env-configured app sources.
+- Clara adaptation in this bounded fix: use the browser-visible deployment origin for the callback shown in platform UI, keep the shared Clara callback route, validate the same route server-side, and clearly separate saving credentials from end-user consent. No Doable implementation was copied byte-for-byte because its route and database architecture differ.
+- Remaining gap vs Doable: Clara's admin screen still does not surface credential source badges/env fallback or a platform-admin Connect Test; these are follow-up scope items, not claimed implemented.
