@@ -1925,3 +1925,24 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | Source commits only. No browser screenshot, viewport sweep, UI test, typecheck, or build run; visual outcome remains unverified. |
 | Prevention | Prefer shared primitive corrections over scattered per-page patches. On normal UI verification, check desktop and narrow viewports, long labels/descriptions/URLs, and dialogs with content taller than the viewport. |
 | Next action | Continue the authorized roadmap; visually inspect representative existing dialogs/cards on the next ordinary UI verification pass. |
+
+
+## I-096 — OAuth callback placeholder and provider setup ambiguity
+
+| Field | Value |
+|---|---|
+| Issue ID | I-096 |
+| Title | Platform OAuth setup displays a non-actionable callback placeholder |
+| Phase | Integrations / OAuth connection lifecycle |
+| Severity | P1 |
+| Status | OPEN — source correction committed; verification pending |
+| Owner | FIX-01 / Sentinel |
+| Symptom | Platform Admin → Integrations → OAuth setup displayed `https://your-domain/api/.../callback`, leaving administrators unsure which URI to register with the provider. |
+| Root cause | The OAuth settings screen used a generic editable placeholder instead of deriving the callback from the current Clara origin and the existing shared server callback route. The setup copy also incorrectly implied that the interactive OAuth lifecycle had not yet been implemented, despite start/callback source being present. |
+| Correction | UI now pre-populates and displays the deployment-derived `/api/integrations/oauth/callback` as read-only, provides provider-console setup steps, and distinguishes saving OAuth app settings from connecting an account. Server-side validation requires the canonical callback path and rejects query strings and placeholder URLs. |
+| Regression protection | Updated `src/modules/integrations/oauth-app-validation.test.ts` for the canonical route, placeholder rejection, query rejection, and local-development HTTPS exception. |
+| Evidence | Commits: `8c64ed818fdfb1185472ec62f74d3f9e1d79ae25`, `c12071271a9c79870b93093ce78375ddab96b4bd`, `3bb395bef2069d39dd4cf80b9261b73400a99c52`. Source review only. |
+| Failed approaches | A generic `your-domain/api/.../callback` example is not a usable provider registration URI. Treating saved client credentials as proof of a live connection is also incorrect. |
+| Prevention lesson | Keep the callback path owned by the server OAuth route contract; derive only the deployment origin in the UI; validate it again on the server; show explicit provider setup steps and honest readiness state. |
+| Verification | Tests authored but not run. No typecheck/build, browser test, live provider consent, token exchange, deployment, or runtime PASS claimed. |
+| Next action | Inspect Doable's actual source-library implementation path if available; add provider-specific setup links and source-derived scope guidance where the registry has enough metadata; perform focused tests when normal verification is next run. Route live deployment/schema problems to OPS-01. |
