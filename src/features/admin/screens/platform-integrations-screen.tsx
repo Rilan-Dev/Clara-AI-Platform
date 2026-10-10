@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Search, ShieldCheck, ShieldOff, KeyRound, Copy, X, Settings2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, ShieldCheck, ShieldOff, KeyRound, Copy, X, Settings2, CheckCircle2, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { getOAuthSetupGuide } from "@/modules/integrations/oauth-setup-guides";
 
 type OAuthApp = { integrationId:string; configured:boolean; credentialSource?:"database"|"unconfigured"; secretConfigured?:boolean; clientId:string; redirectUri:string; scopes:string[] };
@@ -18,13 +18,14 @@ const STATUS_TABS: Array<{id:StatusFilter;label:string}> = [
 
 export default function PlatformIntegrationsScreen(){
  const [items,setItems]=useState<Integration[]>([]); const [q,setQ]=useState(""); const [busy,setBusy]=useState<string|null>(null);
+ const [loading,setLoading]=useState(true);
  const [status,setStatus]=useState<StatusFilter>("all"); const [category,setCategory]=useState("all");
  const [selected,setSelected]=useState<Integration|null>(null); const [oauth,setOauth]=useState<OAuthApp|null>(null);
  const [credential,setCredential]=useState<CredentialState|null>(null); const [credValues,setCredValues]=useState<Record<string,string>>({}); const [credHint,setCredHint]=useState("");
  const [clientId,setClientId]=useState(""); const [clientSecret,setClientSecret]=useState(""); const [redirectUri,setRedirectUri]=useState(""); const [scopes,setScopes]=useState("");
  const [error,setError]=useState<string|null>(null); const [notice,setNotice]=useState<string|null>(null);
- const load=()=>fetch("/api/platform/integrations",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error??"Could not load integrations");setItems(d.integrations??[])});
- useEffect(()=>{void load().catch(e=>setError(e.message))},[]);
+ const load=()=>fetch("/api/platform/integrations",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error??"Could not load integrations");setItems(d.integrations??[])}).finally(()=>setLoading(false));
+ useEffect(()=>{void load().catch(e=>{setError(e.message);setLoading(false)})},[]);
 
  const categories=useMemo(()=>{const c=new Map<string,number>();for(const i of items)c.set(i.category,(c.get(i.category)??0)+1);return [...c.entries()].sort((a,b)=>b[1]-a[1])},[items]);
  const stats=useMemo(()=>({total:items.length,enabled:items.filter(i=>i.platformEnabled).length,configured:items.filter(i=>i.configured).length}),[items]);
@@ -78,12 +79,28 @@ export default function PlatformIntegrationsScreen(){
  const dialogOpen=Boolean(selected&&(oauth||credential));
 
  return <div className="min-w-0 space-y-6">
-  <div className="min-w-0">
-   <h1 className="text-xl sm:text-2xl font-semibold">Integrations</h1>
-   <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Integrations start disabled. Configure an integration, then enable it for organisations.</p>
+  <div className="flex min-w-0 flex-wrap items-end justify-between gap-3">
+   <div className="min-w-0">
+    <h1 className="text-xl sm:text-2xl font-semibold">Integrations</h1>
+    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Integrations start disabled. Configure an integration with its API credentials or OAuth app, then enable it for organisations.</p>
+   </div>
+   <button onClick={()=>{void load().catch(e=>setError(e.message))}} disabled={loading} className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50" aria-label="Refresh integrations" title="Refresh">
+    <RefreshCw className={`h-4 w-4 ${loading?"animate-spin":""}`}/>
+   </button>
   </div>
   {error&&<div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-600">{error}</div>}
   {notice&&<div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-700">{notice}</div>}
+
+  {/* Stats */}
+  {items.length>0&&<div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+   <span>{stats.total} integrations</span>
+   <span className="text-muted-foreground/40">&middot;</span>
+   <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500"/>{stats.enabled} enabled</span>
+   <span className="text-muted-foreground/40">&middot;</span>
+   <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-sky-500"/>{Math.max(stats.configured-stats.enabled,0)} ready to enable</span>
+   <span className="text-muted-foreground/40">&middot;</span>
+   <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500"/>{stats.total-stats.configured} not configured</span>
+  </div>}
 
   {/* Filters: status tabs + category + search */}
   <div className="min-w-0 space-y-3 rounded-xl border border-border bg-card p-3 sm:p-4">
@@ -110,6 +127,7 @@ export default function PlatformIntegrationsScreen(){
   </div>
 
   {/* Card grid */}
+  {loading&&!items.length&&<div className="flex items-center justify-center rounded-2xl border border-dashed border-border py-14 text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin"/>Loading integrations…</div>}
   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
    {filtered.map(i=>{
     const badge=i.platformEnabled
@@ -143,7 +161,7 @@ export default function PlatformIntegrationsScreen(){
     </div>;
    })}
   </div>
-  {!filtered.length&&<div className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">No integrations match your filters.</div>}
+  {!loading&&!filtered.length&&<div className="rounded-2xl border border-dashed border-border p-12 text-center text-sm text-muted-foreground">No integrations match your filters. Clear the search or pick a different status.</div>}
 
   {/* OAuth dialog */}
   {selected&&oauth&&<div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/40 p-4"><div role="dialog" aria-modal="true" aria-labelledby="oauth-title" className="my-auto box-border max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-xl overflow-x-hidden overflow-y-auto [overflow-wrap:anywhere] rounded-2xl border border-border bg-card p-4 shadow-xl sm:p-6">
