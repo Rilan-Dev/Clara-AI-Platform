@@ -323,3 +323,15 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers:** None to planning; inspect migration and credential-vault conventions before schema/API changes.
 - **Handoff:** None.
 - **Next action:** Implement registry/credential/grant contract and platform/org UI in existing integration surfaces; retain Unified Tool Runtime and default-deny surfaces until explicitly wired.
+
+### SESSION-DEV-20261010-02 — 2026-10-10
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Implement next MCP server registry/connection/grant contract and admin/org/agent UI.
+- **Started from:** Current branch and MCP audit session SESSION-DEV-20261010-01.
+- **Scope:** Migration, server/org APIs, UI panels, focused regression source and control records.
+- **Status:** ACTIVE
+- **Completed:** Migration 069; platform registry API; org connection/org-tool/agent-tool grant API; platform, organisation and agent UI in existing integration surfaces; endpoint and tenant-isolation test source; NEXT_ACTION updated.
+- **Pending:** Streamable HTTP transport/resolver, live discovery/handshake, chat/realtime MCP registration, invocation-time reauthorization and executable tests/typecheck/build.
+- **Blockers:** Runtime needs DNS/IP SSRF checks and entry-point tracing; config is not live connectivity.
+- **Handoff:** None. FIX-01 for substantial security/correctness defects; OPS-01 for deployment/infrastructure-only work.
+- **Next action:** Implement the transport/resolver and wire authorized MCP tools into actual Chat and realtime voice via the Unified Tool Runtime.
