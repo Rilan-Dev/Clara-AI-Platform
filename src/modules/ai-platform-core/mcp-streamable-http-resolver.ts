@@ -38,7 +38,7 @@ function inV4Range(ip: string, base: string, bits: number): boolean {
   return (toInt(ip) & mask) === (toInt(base) & mask);
 }
 
-function isPublicIp(ip: string): boolean {
+export function isMcpPublicIpAddress(ip: string): boolean {
   const family = isIP(ip);
   if (family === 4) {
     const blocked: Array<[string, number]> = [
@@ -60,7 +60,7 @@ function isPublicIp(ip: string): boolean {
   return false;
 }
 
-function validateEndpoint(raw: string): URL {
+export function validateMcpEndpoint(raw: string): URL {
   let url: URL;
   try { url = new URL(raw); } catch { throw new Error("MCP endpoint is invalid."); }
   if (url.protocol !== "https:" || url.username || url.password || url.hash || url.search ||
@@ -78,7 +78,7 @@ function validateEndpoint(raw: string): URL {
 
 async function checkedAddresses(hostname: string): Promise<Array<{ address: string; family: number }>> {
   const addresses = await lookup(hostname, { all: true, verbatim: true });
-  if (!addresses.length || addresses.some((entry) => !isPublicIp(entry.address))) {
+  if (!addresses.length || addresses.some((entry) => !isMcpPublicIpAddress(entry.address))) {
     throw new Error("MCP endpoint DNS resolved to a non-public address.");
   }
   return addresses;
@@ -155,18 +155,6 @@ async function postRpc(url: URL, method: string, params: JsonObject, sessionId?:
   const result = decodeRpc(response.body);
   const newSession = response.headers["mcp-session-id"];
   return { result, ...(typeof newSession === "string" ? { sessionId: newSession } : {}) };
-}
-
-async function openSession(url: URL, token: string | null, signal?: AbortSignal) {
-  const auth = token ? { authorization: `Bearer ${token}` } : {};
-  const init = await postRpc(url, "initialize", { protocolVersion: PROTOCOL_VERSION, capabilities: {}, clientInfo: { name:"clara-ai-platform", version:"1.0.0" } }, undefined, signal);
-  const sessionId = init.sessionId;
-  // Some MCP servers use stateless HTTP and omit a session ID; both are valid.
-  const headers = { ...auth };
-  const notifyBody = JSON.stringify({ jsonrpc:"2.0", method:"notifications/initialized" });
-  const notifyResponse = await requestOnce(url, notifyBody, { ...headers, ...(sessionId ? { "mcp-session-id": sessionId } : {}) }, signal);
-  if (notifyResponse.status >= 300 && notifyResponse.status < 400) throw new Error("MCP redirects are not allowed.");
-  return { sessionId, auth };
 }
 
 async function listRemoteTools(url: URL, token: string | null, signal?: AbortSignal): Promise<{ tools: JsonObject[]; sessionId?: string; auth: Record<string,string> }> {
@@ -265,7 +253,7 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
     try {
       const access = await getAuthorizedServer(request.context, request.serverId, request.toolName);
       if (!access) return null;
-      const endpoint = validateEndpoint(access.endpoint_url);
+      const endpoint = validateMcpEndpoint(access.endpoint_url);
       const remote = await listRemoteTools(endpoint, access.bearer_token);
       const approved = Array.isArray(access.allowed_surfaces) ? access.allowed_surfaces.filter((surface): surface is SurfaceKind => SURFACES.includes(surface as SurfaceKind)) : [];
       if (!approved.length) return null;
