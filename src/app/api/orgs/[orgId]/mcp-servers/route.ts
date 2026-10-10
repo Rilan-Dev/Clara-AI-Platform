@@ -5,6 +5,7 @@ import { ENCRYPTION_KEY } from "@/lib/secrets";
 import { requireAgentPermission, requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { probeStreamableHttpServer } from "@/modules/ai-platform-core/mcp-streamable-http-resolver";
+import { parseMcpPlatformCredential, resolveMcpAccessToken } from "@/modules/ai-platform-core/mcp-oauth";
 
 type Params = { params: Promise<{ orgId: string }> };
 export const dynamic = "force-dynamic";
@@ -25,13 +26,16 @@ export async function GET(req: NextRequest, { params }: Params) {
       query<{
         id: string; serverKey: string; displayName: string; description: string;
         transportType: string; endpointUrl: string; platformEnabled: boolean;
-        authMode: "none" | "bearer"; allowedPlans: string[]; connectionStatus: string | null;
+        authMode: "none" | "bearer" | "oauth"; allowedPlans: string[]; connectionStatus: string | null;
+        hasPlatformCredential: boolean; oauthStatus: string;
         lastConnectedAt: string | null; lastErrorCode: string | null;
         tools: Array<{ name: string; approved: boolean; allowedSurfaces: string[]; organisationEnabled: boolean; agentEnabled: boolean }>;
       }>(`SELECT s.id, s.server_key AS "serverKey", s.display_name AS "displayName",
                     s.description, s.transport_type AS "transportType", s.endpoint_url AS "endpointUrl",
                     s.platform_enabled AS "platformEnabled",
                     s.auth_mode AS "authMode", s.allowed_plans AS "allowedPlans",
+                    (s.platform_credentials_encrypted IS NOT NULL) AS "hasPlatformCredential",
+                    s.oauth_status AS "oauthStatus",
                     c.status AS "connectionStatus", c.last_connected_at AS "lastConnectedAt",
                     c.last_error_code AS "lastErrorCode",
                     COALESCE(jsonb_agg(jsonb_build_object('name', t.tool_name, 'approved', t.approved,
@@ -79,7 +83,10 @@ export async function POST(req: NextRequest, { params }: Params) {
     }
     const server = (await query<{
       id:string; auth_mode:string; allowed_plans:string[]; platform_enabled:boolean; endpoint_url:string;
-    }>(`SELECT id,auth_mode,allowed_plans,platform_enabled,endpoint_url FROM platform_mcp_servers WHERE id=$1`, [body.serverId]))[0];
+      platform_credential:string | null;
+    }>(`SELECT id,auth_mode,allowed_plans,platform_enabled,endpoint_url,
+                pgp_sym_decrypt(platform_credentials_encrypted,$2) AS platform_credential
+         FROM platform_mcp_servers WHERE id=$1`, [body.serverId, ENCRYPTION_KEY]))[0];
     if (!server) return NextResponse.json({ error: "MCP server not found" }, { status: 404 });
     const enablingAccess = body.action === "connect" || ((body.action === "grant-tool" || body.action === "grant-agent-tool") && body.enabled === true);
     if (!server.platform_enabled && enablingAccess) return NextResponse.json({ error: "MCP server is disabled by platform administration", code:"MCP_SERVER_DISABLED" }, { status: 403 });
@@ -100,15 +107,25 @@ export async function POST(req: NextRequest, { params }: Params) {
       }
       let bearerToken: string | null = null;
       if (server.auth_mode === "bearer") {
+        // Tenant-supplied token wins; otherwise the platform-managed bearer
+        // token applies (admins can store one when all orgs share a key).
         const decrypted = (await query<{ bearer_token: string | null }>(
           `SELECT NULLIF((pgp_sym_decrypt(credentials_encrypted, $3)::jsonb)->>'bearerToken', '') AS bearer_token
              FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,
           [orgId, body.serverId, ENCRYPTION_KEY],
         ))[0];
-        if (!decrypted?.bearer_token) {
-          return NextResponse.json({ error: "Stored credentials do not contain a bearer token", code:"NOT_CONFIGURED" }, { status: 409 });
+        const platform = parseMcpPlatformCredential(server.platform_credential);
+        bearerToken = decrypted?.bearer_token ?? (platform?.type === "bearer" ? platform.bearerToken : null);
+        if (!bearerToken) {
+          return NextResponse.json({ error: "No bearer token is available for this organisation — provide one, or ask the platform administrator to store a platform key", code:"NOT_CONFIGURED" }, { status: 409 });
         }
-        bearerToken = decrypted.bearer_token;
+      } else if (server.auth_mode === "oauth") {
+        // OAuth servers are platform-managed: the stored access token is
+        // refreshed silently by the shared resolver helper.
+        bearerToken = await resolveMcpAccessToken(body.serverId, server.platform_credential);
+        if (!bearerToken) {
+          return NextResponse.json({ error: "The platform OAuth sign-in for this server is missing or expired. Ask the platform administrator to sign in again.", code:"MCP_OAUTH_NOT_CONNECTED" }, { status: 409 });
+        }
       }
       const probe = await probeStreamableHttpServer(server.endpoint_url, bearerToken);
       if (probe.ok) {
@@ -146,15 +163,35 @@ export async function POST(req: NextRequest, { params }: Params) {
           (!server.allowed_plans.includes(limits.plan_id) && !server.allowed_plans.includes("*"))) {
         return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this MCP server`, code:"PLAN_NOT_ENTITLED" }, { status: 402 });
       }
-      if (server.auth_mode === "bearer" &&
-          (typeof body.credentials?.bearerToken !== "string" ||
-           body.credentials.bearerToken.trim().length < 8 || body.credentials.bearerToken.length > 8192)) {
-        return NextResponse.json({ error: "A valid bearer token is required" }, { status: 400 });
+      if (server.auth_mode === "oauth") {
+        // Platform-managed OAuth connection: organisations never handle
+        // tokens; the platform's signed-in credential is used at runtime.
+        const platform = parseMcpPlatformCredential(server.platform_credential);
+        if (!platform || platform.type !== "oauth") {
+          return NextResponse.json({ error: "The platform administrator must complete the OAuth sign-in before organisations can connect this server", code:"MCP_OAUTH_NOT_CONNECTED" }, { status: 409 });
+        }
+        if (body.credentials?.bearerToken) {
+          return NextResponse.json({ error: "This MCP server is authorized with the platform OAuth sign-in; no tenant token is needed" }, { status: 400 });
+        }
+      } else if (server.auth_mode === "bearer") {
+        const platform = parseMcpPlatformCredential(server.platform_credential);
+        const platformBearer = platform?.type === "bearer" ? platform.bearerToken : null;
+        const suppliedToken = typeof body.credentials?.bearerToken === "string" ? body.credentials.bearerToken : "";
+        if (!suppliedToken && !platformBearer) {
+          return NextResponse.json({ error: "A valid bearer token is required" }, { status: 400 });
+        }
+        if (suppliedToken && (suppliedToken.trim().length < 8 || suppliedToken.length > 8192)) {
+          return NextResponse.json({ error: "A valid bearer token is required" }, { status: 400 });
+        }
       }
       if (server.auth_mode === "none" && body.credentials?.bearerToken) {
         return NextResponse.json({ error: "This MCP server does not accept tenant credentials" }, { status: 400 });
       }
-      const secret = server.auth_mode === "bearer" ? JSON.stringify({ bearerToken: body.credentials!.bearerToken!.trim() }) : "{}";
+      // Org-supplied tokens are stored encrypted; platform-managed modes
+      // (oauth, or bearer with no tenant token) store an empty object and the
+      // runtime falls back to the platform credential.
+      const orgToken = typeof body.credentials?.bearerToken === "string" && body.credentials.bearerToken.trim() ? body.credentials.bearerToken.trim() : null;
+      const secret = server.auth_mode === "bearer" && orgToken ? JSON.stringify({ bearerToken: orgToken }) : "{}";
       await query(
         `INSERT INTO organisation_mcp_connections(org_id,server_id,credentials_encrypted,status,connected_by,last_error_code,last_connected_at)
          VALUES($1,$2,pgp_sym_encrypt($3,$4),'configured',$5,NULL,NULL)
