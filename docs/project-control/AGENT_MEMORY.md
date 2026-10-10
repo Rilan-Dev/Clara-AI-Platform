@@ -151,3 +151,7 @@ If shared memory conflicts with current repository state or current requirements
 ## 2026-10-10 — FIX-01 OAuth configuration UX lesson
 
 The platform OAuth form must never ask admins to register a generic `your-domain/api/.../callback` placeholder. Clara's current shared callback contract is `/api/integrations/oauth/callback`; the UI should derive the origin from the current deployment, display the URI read-only, and the server must independently validate the same path. Keep platform OAuth app setup separate from end-user consent/connection status. Doable's docs also distinguish sign-in OAuth from integration OAuth and show credential source/readiness; adapt the principle, not its different callback routing architecture. This record is not authorization and does not claim live verification.
+
+
+## 2026-10-10 — Doable integration OAuth source comparison
+Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`. Useful patterns: derive public redirect origin separately from internal service URL; support an explicit public redirect override for reverse proxies; resolve OAuth credentials from admin DB then per-integration and shared Google/GitHub env; never return client secrets; make credential source/readiness visible. Adapt these principles to Clara's own route/schema/runtime; do not copy Doable's different storage/routing implementation.
