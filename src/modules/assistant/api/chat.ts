@@ -5,8 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import type { ChatMessage, ChatToolDefinition, ToolCallingLLMProvider } from "@/modules/ai-core/types";
 import {
+  buildClaraToolRuntime,
+  buildMcpToolRuntime,
   createExecutionContext,
   getClaraToolRuntime,
+  isMcpEnabled,
+  mcpToolName,
+  streamableHttpMcpToolResolver,
   isAgentLoopEnabled,
   isProviderToolCallingEnabled,
   runBoundedAgenticLoop,
@@ -71,6 +76,47 @@ const INTEGRATION_CHAT_TOOLS: readonly ChatToolDefinition[] = [
     },
   },
 ];
+
+async function resolveChatMcpCapabilities(context: ReturnType<typeof createExecutionContext>) {
+  if (!isMcpEnabled() || context.surface !== "chat" || !context.userId || !context.agentId) {
+    return { requests: [], policy: { allowedServers: [], allowedToolPairs: [] }, tools: [] as ChatToolDefinition[] };
+  }
+  const rows = await dbQuery<{ server_id: string; tool_name: string }>(
+    `SELECT DISTINCT s.id AS server_id, t.tool_name
+       FROM platform_mcp_servers s
+       JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
+       JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status='configured'
+       JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name AND g.enabled=true
+       JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid AND ag.enabled=true
+       JOIN knowledge_bases kb ON kb.agent_id=ag.agent_id AND kb.id=$3
+      WHERE s.platform_enabled=true
+      ORDER BY s.id, t.tool_name
+      LIMIT 8`,
+    [context.tenantId, context.agentId, context.kbId],
+  );
+  const requests = rows.map((row) => ({ serverId: row.server_id, toolName: row.tool_name, context }));
+  const policy = {
+    allowedServers: [...new Set(rows.map((row) => row.server_id))],
+    allowedToolPairs: rows.map((row) => ({ serverId: row.server_id, toolName: row.tool_name })),
+  };
+  const resolved = await Promise.all(requests.map(async (request) => ({
+    request,
+    descriptor: await streamableHttpMcpToolResolver.resolve(request),
+  })));
+  const usable = resolved.filter((item) => item.descriptor !== null);
+  return {
+    requests: usable.map((item) => item.request),
+    policy: {
+      allowedServers: [...new Set(usable.map((item) => item.request.serverId))],
+      allowedToolPairs: usable.map((item) => ({ serverId: item.request.serverId, toolName: item.request.toolName })),
+    },
+    tools: usable.map(({ descriptor }) => ({
+      name: mcpToolName(descriptor!.serverId, descriptor!.name),
+      description: descriptor!.description.slice(0, 1000),
+      parameters: descriptor!.inputSchemaJson ?? { type: "object", properties: {}, additionalProperties: false },
+    } as ChatToolDefinition)),
+  };
+}
 
 // ── P1 FIX: Read max-tokens from env (was hardcoded 500) ──────────────────────
 //
@@ -512,12 +558,21 @@ async function postChatKb(
               ...(sessionId ? { sessionId } : {}),
               surface: "chat",
             });
+            // Discover only the MCP tools granted to this exact org/agent,
+            // and build a request-scoped Unified Tool Runtime so no capability
+            // closure can accidentally retain another chat session's identity.
+            const mcp = authCtx?.user.isSuperAdmin
+              ? { requests: [], policy: { allowedServers: [], allowedToolPairs: [] }, tools: [] as ChatToolDefinition[] }
+              : await resolveChatMcpCapabilities(executionContext);
+            const mcpRuntime = mcp.requests.length > 0
+              ? await buildMcpToolRuntime(executionContext, mcp.requests, mcp.policy, streamableHttpMcpToolResolver, buildClaraToolRuntime())
+              : null;
             const loopResult = await runBoundedAgenticLoop(
               provider as ToolCallingLLMProvider,
               chatMessages,
-              INTEGRATION_CHAT_TOOLS,
+              [...INTEGRATION_CHAT_TOOLS, ...mcp.tools],
               executionContext,
-              getClaraToolRuntime(),
+              mcpRuntime ?? getClaraToolRuntime(),
               {
                 signal: request.signal,
                 enabled: true,
