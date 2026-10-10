@@ -141,3 +141,48 @@
 - **Critical packaging fix:** `.gitignore` rule `mcp-servers` (added in ed3890bc for the top-level vendored dir) silently ignored ANY path named mcp-servers — the new `src/app/api/platform/mcp-servers/test/route.ts` would not have been committed. Scoped to `/mcp-servers`.
 - **Verification performed:** resolver suite 36/36 PASS (18 new probe tests); integrations suite 14/14 PASS; ai-platform-core suite shows the same 12 pre-existing failures as clean HEAD with 6 additional passing tests and zero new failures; `tsc --noEmit` clean in every touched file (total errors 85 → 78, all remaining pre-existing in untouched files); stylesheet guard 8/8 PASS; **live probe executed against the real n8n endpoint** — DNS/range checks pass and the unauthenticated call returns the intended actionable result (`HTTP 401 — check the API key / bearer token`, errorCode MCP_UNAUTHORIZED, ~800ms). A full tools/list round-trip requires the owner's real n8n API key, which is not present in this environment.
 - **Owner rollout steps for n8n:** pull on the Docker host → rebuild → register/edit the n8n server (auth mode: org bearer token) → Discover tools with the n8n API key (n8n Settings → n8n API) → approve the imported tools → enable the server → org: connect with the key → Test connection (expect Connected + tool list) → grant tools to the org/agents → set ENABLE_MCP=1 for runtime dispatch. No CI/Vercel/Gate result is claimed; full `next build` remains blocked by the sandbox 4 GB OOM limit.
+
+## 2026-10-11 — MCP platform credentials + OAuth 2.1 sign-in (Task C round 3)
+
+User report: registration was n8n-specific, the discovery API key was never stored
+(test-by-serverId returned 401 MCP_UNAUTHORIZED), and OAuth-login MCP servers
+could not be connected at all.
+
+- Migration 072: `platform_mcp_servers.auth_mode` gains `oauth`; new encrypted
+  `platform_credentials_encrypted` (bearer token or OAuth token set), oauth
+  status/error/connected-at columns, and one-time `platform_mcp_oauth_states`
+  (SHA-256 state digest, encrypted PKCE verifier + client secret) mirroring
+  migration 066; idempotent.
+- New `mcp-oauth.ts`: MCP-spec OAuth 2.1 client — RFC 9728 resource probe,
+  RFC 8414 metadata discovery (path-inserted → origin → OIDC fallback),
+  RFC 7591 dynamic client registration (public client + PKCE S256, manual
+  client fallback), authorization-code exchange and refresh rotation. All
+  requests ride the hardened shared transport.
+- Extracted `mcp-http-transport.ts` from the resolver (DNS pinning, private-
+  range rejection, no redirects, bounded size/time) so the OAuth client reuses
+  the same guards without import cycles; resolver re-exports its guards.
+- Resolver `getAuthorizedServer`: tenant bearer wins, else the platform
+  credential; oauth servers resolve their access token with silent refresh +
+  encrypted write-back. Same for admin `test` (serverId mode now uses the
+  stored credential — fixes the 401) and org `test`.
+- API: POST/PATCH accept authMode `oauth` + encrypted bearerToken storage
+  (blank keeps current; auth-mode switch clears credential + resets OAuth
+  state); GET exposes hasPlatformCredential/oauthStatus; new routes
+  `oauth/start` (probe + discovery + DCR + PKCE state → authorization URL),
+  `oauth/callback` (single-use state, code exchange, encrypted token storage,
+  redirect back to /settings/mcp), `oauth/disconnect`.
+- Org API: oauth servers connect platform-managed (no tenant token, requires
+  completed platform sign-in); bearer servers accept an optional tenant token
+  when a platform key is stored.
+- UI: registration is fully generic (any Streamable HTTP MCP server; n8n only
+  as an example), three auth modes, stored-encrypted bearer field, OAuth
+  scopes + manual-client option, "Register and sign in" flow, per-card OAuth
+  status chip with Sign in/Reconnect/Disconnect, callback banner, and
+  "Import discovered tools" after a successful card-level test. Org panel
+  adapts its connect dialog to the three auth modes.
+- Tests: 29 new mcp-oauth unit tests + 4 route validation tests + org route
+  suite rewritten with SQL-keyed mocks (fixes two pre-existing flaky
+  assertions) + opt-in live discovery test. 76/76 pass; typecheck at the
+  pre-existing 78-error baseline; integrations suites unchanged vs HEAD.
+  Live verification: full OAuth discovery against the production n8n instance
+  (401 probe + RFC 8414 metadata + DCR endpoint) and Notion's hosted MCP.
