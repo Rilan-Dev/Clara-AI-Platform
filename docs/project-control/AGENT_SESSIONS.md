@@ -365,3 +365,14 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Failed approaches avoided:** No placeholder org, FK bypass, database reset/reseed, migration changes, or webhook semantics change.
 - **Verification:** Source inspection only; no direct database query, Stripe API lookup, tests, typecheck, or live correction. Not resolved; no PASS claimed.
 - **Next:** OPS-01 correlates event invoice/subscription/customer to `org_subscriptions` and `organisations` in the actual container DB. FIX-01 resumes only if evidence identifies an application-side lifecycle defect.
+
+
+### SESSION-FIX-20261011-02 — 2026-10-11
+- **Role:** FIX-01 / Sentinel
+- **Scope:** MCP platform server test route missing bearer credential error classification.
+- **Finding:** User's request only contained `serverId`. Source resolves the stored credential and returns `MCP_NO_PLATFORM_CREDENTIAL` without calling the remote resolver when no stored/temporary bearer token exists. The 502 status was misleading for this local configuration failure.
+- **Correction:** Specific missing-credential response changed to HTTP 400. Added route test proving no upstream handshake is attempted for this case.
+- **Commits:** `426e06fde3da96ee60b155ecafcf3b6c59825105`; `9e63b8bffcacf391557ad281303294a6e5352d18`.
+- **Verification:** Source/test authored only; no Vitest, typecheck, build, deployment, or live handshake run. No PASS claimed.
+- **Security:** Advised revocation/rotation of the session cookie exposed in the user-supplied curl.
+- **Next:** Enter/save a valid bearer credential or send a temporary `bearerToken`; then diagnose any actual probe failure independently.
