@@ -335,3 +335,10 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers:** Runtime needs DNS/IP SSRF checks and entry-point tracing; config is not live connectivity.
 - **Handoff:** None. FIX-01 for substantial security/correctness defects; OPS-01 for deployment/infrastructure-only work.
 - **Next action:** Implement the transport/resolver and wire authorized MCP tools into actual Chat and realtime voice via the Unified Tool Runtime.
+
+### SESSION-DEV-20261011-01 — 2026-10-11
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Diagnose user-provided production Gmail OAuth-app save failure and fix the source-level root cause.
+- **Status:** SOURCE FIX COMMITTED; runtime verification pending.
+- **Root cause/fix:** Exported the previously non-exported `normalizeScopes` helper imported by the platform OAuth-app PUT route. Commit: `bfc5fc00de27309598b4bcfe4813f8626de9b8b0`.
+- **Next:** Rebuild/redeploy and retry with rotated OAuth secret/fresh session; no CI/Vercel polling.
