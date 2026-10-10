@@ -83,3 +83,11 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Prevention:** Keep platform approval, organisation-owned connection/credentials, agent grants, discovery, transport and invocation as distinct layers. Recheck platform/org/plan/agent/user/surface policy at execution; isolate discovery caches by tenant; never expose secrets to UI/model; default-deny public embeds and platform-admin invocation.
 - **Related plan:** `docs/superpowers/plans/2026-10-10-mcp-configuration-ui-chat-voice-roadmap.md`.
 - **Verification boundary:** Source/document inspection only; no runtime PASS.
+
+- **Date/session:** 2026-10-10 / SESSION-DEV-20261010-02
+- **Agent:** DEV-01 / Forge
+- **Implementation:** Added MCP registry and grants migration/API/UI on top of existing integration patterns. Platform server, org connection, org tool grant and agent tool grant are separate records.
+- **Security lesson:** Never label a credential save as a live connection. API stores bearer credentials encrypted and does not return them; disabled/revoked permissions must remain revocable. Platform, plan, org and agent grants must be checked again at execution.
+- **SSRF lesson:** Registration-time HTTPS/DNS-host validation is only an early guard. The actual transport must resolve DNS and reject private, loopback, link-local and metadata targets on every connection, prevent unsafe redirects, verify TLS and bound time/response size.
+- **Runtime boundary:** Current implementation does not yet perform MCP transport/discovery or wire MCP tools into actual chat/realtime. Keep server disabled until resolver/runtime implementation exists. Do not claim runtime PASS.
+- **Next:** Implement `McpToolResolver` for Streamable HTTP and connect it to Chat/realtime via Unified Tool Runtime with invocation-time reauthorization.
