@@ -87,22 +87,24 @@ async function checkedAddresses(hostname: string): Promise<Array<{ address: stri
   return addresses;
 }
 
-function requestOnce(url: URL, body: string, headers: Record<string,string>, signal?: AbortSignal): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
-  return new Promise(async (resolve, reject) => {
-    let addresses: Array<{ address: string; family: number }>;
-    try { addresses = await checkedAddresses(url.hostname); } catch { reject(new Error("MCP endpoint DNS validation failed.")); return; }
-    if (signal?.aborted) { reject(new Error("MCP request cancelled.")); return; }
-    const pinned = addresses[0]!;
-    const pinnedLookup = ((hostname: string, options: unknown, callback: (...args: unknown[]) => void) => {
-      if (hostname.toLowerCase() !== url.hostname.toLowerCase()) {
-        callback(new Error("Unexpected DNS lookup hostname."));
-        return;
-      }
-      const opts = options as { all?: boolean } | number | undefined;
-      if (typeof opts === "object" && opts?.all) callback(null, addresses);
-      else callback(null, pinned.address, pinned.family);
-    }) as unknown as LookupFunction;
-    const agent = new https.Agent({ keepAlive: false, rejectUnauthorized: true, lookup: pinnedLookup });
+async function requestOnce(url: URL, body: string, headers: Record<string,string>, signal?: AbortSignal): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
+  if (Buffer.byteLength(body, "utf8") > MAX_REQUEST_BYTES) throw new Error("MCP request exceeded the size limit.");
+  if (signal?.aborted) throw new Error("MCP request cancelled.");
+  let addresses: Array<{ address: string; family: number }>;
+  try { addresses = await checkedAddresses(url.hostname); } catch { throw new Error("MCP endpoint DNS validation failed."); }
+  if (signal?.aborted) throw new Error("MCP request cancelled.");
+  const pinned = addresses[0]!;
+  const pinnedLookup = ((hostname: string, options: unknown, callback: (...args: unknown[]) => void) => {
+    if (hostname.toLowerCase() !== url.hostname.toLowerCase()) {
+      callback(new Error("Unexpected DNS lookup hostname."));
+      return;
+    }
+    const opts = options as { all?: boolean } | number | undefined;
+    if (typeof opts === "object" && opts?.all) callback(null, addresses);
+    else callback(null, pinned.address, pinned.family);
+  }) as unknown as LookupFunction;
+  const agent = new https.Agent({ keepAlive: false, rejectUnauthorized: true, lookup: pinnedLookup });
+  return new Promise((resolve, reject) => {
     const req = https.request(url, {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": PROTOCOL_VERSION, ...headers },
@@ -123,10 +125,14 @@ function requestOnce(url: URL, body: string, headers: Record<string,string>, sig
       res.on("end", () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks).toString("utf8") }));
     });
     const timer = setTimeout(() => req.destroy(new Error("MCP request timed out.")), REQUEST_TIMEOUT_MS);
+    const onAbort = () => req.destroy(new Error("MCP request cancelled."));
     req.on("error", (error) => reject(error));
-    req.on("close", () => { clearTimeout(timer); agent.destroy(); });
-    signal?.addEventListener("abort", () => req.destroy(new Error("MCP request cancelled.")), { once: true });
-    if (Buffer.byteLength(body, "utf8") > MAX_REQUEST_BYTES) { req.destroy(new Error("MCP request exceeded the size limit.")); return; }
+    req.on("close", () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      agent.destroy();
+    });
+    signal?.addEventListener("abort", onAbort, { once: true });
     req.end(body);
   });
 }
