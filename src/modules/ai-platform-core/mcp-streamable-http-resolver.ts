@@ -16,6 +16,7 @@ import { z } from "zod";
 import { query } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
+import { getKbAccessContext } from "@/modules/auth/core/db";
 import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
 import type { McpToolDescriptor, McpToolResolutionRequest, McpToolResolver } from "./mcp-tool-bridge";
 
@@ -262,7 +263,9 @@ function contextSignal(context: PlatformExecutionContext): AbortSignal | undefin
 
 async function getAuthorizedServer(context: PlatformExecutionContext, serverId: string, toolName?: string): Promise<ServerAccess | null> {
   if (!process.env.ENABLE_MCP || !["1","true","yes","on"].includes(process.env.ENABLE_MCP.trim().toLowerCase())) return null;
-  if (!SURFACES.includes(context.surface) || !context.userId || !context.agentId || !context.tenantId || !context.kbId) return null;
+  if (!SURFACES.includes(context.surface) || !context.userId || !context.agentId || !context.sessionId || !context.tenantId || !context.kbId) return null;
+  const [kbAccess] = await getKbAccessContext(context.kbId, context.userId).catch(() => [] as never[]);
+  if (!kbAccess?.membership || kbAccess.orgId !== context.tenantId || !kbAccess.permissions.has("kb:read")) return null;
   let plan: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
   try { plan = await resolveOrgPlanLimits(context.tenantId); } catch { return null; }
   const rows = await query<ServerAccess>(
@@ -296,7 +299,7 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
       const endpoint = validateMcpEndpoint(access.endpoint_url);
       const remote = await listRemoteTools(endpoint, access.bearer_token, contextSignal(request.context));
       const approved = Array.isArray(access.allowed_surfaces) ? access.allowed_surfaces.filter((surface): surface is SurfaceKind => SURFACES.includes(surface as SurfaceKind)) : [];
-      if (!approved.length) return null;
+      if (!approved.length || !approved.includes(request.context.surface)) return null;
       const tool = remote.tools.find((candidate) => candidate.name === request.toolName);
       if (!tool) return null;
       return readTool(tool, access.id, approved);
