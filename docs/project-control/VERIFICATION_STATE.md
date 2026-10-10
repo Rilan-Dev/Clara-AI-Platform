@@ -1798,3 +1798,13 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 
 ### FIX-01 Doable source comparison addendum — 2026-10-10
 Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`. It confirms public-origin/redirect override handling, a shared callback for that Doable deployment, DB → per-integration env → shared Google/GitHub credential fallback, and admin-safe credential responses. Clara's UI callback correction adapts the principles to Clara's existing route `/api/integrations/oauth/callback`; it does not implement Doable's env fallback/source badges or Connect Test. Source review only; tests and live OAuth remain unverified.
+
+
+## 2026-10-10 — I-096 OAuth setup follow-up — SOURCE CHANGES ONLY
+
+- Provider-specific official-console links and instructions are isolated in `src/modules/integrations/oauth-setup-guides.ts` and covered by `src/modules/integrations/oauth-setup-guides.test.ts` source.
+- Platform OAuth-app GET exposes only safe readiness metadata (`credentialSource` / `secretConfigured`); the encrypted client secret remains unselected and is never returned to the browser. Blank-secret updates retain the stored secret as before.
+- Environment-variable fallback intentionally remains unimplemented; Clara's present platform-managed OAuth path uses the encrypted database. Avoid introducing a second source of truth without a credential-precedence and rotation design.
+- Commits: `7fb942255f2dd3daf13e9a9e32270d70ff02938c`, `f1ebf20ef6242204ccb144b570f0ace5a874e052`, `9652855d4408737f3a6930f02caced07002eb65f`, `3a0a3e8864f0497facd85626b22e537a8225e1df`, `c55294c100647b9d3287503a7909197aa0960c85`, `f97140906cc4c63e7840d007e2a5d3c5b42ba986`.
+- **Not verified:** Tests, typecheck, lint, build, browser behavior, provider consent, token exchange, database writes, deployment, and runtime. The current tool execution environment lacks a checkout and outbound GitHub DNS; this prevented running Vitest locally. No PASS is inferred.
+- **Next:** Execute the focused test command in a checked-out workspace, then coordinate provider-backed verification and deployed callback/migration/runtime checks with OPS-01. I-096 remains OPEN.
