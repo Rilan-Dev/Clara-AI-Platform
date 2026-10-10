@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { PlugZap, Lock, CheckCircle2, KeyRound, Copy, ExternalLink } from "lucide-react";
 import { useParams } from "next/navigation";
 
+import OrgMcpServersPanel from "@/features/admin/screens/org-mcp-servers-panel";
+
 type CredentialField = { name: string; displayName: string; description?: string; type: "text" | "secret" | "dropdown"; required: boolean; options?: Array<{ label: string; value: string }> };
 type Item = {
  id:string; displayName:string; description:string; logoUrl:string; category:string; authType:string;
@@ -99,6 +101,7 @@ export default function OrgIntegrationsScreen(){
  function openConnect(item:Item){setSelected(item);setValues({});setError(null);setNotice(null)}
  return <div className="space-y-6">
   <div><h1 className="text-2xl font-semibold">Organisation integrations</h1><p className="mt-1 text-sm text-muted-foreground">Enable integrations for this organisation, configure the required keys and IDs, then grant each connected integration to individual agents for Chat and Voice.</p></div>
+  <OrgMcpServersPanel />
   <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between"><div><p className="text-sm font-medium">Plan allowance</p><p className="mt-1 text-xs text-muted-foreground">{plan.id} · maximum {plan.maxIntegrations===-1?"unlimited":plan.maxIntegrations} enabled integrations</p></div><PlugZap className="h-5 w-5 text-primary"/></div>
   {error&&<div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-600">{error}</div>}
   {notice&&<div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-700">{notice}</div>}
