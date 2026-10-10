@@ -1,3 +1,13 @@
+## 2026-10-11 — MCP Streamable HTTP resolver and Chat/realtime source wiring
+
+- Added the host-owned Streamable HTTP resolver behind the existing `McpToolResolver`; Chat and OpenAI realtime now have source-level discovery/advertisement and Unified Tool Runtime dispatch paths.
+- Added endpoint/IP guard test source. Existing control-plane tests and the new resolver tests have not been executed.
+- **Not run / not claimed:** Vitest, `npm run type-check`, lint, build, migration, DNS-rebinding/redirect/timeout integration tests, live MCP handshake/tool call, Chat E2E, realtime voice E2E, CI, Vercel or deployment.
+- **Required before enablement:** focused transport and runtime tests plus a controlled live initialize/list/call against an isolated MCP test server. Keep all platform servers disabled and `ENABLE_MCP=false`.
+- **Known follow-up:** discovery is deliberately uncached for revocation safety; optimize only after tenant-scoped cache invalidation covers platform approvals, org grants/disconnect, agent grants and schema changes.
+
+---
+
 ## 2026-10-11 — Gmail OAuth app save runtime failure
 
 - Owner-provided production log: `TypeError: (0 , k.normalizeScopes) is not a function` in the platform integration OAuth-app PUT handler.
