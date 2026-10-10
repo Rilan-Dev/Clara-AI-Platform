@@ -433,9 +433,21 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
       if (!currentDescriptor || JSON.stringify(currentDescriptor.inputSchemaJson) !== JSON.stringify(descriptor.inputSchemaJson)) {
         throw new Error("MCP tool schema changed after discovery.");
       }
-      await markConnectionConnected(context, access.id);
       const parsed = currentDescriptor.inputSchema.safeParse(input);
       if (!parsed.success) throw new Error("MCP tool arguments did not match the approved schema.");
+      // Re-read the authoritative grant/plan/credential record immediately
+      // before the side-effecting tools/call request. If access or credentials
+      // changed during discovery, refuse to use the stale MCP session.
+      const freshAccess = await getAuthorizedServer(context, descriptor.serverId, descriptor.name);
+      if (!freshAccess ||
+          freshAccess.endpoint_url !== access.endpoint_url ||
+          freshAccess.auth_mode !== access.auth_mode ||
+          freshAccess.bearer_token !== access.bearer_token ||
+          !Array.isArray(freshAccess.allowed_surfaces) ||
+          !freshAccess.allowed_surfaces.includes(context.surface)) {
+        throw new Error("MCP authorization changed during discovery.");
+      }
+      await markConnectionConnected(context, access.id);
       const sessionId = remote.sessionId;
       const id = jsonRpcId();
       const response = await requestOnce(endpoint, JSON.stringify({ jsonrpc:"2.0", id, method:"tools/call", params:{ name:descriptor.name, arguments:parsed.data } }), { ...remote.auth, ...(sessionId ? { "mcp-session-id":sessionId } : {}) }, contextSignal(context));
