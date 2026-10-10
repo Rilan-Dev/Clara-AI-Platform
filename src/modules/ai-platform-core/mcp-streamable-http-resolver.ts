@@ -146,9 +146,9 @@ function jsonRpcId(): string {
   return `clara-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
 }
 
-async function postRpc(url: URL, method: string, params: JsonObject, sessionId?: string, signal?: AbortSignal): Promise<{ result: JsonObject; sessionId?: string }> {
+async function postRpc(url: URL, method: string, params: JsonObject, sessionId?: string, signal?: AbortSignal, extraHeaders: Record<string,string> = {}): Promise<{ result: JsonObject; sessionId?: string }> {
   const id = jsonRpcId();
-  const headers: Record<string,string> = {};
+  const headers: Record<string,string> = { ...extraHeaders };
   if (sessionId) headers["mcp-session-id"] = sessionId;
   const response = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", id, method, params }), headers, signal);
   if (response.status < 200 || response.status >= 300) throw new Error(`MCP endpoint returned HTTP ${response.status}.`);
@@ -179,12 +179,13 @@ async function listRemoteTools(url: URL, token: string | null, signal?: AbortSig
   const sessionId = typeof initResponse.headers["mcp-session-id"] === "string" ? initResponse.headers["mcp-session-id"] as string : undefined;
   const notify = await requestOnce(url, JSON.stringify({ jsonrpc:"2.0", method:"notifications/initialized" }), { ...auth, ...(sessionId ? { "mcp-session-id":sessionId } : {}) }, signal);
   if (notify.status >= 300 && notify.status < 400) throw new Error("MCP redirects are not allowed.");
-  const listed = await postRpc(url, "tools/list", {}, sessionId, signal);
+  const listed = await postRpc(url, "tools/list", {}, sessionId, signal, auth);
   const tools = listed.result.tools;
   if (!Array.isArray(tools) || tools.length > MAX_TOOLS || tools.some((tool) => !tool || typeof tool !== "object" || Array.isArray(tool))) {
     throw new Error("MCP server returned an invalid tools list.");
   }
-  return { tools: tools as JsonObject[], ...(sessionId ? { sessionId } : {}), auth };
+  const effectiveSessionId = listed.sessionId ?? sessionId;
+  return { tools: tools as JsonObject[], ...(effectiveSessionId ? { sessionId: effectiveSessionId } : {}), auth };
 }
 
 function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
