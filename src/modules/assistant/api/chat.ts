@@ -557,6 +557,7 @@ async function postChatKb(
               userId: authCtx!.user.id,
               ...(sessionId ? { sessionId } : {}),
               surface: "chat",
+              metadata: { mcpSignal: request.signal },
             });
             // Discover only the MCP tools granted to this exact org/agent,
             // and build a request-scoped Unified Tool Runtime so no capability
