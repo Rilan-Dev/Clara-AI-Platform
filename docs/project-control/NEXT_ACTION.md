@@ -23,7 +23,7 @@ No Vitest, type-check, lint, build, migration, DNS-rebinding integration test, l
 1. Add mocked transport/runtime regression tests for DNS rebinding/IP pinning, redirects, timeout/cancellation, size limits, stale schema, and revocation/platform/plan/tenant denial.
 2. Run focused MCP bridge/resolver and Chat/realtime tests plus `npm run type-check` locally when execution is available; fix source issues directly without waiting or polling CI/Vercel.
 3. Validate the real MCP initialize/list/call flow against a controlled server before enabling any production registry entry.
-4. Optimise duplicate discovery only after defining tenant-scoped invalidation for platform approval, org disconnect/grants, agent grants, and remote schema changes. No shared discovery cache is currently used.
+4. Validate the bounded per-execution-context discovery singleflight cache under parallel calls. It caches only remote metadata for 3 seconds, rechecks current DB authorization on every resolve, and is bypassed during invocation. Do not introduce cross-request caching unless grant/schema invalidation is reliable.
 5. Route substantial correctness/security issues to FIX-01 and infrastructure/deployment-only work to OPS-01.
 
 Detailed record: `docs/project-control/sessions/SESSION-DEV-20261011-01.md`.
