@@ -104,8 +104,9 @@ export async function postRealtimeTool(request: NextRequest): Promise<NextRespon
         LIMIT 128`,
       [access.orgId, agentId, kbId],
     );
-    const grant = grants.find((row) => mcpToolName(row.server_id, row.tool_name) === toolName);
-    if (!grant) return NextResponse.json({ error: "MCP tool is not currently granted to this agent." }, { status: 403 });
+    const matches = grants.filter((row) => mcpToolName(row.server_id, row.tool_name) === toolName);
+    if (matches.length !== 1) return NextResponse.json({ error: "MCP tool is not currently granted to this agent." }, { status: 403 });
+    const grant = matches[0]!;
     const requestForTool = { serverId: grant.server_id, toolName: grant.tool_name, context };
     const runtime = await buildMcpToolRuntime(
       context,
