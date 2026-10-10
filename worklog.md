@@ -777,3 +777,13 @@ Disposition:
 - Doable derives its public API origin separately from its internal API URL, documents the exact OAuth callback and Google console setup, supports `INTEGRATIONS_OAUTH_REDIRECT_URI` for reverse proxies/tunnels, resolves credentials in DB → per-integration env → shared Google/GitHub env order, strips secrets from admin responses, and distinguishes global/workspace/env-configured app sources.
 - Clara adaptation in this bounded fix: use the browser-visible deployment origin for the callback shown in platform UI, keep the shared Clara callback route, validate the same route server-side, and clearly separate saving credentials from end-user consent. No Doable implementation was copied byte-for-byte because its route and database architecture differ.
 - Remaining gap vs Doable: Clara's admin screen still does not surface credential source badges/env fallback or a platform-admin Connect Test; these are follow-up scope items, not claimed implemented.
+
+
+## 2026-10-10 — FIX-01 OAuth provider guidance and credential readiness follow-up
+
+- Added official provider-console links and provider-specific callback/scope setup notes in `src/modules/integrations/oauth-setup-guides.ts`; unknown provider IDs return `null` rather than a fabricated console link. UI helper extracted from the admin screen and covered by `oauth-setup-guides.test.ts`.
+- OAuth-app GET now reports a safe `credentialSource` (`database` / `unconfigured`) and `secretConfigured` boolean. No encrypted secret value is read or returned by the GET handler. UI refreshes these indicators after a successful save.
+- Decision: keep environment fallback out of scope for now. The active platform OAuth app implementation is encrypted-database based; a fallback would create a second credential authority and requires explicit precedence, rotation, audit, and operations design first.
+- Commits: `7fb942255f2dd3daf13e9a9e32270d70ff02938c`, `f1ebf20ef6242204ccb144b570f0ace5a874e052`, `9652855d4408737f3a6930f02caced07002eb65f`, `3a0a3e8864f0497facd85626b22e537a8225e1df`, `c55294c100647b9d3287503a7909197aa0960c85`, `f97140906cc4c63e7840d007e2a5d3c5b42ba986`.
+- Tests were authored but not run. This session has no local checkout and `git ls-remote` failed because outbound GitHub DNS resolution is unavailable; do not record this as a test failure. No lint, typecheck, build, browser, live OAuth, deployment, or runtime verification was performed.
+- Next: run focused OAuth tests in a checked-out workspace; then test real provider consent/callback/token exchange and route deployment/schema issues to OPS-01. I-096 stays OPEN.
