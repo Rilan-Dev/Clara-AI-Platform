@@ -26,8 +26,9 @@ const REQUEST_TIMEOUT_MS = 8_000;
 const MAX_RESPONSE_BYTES = 1_048_576;
 const MAX_REQUEST_BYTES = 65_536;
 const MAX_TOOLS = 128;
+const MAX_TOOL_PAGES = 8;
 const DISCOVERY_CACHE_TTL_MS = 3_000;
-const MAX_DISCOVERY_CACHE_ENTRIES = 256;
+const MAX_DISCOVERY_CACHE_ENTRIES = 16;
 const PROTOCOL_VERSION = "2025-03-26";
 const SURFACES: readonly SurfaceKind[] = ["chat", "realtime"];
 
@@ -220,8 +221,12 @@ async function listRemoteTools(url: URL, token: string | null, signal?: AbortSig
   if (notify.status >= 300 && notify.status < 400) throw new Error("MCP redirects are not allowed.");
   const tools: JsonObject[] = [];
   let cursor: string | undefined;
+  let pageCount = 0;
+  const seenCursors = new Set<string>();
   let effectiveSessionId = sessionId;
   do {
+    pageCount += 1;
+    if (pageCount > MAX_TOOL_PAGES) throw new Error("MCP server exceeded the tool discovery page limit.");
     const listed = await postRpc(url, "tools/list", cursor ? { cursor } : {}, effectiveSessionId, signal, auth);
     effectiveSessionId = listed.sessionId ?? effectiveSessionId;
     const page = listed.result.tools;
@@ -232,6 +237,10 @@ async function listRemoteTools(url: URL, token: string | null, signal?: AbortSig
     const nextCursor = listed.result.nextCursor;
     if (nextCursor !== undefined && (typeof nextCursor !== "string" || !nextCursor || nextCursor.length > 1024)) {
       throw new Error("MCP server returned an invalid tool cursor.");
+    }
+    if (typeof nextCursor === "string") {
+      if (seenCursors.has(nextCursor)) throw new Error("MCP server repeated a tool discovery cursor.");
+      seenCursors.add(nextCursor);
     }
     cursor = typeof nextCursor === "string" ? nextCursor : undefined;
   } while (cursor);
