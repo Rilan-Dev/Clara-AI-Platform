@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isIP } from "node:net";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query, withTransaction } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
@@ -10,11 +11,15 @@ function validEndpoint(value: unknown): value is string {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
+    const normalizedHost = host.replace(/^\\[|\\]$/g, "");
     if (url.protocol !== "https:" || url.username || url.password || url.hash) return false;
+    // Require DNS hostnames at configuration time; the eventual transport must
+    // also resolve and reject private/link-local targets on every connection.
+    if (isIP(normalizedHost) !== 0 || /^[0-9.]+$/.test(normalizedHost)) return false;
     if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") ||
         host === "metadata.google.internal" || host === "169.254.169.254" ||
         /^(127\.|10\.|192\.168\.|0\.|169\.254\.)/.test(host) ||
-        /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host === "::1" || host.startsWith("fc") || host.startsWith("fd")) return false;
+        /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.startsWith("fc") || host.startsWith("fd")) return false;
     return true;
   } catch { return false; }
 }
