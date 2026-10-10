@@ -309,7 +309,7 @@ export class StreamableHttpMcpToolResolver implements McpToolResolver {
     try {
       const access = await getAuthorizedServer(context, descriptor.serverId, descriptor.name);
       if (!access) throw new Error("MCP access is no longer authorized.");
-      const endpoint = validateEndpoint(access.endpoint_url);
+      const endpoint = validateMcpEndpoint(access.endpoint_url);
       const remote = await listRemoteTools(endpoint, access.bearer_token, contextSignal(context));
       const surfaces = Array.isArray(access.allowed_surfaces) ? access.allowed_surfaces.filter((surface): surface is SurfaceKind => SURFACES.includes(surface as SurfaceKind)) : [];
       if (!surfaces.includes(context.surface) || !remote.tools.some((tool) => tool.name === descriptor.name)) throw new Error("MCP tool grant or discovery is stale.");
