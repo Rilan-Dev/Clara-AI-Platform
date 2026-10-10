@@ -127,15 +127,18 @@ module.exports = {
         "2xl": "var(--radius-2xl)",
         full: "var(--radius-full)",
       },
-      spacing: {
-        xs: "var(--spacing-xs)",
-        sm: "var(--spacing-sm)",
-        md: "var(--spacing-md)",
-        lg: "var(--spacing-lg)",
-        xl: "var(--spacing-xl)",
-        "2xl": "var(--spacing-2xl)",
-        "3xl": "var(--spacing-3xl)",
-      },
+      /* REMOVED (UI regression hotfix, 2026-10-10): the legacy named spacing
+         scale (xs..3xl -> var(--spacing-*)). Under Tailwind v3 these keys were
+         harmless because max-width utilities read the separate maxWidth
+         namespace. Under Tailwind v4 (loaded via @config) they are promoted to
+         real --spacing-* theme tokens that SHADOW the container scale, so
+         max-w-sm compiled to var(--spacing-sm) = 0.5rem = 8px instead of
+         var(--container-sm) = 24rem = 384px, collapsing every card/paragraph
+         using max-w-xs..3xl across the platform. No source file consumes the
+         named spacing utilities (p-sm, gap-md, m-lg, ... = 0 usages), so this
+         block is dead configuration and its removal is side-effect free.
+         The raw --spacing-* CSS variables in globals.css are left in place;
+         they are inert without this mapping. */
       fontSize: {
         xs: ["var(--font-size-xs)", { lineHeight: "1.4" }],
         sm: ["var(--font-size-sm)", { lineHeight: "1.5" }],
