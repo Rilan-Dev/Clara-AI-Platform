@@ -10,3 +10,12 @@
 - Prevention: keep UI/server callback contract aligned and server validation authoritative.
 - Evidence: source review and commits only; tests not run, no live provider flow or deployment verified.
 - Next: inspect actual Doable source paths; add registry-grounded provider-console links/scope guidance if available; keep runtime work on existing OAuth lifecycle. Route infra to OPS-01.
+
+
+## 2026-10-10 — OAuth provider guidance / readiness
+
+- Provider setup guide helper + regression test authored; admin screen links official consoles for recognized integrations and gives a generic fallback for unknown IDs.
+- OAuth-app GET returns source/readiness booleans only; encrypted client secret is not returned. UI updates readiness after save.
+- Environment fallback not implemented: retain encrypted DB as single source until credential precedence/rotation/audit are designed.
+- Commits: `7fb942255f2dd3daf13e9a9e32270d70ff02938c`, `f1ebf20ef6242204ccb144b570f0ace5a874e052`, `9652855d4408737f3a6930f02caced07002eb65f`, `3a0a3e8864f0497facd85626b22e537a8225e1df`, `c55294c100647b9d3287503a7909197aa0960c85`, `f97140906cc4c63e7840d007e2a5d3c5b42ba986`.
+- Not run: Vitest, lint, typecheck, build, browser, provider consent/token exchange, deployment/runtime. Local test execution was blocked by absent checkout and failed GitHub DNS lookup; not a test failure. Keep I-096 open.
