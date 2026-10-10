@@ -87,7 +87,7 @@ async function checkedAddresses(hostname: string): Promise<Array<{ address: stri
   return addresses;
 }
 
-async async function checkedAddressesWithDeadline(hostname: string, signal?: AbortSignal): Promise<Array<{ address: string; family: number }>> {
+async function checkedAddressesWithDeadline(hostname: string, signal?: AbortSignal): Promise<Array<{ address: string; family: number }>> {
   if (signal?.aborted) throw new Error("MCP request cancelled.");
   let timer: ReturnType<typeof setTimeout> | undefined;
   let onAbort: (() => void) | undefined;
