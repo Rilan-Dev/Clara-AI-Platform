@@ -1,7 +1,7 @@
 ## 2026-10-11 — MCP Streamable HTTP resolver and Chat/realtime source wiring
 
 - Added the host-owned Streamable HTTP resolver behind the existing `McpToolResolver`; Chat and OpenAI realtime now have source-level discovery/advertisement and Unified Tool Runtime dispatch paths.
-- Added endpoint/IP guard test source. Existing control-plane tests and the new resolver tests have not been executed.
+- Added endpoint/IP guard test source and migration 070 for a `connected` handshake state after successful discovery. Existing control-plane tests and the new resolver/runtime tests have not been executed; migration 070 has not been applied.
 - **Not run / not claimed:** Vitest, `npm run type-check`, lint, build, migration, DNS-rebinding/redirect/timeout integration tests, live MCP handshake/tool call, Chat E2E, realtime voice E2E, CI, Vercel or deployment.
 - **Required before enablement:** focused transport and runtime tests plus a controlled live initialize/list/call against an isolated MCP test server. Keep all platform servers disabled and `ENABLE_MCP=false`.
 - **Known follow-up:** discovery is deliberately uncached for revocation safety; optimize only after tenant-scoped cache invalidation covers platform approvals, org grants/disconnect, agent grants and schema changes.
