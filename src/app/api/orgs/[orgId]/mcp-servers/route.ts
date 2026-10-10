@@ -23,6 +23,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const [servers, limits] = await Promise.all([
       query(`SELECT s.id, s.server_key AS "serverKey", s.display_name AS "displayName",
                     s.description, s.transport_type AS "transportType", s.endpoint_url AS "endpointUrl",
+                    s.platform_enabled AS "platformEnabled",
                     s.auth_mode AS "authMode", s.allowed_plans AS "allowedPlans",
                     c.status AS "connectionStatus", c.last_connected_at AS "lastConnectedAt",
                     c.last_error_code AS "lastErrorCode",
