@@ -75,3 +75,11 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Date/session:** 2026-10-09 / SESSION-DEV-20261009-04
 - **Lesson:** Provider delivery callbacks can arrive out of order. A durable message state machine must be monotonic: late `sent` or `failed` events must not regress a `delivered`/`read` state, and `read`, `deleted`, and terminal `failed` states must not be overwritten by late lower-value events. Use the same transition rule in webhook processing and replay/reconciliation paths.
 - **Test boundary:** Route/helper regression source now covers OAuth replay and permission recheck, tenant boundary, briefing gate, signature/idempotency, recipient format/digest, and status ordering. No tests have been executed.
+
+
+- **Date/session:** 2026-10-10 / SESSION-DEV-20261010-01
+- **Agent:** DEV-01 / Forge
+- **Finding:** `mcp-tool-bridge.ts` adapts host-resolved descriptors into Clara's Unified Tool Runtime; it does not itself implement transport or persistent server configuration. Existing integration screens and generic realtime integration dispatch do not prove configured MCP servers are callable end-to-end.
+- **Prevention:** Keep platform approval, organisation-owned connection/credentials, agent grants, discovery, transport and invocation as distinct layers. Recheck platform/org/plan/agent/user/surface policy at execution; isolate discovery caches by tenant; never expose secrets to UI/model; default-deny public embeds and platform-admin invocation.
+- **Related plan:** `docs/superpowers/plans/2026-10-10-mcp-configuration-ui-chat-voice-roadmap.md`.
+- **Verification boundary:** Source/document inspection only; no runtime PASS.
