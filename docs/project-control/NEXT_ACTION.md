@@ -1,3 +1,27 @@
+# CURRENT NEXT ACTION UPDATE — MCP RESOLVER + CHAT/REALTIME SOURCE WIRING — 2026-10-11
+
+DEV-01 has now added the first Streamable HTTP resolver behind `McpToolResolver` and source-level Chat / OpenAI realtime tool advertisement and dispatch through the Unified Tool Runtime. This supersedes the prior exact action to begin the resolver, but does not establish a verified runtime.
+
+## Implemented in source
+- `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts`: HTTPS-only, DNS answer checks and pinned outbound lookup, TLS verification, redirects refused, timeout/cancellation, request/response bounds, JSON-RPC initialization, paginated discovery, supported schema conversion/validation, stale-schema rejection, and execution-time permission checks.
+- Chat advertises eligible MCP tools and uses a fresh request-scoped Clara runtime with MCP capabilities.
+- OpenAI realtime advertises eligible MCP tools and the authenticated realtime tool route dispatches the exact granted pair through a Unified Tool Runtime.
+- Focused endpoint/IP safety test source added.
+
+## Verification boundary
+No Vitest, type-check, lint, build, migration, DNS-rebinding integration test, live MCP handshake, Chat E2E, realtime E2E, CI, Vercel, or deployment was run. No PASS is claimed. Keep platform servers disabled and `ENABLE_MCP=false` until source is executable-tested and a controlled live handshake succeeds.
+
+## Exact next action
+1. Add mocked transport/runtime regression tests for DNS rebinding/IP pinning, redirects, timeout/cancellation, size limits, stale schema, and revocation/platform/plan/tenant denial.
+2. Run focused MCP bridge/resolver and Chat/realtime tests plus `npm run type-check` locally when execution is available; fix source issues directly without waiting or polling CI/Vercel.
+3. Validate the real MCP initialize/list/call flow against a controlled server before enabling any production registry entry.
+4. Optimise duplicate discovery only after defining tenant-scoped invalidation for platform approval, org disconnect/grants, agent grants, and remote schema changes. No shared discovery cache is currently used.
+5. Route substantial correctness/security issues to FIX-01 and infrastructure/deployment-only work to OPS-01.
+
+Detailed record: `docs/project-control/sessions/SESSION-DEV-20261011-01.md`.
+
+---
+
 # CURRENT NEXT ACTION UPDATE — MCP CONTROL PLANE SLICE IMPLEMENTED — 2026-10-10
 
 DEV-01 / Forge has implemented the first source-level MCP registry and configuration/grant slice. This supersedes the earlier wording that the registry/UI was only planned; the runtime transport and chat/realtime registration remain pending.
