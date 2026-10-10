@@ -97,7 +97,7 @@ export async function POST(req: NextRequest, { params }: Params) {
         `INSERT INTO organisation_mcp_connections(org_id,server_id,credentials_encrypted,status,connected_by,last_error_code,last_connected_at)
          VALUES($1,$2,pgp_sym_encrypt($3,$4),'configured',$5,NULL,NULL)
          ON CONFLICT(org_id,server_id) DO UPDATE SET credentials_encrypted=EXCLUDED.credentials_encrypted,
-           status='configured',connected_by=EXCLUDED.connected_by,last_error_code=NULL,last_connected_at=now(),updated_at=now()`,
+           status='configured',connected_by=EXCLUDED.connected_by,last_error_code=NULL,last_connected_at=NULL,updated_at=now()`,
         [orgId, body.serverId, secret, ENCRYPTION_KEY, auth.user.id],
       );
       return NextResponse.json({ ok:true, connectionStatus:"configured" }, { status: 201 });
