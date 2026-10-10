@@ -84,6 +84,7 @@ export async function postRealtimeTool(request: NextRequest): Promise<NextRespon
     userId: auth.user.id,
     sessionId: auth.session.id,
     surface: "realtime",
+    metadata: { mcpSignal: request.signal },
   });
 
   if (isMcpCandidate && !ALLOWED_REALTIME_INTEGRATION_TOOLS.has(toolName)) {
