@@ -1,0 +1,14 @@
+import { createRequire } from "node:module";
+const require = createRequire("/home/z/my-project/Clara-AI-Platform/package.json");
+const pg = require("pg");
+const { readFileSync } = require("node:fs");
+const { Client } = pg;
+const env = readFileSync("/home/z/my-project/Clara-AI-Platform/.env", "utf8");
+const url = env.match(/^DATABASE_URL=(.+)$/m)?.[1]?.trim();
+const c = new Client({ connectionString: url });
+await c.connect();
+const plat = await c.query("SELECT key FROM embed_api_key ORDER BY updated_at DESC");
+console.log("platform keys:", plat.rows.length ? plat.rows.map(r => r.key.slice(0, 12) + "...") : "NONE");
+const kbKeys = await c.query("SELECT ak.id, ak.kb_id, kb.name AS kb_name, kb.status AS kb_status, ak.is_active, ak.created_at FROM api_keys ak JOIN knowledge_bases kb ON kb.id = ak.kb_id ORDER BY ak.created_at DESC LIMIT 10");
+console.log("kb-level keys:", JSON.stringify(kbKeys.rows, null, 1));
+await c.end();

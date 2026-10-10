@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Clara AI Platform — Mode-B Agents &amp; Webhooks Setup Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+@page {
+    size: 720px 1020px;
+    margin: 0;
+}
+:root {
+    --c-bg: #f7f8fc;
+    --c-panel: #eef0f9;
+    --c-ink-panel: #1d2440;
+    --c-primary: #3946a8;
+    --c-primary-d: #232c6e;
+    --c-primary-l: #8b94d6;
+    --c-border: #dcdfee;
+    --c-text: #2b3150;
+    --c-muted: #6a7090;
+    --c-accent: #4d5cd0;
+    --c-ok: #2e7d5b;
+    --c-warn: #9a6a1e;
+    --c-err: #ab4747;
+    --c-code-bg: #1d2440;
+    --c-code-text: #d6dcf5;
+}
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 720px;
+    background: var(--c-bg);
+    color: var(--c-text);
+    font-family: 'Inter', 'Noto Sans SC', 'Liberation Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.62;
+    line-break: strict;
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+@media screen {
+    html { height: auto; display: flex; justify-content: center; background: #222840; }
+    body { transform-origin: top center; margin: 20px auto; box-shadow: 0 8px 40px rgba(0,0,0,.4); }
+}
+
+/* ---------- COVER ---------- */
+.cover {
+    width: 720px;
+    height: 1020px;
+    box-sizing: border-box;
+    break-after: page;
+    overflow: hidden;
+    position: relative;
+    background: var(--c-bg);
+    padding: 60px 56px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.cover .hero-panel {
+    background: var(--c-ink-panel);
+    border-radius: 18px;
+    padding: 54px 48px 44px 48px;
+    position: relative;
+    overflow: hidden;
+}
+.cover .hero-panel::before {
+    content: '';
+    position: absolute;
+    top: -70px; right: -70px;
+    width: 240px; height: 240px;
+    border-radius: 50%;
+    border: 30px solid rgba(141,148,214,0.14);
+}
+.cover .hero-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -90px; left: -50px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(77,92,208,0.16);
+}
+.cover .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 3.5px;
+    text-transform: uppercase;
+    color: #9aa5df;
+    margin-bottom: 22px;
+}
+.cover .title {
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1.14;
+    color: #ffffff;
+    margin: 0 0 10px 0;
+    position: relative;
+    z-index: 2;
+}
+.cover .subtitle {
+    font-size: 19px;
+    font-weight: 300;
+    line-height: 1.45;
+    color: #c2c9ee;
+    margin-bottom: 30px;
+    position: relative;
+    z-index: 2;
+}
+.cover .divider {
+    width: 64px; height: 4px;
+    background: var(--c-accent);
+    border-radius: 2px;
+    margin-bottom: 28px;
+    position: relative; z-index: 2;
+}
+.cover .summary {
+    font-size: 14.5px;
+    line-height: 1.68;
+    color: rgba(214,220,245,0.88);
+    max-width: 520px;
+    position: relative; z-index: 2;
+}
+.cover .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 34px;
+    position: relative; z-index: 2;
+}
+.cover .meta-chip {
+    border: 1px solid rgba(154,165,223,0.35);
+    border-radius: 999px;
+    padding: 6px 16px;
+    font-size: 11.5px;
+    color: #b9c1e8;
+    letter-spacing: 0.4px;
+}
+.cover .cover-foot {
+    margin-top: 44px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    position: relative; z-index: 2;
+}
+.cover .foot-brand {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--c-primary-d);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+.cover .foot-note {
+    font-size: 11px;
+    color: var(--c-muted);
+    text-align: right;
+    line-height: 1.5;
+}
+.cover .top-band {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, var(--c-primary-d), var(--c-accent), var(--c-primary-l));
+}
+
+/* ---------- MAIN CONTENT ---------- */
+.main-content {
+    padding: 54px 60px 44px 60px;
+    background: var(--c-bg);
+}
+p { margin: 0 0 13px 0; text-align: justify; }
+strong { color: var(--c-primary-d); font-weight: 700; }
+em { color: var(--c-primary-d); font-style: italic; }
+
+.chapter-header {
+    break-after: avoid;
+    break-inside: avoid;
+    margin-top: 26px;
+    margin-bottom: 14px;
+}
+.chapter-header:first-child { margin-top: 0; }
+.sec-tag {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+    color: var(--c-accent);
+    background: var(--c-panel);
+    border: 1px solid var(--c-border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    margin-bottom: 10px;
+}
+.sec-title {
+    font-size: 25px;
+    font-weight: 800;
+    line-height: 1.22;
+    color: var(--c-primary-d);
+    margin-bottom: 8px;
+}
+.sec-divider {
+    width: 52px; height: 3px;
+    background: var(--c-accent);
+    border-radius: 2px;
+}
+.sub-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--c-primary-d);
+    margin: 20px 0 8px 0;
+    break-after: avoid;
+}
+.mini-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--c-primary);
+    margin: 14px 0 6px 0;
+    break-after: avoid;
+}
+
+/* Cards & callouts */
+.card {
+    break-inside: avoid;
+    background: #ffffff;
+    border: 1px solid var(--c-border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+}
+.callout {
+    break-inside: avoid;
+    border-radius: 10px;
+    padding: 13px 16px 13px 16px;
+    margin: 12px 0 14px 0;
+    font-size: 13.5px;
+    line-height: 1.58;
+}
+.callout .co-label {
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 5px;
+}
+.co-note { background: #e9edfb; border: 1px solid #c9d2f1; }
+.co-note .co-label { color: var(--c-primary); }
+.co-warn { background: #f8efdd; border: 1px solid #e8d5b0; }
+.co-warn .co-label { color: var(--c-warn); }
+.co-ok { background: #e6f2ec; border: 1px solid #c4dfcf; }
+.co-ok .co-label { color: var(--c-ok); }
+.co-err { background: #f7e9e9; border: 1px solid #e7c9c9; }
+.co-err .co-label { color: var(--c-err); }
+
+/* Steps */
+.step {
+    break-inside: avoid;
+    display: flex;
+    gap: 14px;
+    margin-bottom: 12px;
+}
+.step .step-num {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--c-primary-d);
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+}
+.step .step-body { flex: 1 1 auto; min-width: 0; }
+.step .step-title {
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--c-primary-d);
+    margin-bottom: 3px;
+}
+.step .step-text { font-size: 13.8px; line-height: 1.58; text-align: justify; }
+
+/* Code blocks */
+.code {
+    break-inside: avoid;
+    background: var(--c-code-bg);
+    color: var(--c-code-text);
+    border-radius: 10px;
+    padding: 13px 16px;
+    margin: 10px 0 14px 0;
+    font-family: 'JetBrains Mono', 'Liberation Mono', 'DejaVu Sans Mono', monospace;
+    font-size: 11.3px;
+    line-height: 1.62;
+    overflow-wrap: break-word;
+    word-break: break-all;
+}
+.code .code-label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8b94d6;
+    margin-bottom: 7px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+}
+.code .cmt { color: #7e88c4; }
+.code .str { color: #9fd6a8; }
+.code .k { color: #a9b4ef; }
+
+code.inline {
+    font-family: 'JetBrains Mono', 'Liberation Mono', 'DejaVu Sans Mono', monospace;
+    font-size: 0.88em;
+    background: var(--c-panel);
+    border: 1px solid var(--c-border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--c-primary-d);
+    word-break: break-all;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 16px 0;
+    font-size: 12.6px;
+    line-height: 1.5;
+    background: #ffffff;
+    border: 1px solid var(--c-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th {
+    background: #e4e8f6;
+    color: var(--c-primary-d);
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-bottom: 2px solid #cdd5ee;
+}
+td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #e6e9f4;
+    vertical-align: top;
+    overflow-wrap: break-word;
+}
+td.mono, th.mono {
+    font-family: 'JetBrains Mono', 'Liberation Mono', monospace;
+    font-size: 11.3px;
+}
+tbody tr:nth-child(odd) td { background: #f4f6fb; }
+tbody tr:last-child td { border-bottom: none; }
+.pill {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 2px 10px;
+    letter-spacing: 0.3px;
+}
+.pill-ok { background: #e6f2ec; color: var(--c-ok); border: 1px solid #c4dfcf; }
+.pill-warn { background: #f8efdd; color: var(--c-warn); border: 1px solid #e8d5b0; }
+.pill-err { background: #f7e9e9; color: var(--c-err); border: 1px solid #e7c9c9; }
+.pill-info { background: #e9edfb; color: var(--c-primary); border: 1px solid #c9d2f1; }
+
+/* TOC */
+.toc {
+    break-inside: avoid;
+    background: #ffffff;
+    border: 1px solid var(--c-border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 18px;
+}
+.toc-title {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 2.4px;
+    text-transform: uppercase;
+    color: var(--c-primary-d);
+    margin-bottom: 12px;
+}
+.toc-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px dashed #e3e7f2;
+    font-size: 13.5px;
+}
+.toc-row:last-child { border-bottom: none; }
+.toc-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--c-accent);
+    flex-shrink: 0;
+    width: 26px;
+}
+.toc-name { font-weight: 600; color: var(--c-text); }
+.toc-desc { color: var(--c-muted); font-size: 12px; }
+
+ul.tight { margin: 6px 0 13px 0; padding-left: 20px; }
+ul.tight li { margin-bottom: 5px; break-inside: avoid; text-align: left; }
+
+/* ---------- ENDING ---------- */
+.ending {
+    width: 720px;
+    height: 1020px;
+    box-sizing: border-box;
+    break-before: page;
+    overflow: hidden;
+    position: relative;
+    background: var(--c-bg);
+    padding: 70px 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.ending .end-panel {
+    background: var(--c-ink-panel);
+    border-radius: 18px;
+    padding: 48px 44px;
+    position: relative;
+    overflow: hidden;
+}
+.ending .end-panel::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: -60px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: 26px solid rgba(141,148,214,0.13);
+}
+.ending .end-kicker {
+    font-size: 11px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: #9aa5df; margin-bottom: 16px;
+    position: relative; z-index: 2;
+}
+.ending .end-title {
+    font-size: 30px; font-weight: 900; color: #fff; line-height: 1.2;
+    margin-bottom: 18px; position: relative; z-index: 2;
+}
+.ending .end-text {
+    color: rgba(214,220,245,0.9); font-size: 14px; line-height: 1.7;
+    position: relative; z-index: 2; text-align: justify;
+}
+.ending .check-list { margin: 22px 0 0 0; padding: 0; list-style: none; position: relative; z-index: 2; }
+.ending .check-list li {
+    color: #d6dcf5; font-size: 13.5px; line-height: 1.5;
+    padding: 7px 0 7px 30px; position: relative;
+    border-bottom: 1px dashed rgba(154,165,223,0.25);
+}
+.ending .check-list li:last-child { border-bottom: none; }
+.ending .check-list li::before {
+    content: '✓';
+    position: absolute; left: 0; top: 6px;
+    color: #9fd6a8; font-weight: 800;
+}
+.ending .end-foot {
+    margin-top: 30px; display: flex; justify-content: space-between; align-items: flex-end;
+    position: relative; z-index: 2;
+}
+.ending .foot-brand {
+    font-size: 12px; font-weight: 700; color: #9aa5df;
+    letter-spacing: 1.6px; text-transform: uppercase;
+}
+.ending .foot-ver { font-size: 10.5px; color: rgba(154,165,223,0.7); }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="cover">
+    <div class="top-band"></div>
+    <div class="hero-panel">
+        <div class="kicker">Platform Operations Guide</div>
+        <div class="title">Mode-B Agents &amp;<br>Post-Call Webhooks</div>
+        <div class="subtitle">ElevenLabs Conversational AI setup, secrets, phone calls &amp; platform fixes — Clara AI Platform reference</div>
+        <div class="divider"></div>
+        <div class="summary">
+            A complete operator's reference for enabling real-time streaming voice agents on Clara AI Platform:
+            configuring the Mode-B RAG tool secret, registering post-call webhooks in the ElevenLabs dashboard,
+            verifying each step against the live deployment, wiring Twilio phone calls, and applying the language
+            catalogue and sign-out fixes queued for the next release.
+        </div>
+        <div class="meta-row">
+            <span class="meta-chip">Environment: Production</span>
+            <span class="meta-chip">clara.ai.amazetechclans.com</span>
+            <span class="meta-chip">Verified: 18 Sep 2026</span>
+        </div>
+        <div class="cover-foot">
+            <div class="foot-brand">Clara AI Platform</div>
+            <div class="foot-note">Applies to the ElevenLabs Conversational AI<br>integration (Mode-B, migrations 033–038)</div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ MAIN CONTENT ============ -->
+<div class="main-content">
+
+<div class="toc">
+    <div class="toc-title">What's inside</div>
+    <div class="toc-row"><span class="toc-num">01</span><span class="toc-name">Overview — the two voice tracks</span><span class="toc-desc">pipeline vs Mode-B agents, live platform state</span></div>
+    <div class="toc-row"><span class="toc-num">02</span><span class="toc-name">Mode-B tool secret</span><span class="toc-desc">what it does, current status, rotation &amp; verification</span></div>
+    <div class="toc-row"><span class="toc-num">03</span><span class="toc-name">Post-call webhook secret</span><span class="toc-desc">dashboard setup, step-by-step</span></div>
+    <div class="toc-row"><span class="toc-num">04</span><span class="toc-name">First Mode-B agent &amp; tier limits</span><span class="toc-desc">prerequisites and account upgrade</span></div>
+    <div class="toc-row"><span class="toc-num">05</span><span class="toc-name">Phone calls with Twilio</span><span class="toc-desc">wiring inbound and outbound calls</span></div>
+    <div class="toc-row"><span class="toc-num">06</span><span class="toc-name">Troubleshooting</span><span class="toc-desc">the 403 origin error, secret errors, restarts</span></div>
+    <div class="toc-row"><span class="toc-num">A</span><span class="toc-name">Allowed languages — completing the catalogue</span><span class="toc-desc">34 missing languages + exact code change</span></div>
+    <div class="toc-row"><span class="toc-num">B</span><span class="toc-name">Sign-out redirect fix</span><span class="toc-desc">landing page instead of login</span></div>
+    <div class="toc-row"><span class="toc-num">C</span><span class="toc-name">Environment &amp; API reference</span><span class="toc-desc">keys, endpoints, two-step save flow</span></div>
+</div>
+
+<!-- ==== SECTION 1 ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Section 01</div>
+    <div class="sec-title">Overview — the two voice tracks</div>
+    <div class="sec-divider"></div>
+</div>
+
+<p>
+    Clara AI Platform now runs <strong>two complementary voice architectures</strong> side by side, and they serve
+    different purposes. Understanding which is which avoids most configuration confusion, because the two tracks
+    have different prerequisites, different secrets, and different failure modes. The platform selects the track
+    automatically based on the runtime mode reported by the voice session endpoint.
+</p>
+
+<div class="card">
+    <div class="mini-title">Track 1 — Pipeline mode (Mode A, already live)</div>
+    <p style="margin-bottom:0;">
+        The browser records short audio bursts and sends them to Clara's own REST endpoints:
+        <code class="inline">POST /api/voice/elevenlabs/transcribe</code> (Scribe STT) →
+        <code class="inline">POST /api/embed/chat</code> (RAG chat over SSE) →
+        <code class="inline">POST /api/voice/elevenlabs/tts</code> (speech synthesis, <code class="inline">pcm_16000</code>).
+        Every turn is a request/response cycle, so latency accumulates per sentence, but no extra secrets are needed.
+        This is the mode used by the chat-window voice chat and by the embed voice demo today.
+    </p>
+</div>
+
+<div class="card">
+    <div class="mini-title">Track 2 — Mode-B agents (ElevenLabs Conversational AI, this guide)</div>
+    <p style="margin-bottom:0;">
+        A true real-time duplex conversation over a single WebSocket
+        (<code class="inline">wss://api.elevenlabs.io/v1/convai/conversation</code>). The assistant listens,
+        thinks, and speaks with sub-second responsiveness, supports interruptions, and — critically for the
+        platform roadmap — can be attached to a <strong>phone number</strong> so the same agent answers real
+        telephone calls. Because ElevenLabs' servers call back into Clara for knowledge retrieval and call
+        analytics, this track requires the two security secrets this guide configures.
+    </p>
+</div>
+
+<div class="sub-title">Live platform state (verified 18 Sep 2026)</div>
+<p>
+    Every value below was read directly from the production deployment's settings API and the ElevenLabs account
+    status endpoint on 18 September 2026. Treat this table as the baseline: when something misbehaves, compare
+    against this state first.
+</p>
+
+<table>
+    <thead>
+        <tr><th style="width:34%">Item</th><th style="width:22%">Status</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+        <tr><td class="mono">ELEVENLABS_ENABLED</td><td><span class="pill pill-ok">true</span></td><td>Voice provider active for chat-window voice and embed voice.</td></tr>
+        <tr><td class="mono">ELEVENLABS_CONVERSATIONAL_AI_ENABLED</td><td><span class="pill pill-ok">true</span></td><td>Mode-B opt-in, set 18 Sep 2026. Documented as requiring a restart for the CSP change; the realtime WebSocket already works because <code class="inline">wss:</code> is in the CSP connect-src.</td></tr>
+        <tr><td class="mono">ELEVENLABS_TOOL_HMAC_SECRET</td><td><span class="pill pill-ok">set 18 Sep</span></td><td>Mode-B tool secret — configured and verified live during preparation of this guide (see Section 02).</td></tr>
+        <tr><td class="mono">ELEVENLABS_WEBHOOK_SECRET</td><td><span class="pill pill-warn">not set</span></td><td><strong>Requires the ElevenLabs dashboard value</strong> — follow Section 03.</td></tr>
+        <tr><td class="mono">ELEVENLABS_API_KEY</td><td><span class="pill pill-ok">connected</span></td><td>Account is on the <strong>free tier</strong>: 10,000 characters/month, 11% used, 3 custom voices, instant voice cloning unavailable.</td></tr>
+        <tr><td class="mono">ELEVENLABS_DEFAULT_TTS_MODEL</td><td><span class="pill pill-info">eleven_multilingual_v2</span></td><td>Platform default; embed pipeline currently resolves to <code class="inline">eleven_flash_v2_5</code>.</td></tr>
+        <tr><td class="mono">ELEVENLABS_DEFAULT_STT_MODEL</td><td><span class="pill pill-info">scribe_v1</span></td><td>Scribe STT for both pipeline and agent conversations.</td></tr>
+    </tbody>
+</table>
+
+<div class="callout co-ok">
+    <span class="co-label">Changes applied to production on 18 Sep 2026</span>
+    During diagnosis for this guide, two fixes were applied directly against the live deployment:
+    (1) the <strong>"Landing Demo"</strong> embed API key (<code class="inline">clr_463c2914ca28…</code>) had an
+    empty <code class="inline">allowed_origins</code> list, which caused the 403 error on
+    <code class="inline">/api/voice/elevenlabs/session</code> — the production origin
+    <code class="inline">https://clara.ai.amazetechclans.com</code> was added and the session endpoint now returns
+    a valid pipeline configuration; (2) the <strong>Mode-B tool secret</strong> was generated (64 hex characters)
+    and stored through the platform's own two-step settings API. No other production data was modified.
+</div>
+
+<!-- ==== SECTION 2 ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Section 02</div>
+    <div class="sec-title">Mode-B tool secret (ELEVENLABS_TOOL_HMAC_SECRET)</div>
+    <div class="sec-divider"></div>
+</div>
+
+<p>
+    When a Mode-B agent is created, Clara registers a <strong>server tool</strong> (webhook tool) on the ElevenLabs
+    agent so that every answer is grounded in your knowledge base. ElevenLabs' agents runtime calls that tool over
+    HTTPS while the conversation is in flight:
+</p>
+
+<div class="card">
+    <div class="mini-title">The signed RAG callback flow</div>
+    <ul class="tight" style="margin-bottom:0;">
+        <li>User speaks → ElevenLabs agent decides it needs knowledge-base context.</li>
+        <li>Agent calls <code class="inline">POST /api/internal/elevenlabs/tools/rag-search</code> on Clara, carrying an HMAC signature derived from the tool secret that Clara embedded in the agent's tool configuration at creation time.</li>
+        <li>Clara verifies the signature, runs hybrid RAG retrieval over the organisation's knowledge base, and returns the context chunk to the agent.</li>
+        <li>The agent speaks a grounded answer in real time — no browser round trips involved.</li>
+    </ul>
+</div>
+
+<p>
+    This is why the settings page marks the field as <em>"Required before any Mode-B agent can be created"</em>:
+    without the secret, Clara cannot sign the tool configuration, and the internal endpoint refuses every call.
+    The secret never appears in the browser and never needs to be typed into the ElevenLabs dashboard — it stays
+    server-side and is applied automatically when agents are created or re-synced.
+</p>
+
+<div class="callout co-ok">
+    <span class="co-label">Current status — already configured</span>
+    This secret was set up on 18 September 2026 using the platform's own settings API. It is a 64-character
+    hexadecimal value (256 bits of entropy, above the 32+ character requirement), stored in
+    <code class="inline">platform_env_settings</code> and masked in the UI. No further action is needed to
+    satisfy the "Required before any Mode-B agent can be created" gate.
+</div>
+
+<div class="sub-title">How to verify it is live</div>
+<p>
+    The internal tool endpoint reports its state through distinct error codes. Probing it with an unsigned request
+    tells you exactly which stage of configuration is missing:
+</p>
+
+<div class="code"><span class="code-label">Verification — unsigned probe (safe, no side effects)</span>
+curl -s -X POST https://clara.ai.amazetechclans.com/api/internal/elevenlabs/tools/rag-search \
+  -H "Content-Type: application/json" -d '{"query":"test"}'
+
+<span class="cmt"># Before the secret exists  →  HTTP 503  {"error":"Tool callback rejected (missing_secret)."}</span>
+<span class="cmt"># After the secret exists   →  HTTP 401  {"error":"Tool callback rejected (missing_signature)."}</span>
+<span class="cmt"># 401 missing_signature is EXPECTED for unsigned probes — it proves the secret is live.</span></div>
+
+<div class="sub-title">How to set or rotate it later</div>
+<div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+        <div class="step-title">Generate a fresh secret</div>
+        <div class="step-text">Generate 64 random hex characters (well above the 32+ requirement) on any trusted machine: <code class="inline">openssl rand -hex 32</code>. Avoid reusing values from other services.</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+        <div class="step-title">Save it through Settings → AI</div>
+        <div class="step-text">Open <code class="inline">Settings → AI → ElevenLabs → Mode-B tool secret</code>, paste the value, and save. The UI stores it in <code class="inline">platform_env_settings</code> via a two-step confirmation flow and immediately masks it.</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+        <div class="step-title">Re-sync existing agents</div>
+        <div class="step-text">Rotating the secret invalidates the signature embedded in previously created Mode-B agents. After rotation, re-save or re-sync each agent so Clara re-writes the tool configuration with the new signature, then re-run the verification probe above.</div>
+    </div>
+</div>
+
+<!-- ==== SECTION 3 ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Section 03</div>
+    <div class="sec-title">Post-call webhook secret (ELEVENLABS_WEBHOOK_SECRET)</div>
+    <div class="sec-divider"></div>
+</div>
+
+<p>
+    After every Mode-B conversation ends — web session or phone call — ElevenLabs analyses the call and delivers
+    a full report to your webhook endpoint: transcripts, timestamps, conversation analytics, and metadata. Clara
+    receives these reports at <code class="inline">POST /api/webhooks/elevenlabs/post-call</code> and stores them
+    as conversation records so organisations get call history without any browser involvement.
+</p>
+
+<p>
+    ElevenLabs signs every delivery with an <strong>HMAC signature header</strong>
+    (<code class="inline">ElevenLabs-Signature</code>). The signing secret is <strong>generated by the ElevenLabs
+    dashboard when you create the webhook</strong> — that is why this value, unlike the tool secret, must be copied
+    from the dashboard into Clara. Clara additionally guards against replay attacks using a nonce store, so the
+    same delivery can never be accepted twice.
+</p>
+
+<div class="callout co-warn">
+    <span class="co-label">Order matters</span>
+    Create the webhook in the ElevenLabs dashboard <strong>first</strong> — the dashboard generates and reveals
+    the signing secret at that moment — then paste that secret into Clara. Doing it in reverse leaves you with a
+    secret you cannot retrieve later without deleting and recreating the webhook.
+</div>
+
+<div class="sub-title">Step-by-step setup</div>
+
+<div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+        <div class="step-title">Open the ElevenAgents settings page</div>
+        <div class="step-text">Sign in at <code class="inline">elevenlabs.io</code>, open <strong>Conversational AI / ElevenAgents</strong>, and go to its <strong>Settings</strong> page — direct link: <code class="inline">https://elevenlabs.io/app/agents/settings</code>. Post-call webhooks are configured workspace-wide here (they apply to all agents, including phone agents).</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+        <div class="step-title">Register the webhook URL</div>
+        <div class="step-text">In the <strong>Post-call webhooks</strong> section, add Clara's endpoint exactly as:<br><code class="inline">https://clara.ai.amazetechclans.com/api/webhooks/elevenlabs/post-call</code></div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+        <div class="step-title">Choose the webhook types</div>
+        <div class="step-text">Enable <code class="inline">post_call_transcription</code> — it carries the full conversation data (transcripts, analysis, metadata) that Clara stores. Optionally add <code class="inline">post_call_audio</code> (base64 recording — large payloads) and <code class="inline">call_initiation_failure</code> (failure diagnostics for outbound/batch calls).</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+        <div class="step-title">Copy the generated signing secret</div>
+        <div class="step-text">When the webhook is created, the dashboard generates and displays its signing secret. Copy it immediately and store it in your password manager — it is the exact value Clara will need.</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+        <div class="step-title">Paste it into Clara</div>
+        <div class="step-text">Open <code class="inline">Settings → AI → ElevenLabs → Post-call webhook secret</code>, paste the dashboard value, and save. The field description in Clara ("Register the URL in the ElevenLabs dashboard") refers to steps 1–4 you just completed.</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+        <div class="step-title">Verify end-to-end</div>
+        <div class="step-text">Run a short test Mode-B conversation, then confirm the conversation appears in Clara's conversation history / call logs. Before setup, an unsigned probe of the webhook endpoint returns <code class="inline">{"error":"Webhook rejected (missing_secret)."}</code> with HTTP 503; after the secret is stored, unsigned probes are rejected as invalid-signature while genuine signed deliveries succeed.</div>
+    </div>
+</div>
+
+<div class="callout co-note">
+    <span class="co-label">Delivery behaviour to be aware of</span>
+    ElevenLabs requires webhook endpoints to answer with HTTP 200. Deliveries that repeatedly fail are
+    <strong>auto-disabled after 10 consecutive failures</strong> (when the last success was more than 7 days ago
+    or there never was one), and failed deliveries are retried automatically. If call history stops updating,
+    check that Clara is reachable and that the stored secret still matches the dashboard value.
+</div>
+
+<!-- ==== SECTION 4 ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Section 04</div>
+    <div class="sec-title">First Mode-B agent &amp; account tier</div>
+    <div class="sec-divider"></div>
+</div>
+
+<p>
+    With both secrets in place, creating a Mode-B agent is a normal platform flow: an organisation opts into
+    Conversational AI for one of its agents (knowledge base), acknowledges the ElevenLabs data-flow disclosure,
+    and Clara provisions the ElevenLabs agent together with its signed RAG tool. The acknowledgement step exists
+    because Mode-B sends conversation audio and transcripts through ElevenLabs' infrastructure — a deliberate,
+    audited decision per organisation rather than a silent default.
+</p>
+
+<div class="sub-title">Prerequisites checklist</div>
+<ul class="tight">
+    <li><code class="inline">ELEVENLABS_CONVERSATIONAL_AI_ENABLED</code> is <strong>true</strong> (already set).</li>
+    <li>Mode-B tool secret configured (already done — Section 02).</li>
+    <li>Post-call webhook secret configured (Section 03 — the only outstanding item).</li>
+    <li>Restart the Next.js service once after toggling Conversational AI, so the documented CSP update for <code class="inline">wss://api.elevenlabs.io</code> is applied; realtime websockets already connect because <code class="inline">wss:</code> is present in the current policy.</li>
+    <li>The organisation's knowledge base is indexed and answers questions in pipeline mode.</li>
+</ul>
+
+<div class="sub-title">The free tier will not carry production</div>
+<p>
+    The connected ElevenLabs account is currently on the <strong>free tier</strong>: 10,000 TTS characters per
+    month (11% already consumed at verification time), only 3 custom voices, and instant voice cloning disabled.
+    That is adequate for a first proof-of-concept conversation, but a single realistic testing session burns
+    thousands of characters, and phone agents add their own consumption. Before exposing Mode-B to real users:
+</p>
+
+<table>
+    <thead>
+        <tr><th style="width:26%">Tier</th><th style="width:37%">What it unlocks</th><th>Recommended for</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><strong>Free</strong></td><td>10k chars/month, 3 voices, no cloning</td><td>One-off smoke tests only — current state.</td></tr>
+        <tr><td><strong>Creator</strong></td><td>≈30k chars/month, more voices, usage analytics</td><td>Internal pilot with a handful of testers.</td></tr>
+        <tr><td><strong>Pro</strong></td><td>≈100k chars/month, instant cloning, higher concurrency</td><td>Production web + phone agents.</td></tr>
+    </tbody>
+</table>
+
+<p>
+    Exact quotas and prices change — confirm current limits at <code class="inline">elevenlabs.io/pricing</code>
+    before committing. Character consumption is monitored on the platform side too: the credit alert threshold
+    (<code class="inline">ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT</code>, currently 80%) emails super admins when
+    the monthly budget approaches exhaustion.
+</p>
+
+<!-- ==== SECTION 5 ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Section 05</div>
+    <div class="sec-title">Phone calls with Twilio</div>
+    <div class="sec-divider"></div>
+</div>
+
+<p>
+    Phone calls reuse the exact same Mode-B agents that power web conversations — the agent is simply attached to
+    a phone number, and ElevenLabs bridges telephony audio to the conversation WebSocket. This is why the call
+    centre of the platform's roadmap depends on Sections 02 and 03 being complete: the signed RAG tool keeps phone
+    answers grounded, and the post-call webhook is what records every completed call back into Clara.
+</p>
+
+<div class="sub-title">Two integration patterns</div>
+<table>
+    <thead>
+        <tr><th style="width:30%">Pattern</th><th style="width:35%">How it works</th><th>When to choose</th></tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>ElevenLabs native Twilio integration</strong></td>
+            <td>You link your Twilio account (or import a number) in the ElevenLabs dashboard; ElevenLabs manages call media streams and binds the number to an agent.</td>
+            <td><strong>Recommended default.</strong> Least code, handles SIP/media, works with agent updates automatically.</td>
+        </tr>
+        <tr>
+            <td><strong>Twilio Programmable Voice + agent API</strong></td>
+            <td>Your Twilio number's webhook tells Twilio to connect the call to the agent; optional "register call" flow for passing caller context.</td>
+            <td>When you need custom IVR, routing logic, or CRM lookups before the agent picks up.</td>
+        </tr>
+    </tbody>
+</table>
+
+<div class="sub-title">Platform-side settings</div>
+<p>
+    Clara stores telephony credentials per platform and per knowledge base in
+    <code class="inline">phone_call_configs</code>. The platform-level fields currently sit under
+    <strong>Settings → Phone</strong> and are empty today:
+</p>
+<ul class="tight">
+    <li><code class="inline">PHONE_PROVIDER</code> — set to <code class="inline">twilio</code> (already configured).</li>
+    <li><code class="inline">TWILIO_ACCOUNT_SID</code> — your Twilio Account SID (find it on the Twilio console dashboard).</li>
+    <li><code class="inline">TWILIO_AUTH_TOKEN</code> — the matching auth token.</li>
+    <li><code class="inline">TWILIO_PHONE_NUMBER</code> — the number callers dial (E.164 format, e.g. <code class="inline">+94771234567</code>).</li>
+</ul>
+
+<div class="sub-title">Recommended wiring order</div>
+<div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+        <div class="step-title">Buy / verify a Twilio number</div>
+        <div class="step-text">In the Twilio console, purchase a number with voice capability in the country your callers dial from. For Sri Lanka / India deployments, confirm local number availability or use a regional Twilio subaccount.</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+        <div class="step-title">Connect Twilio in the ElevenLabs dashboard</div>
+        <div class="step-text">Follow the native integration guide (<code class="inline">elevenlabs.io/docs/eleven-agents/phone-numbers/twilio-integration/native-integration</code>) to link the account or import the number, then assign the number to your Mode-B agent.</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+        <div class="step-title">Fill Clara's phone settings</div>
+        <div class="step-text">Enter the SID, auth token, and number under Settings → Phone so the platform can place outbound calls and log per-KB call configuration.</div>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+        <div class="step-title">Test inbound + outbound and confirm logs</div>
+        <div class="step-text">Call the number, hold a short grounded conversation, then verify the call appears in Clara's call logs via the post-call webhook. SMS-based conversations and batch outbound calling are available as later extensions.</div>
+    </div>
+</div>
+
+<div class="callout co-warn">
+    <span class="co-label">Billing reality check</span>
+    Telephony costs are separate from ElevenLabs character quotas: Twilio bills per minute per leg (inbound and
+    outbound), and ElevenLabs bills conversation/character usage on top. Estimate combined per-minute cost before
+    launching any call campaign, and keep the credit alert threshold enabled.
+</div>
+
+<!-- ==== SECTION 6 ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Section 06</div>
+    <div class="sec-title">Troubleshooting</div>
+    <div class="sec-divider"></div>
+</div>
+
+<div class="sub-title">The 403 "Origin is not in the allowed origins" error</div>
+<p>
+    This is the error the embed voice demo produced before 18 September. Every embed API key carries an
+    <code class="inline">allowed_origins</code> list; the voice session endpoint compares the browser's
+    <code class="inline">Origin</code> header against it and rejects mismatches with HTTP 403. The "Landing Demo"
+    key had an <strong>empty list</strong>, so every origin — including the platform's own domain — was rejected.
+    The key's cryptographic hash itself was valid (verified byte-for-byte), which is why the error message
+    mentioned origins rather than an invalid key.
+</p>
+
+<div class="code"><span class="code-label">Fix applied on 18 Sep 2026 (equivalent SQL, for reference)</span>
+<span class="cmt">-- Add the hosting origin to the embed key's allow-list</span>
+UPDATE api_keys
+SET allowed_origins = ARRAY['https://clara.ai.amazetechclans.com']
+WHERE key_prefix = 'clr_463c2914ca28';  <span class="cmt">-- "Landing Demo" key</span></div>
+
+<p>
+    For <strong>other keys</strong> that hit the same error (for example the "Rilan Test KBs" and "Production"
+    keys also have empty origin lists today), either edit the key in the admin embed panel and add the exact
+    origin including scheme and no trailing slash, or run the equivalent SQL above with the right
+    <code class="inline">key_prefix</code>. A companion error, <em>"Invalid or revoked embed API key"</em>, means
+    the key value or its <code class="inline">is_active</code> flag failed instead — check the
+    <code class="inline">api_keys</code> row.
+</p>
+
+<div class="sub-title">Secret-related error codes</div>
+<table>
+    <thead>
+        <tr><th style="width:44%">Response</th><th style="width:14%">Code</th><th>Meaning &amp; action</th></tr>
+    </thead>
+    <tbody>
+        <tr><td class="mono">{"error":"Tool callback rejected (missing_secret)."}</td><td><span class="pill pill-err">503</span></td><td><code class="inline">ELEVENLABS_TOOL_HMAC_SECRET</code> is empty — set it (Section 02).</td></tr>
+        <tr><td class="mono">{"error":"Tool callback rejected (missing_signature)."}</td><td><span class="pill pill-ok">401</span></td><td>Secret is live; caller sent no/invalid signature. Expected for manual probes.</td></tr>
+        <tr><td class="mono">{"error":"Webhook rejected (missing_secret)."}</td><td><span class="pill pill-err">503</span></td><td><code class="inline">ELEVENLABS_WEBHOOK_SECRET</code> is empty — complete Section 03.</td></tr>
+        <tr><td class="mono">{"error":"Origin … is not in the allowed origins for this API key."}</td><td><span class="pill pill-err">403</span></td><td>Embed key's origin allow-list is missing the hosting origin — see above.</td></tr>
+        <tr><td class="mono">{"error":"Invalid or revoked embed API key."}</td><td><span class="pill pill-err">403</span></td><td>Key unknown or deactivated — check <code class="inline">api_keys.key_prefix</code> / <code class="inline">is_active</code>.</td></tr>
+    </tbody>
+</table>
+
+<div class="sub-title">Settings that need a service restart</div>
+<table>
+    <thead>
+        <tr><th style="width:44%">Setting</th><th style="width:18%">Restart?</th><th>Why</th></tr>
+    </thead>
+    <tbody>
+        <tr><td class="mono">ELEVENLABS_CONVERSATIONAL_AI_ENABLED</td><td><span class="pill pill-warn">yes</span></td><td>Recalculates the Content-Security-Policy at boot (adds the documented <code class="inline">wss://api.elevenlabs.io</code> entry). Toggled after the last restart, so one restart is still pending.</td></tr>
+        <tr><td class="mono">ELEVENLABS_TOOL_HMAC_SECRET</td><td><span class="pill pill-ok">no</span></td><td>Read from <code class="inline">platform_env_settings</code> at request time — takes effect immediately.</td></tr>
+        <tr><td class="mono">ELEVENLABS_WEBHOOK_SECRET</td><td><span class="pill pill-ok">no</span></td><td>Same runtime-read behaviour.</td></tr>
+        <tr><td class="mono">ELEVENLABS_API_KEY / voice &amp; model defaults</td><td><span class="pill pill-ok">no</span></td><td>Runtime-read; provider clients pick up changes on next call.</td></tr>
+    </tbody>
+</table>
+
+<div class="callout co-note">
+    <span class="co-label">Where to look when agents fail mid-conversation</span>
+    Check in this order: (1) ElevenLabs usage page — free-tier exhaustion silently ends speech;
+    (2) <code class="inline">/api/admin/elevenlabs/status</code> — connected flag, tier, character usage, credit
+    alert state; (3) the RAG tool probe from Section 02 — a failing tool makes answers ungrounded rather than
+    failing the call; (4) the agent's conversation log in the ElevenLabs dashboard, which shows tool errors
+    ElevenLabs-side.
+</div>
+
+<!-- ==== APPENDIX A ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Appendix A</div>
+    <div class="sec-title">Allowed languages — completing the catalogue</div>
+    <div class="sec-divider"></div>
+</div>
+
+<p>
+    The <strong>Allowed languages</strong> picker in Settings → AI (platform assistant defaults) currently offers
+    18 languages. Cross-checked against ElevenLabs' own capability pages on 18 September 2026, the catalogue is
+    missing every language the voice stack can serve beyond those 18. Scribe STT understands 99 languages;
+    the multilingual TTS models speak 29 (v2) to 32 (Flash v2.5) of them. Two sensible tiers of additions follow.
+</p>
+
+<div class="sub-title">Tier 1 — full voice support (ElevenLabs Flash v2.5 TTS + Scribe STT)</div>
+<p>
+    These 16 languages work end-to-end in both voice tracks today — add them first; each is a one-line entry in
+    the platform's language constant:
+</p>
+<table>
+    <thead><tr><th style="width:14%">Code</th><th style="width:36%">Language</th><th style="width:14%">Code</th><th style="width:36%">Language</th></tr></thead>
+    <tbody>
+        <tr><td class="mono">nl</td><td>Dutch</td><td class="mono">fil</td><td>Filipino</td></tr>
+        <tr><td class="mono">pl</td><td>Polish</td><td class="mono">sv</td><td>Swedish</td></tr>
+        <tr><td class="mono">bg</td><td>Bulgarian</td><td class="mono">ro</td><td>Romanian</td></tr>
+        <tr><td class="mono">cs</td><td>Czech</td><td class="mono">el</td><td>Greek</td></tr>
+        <tr><td class="mono">fi</td><td>Finnish</td><td class="mono">hr</td><td>Croatian</td></tr>
+        <tr><td class="mono">ms</td><td>Malay</td><td class="mono">sk</td><td>Slovak</td></tr>
+        <tr><td class="mono">da</td><td>Danish</td><td class="mono">uk</td><td>Ukrainian</td></tr>
+        <tr><td class="mono">hu</td><td>Hungarian</td><td class="mono">no</td><td>Norwegian</td></tr>
+    </tbody>
+</table>
+
+<div class="sub-title">Tier 2 — regional priority (Scribe STT strong; TTS falls back)</div>
+<p>
+    The platform already ships Sinhala and Thai — languages Scribe understands but multilingual TTS does not
+    officially list — so STT-strong regional languages are clearly in scope, especially for the South Asian
+    market the platform serves. These 18 additions follow that precedent:
+</p>
+<table>
+    <thead><tr><th style="width:14%">Code</th><th style="width:36%">Language</th><th style="width:14%">Code</th><th style="width:36%">Language</th></tr></thead>
+    <tbody>
+        <tr><td class="mono">bn</td><td>Bengali</td><td class="mono">ur</td><td>Urdu</td></tr>
+        <tr><td class="mono">te</td><td>Telugu</td><td class="mono">ml</td><td>Malayalam</td></tr>
+        <tr><td class="mono">kn</td><td>Kannada</td><td class="mono">mr</td><td>Marathi</td></tr>
+        <tr><td class="mono">gu</td><td>Gujarati</td><td class="mono">pa</td><td>Punjabi</td></tr>
+        <tr><td class="mono">ne</td><td>Nepali</td><td class="mono">or</td><td>Odia</td></tr>
+        <tr><td class="mono">fa</td><td>Persian</td><td class="mono">ps</td><td>Pashto</td></tr>
+        <tr><td class="mono">sw</td><td>Swahili</td><td class="mono">my</td><td>Burmese</td></tr>
+        <tr><td class="mono">km</td><td>Khmer</td><td class="mono">lo</td><td>Lao</td></tr>
+        <tr><td class="mono">yue</td><td>Cantonese</td><td class="mono">sr</td><td>Serbian</td></tr>
+    </tbody>
+</table>
+
+<div class="sub-title">The exact code change</div>
+<p>
+    The list lives in the AI settings options module that also exports the chat/embedding/realtime model
+    catalogues — the exported constant rendered as <code class="inline">"English (en)"</code> style options in the
+    picker. Extend the array with the 34 entries above (full block ready to paste):
+</p>
+
+<div class="code"><span class="code-label">languages constant — replacement value (34 additions appended)</span>
+<span class="k">export const</span> LANGUAGES = [
+  { code: <span class="str">"en"</span>, label: <span class="str">"English"</span> },     { code: <span class="str">"si"</span>, label: <span class="str">"Sinhala"</span> },
+  { code: <span class="str">"ta"</span>, label: <span class="str">"Tamil"</span> },      { code: <span class="str">"hi"</span>, label: <span class="str">"Hindi"</span> },
+  { code: <span class="str">"ar"</span>, label: <span class="str">"Arabic"</span> },     { code: <span class="str">"zh"</span>, label: <span class="str">"Chinese"</span> },
+  { code: <span class="str">"ja"</span>, label: <span class="str">"Japanese"</span> },   { code: <span class="str">"ko"</span>, label: <span class="str">"Korean"</span> },
+  { code: <span class="str">"es"</span>, label: <span class="str">"Spanish"</span> },    { code: <span class="str">"fr"</span>, label: <span class="str">"French"</span> },
+  { code: <span class="str">"de"</span>, label: <span class="str">"German"</span> },     { code: <span class="str">"pt"</span>, label: <span class="str">"Portuguese"</span> },
+  { code: <span class="str">"ru"</span>, label: <span class="str">"Russian"</span> },    { code: <span class="str">"it"</span>, label: <span class="str">"Italian"</span> },
+  { code: <span class="str">"id"</span>, label: <span class="str">"Indonesian"</span> }, { code: <span class="str">"tr"</span>, label: <span class="str">"Turkish"</span> },
+  { code: <span class="str">"vi"</span>, label: <span class="str">"Vietnamese"</span> }, { code: <span class="str">"th"</span>, label: <span class="str">"Thai"</span> },
+  <span class="cmt">// ── Tier 1: ElevenLabs TTS-supported ───────────────────────────────</span>
+  { code: <span class="str">"nl"</span>, label: <span class="str">"Dutch"</span> },      { code: <span class="str">"fil"</span>, label: <span class="str">"Filipino"</span> },
+  { code: <span class="str">"pl"</span>, label: <span class="str">"Polish"</span> },     { code: <span class="str">"sv"</span>, label: <span class="str">"Swedish"</span> },
+  { code: <span class="str">"bg"</span>, label: <span class="str">"Bulgarian"</span> },  { code: <span class="str">"ro"</span>, label: <span class="str">"Romanian"</span> },
+  { code: <span class="str">"cs"</span>, label: <span class="str">"Czech"</span> },      { code: <span class="str">"el"</span>, label: <span class="str">"Greek"</span> },
+  { code: <span class="str">"fi"</span>, label: <span class="str">"Finnish"</span> },    { code: <span class="str">"hr"</span>, label: <span class="str">"Croatian"</span> },
+  { code: <span class="str">"ms"</span>, label: <span class="str">"Malay"</span> },      { code: <span class="str">"sk"</span>, label: <span class="str">"Slovak"</span> },
+  { code: <span class="str">"da"</span>, label: <span class="str">"Danish"</span> },     { code: <span class="str">"uk"</span>, label: <span class="str">"Ukrainian"</span> },
+  { code: <span class="str">"hu"</span>, label: <span class="str">"Hungarian"</span> },  { code: <span class="str">"no"</span>, label: <span class="str">"Norwegian"</span> },
+  <span class="cmt">// ── Tier 2: regional priority (Scribe STT) ─────────────────────────</span>
+  { code: <span class="str">"bn"</span>, label: <span class="str">"Bengali"</span> },    { code: <span class="str">"ur"</span>, label: <span class="str">"Urdu"</span> },
+  { code: <span class="str">"te"</span>, label: <span class="str">"Telugu"</span> },     { code: <span class="str">"ml"</span>, label: <span class="str">"Malayalam"</span> },
+  { code: <span class="str">"kn"</span>, label: <span class="str">"Kannada"</span> },    { code: <span class="str">"mr"</span>, label: <span class="str">"Marathi"</span> },
+  { code: <span class="str">"gu"</span>, label: <span class="str">"Gujarati"</span> },   { code: <span class="str">"pa"</span>, label: <span class="str">"Punjabi"</span> },
+  { code: <span class="str">"ne"</span>, label: <span class="str">"Nepali"</span> },     { code: <span class="str">"or"</span>, label: <span class="str">"Odia"</span> },
+  { code: <span class="str">"fa"</span>, label: <span class="str">"Persian"</span> },    { code: <span class="str">"ps"</span>, label: <span class="str">"Pashto"</span> },
+  { code: <span class="str">"sw"</span>, label: <span class="str">"Swahili"</span> },    { code: <span class="str">"my"</span>, label: <span class="str">"Burmese"</span> },
+  { code: <span class="str">"km"</span>, label: <span class="str">"Khmer"</span> },      { code: <span class="str">"lo"</span>, label: <span class="str">"Lao"</span> },
+  { code: <span class="str">"yue"</span>, label: <span class="str">"Cantonese"</span> }, { code: <span class="str">"sr"</span>, label: <span class="str">"Serbian"</span> },
+];
+<span class="cmt">// After editing: commit, rebuild, redeploy — the picker then shows 52 languages.</span></div>
+
+<div class="callout co-note">
+    <span class="co-label">Interim option while the next deploy is pending</span>
+    The picker already accepts custom codes: any ISO code stored in
+    <code class="inline">platform_assistant_defaults.allowed_languages</code> renders as an extra (uppercase)
+    option even before a code change. Current platform defaults are <code class="inline">en</code>,
+    <code class="inline">ta</code>, <code class="inline">ar</code>. The clean fix is the constant above — it is
+    queued with the sign-out change in Appendix B for the next repository deployment.
+</div>
+
+<!-- ==== APPENDIX B ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Appendix B</div>
+    <div class="sec-title">Sign-out redirect fix</div>
+    <div class="sec-divider"></div>
+</div>
+
+<p>
+    Signing out currently sends users to the login screen. The intended behaviour is a return to the public
+    landing page. The sign-out handler lives in the workspace shell component that renders the profile menu
+    (the same component builds the admin and org navigation). Its handler currently reads:
+</p>
+
+<div class="code"><span class="code-label">current handler (minified in production build)</span>
+<span class="k">async function</span> handleSignOut() {
+  <span class="k">try</span> { <span class="k">await</span> logout(); }
+  <span class="k">finally</span> { router.push(<span class="str">"/login"</span>); }   <span class="cmt">// ← change this line</span>
+}</div>
+
+<div class="code"><span class="code-label">fix — send signed-out users to the landing page</span>
+<span class="k">async function</span> handleSignOut() {
+  <span class="k">try</span> { <span class="k">await</span> logout(); }
+  <span class="k">finally</span> { router.push(<span class="str">"/"</span>); }        <span class="cmt">// ← landing page</span>
+}</div>
+
+<p>
+    Two details matter when applying this change. First, the same component also contains an
+    <em>authentication guard</em> that redirects unauthenticated visitors away from protected pages — that guard
+    (<code class="inline">router.replace("/login")</code> in a <code class="inline">useEffect</code>) must remain
+    untouched, otherwise unauthenticated users could linger on protected shells. Second, if the org-facing
+    workspace uses a second copy of the profile menu, apply the same one-line change there so both shells behave
+    identically. Like Appendix A, this ships with the next code deployment.
+</p>
+
+<!-- ==== APPENDIX C ==== -->
+<div class="chapter-header">
+    <div class="sec-tag">Appendix C</div>
+    <div class="sec-title">Environment &amp; API reference</div>
+    <div class="sec-divider"></div>
+</div>
+
+<div class="sub-title">ElevenLabs-related settings keys</div>
+<table>
+    <thead>
+        <tr><th style="width:38%">Key</th><th style="width:14%">Secret</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+        <tr><td class="mono">ELEVENLABS_API_KEY</td><td>yes</td><td>Account key used for all ElevenLabs API calls.</td></tr>
+        <tr><td class="mono">ELEVENLABS_ENABLED</td><td>no</td><td>Master switch for the ElevenLabs voice provider.</td></tr>
+        <tr><td class="mono">ELEVENLABS_CONVERSATIONAL_AI_ENABLED</td><td>no</td><td>Mode-B opt-in; restart to apply CSP change.</td></tr>
+        <tr><td class="mono">ELEVENLABS_TOOL_HMAC_SECRET</td><td>yes</td><td>Signs the RAG server-tool callback (Section 02).</td></tr>
+        <tr><td class="mono">ELEVENLABS_WEBHOOK_SECRET</td><td>yes</td><td>Verifies post-call webhook deliveries (Section 03).</td></tr>
+        <tr><td class="mono">ELEVENLABS_DEFAULT_TTS_MODEL / _STT_MODEL</td><td>no</td><td>Platform default models (multilingual v2 / Scribe v1).</td></tr>
+        <tr><td class="mono">ELEVENLABS_DEFAULT_VOICE_ID</td><td>no</td><td>Fallback voice when orgs pick none.</td></tr>
+        <tr><td class="mono">ELEVENLABS_VOICE_CLONING_ENABLED / _VOICE_DESIGN_ENABLED</td><td>no</td><td>Feature toggles for cloning and voice design.</td></tr>
+        <tr><td class="mono">ELEVENLABS_CREDIT_ALERT_THRESHOLD_PCT</td><td>no</td><td>Email alert when this % of the character budget is consumed.</td></tr>
+        <tr><td class="mono">TWILIO_ACCOUNT_SID / _AUTH_TOKEN / _PHONE_NUMBER</td><td>mixed</td><td>Telephony credentials for phone calls (Section 05).</td></tr>
+    </tbody>
+</table>
+
+<div class="sub-title">Key endpoints</div>
+<table>
+    <thead>
+        <tr><th style="width:46%">Endpoint</th><th style="width:14%">Auth</th><th>Role</th></tr>
+    </thead>
+    <tbody>
+        <tr><td class="mono">POST /api/voice/elevenlabs/session</td><td>embed key</td><td>Creates a voice session config (pipeline or agent) for the embed demo; enforces the origin allow-list.</td></tr>
+        <tr><td class="mono">POST /api/voice/elevenlabs/transcribe</td><td>embed key</td><td>Scribe STT for pipeline mode.</td></tr>
+        <tr><td class="mono">POST /api/voice/elevenlabs/tts</td><td>embed key</td><td>Speech synthesis for pipeline mode.</td></tr>
+        <tr><td class="mono">POST /api/internal/elevenlabs/tools/rag-search</td><td>HMAC</td><td>Signed RAG tool that ElevenLabs agents call mid-conversation.</td></tr>
+        <tr><td class="mono">POST /api/webhooks/elevenlabs/post-call</td><td>HMAC</td><td>Receives signed post-call reports from ElevenLabs.</td></tr>
+        <tr><td class="mono">GET /api/admin/elevenlabs/status</td><td>admin</td><td>Connection state, tier, character usage, feature flags.</td></tr>
+        <tr><td class="mono">GET|POST /api/platform/env</td><td>admin</td><td>Reads / two-step-writes all runtime settings incl. both secrets.</td></tr>
+    </tbody>
+</table>
+
+<div class="sub-title">How settings are saved (the two-step flow)</div>
+<p>
+    Every settings save in the UI — including both secrets — uses a confirmation-token flow that prevents
+    cross-site request forgery. The browser first asks the API to mint a short-lived token bound to the new
+    value, then commits the value by presenting that token:
+</p>
+
+<div class="code"><span class="code-label">two-step save (what the Settings UI does internally)</span>
+<span class="cmt"># Step 1 — mint a confirmation token (valid 5 minutes)</span>
+GET /api/platform/env?token=1&amp;key=ELEVENLABS_WEBHOOK_SECRET&amp;value=&lt;secret&gt;
+→ { "confirmation_token": "…", "timestamp": 1789762372296, "expires_in_ms": 300000 }
+
+<span class="cmt"># Step 2 — commit</span>
+POST /api/platform/env
+{ "key": "ELEVENLABS_WEBHOOK_SECRET", "value": "&lt;secret&gt;",
+  "confirmation_token": "…", "timestamp": 1789762372296 }
+→ { "ok": true, "key": "ELEVENLABS_WEBHOOK_SECRET", "updatedAt": "…" }</div>
+
+<div class="callout co-warn">
+    <span class="co-label">Security hygiene for operators</span>
+    Secrets stored here are readable in plaintext from the database by anyone with SQL access — protect database
+    credentials accordingly and rotate them on any suspicion of exposure. Prefer generating fresh secrets over
+    reusing values from other tools, never paste secret values into chat tickets or emails, and treat the masked
+    display in Settings → AI as the only appropriate place to confirm a secret's presence. The default admin
+    account password should also be rotated before production hardening is considered complete.
+</div>
+
+<div class="card">
+    <div class="mini-title">Official documentation referenced in this guide</div>
+    <ul class="tight" style="margin-bottom:0;">
+        <li>Post-call webhooks — <code class="inline">elevenlabs.io/docs/eleven-agents/workflows/post-call-webhooks</code></li>
+        <li>Webhook tools (server tools) — <code class="inline">elevenlabs.io/docs/eleven-agents/customization/tools/webhook-tools</code></li>
+        <li>Twilio native integration — <code class="inline">elevenlabs.io/docs/eleven-agents/phone-numbers/twilio-integration/native-integration</code></li>
+        <li>Twilio API integration — <code class="inline">elevenlabs.io/docs/eleven-agents/customization/integrations/twilio</code></li>
+        <li>Scribe STT supported languages — <code class="inline">elevenlabs.io/docs/overview/capabilities/speech-to-text</code></li>
+        <li>TTS supported languages (v2 / Flash v2.5) — <code class="inline">elevenlabs.io/docs/overview/capabilities/text-to-speech</code></li>
+        <li>ElevenAgents settings dashboard — <code class="inline">elevenlabs.io/app/agents/settings</code></li>
+        <li>Tiers and quotas — <code class="inline">elevenlabs.io/pricing</code></li>
+    </ul>
+</div>
+
+<p>
+    This guide reflects the live deployment as verified on 18 September 2026. The two production changes
+    described in Section 01 (embed key origin allow-list, Mode-B tool secret) were applied through the
+    platform's own mechanisms and require no further action; the remaining items — the webhook secret, an
+    account tier decision, Twilio credentials, and the two code-level fixes in Appendices A and B — are ordered
+    by dependency so each unlocks the next capability of the real-time voice track.
+</p>
+
+
+
+
+
+</div>
+
+<!-- ============ ENDING ============ -->
+<div class="ending">
+    <div class="end-panel">
+        <div class="end-kicker">Quick Completion Checklist</div>
+        <div class="end-title">You are done when…</div>
+        <div class="end-text">
+            Work through this checklist after reading the guide. Every item below is directly verifiable against
+            the production deployment, and each one unblocks a concrete capability of the platform's real-time
+            voice track.
+        </div>
+        <ul class="check-list">
+            <li>The embed voice demo opens a session without a 403 error (origin fix verified on 18 Sep 2026).</li>
+            <li>Settings → AI shows Mode-B tool secret as configured (set on 18 Sep 2026 via the platform env API).</li>
+            <li>The ElevenLabs dashboard shows the post-call webhook URL pointing at Clara's webhook endpoint.</li>
+            <li>Settings → AI shows the post-call webhook secret as configured (paste from the ElevenLabs dashboard).</li>
+            <li>A first Mode-B agent answers a live voice conversation with grounded RAG answers.</li>
+            <li>The ElevenLabs account is upgraded from the free tier before production traffic.</li>
+            <li>Phone call settings (Twilio SID, token, number) are filled in Settings → Phone.</li>
+        </ul>
+        <div class="end-foot">
+            <div class="foot-brand">Clara AI Platform</div>
+            <div class="foot-ver">Reference guide · v1.0 · September 2026</div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

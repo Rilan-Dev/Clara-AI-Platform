@@ -1,0 +1,12 @@
+import { createRequire } from "node:module";
+const require = createRequire("/home/z/my-project/Clara-AI-Platform/package.json");
+const pg = require("pg");
+const { readFileSync } = require("node:fs");
+const { Client } = pg;
+const env = readFileSync("/home/z/my-project/Clara-AI-Platform/.env", "utf8");
+const url = env.match(/^DATABASE_URL=(.+)$/m)?.[1]?.trim();
+const c = new Client({ connectionString: url });
+await c.connect();
+const r = await c.query("SELECT id, surface, kb_id, LEFT(query_text, 60) AS q, created_at, latency_ms FROM query_events WHERE status = 'pending' ORDER BY created_at DESC LIMIT 5");
+console.log(JSON.stringify(r.rows, null, 1));
+await c.end();

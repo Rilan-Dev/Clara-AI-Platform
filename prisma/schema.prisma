@@ -1,0 +1,219 @@
+// Clara AI Platform — Phase 1: Metering, Audit & Enforcement Core
+// Schema implements WS-1.1 (usage-event pipeline), WS-1.2 (quota enforcement),
+// WS-1.4 (hash-chained audit log) and the model-catalogue split from WS-0.4.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// WS-0.4 Model catalogue — split into chat and embedding families, each entry
+// carries provider, limits, cost per million tokens (integer micro-dollars),
+// and — for embedding models — the output dimension. `tier` is the minimum
+// plan tier (0 free, 1 starter, 2 pro, 3 enterprise) allowed to select it.
+// ---------------------------------------------------------------------------
+model ModelEntry {
+  id                          String  @id
+  family                      String // "chat" | "embedding"
+  displayName                 String
+  provider                    String
+  contextTokens               Int
+  inputCostPerMillionMicros   BigInt  @default(0)
+  outputCostPerMillionMicros  BigInt  @default(0)
+  dimensions                  Int? // embedding models only
+  tier                        Int     @default(0)
+}
+
+// ---------------------------------------------------------------------------
+// Subscription plans — the limit matrix the quota middleware enforces.
+// -1 means unlimited. features is a JSON array of feature-flag strings.
+// ---------------------------------------------------------------------------
+model Plan {
+  id            String  @id // free | starter | pro | enterprise
+  name          String
+  priceInr      Int     @default(0)
+  requestsDay   Int     @default(50)
+  requestsMonth Int     @default(1000)
+  kbs           Int     @default(1)
+  storageBytes  BigInt  @default(104857600)
+  seats         Int     @default(1)
+  maxModelTier  Int     @default(0)
+  features      String  @default("[]") // JSON string[]
+  renewalDay    Int     @default(1)
+}
+
+model Organization {
+  id               String   @id @default(cuid())
+  name             String
+  planId           String
+  timezone         String   @default("Asia/Calcutta")
+  renewalDate      DateTime @default(now())
+  storageUsedBytes BigInt   @default(0)
+  createdAt        DateTime @default(now())
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   @default("member") // member | org_admin | platform_admin
+  orgId     String?
+  createdAt DateTime @default(now())
+}
+
+model Agent {
+  id           String   @id @default(cuid())
+  orgId        String
+  name         String
+  modelId      String
+  systemPrompt String   @default("")
+  createdAt    DateTime @default(now())
+}
+
+model KnowledgeBase {
+  id               String   @id @default(cuid())
+  orgId            String
+  name             String
+  embeddingModelId String
+  dimensions       Int
+  bytes            BigInt   @default(0)
+  createdAt        DateTime @default(now())
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  agentId   String
+  title     String   @default("New conversation")
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id               String   @id @default(cuid())
+  conversationId   String
+  role             String // user | assistant
+  content          String
+  truncated        Boolean  @default(false)
+  modelId          String?
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  latencyMs        Int      @default(0)
+  createdAt        DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// WS-1.1 UsageEvent — append-only. No update or delete paths are exposed
+// anywhere in the codebase; corrections are compensating rows.
+// ---------------------------------------------------------------------------
+model UsageEvent {
+  id               String   @id @default(cuid())
+  orgId            String
+  userId           String
+  kind             String // CHAT | EMBEDDING | TTS | OCR
+  agentId          String?
+  kbId             String?
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  latencyMs        Int      @default(0)
+  costUsdMicros    BigInt   @default(0)
+  cancelled        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([orgId, kind, createdAt])
+}
+
+// Maintained counters so quota check-and-increment is atomic per window.
+model UsageCounter {
+  id          String   @id @default(cuid())
+  orgId       String
+  limitKey    String // requests_day | requests_month | kbs | storage_bytes
+  windowStart DateTime
+  count       BigInt   @default(0)
+
+  @@unique([orgId, limitKey, windowStart])
+}
+
+// 80% soft warnings — fired at most once per org per limit per window.
+model SoftWarning {
+  id          String    @id @default(cuid())
+  orgId       String
+  limitKey    String
+  windowStart DateTime
+  firedAt     DateTime  @default(now())
+  dismissedAt DateTime?
+
+  @@unique([orgId, limitKey, windowStart])
+}
+
+// Idempotency keys — retries after network failures never double-charge.
+model IdempotencyKey {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  orgId     String
+  endpoint  String
+  snapshot  String // JSON usage snapshot to replay
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// WS-1.4 AuditLog — hash-chained and append-only. rowHash = sha256 over
+// (seq, prevHash, canonical row fields). Any after-the-fact edit breaks the
+// chain and verifyChain() reports it loudly.
+// ---------------------------------------------------------------------------
+model AuditLog {
+  seq              Int      @unique
+  id               String   @id @default(cuid())
+  orgId            String
+  actorUserId      String
+  actorRole        String
+  action           String // PROMPT | ANSWER | CONFIG | BILLING | REVEAL
+  agentId          String?
+  kbId             String?
+  conversationId   String?
+  promptText       String?
+  answerText       String?
+  model            String?
+  promptTokens     Int?
+  completionTokens Int?
+  redactions       String   @default("[]") // JSON: [{field, type, span}]
+  vault            String   @default("[]") // JSON originals for recorded reveals
+  revealOfId       String?
+  justification    String?
+  prevHash         String
+  rowHash          String
+  createdAt        DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([action, orgId, createdAt])
+}
+
+// Nightly rollup — dashboards read this small table instead of scanning events.
+model DailyUsageRollup {
+  id               String   @id @default(cuid())
+  orgId            String
+  day              DateTime // local org day, midnight
+  requests         Int      @default(0)
+  promptTokens     BigInt   @default(0)
+  completionTokens BigInt   @default(0)
+  costUsdMicros    BigInt   @default(0)
+
+  @@unique([orgId, day])
+}
+
+// WS-1.3 — validation suite runs persisted for auditability.
+model ValidationRun {
+  id        String   @id @default(cuid())
+  planId    String
+  passed    Int      @default(0)
+  failed    Int      @default(0)
+  results   String   @default("[]") // JSON check results
+  startedAt DateTime @default(now())
+}

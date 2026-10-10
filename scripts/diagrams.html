@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DejaVu Sans', 'Liberation Sans', sans-serif; background: #ffffff; }
+  .diagram { position: relative; background: #ffffff; }
+
+  /* ---------- shared node styles ---------- */
+  .node {
+    position: absolute; width: 240px; height: 130px;
+    background: #e4ecf5;
+    border: 2px solid #2d7ab3; border-radius: 10px;
+    padding: 16px 18px 14px 18px;
+  }
+  .node.dark { background: #eef3fa; border-color: #1a4a7a; }
+  .node .t { font-size: 26px; font-weight: 700; color: #142840; line-height: 1.2; margin-bottom: 8px; }
+  .node .d { font-size: 19px; color: #48607a; line-height: 1.32; }
+  .rowlabel {
+    position: absolute; font-size: 18px; font-weight: 700; color: #5a7a96;
+    letter-spacing: 2.5px; text-transform: uppercase;
+  }
+  .chip {
+    position: absolute; width: 240px;
+    background: #f7efe2; border: 2px dashed #b08d4f; border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .chip .t { font-size: 19px; font-weight: 700; color: #7a5a20; margin-bottom: 4px; }
+  .chip .d { font-size: 16px; color: #8a6a35; line-height: 1.3; }
+  svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<!-- ============ DIAGRAM 1 : usage-event pipeline & quota enforcement ============ -->
+<div class="diagram" id="diag1" style="width:1120px; height:640px;">
+  <svg class="wires" viewBox="0 0 1120 640">
+    <defs>
+      <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M0,0 L8,4.5 L0,9 z" fill="#2d7ab3"/>
+      </marker>
+      <marker id="ahd" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M0,0 L8,4.5 L0,9 z" fill="#b08d4f"/>
+      </marker>
+    </defs>
+    <!-- row 1 horizontal arrows (node right edge -> next node left edge) -->
+    <line x1="280" y1="145" x2="306" y2="145" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah)"/>
+    <line x1="550" y1="145" x2="576" y2="145" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah)"/>
+    <line x1="820" y1="145" x2="846" y2="145" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah)"/>
+    <!-- quota middleware rejected branch (dashed, down to chip) -->
+    <line x1="430" y1="210" x2="430" y2="236" stroke="#b08d4f" stroke-width="2.5"
+          stroke-dasharray="7,5" marker-end="url(#ahd)"/>
+    <!-- elbow: response complete -> event path (routes through empty band) -->
+    <path d="M 970 210 L 970 365 L 160 365 L 160 414" fill="none"
+          stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah)"/>
+    <!-- row 2 horizontal arrows -->
+    <line x1="280" y1="480" x2="306" y2="480" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah)"/>
+    <line x1="550" y1="480" x2="576" y2="480" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah)"/>
+    <line x1="820" y1="480" x2="846" y2="480" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah)"/>
+  </svg>
+
+  <div class="rowlabel" style="left:40px; top:36px;">Request path · synchronous</div>
+  <div class="node" style="left:40px; top:80px;">
+    <div class="t">Chat request</div>
+    <div class="d">POST /api/chat<br>agent + KB + message</div>
+  </div>
+  <div class="node" style="left:310px; top:80px;">
+    <div class="t">Quota middleware</div>
+    <div class="d">plan limits · atomic check<br>idempotency key</div>
+  </div>
+  <div class="node" style="left:580px; top:80px;">
+    <div class="t">Model provider call</div>
+    <div class="d">streamed completion<br>token usage returned</div>
+  </div>
+  <div class="node" style="left:850px; top:80px;">
+    <div class="t">Streamed response</div>
+    <div class="d">SSE to client · stop and<br>regenerate controls</div>
+  </div>
+
+  <div class="chip" style="left:310px; top:242px; height:112px;">
+    <div class="t">402 QUOTA_EXCEEDED</div>
+    <div class="d">friendly copy + upgrade CTA; soft warning event at 80% of plan</div>
+  </div>
+
+  <div class="rowlabel" style="left:200px; top:384px;">Event path · asynchronous</div>
+  <div class="node dark" style="left:40px; top:415px;">
+    <div class="t">UsageEvent append</div>
+    <div class="d">tokens · latency · cost<br>immutable, append-only</div>
+  </div>
+  <div class="node dark" style="left:310px; top:415px;">
+    <div class="t">AuditLog write</div>
+    <div class="d">prompt + answer + PII<br>redaction, hash-chained</div>
+  </div>
+  <div class="node dark" style="left:580px; top:415px;">
+    <div class="t">Aggregation job</div>
+    <div class="d">requests-today, monthly,<br>storage and KB rollups</div>
+  </div>
+  <div class="node dark" style="left:850px; top:415px;">
+    <div class="t">Dashboards</div>
+    <div class="d">org meters live · platform<br>admin monitoring</div>
+  </div>
+</div>
+
+<!-- ============ DIAGRAM 2 : hybrid retrieval & citation pipeline ============ -->
+<div class="diagram" id="diag2" style="width:1120px; height:640px;">
+  <svg class="wires" viewBox="0 0 1120 640">
+    <defs>
+      <marker id="ah2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M0,0 L8,4.5 L0,9 z" fill="#2d7ab3"/>
+      </marker>
+      <marker id="ahm2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+        <path d="M0,0 L8,4.5 L0,9 z" fill="#5a7a96"/>
+      </marker>
+    </defs>
+    <line x1="280" y1="145" x2="306" y2="145" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah2)"/>
+    <line x1="550" y1="145" x2="576" y2="145" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah2)"/>
+    <line x1="820" y1="145" x2="846" y2="145" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah2)"/>
+    <!-- abstain branch: dashed, from fuse+rerank node bottom -->
+    <line x1="890" y1="210" x2="890" y2="236" stroke="#5a7a96" stroke-width="2.5"
+          stroke-dasharray="7,5" marker-end="url(#ahm2)"/>
+    <!-- elbow: reranked context -> generation path (routes through empty band) -->
+    <path d="M 1050 210 L 1050 365 L 160 365 L 160 414" fill="none"
+          stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah2)"/>
+    <line x1="280" y1="480" x2="306" y2="480" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah2)"/>
+    <line x1="550" y1="480" x2="576" y2="480" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah2)"/>
+    <line x1="820" y1="480" x2="846" y2="480" stroke="#2d7ab3" stroke-width="3" marker-end="url(#ah2)"/>
+  </svg>
+
+  <div class="rowlabel" style="left:40px; top:36px;">Retrieval path · per turn</div>
+  <div class="node" style="left:40px; top:80px;">
+    <div class="t">User query</div>
+    <div class="d">conversation turn with<br>selected knowledge base</div>
+  </div>
+  <div class="node" style="left:310px; top:80px;">
+    <div class="t">Query rewrite</div>
+    <div class="d">resolve pronouns from<br>prior turns; expand queries</div>
+  </div>
+  <div class="node" style="left:580px; top:80px;">
+    <div class="t">Hybrid search</div>
+    <div class="d">BM25 full-text and<br>pgvector similarity, top-k</div>
+  </div>
+  <div class="node" style="left:850px; top:80px;">
+    <div class="t">Fuse + rerank</div>
+    <div class="d">RRF fusion, then cross-<br>encoder rerank to top-n</div>
+  </div>
+
+  <div class="chip" style="left:850px; top:242px; height:112px; background:#eef3fa; border-color:#5a7a96;">
+    <div class="t" style="color:#3d5a78;">Low confidence</div>
+    <div class="d" style="color:#5a7a96;">abstain: honest no-answer; content-gap signal to analytics</div>
+  </div>
+
+  <div class="rowlabel" style="left:200px; top:384px;">Generation path · streamed</div>
+  <div class="node dark" style="left:40px; top:415px;">
+    <div class="t">Prompt assembly</div>
+    <div class="d">numbered chunks +<br>strict grounding rules</div>
+  </div>
+  <div class="node dark" style="left:310px; top:415px;">
+    <div class="t">Streamed answer</div>
+    <div class="d">inline citation markers<br>emitted with the text</div>
+  </div>
+  <div class="node dark" style="left:580px; top:415px;">
+    <div class="t">Citation validator</div>
+    <div class="d">drop markers that do not<br>match retrieved chunks</div>
+  </div>
+  <div class="node dark" style="left:850px; top:415px;">
+    <div class="t">Persist + sources</div>
+    <div class="d">message + chunk ids;<br>sources panel renders</div>
+  </div>
+</div>
+
+</body>
+</html>

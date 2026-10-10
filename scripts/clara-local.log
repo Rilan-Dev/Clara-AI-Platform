@@ -1,0 +1,10 @@
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3100
+   - Network:      http://0.0.0.0:3100
+
+ ✓ Starting...
+[instrumentation] env validated (provider=openai, app=https://clara-rag.amazetechclans.com)
+ ✓ Ready in 207ms
+[migrate] All migrations already applied.
+[ingest-poller] background ingest queue poller started (interval=3000ms, maxJobsPerTick=5)
+[migrate] All migrations already applied.

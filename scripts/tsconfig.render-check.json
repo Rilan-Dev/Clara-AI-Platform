@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "paths": {
+      "@/*": ["/home/z/my-project/.worktrees/vc/src/*"]
+    },
+    "baseUrl": "."
+  },
+  "include": ["render-check-orb-composer.ts"]
+}

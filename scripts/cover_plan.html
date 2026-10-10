@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    @page { size: 794px 1123px; margin: 0; }
+    :root {
+      --c-bg: #0a1628;
+      --c-accent: #4da8da;
+      --c-text: #e8f0f8;
+      --c-muted: #7a9bb8;
+      --c-glow: #2d7ab3;
+    }
+    html, body {
+      margin: 0; padding: 0;
+      width: 794px; height: 1123px;
+      background: var(--c-bg);
+      color: var(--c-text);
+      font-family: 'Inter', sans-serif;
+    }
+    @media screen {
+      html { height: auto; display: flex; justify-content: center; min-height: 100vh; background: var(--c-bg); }
+      body { transform-origin: top center; scale: min(1, calc(100vw / 794), calc(100vh / 1123)); margin: 0 auto; box-shadow: 0 0 60px rgba(0,0,0,0.35); }
+    }
+    .cover { width: 794px; height: 1123px; position: relative; box-sizing: border-box;
+             border: none !important; outline: none !important; box-shadow: none !important; }
+
+    /* Layer 1 — background glow (clipped) */
+    .bg-layer { position: absolute; inset: 0; overflow: hidden; z-index: 1; }
+    .glow-a { position: absolute; top: -140px; left: -120px; width: 520px; height: 520px;
+              background: radial-gradient(circle, rgba(45,122,179,0.16) 0%, rgba(45,122,179,0) 68%); }
+    .glow-b { position: absolute; bottom: -160px; right: -140px; width: 600px; height: 600px;
+              background: radial-gradient(circle, rgba(77,168,218,0.11) 0%, rgba(77,168,218,0) 70%); }
+
+    /* Layer 2 — luminous frame */
+    .frame-layer { position: absolute; inset: 0; z-index: 2; }
+    .frame { position: absolute; top: 80px; bottom: 80px; left: 60px; right: 60px;
+             border: 2px solid var(--c-accent); }
+
+    /* Layer 3 — content */
+    .content-layer { position: absolute; inset: 0; z-index: 3; }
+    .kicker {
+      position: absolute; left: 120px; top: 135px;
+      font-size: 11pt; font-weight: 300;
+      color: var(--c-accent);
+      letter-spacing: 5px; text-transform: uppercase;
+      max-width: 540px; line-height: 1.75;
+    }
+    .title {
+      position: absolute; left: 120px; top: 232px;
+      font-family: 'Playfair Display', serif;
+      font-size: 54pt; font-weight: 900; line-height: 1.12;
+      color: var(--c-text);
+      text-shadow: 0 0 26px rgba(77,168,218,0.32);
+      max-width: 560px;
+    }
+    .summary {
+      position: absolute; left: 120px; top: 505px;
+      font-size: 15pt; font-weight: 300; line-height: 1.7;
+      color: var(--c-muted);
+      max-width: 500px;
+    }
+    .org {
+      position: absolute; left: 120px; top: 762px;
+      font-size: 18pt; font-weight: 500;
+      color: var(--c-text);
+    }
+    .org-sub {
+      position: absolute; left: 120px; top: 806px;
+      font-size: 11pt; font-weight: 300;
+      color: var(--c-muted); letter-spacing: 1px;
+    }
+    .date {
+      position: absolute; left: 120px; top: 968px;
+      font-size: 10pt; font-weight: 300;
+      color: var(--c-muted); letter-spacing: 3px; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="cover">
+    <div class="bg-layer">
+      <div class="glow-a"></div>
+      <div class="glow-b"></div>
+    </div>
+    <div class="frame-layer">
+      <div class="frame"></div>
+    </div>
+    <div class="content-layer">
+      <div class="kicker">Phase-by-Phase<br>Implementation Plan</div>
+      <div class="title">Clara AI<br>Platform</div>
+      <div class="summary">
+        The execution companion to the feature gap analysis: every identified
+        gap and defect converted into four sequenced phases — stabilisation,
+        metering and enforcement, answer quality and trust, and distribution
+        and enterprise — with schemas, algorithms, acceptance tests, and a
+        measurable definition of stable.
+      </div>
+      <div class="org">RiluRaafu</div>
+      <div class="org-sub">Engineering Blueprint · Prepared by Z.ai</div>
+      <div class="date">September 2026 · Version 1.0</div>
+    </div>
+  </div>
+</body>
+</html>

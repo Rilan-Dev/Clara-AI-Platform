@@ -1,0 +1,42 @@
+
+> ai-knowledge-app@0.1.0 dev
+> next dev -p 3000
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3000
+   - Network:      http://21.0.10.69:3000
+   - Environments: .env
+   - Experiments (use with caution):
+     ✓ externalDir
+
+ ✓ Starting...
+ ✓ Compiled /instrumentation in 157ms (20 modules)
+ ✓ Ready in 1942ms
+ ✓ Compiled /middleware in 222ms (116 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 5.5s (3334 modules)
+Browserslist: browsers data (caniuse-lite) is 11 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ GET /workspace 200 in 8785ms
+ ○ Compiling /api/health ...
+ ✓ Compiled /favicon.ico in 9.7s (3359 modules)
+ GET /favicon.ico 200 in 2654ms
+ GET /api/health 200 in 7529ms
+ GET /api/health 200 in 815ms
+ GET /workspace 200 in 1192ms
+ ○ Compiling /api/documents ...
+ ✓ Compiled /api/documents in 6.5s (4140 modules)
+[migrate] All migrations already applied.
+ GET /api/documents 200 in 8622ms
+ GET /api/kbs/all 200 in 8853ms
+[migrate] All migrations already applied.
+ GET /api/auth/me 200 in 9308ms
+ GET /api/auth/me 200 in 410ms
+ ○ Compiling /api/orgs ...
+ ✓ Compiled /api/orgs in 610ms (4144 modules)
+[migrate] All migrations already applied.
+ GET /api/orgs 200 in 1511ms
+ GET /api/orgs 200 in 468ms
+ ✓ Compiled in 746ms (4144 modules)
+ GET /api/health 200 in 828ms

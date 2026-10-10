@@ -1,0 +1,2287 @@
+{
+  "verifier": "ai-platform-core/verification/verify-extraction.mjs",
+  "generatedAt": "2026-10-01T20:58:05.734Z",
+  "source": {
+    "repository": "Rilan-Dev/Doable",
+    "ref": "develop",
+    "commit": "a6036d1fd6dca83c08ee5affa141e5c85e45f5af"
+  },
+  "mode": "git+filesystem",
+  "checks": {
+    "requiredDirectories": {
+      "total": 93,
+      "missing": [
+        "doable-source/mcp-servers/notebooklm/server",
+        "doable-source/mcp-servers/_shared",
+        "doable-source/mcp-servers/pdf-builder",
+        "doable-source/mcp-servers/presentation-builder",
+        "doable-source/mcp-servers/spreadsheet-builder",
+        "doable-source/mcp-servers/markdown-builder",
+        "doable-source/mcp-servers/image-generator",
+        "doable-source/mcp-servers/notebooklm"
+      ],
+      "pass": false
+    },
+    "requiredFiles": {
+      "total": 48,
+      "missing": [],
+      "pass": true
+    },
+    "gitTrees": {
+      "doable-source/services/api/src/ai": {
+        "expected": "13edcc7bd9726c38ea9bd4aab0d7825b2b8387d0",
+        "actual": "13edcc7bd9726c38ea9bd4aab0d7825b2b8387d0",
+        "pass": true
+      },
+      "doable-source/services/api/src/context": {
+        "expected": "43424593729e9a6d23ce71731c7bf6991b7d6c8b",
+        "actual": "43424593729e9a6d23ce71731c7bf6991b7d6c8b",
+        "pass": true
+      },
+      "doable-source/services/api/src/data-worker": {
+        "expected": "41f76545e048af489e5b1a260ecb24dbb57c6125",
+        "actual": "41f76545e048af489e5b1a260ecb24dbb57c6125",
+        "pass": true
+      },
+      "doable-source/services/api/src/integrations": {
+        "expected": "f8373823ec6063b9ff0f911d83c761d840f97a30",
+        "actual": "f8373823ec6063b9ff0f911d83c761d840f97a30",
+        "pass": true
+      },
+      "doable-source/services/api/src/mcp": {
+        "expected": "77fc1cff3ec48ba3bce21322befcf985003ac03c",
+        "actual": "77fc1cff3ec48ba3bce21322befcf985003ac03c",
+        "pass": true
+      },
+      "doable-source/services/api/src/sandbox": {
+        "expected": "d0028c442297801dbe57a546ea3ec4f6232adbb2",
+        "actual": "d0028c442297801dbe57a546ea3ec4f6232adbb2",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/chat": {
+        "expected": "69ab556c027e51b655ce8760315ea5547a554b38",
+        "actual": "69ab556c027e51b655ce8760315ea5547a554b38",
+        "pass": true
+      },
+      "doable-source/packages/doable-ai": {
+        "expected": "4df61ac8972c156009a661ebf599fb2b91b7ddab",
+        "actual": "4df61ac8972c156009a661ebf599fb2b91b7ddab",
+        "pass": true
+      },
+      "doable-source/packages/docore": {
+        "expected": "2a33159a3b92f653ddf1514027982d454bea2fd4",
+        "actual": "2a33159a3b92f653ddf1514027982d454bea2fd4",
+        "pass": true
+      },
+      "doable-source/packages/dovault": {
+        "expected": "15532f8f7effbe8a7ebd33b57333b113d64e7606",
+        "actual": "15532f8f7effbe8a7ebd33b57333b113d64e7606",
+        "pass": true
+      },
+      "doable-source/packages/shared": {
+        "expected": "8dad7fcadfe23fb5e6d3b3d919f0501e59cfae71",
+        "actual": "8dad7fcadfe23fb5e6d3b3d919f0501e59cfae71",
+        "pass": true
+      },
+      "doable-source/packages/doable-sdk": {
+        "expected": "32683d5cd4b42353e790000123176bb3b2eb8f2a",
+        "actual": "32683d5cd4b42353e790000123176bb3b2eb8f2a",
+        "pass": true
+      },
+      "dependency-closure/packages/db": {
+        "expected": "1faf731b078d489040e54bfde4bb2d08086354fe",
+        "actual": "1faf731b078d489040e54bfde4bb2d08086354fe",
+        "pass": true
+      },
+      "dependency-closure/services/api/src/db": {
+        "expected": "3fe1b58f43e135dce8807438769eec032b591bb5",
+        "actual": "3fe1b58f43e135dce8807438769eec032b591bb5",
+        "pass": true
+      },
+      "dependency-closure/services/api/src/frameworks": {
+        "expected": "f106f350efd3362473eb33d18962503d50e4de9a",
+        "actual": "f106f350efd3362473eb33d18962503d50e4de9a",
+        "pass": true
+      },
+      "dependency-closure/services/api/src/projects": {
+        "expected": "654182e0e19b8d44ed0fcb791278ef3841bbd36c",
+        "actual": "654182e0e19b8d44ed0fcb791278ef3841bbd36c",
+        "pass": true
+      },
+      "dependency-closure/services/api/src/lib": {
+        "expected": "7bb5fd5302ce66e97d25d91b8097bada80bc762a",
+        "actual": "7bb5fd5302ce66e97d25d91b8097bada80bc762a",
+        "pass": true
+      },
+      "dependency-closure/services/api/src/middleware": {
+        "expected": "62b0a6ba803d9827f9b0acc6d1a8091febffd5f8",
+        "actual": "62b0a6ba803d9827f9b0acc6d1a8091febffd5f8",
+        "pass": true
+      },
+      "dependency-closure/services/api/src/templates": {
+        "expected": "1289c0ae29d5dc893c6f2db5c80b893f177b1e52",
+        "actual": "1289c0ae29d5dc893c6f2db5c80b893f177b1e52",
+        "pass": true
+      },
+      "dependency-closure/services/api/src/git": {
+        "expected": "830aa877f377e78e9e1df3703ec4ebe8d2158846",
+        "actual": "830aa877f377e78e9e1df3703ec4ebe8d2158846",
+        "pass": true
+      },
+      "dependency-closure/services/api/src/runtime": {
+        "expected": "ae8aa7c249b90eaf6dd66ec82d5d47021d2aeb79",
+        "actual": "ae8aa7c249b90eaf6dd66ec82d5d47021d2aeb79",
+        "pass": true
+      },
+      "ui-reference/apps/web/src/modules/ai-settings": {
+        "expected": "4a571e02559125ade83bb79718786f7c2e14e12f",
+        "actual": "4a571e02559125ade83bb79718786f7c2e14e12f",
+        "pass": true
+      },
+      "ui-reference/apps/web/src/modules/integrations": {
+        "expected": "aa86f44ed28e2d99dcef5f080490bde5c10cc178",
+        "actual": "aa86f44ed28e2d99dcef5f080490bde5c10cc178",
+        "pass": true
+      },
+      "ui-reference/apps/web/src/modules/skills": {
+        "expected": "0223ba3433bd135dc4f769c4bd75874ac8ff6035",
+        "actual": "0223ba3433bd135dc4f769c4bd75874ac8ff6035",
+        "pass": true
+      },
+      "ui-reference/apps/web/src/modules/settings": {
+        "expected": "6fd532bc01a61fe79b49b2c2b4e90c80df1cb7db",
+        "actual": "6fd532bc01a61fe79b49b2c2b4e90c80df1cb7db",
+        "pass": true
+      },
+      "ui-reference/apps/web/src/app/(dashboard)/workspace-settings": {
+        "expected": "75043d2045f565cf8909121b4c13ffd34e15e542",
+        "actual": "75043d2045f565cf8909121b4c13ffd34e15e542",
+        "pass": true
+      },
+      "ui-reference/apps/web/src/app/(dashboard)/ai-settings": {
+        "expected": "1e879c7e3c8a04d8a903f836c3e5b4c1bc12346e",
+        "actual": "1e879c7e3c8a04d8a903f836c3e5b4c1bc12346e",
+        "pass": true
+      },
+      "doable-source/packages/marketplace-bundle": {
+        "expected": "1ec662602f29aac2e7f5e60893eae89df62af376",
+        "actual": "1ec662602f29aac2e7f5e60893eae89df62af376",
+        "pass": true
+      },
+      "doable-source/services/ws": {
+        "expected": "819d4f518e66745a03846cf54ee5d580d8880164",
+        "actual": "819d4f518e66745a03846cf54ee5d580d8880164",
+        "pass": true
+      },
+      "doable-source/mcp-servers/notebooklm/server": {
+        "expected": "f79499f32c0c0a2fda887bc83f948ad8bc62d9e5",
+        "actual": null,
+        "pass": false
+      },
+      "doable-source/mcp-servers/_shared": {
+        "expected": "033542e0c4099a118c8a84db22558f9bb65af625",
+        "actual": null,
+        "pass": false
+      },
+      "doable-source/mcp-servers/pdf-builder": {
+        "expected": "5465b6ad78f92b037683a3e96964a714293c4956",
+        "actual": null,
+        "pass": false
+      },
+      "doable-source/mcp-servers/presentation-builder": {
+        "expected": "c51d5e561faf0b86f15f849c86c24848b28b1e2e",
+        "actual": null,
+        "pass": false
+      },
+      "doable-source/mcp-servers/spreadsheet-builder": {
+        "expected": "4742c8bc17d5193ba81e3e2dc9fcdb6297b2390d",
+        "actual": null,
+        "pass": false
+      },
+      "doable-source/mcp-servers/markdown-builder": {
+        "expected": "f96178af8162a7e12c0f8bdf15af5da695d4e65d",
+        "actual": null,
+        "pass": false
+      },
+      "ui-reference/apps/web/src/modules/collaboration": {
+        "expected": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+        "actual": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+        "pass": true
+      },
+      "ui-reference/apps/web/src/modules/editor/visual-edit": {
+        "expected": "0870f9143fe46ce726f086d46b9f3d19f6282af0",
+        "actual": "0870f9143fe46ce726f086d46b9f3d19f6282af0",
+        "pass": true
+      },
+      "doable-source/mcp-servers/image-generator": {
+        "expected": "bb577a0f9aa583bad5709aab90ffa4dcc38ba437",
+        "actual": null,
+        "pass": false
+      },
+      "doable-source/mcp-servers/notebooklm": {
+        "expected": "f5b1eaa296cab0506cf94e7fff723598be8aa6a5",
+        "actual": null,
+        "pass": false
+      },
+      "doable-source/apps/web/src/modules/editor/visual-edit": {
+        "expected": "0870f9143fe46ce726f086d46b9f3d19f6282af0",
+        "actual": "0870f9143fe46ce726f086d46b9f3d19f6282af0",
+        "pass": true
+      },
+      "doable-source/apps/web/src/modules/editor/runtime-render": {
+        "expected": "17a8fa9b75e59dfdde8d97ea3263ffb277a66c34",
+        "actual": "f607124b6595cbb2619615aa85e30cbed2f7cfa6",
+        "pass": false
+      },
+      "doable-source/apps/web/src/modules/editor/context-files": {
+        "expected": "bea119d693ded695c578b1cc34031f358057b2fb",
+        "actual": "bea119d693ded695c578b1cc34031f358057b2fb",
+        "pass": true
+      },
+      "doable-source/apps/web/src/modules/editor/build": {
+        "expected": "ab2128830f2358c66d8a6ace64500e29904ab536",
+        "actual": "ab2128830f2358c66d8a6ace64500e29904ab536",
+        "pass": true
+      },
+      "doable-source-extensions/analytics/api": {
+        "expected": "c95b454ee3dc47da65b97272f54ac6fb59f8912e",
+        "actual": "c95b454ee3dc47da65b97272f54ac6fb59f8912e",
+        "pass": true
+      },
+      "doable-source-extensions/audit/api-admin": {
+        "expected": "7f6ae90802f37fa511f8bb57181ee7643bcea19d",
+        "actual": "7f6ae90802f37fa511f8bb57181ee7643bcea19d",
+        "pass": true
+      },
+      "doable-source-extensions/audit/web-ui": {
+        "expected": "e905d72ce9a91780f07081fa79750fe8fd4d8c14",
+        "actual": "e905d72ce9a91780f07081fa79750fe8fd4d8c14",
+        "pass": true
+      },
+      "doable-source-extensions/auth/api": {
+        "expected": "9a70854323c9c56808a8f7d9bbe4e916f06f584a",
+        "actual": "9a70854323c9c56808a8f7d9bbe4e916f06f584a",
+        "pass": true
+      },
+      "doable-source-extensions/billing/api": {
+        "expected": "8297164bdac979966744fb6568be4493236110a9",
+        "actual": "8297164bdac979966744fb6568be4493236110a9",
+        "pass": true
+      },
+      "doable-source-extensions/billing/web-ui": {
+        "expected": "f62153be879b9f9926589f257474845d8e927dba",
+        "actual": "f62153be879b9f9926589f257474845d8e927dba",
+        "pass": true
+      },
+      "doable-source-extensions/build-events/api": {
+        "expected": "3add6484bafae4b25c6e6ab0448aaf0038a10425",
+        "actual": "3add6484bafae4b25c6e6ab0448aaf0038a10425",
+        "pass": true
+      },
+      "doable-source-extensions/collaboration/api": {
+        "expected": "28217b809e1ed6c45c7f9bfa0e1a8f575108c5de",
+        "actual": "28217b809e1ed6c45c7f9bfa0e1a8f575108c5de",
+        "pass": true
+      },
+      "doable-source-extensions/dashboard/web": {
+        "expected": "fabda466eea473643634804f10b52729474cf514",
+        "actual": "fabda466eea473643634804f10b52729474cf514",
+        "pass": true
+      },
+      "doable-source-extensions/deployment/api": {
+        "expected": "b1d3f3d8ddee45d808b5a905af94d4bbf5676133",
+        "actual": "b1d3f3d8ddee45d808b5a905af94d4bbf5676133",
+        "pass": true
+      },
+      "doable-source-extensions/domains/api": {
+        "expected": "a041c37dd5af661afdb33b9d9181d8c2989f51ed",
+        "actual": "a041c37dd5af661afdb33b9d9181d8c2989f51ed",
+        "pass": true
+      },
+      "doable-source-extensions/editor/analytics-panels": {
+        "expected": "1847cdb24ae3e85beb08ec7504aad3d0877c7c1f",
+        "actual": "1847cdb24ae3e85beb08ec7504aad3d0877c7c1f",
+        "pass": true
+      },
+      "doable-source-extensions/editor/components": {
+        "expected": "53ae9890e32082cdaf3a93aea267ca75cf1fe703",
+        "actual": "53ae9890e32082cdaf3a93aea267ca75cf1fe703",
+        "pass": true
+      },
+      "doable-source-extensions/editor/plan-ui": {
+        "expected": "c9369429541b3c79eb6109ec271088f2e013a9a4",
+        "actual": "c9369429541b3c79eb6109ec271088f2e013a9a4",
+        "pass": true
+      },
+      "doable-source-extensions/editor/toolbar": {
+        "expected": "8e0bb763b155043041639588a4902552f7325909",
+        "actual": "8e0bb763b155043041639588a4902552f7325909",
+        "pass": true
+      },
+      "doable-source-extensions/email/api": {
+        "expected": "56970b4bf413f23c87c54f5bf80b2177f4bc3bd5",
+        "actual": "56970b4bf413f23c87c54f5bf80b2177f4bc3bd5",
+        "pass": true
+      },
+      "doable-source-extensions/github/api": {
+        "expected": "f98793065c4180d1e6e40df37b78fc93e3842841",
+        "actual": "f98793065c4180d1e6e40df37b78fc93e3842841",
+        "pass": true
+      },
+      "doable-source-extensions/identity-rbac/api-auth": {
+        "expected": "ba9066280d8bdf237fcb71c3f29ff69875cdd4d0",
+        "actual": "ba9066280d8bdf237fcb71c3f29ff69875cdd4d0",
+        "pass": true
+      },
+      "doable-source-extensions/identity-rbac/web-auth": {
+        "expected": "b61c701de618a39ee17c745b8dced7609b9a1ff7",
+        "actual": "b61c701de618a39ee17c745b8dced7609b9a1ff7",
+        "pass": true
+      },
+      "doable-source-extensions/integrations/web": {
+        "expected": "aa86f44ed28e2d99dcef5f080490bde5c10cc178",
+        "actual": "aa86f44ed28e2d99dcef5f080490bde5c10cc178",
+        "pass": true
+      },
+      "doable-source-extensions/marketplace/api": {
+        "expected": "27763dad79b568debdd8c57ff5c9b7c1941660d3",
+        "actual": "27763dad79b568debdd8c57ff5c9b7c1941660d3",
+        "pass": true
+      },
+      "doable-source-extensions/marketplace/db-queries": {
+        "expected": "8fd2ce7c7c8e20dc5317121d7b7cb461339396df",
+        "actual": "8fd2ce7c7c8e20dc5317121d7b7cb461339396df",
+        "pass": true
+      },
+      "doable-source-extensions/marketplace/web-module": {
+        "expected": "57013142e894cac66bcf326a32d7648916a84675",
+        "actual": "57013142e894cac66bcf326a32d7648916a84675",
+        "pass": true
+      },
+      "doable-source-extensions/marketplace/web-pages": {
+        "expected": "efd1ab2cfb07da47b121cdcbe5033c565a068a11",
+        "actual": "efd1ab2cfb07da47b121cdcbe5033c565a068a11",
+        "pass": true
+      },
+      "doable-source-extensions/notifications/api": {
+        "expected": "befa6215368301aaedde28a0808612ec6b9b8199",
+        "actual": "befa6215368301aaedde28a0808612ec6b9b8199",
+        "pass": true
+      },
+      "doable-source-extensions/observability/admin-trace-ui": {
+        "expected": "203afe1a7687e5ee2d8cf19b569414ab2954c52e",
+        "actual": "203afe1a7687e5ee2d8cf19b569414ab2954c52e",
+        "pass": true
+      },
+      "doable-source-extensions/observability/api-tracing": {
+        "expected": "b25fc4b830b0ae204ffaf3d8d67398eeef2faad2",
+        "actual": "b25fc4b830b0ae204ffaf3d8d67398eeef2faad2",
+        "pass": true
+      },
+      "doable-source-extensions/observability/web-tracing": {
+        "expected": "6867e7d5e9490f990191d00985f24de84245ee0b",
+        "actual": "6867e7d5e9490f990191d00985f24de84245ee0b",
+        "pass": true
+      },
+      "doable-source-extensions/observability/ws-tracing": {
+        "expected": "60933fdcb370e0998a0d8ca4832926541eb2b99f",
+        "actual": "60933fdcb370e0998a0d8ca4832926541eb2b99f",
+        "pass": true
+      },
+      "doable-source-extensions/realtime-collaboration/services-ws": {
+        "expected": "624d9d6d277490f10760e4e16d929fd446635a18",
+        "actual": "624d9d6d277490f10760e4e16d929fd446635a18",
+        "pass": true
+      },
+      "doable-source-extensions/realtime-collaboration/web-collaboration": {
+        "expected": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+        "actual": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+        "pass": true
+      },
+      "doable-source-extensions/services/api-services": {
+        "expected": "c689deb2c63c738f53e44575eec62356b45c3c47",
+        "actual": "c689deb2c63c738f53e44575eec62356b45c3c47",
+        "pass": true
+      },
+      "doable-source-extensions/settings/web": {
+        "expected": "6fd532bc01a61fe79b49b2c2b4e90c80df1cb7db",
+        "actual": "6fd532bc01a61fe79b49b2c2b4e90c80df1cb7db",
+        "pass": true
+      },
+      "doable-source-extensions/skills/web": {
+        "expected": "0223ba3433bd135dc4f769c4bd75874ac8ff6035",
+        "actual": "0223ba3433bd135dc4f769c4bd75874ac8ff6035",
+        "pass": true
+      },
+      "doable-source-extensions/templates/web": {
+        "expected": "fc396b22fa83b4168507fe17ead874571044dcaf",
+        "actual": "fc396b22fa83b4168507fe17ead874571044dcaf",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/admin": {
+        "expected": "4be629b57a19732d4f25808f35df2d5d0d963ab5",
+        "actual": "4be629b57a19732d4f25808f35df2d5d0d963ab5",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/billing-module": {
+        "expected": "f62153be879b9f9926589f257474845d8e927dba",
+        "actual": "f62153be879b9f9926589f257474845d8e927dba",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/billing-page": {
+        "expected": "c32b3468d69d24c30eebb8f7e5bbcad5a9c0ee82",
+        "actual": "c32b3468d69d24c30eebb8f7e5bbcad5a9c0ee82",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/editor-components": {
+        "expected": "53ae9890e32082cdaf3a93aea267ca75cf1fe703",
+        "actual": "53ae9890e32082cdaf3a93aea267ca75cf1fe703",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/editor-panels": {
+        "expected": "1847cdb24ae3e85beb08ec7504aad3d0877c7c1f",
+        "actual": "1847cdb24ae3e85beb08ec7504aad3d0877c7c1f",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/editor-toolbar": {
+        "expected": "8e0bb763b155043041639588a4902552f7325909",
+        "actual": "8e0bb763b155043041639588a4902552f7325909",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/marketplace-module": {
+        "expected": "57013142e894cac66bcf326a32d7648916a84675",
+        "actual": "57013142e894cac66bcf326a32d7648916a84675",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/marketplace-pages": {
+        "expected": "efd1ab2cfb07da47b121cdcbe5033c565a068a11",
+        "actual": "efd1ab2cfb07da47b121cdcbe5033c565a068a11",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/settings-page": {
+        "expected": "db13ef30d0e43d09c1d7e1c4130123b011079c00",
+        "actual": "db13ef30d0e43d09c1d7e1c4130123b011079c00",
+        "pass": true
+      },
+      "doable-source-extensions/ui-platform/usage-page": {
+        "expected": "c4da6a46fa27e6863e8546cdcec3dbe582f05b07",
+        "actual": "c4da6a46fa27e6863e8546cdcec3dbe582f05b07",
+        "pass": true
+      },
+      "doable-source-extensions/usage/api": {
+        "expected": "ab0e6176553895df479320d6c654a5e3a0346656",
+        "actual": "ab0e6176553895df479320d6c654a5e3a0346656",
+        "pass": true
+      },
+      "doable-source-extensions/version-control/api": {
+        "expected": "bc226a466ddcaf9e3b6e3d10d4f392c554a78ab3",
+        "actual": "bc226a466ddcaf9e3b6e3d10d4f392c554a78ab3",
+        "pass": true
+      },
+      "doable-source-extensions/workspace-settings/web": {
+        "expected": "75043d2045f565cf8909121b4c13ffd34e15e542",
+        "actual": "75043d2045f565cf8909121b4c13ffd34e15e542",
+        "pass": true
+      },
+      "doable-source-extensions/security": {
+        "expected": "32964d46ad17027ff6264fa52404751b853f42f9",
+        "actual": "32964d46ad17027ff6264fa52404751b853f42f9",
+        "pass": true
+      },
+      "doable-source/services/api/src/security": {
+        "expected": "ff0b91ebf767edbac1829ae71a8fdde88a7cafa0",
+        "actual": "38ddc1c9b419ca0daebc85675c0f45105e43b316",
+        "pass": false
+      }
+    },
+    "gitTreesPass": false,
+    "gitBlobs": {
+      "doable-source/services/api/src/routes/integrations-admin.ts": {
+        "expected": "82538892891afd1cd45368e51abb5f871dab8614",
+        "actual": "82538892891afd1cd45368e51abb5f871dab8614",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/integrations-catalog.ts": {
+        "expected": "ce092eae3e0f2ac96a3725f32a6b83893d9136d9",
+        "actual": "ce092eae3e0f2ac96a3725f32a6b83893d9136d9",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/integrations-connections.ts": {
+        "expected": "748fe5d8afef2e4d2531ae93adba8747f129218a",
+        "actual": "748fe5d8afef2e4d2531ae93adba8747f129218a",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/integrations-oauth.ts": {
+        "expected": "c158bb799e86e658a9cff553db9c8519b02fdb7b",
+        "actual": "c158bb799e86e658a9cff553db9c8519b02fdb7b",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/integrations.ts": {
+        "expected": "eb1e5297a630b80aef98c10cbae9bf55b3cff040",
+        "actual": "eb1e5297a630b80aef98c10cbae9bf55b3cff040",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/mcp-apps-data.ts": {
+        "expected": "f01b197f66b9520eeb8b5417c4ca1cb1d88e0a3f",
+        "actual": "f01b197f66b9520eeb8b5417c4ca1cb1d88e0a3f",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/plan.ts": {
+        "expected": "85ffcc681be6f19b61c32a8c480d4651c7624b26",
+        "actual": "85ffcc681be6f19b61c32a8c480d4651c7624b26",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/provider-bridge.ts": {
+        "expected": "0906f6c10213c6224969ac45d10b06785e64d6e7",
+        "actual": "0906f6c10213c6224969ac45d10b06785e64d6e7",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/provider-catalog.ts": {
+        "expected": "ae7f2cc8e456627226466495a348261453c12713",
+        "actual": "ae7f2cc8e456627226466495a348261453c12713",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/skills.ts": {
+        "expected": "6f93fedd37dc3a8b079c96d9ed57581c9de3baba",
+        "actual": "6f93fedd37dc3a8b079c96d9ed57581c9de3baba",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/context.ts": {
+        "expected": "552ef7c4251d1cb464cb61730097159fe4ed349b",
+        "actual": "552ef7c4251d1cb464cb61730097159fe4ed349b",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/sandbox-rules.ts": {
+        "expected": "267324003df3131c5d76da36d260f5acd9cd7d8d",
+        "actual": "267324003df3131c5d76da36d260f5acd9cd7d8d",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/workspaces/sandbox.ts": {
+        "expected": "51b2515a0c931b02e1ce9caea3aceccbd15f9644",
+        "actual": "51b2515a0c931b02e1ce9caea3aceccbd15f9644",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/compat-proxy.ts": {
+        "expected": "751590170921d9eb2fe83b4497c7b1a6ef23f427",
+        "actual": "751590170921d9eb2fe83b4497c7b1a6ef23f427",
+        "pass": true
+      },
+      "doable-source/services/api/src/routes/auth/platform-ai-bootstrap.ts": {
+        "expected": "f318372e194b6f1104cb45c2f74ade5337094fe2",
+        "actual": "f318372e194b6f1104cb45c2f74ade5337094fe2",
+        "pass": true
+      }
+    },
+    "gitBlobsPass": true,
+    "packageHardening": {
+      "sourcePass": true,
+      "immutablePass": true,
+      "capabilityPass": true,
+      "targetPass": true,
+      "externalDependencyManifest": "external-dependencies/external-dependencies.json",
+      "pass": true
+    },
+    "capabilityClosure": {
+      "expected": 21,
+      "present": 21,
+      "missing": [],
+      "invalidRefs": [
+        {
+          "capability": "notebooklm",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/notebooklm/server/"
+        },
+        {
+          "capability": "document-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/pdf-builder/"
+        },
+        {
+          "capability": "document-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/presentation-builder/"
+        },
+        {
+          "capability": "document-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/spreadsheet-builder/"
+        },
+        {
+          "capability": "document-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/markdown-builder/"
+        },
+        {
+          "capability": "document-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/_shared/ui.mjs"
+        },
+        {
+          "capability": "mcp-tool-servers",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/_shared/"
+        },
+        {
+          "capability": "mcp-tool-servers",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/image-generator/"
+        },
+        {
+          "capability": "mcp-tool-servers",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/markdown-builder/"
+        },
+        {
+          "capability": "mcp-tool-servers",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/notebooklm/"
+        },
+        {
+          "capability": "mcp-tool-servers",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/pdf-builder/"
+        },
+        {
+          "capability": "mcp-tool-servers",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/presentation-builder/"
+        },
+        {
+          "capability": "mcp-tool-servers",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/spreadsheet-builder/"
+        },
+        {
+          "capability": "ai-media-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/_shared/"
+        },
+        {
+          "capability": "ai-media-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/image-generator/"
+        },
+        {
+          "capability": "ai-media-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/markdown-builder/"
+        },
+        {
+          "capability": "ai-media-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/pdf-builder/"
+        },
+        {
+          "capability": "ai-media-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/presentation-builder/"
+        },
+        {
+          "capability": "ai-media-builders",
+          "group": "runtime",
+          "ref": "doable-source/mcp-servers/spreadsheet-builder/"
+        }
+      ],
+      "pass": false
+    },
+    "externalDependencyInventory": {
+      "pass": true,
+      "packageManifestCount": 19,
+      "expectedCounts": {
+        "externalNpmPackages": 573,
+        "activepiecesPackages": 526,
+        "workspacePackages": 6,
+        "peerDependencies": 1
+      },
+      "failures": []
+    },
+    "uiReferenceFiles": {
+      "total": 7,
+      "missing": [],
+      "pass": true
+    },
+    "immutableSource": {
+      "sourceCommit": "a6036d1fd6dca83c08ee5affa141e5c85e45f5af",
+      "currentExtractionCommit": "5b638685fa7c80b0298c833eedf33fac1c533190",
+      "totalFiles": 802,
+      "verifiedFiles": 771,
+      "fileFailures": [
+        {
+          "path": "doable-source/mcp-servers/_shared/ui.mjs",
+          "expected": "b0d5840984b166bac567e3bf303a6bf946b41ebc",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/markdown-builder/index.mjs",
+          "expected": "6edd9c34f9df4cc2d6e437f5c410bee96af5c745",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/markdown-builder/package.json",
+          "expected": "7fb9a096961bfa795694bfcc2f967798a2a137da",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/markdown-builder/README.md",
+          "expected": "9fd4f6ba6ce4d69ff3347b1f3f7c2ec45faf1585",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/markdown-builder/skills/SKILL.md",
+          "expected": "bf4d0e3262906bb5b8443663a05273b8ee3c57e1",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/package.json",
+          "expected": "459cb509af15ba92ff4719f0866d6f686954c963",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/public/infographic-viewer.html",
+          "expected": "29c487704e3d39c222baa2a78f566470047617af",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/mcp-app.html",
+          "expected": "939f1d5b06dd7b879baa7f12f90aa74465ee65ec",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/mcp-app.ts",
+          "expected": "18317b38ffb87a780f2d7530ea88e658dceb04ba",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/native_fetch_client.ts",
+          "expected": "3db96ec8cd054f1b1952e22ac5031635359fb243",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/notebooklm_client.ts",
+          "expected": "8bd32b188323b53cc9e42ec35566ad32bee7210e",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/playwright_transport.ts",
+          "expected": "723be75908b666b1a2562de876b3cc3b63357ae1",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/server.ts",
+          "expected": "b7f1238e06b628ff15da6747e2ccc533482f7d89",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/setup_auth.ts",
+          "expected": "2dfd8e884c018abcc9666affa87a6e719a5469a3",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/test_summary.ts",
+          "expected": "993a78ca85934d9b462538e01d737b495c625746",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/user-manager.ts",
+          "expected": "b13480401f5ba24b68fa658dc55302ebf9ad5830",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src/ws_transport.ts",
+          "expected": "587bbad309e6211dedd880b56f65a020a6df4cb4",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/tsconfig.json",
+          "expected": "28d57cc8f93d1dc954f77315ded61db2e44ada79",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/vite.config.ts",
+          "expected": "acdefda47ec88a117891f4fea0ac5eed1ce6a988",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/pdf-builder/index.mjs",
+          "expected": "8ea5b98eae281b50d55d3d9fcd6c10203656ed49",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/pdf-builder/package.json",
+          "expected": "cbdd53dd794c6f869ca8bbafaa7ca3ec4b25093c",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/pdf-builder/README.md",
+          "expected": "305bc101db4ed7331525ed6f08a918d2935f8920",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/pdf-builder/skills/SKILL.md",
+          "expected": "bc97c73a0d723d73862e881a8d390d4fa71f676a",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/presentation-builder/index.mjs",
+          "expected": "3671503c24af1a7c97544dd34c23d91ae5a03f03",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/presentation-builder/package.json",
+          "expected": "a621c030769fcc67c9dfe9defed2e45fd4562d75",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/presentation-builder/presentation-engine.mjs",
+          "expected": "fb6f5996bd39db4fb6bf0d38dac7d90272a7f5f1",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/presentation-builder/README.md",
+          "expected": "fb340e2891dc8d311fed1bf8996bf7f52a1126e9",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/spreadsheet-builder/index.mjs",
+          "expected": "d17823b14d6b0eb3a7b17417d889e9b285dac863",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/spreadsheet-builder/package.json",
+          "expected": "36fe726719b90c5bf4d628f1ee7a7218a18b33c1",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/spreadsheet-builder/README.md",
+          "expected": "6347c239cdf9ebf49ca64f147acd83421202c643",
+          "actual": null,
+          "pass": false
+        },
+        {
+          "path": "doable-source/mcp-servers/spreadsheet-builder/skills/SKILL.md",
+          "expected": "8a0b0374cd1b63375bd44b74356077892f4b128a",
+          "actual": null,
+          "pass": false
+        }
+      ],
+      "trees": {
+        "doable-source/services/api/src/ai": {
+          "expected": "13edcc7bd9726c38ea9bd4aab0d7825b2b8387d0",
+          "actual": "13edcc7bd9726c38ea9bd4aab0d7825b2b8387d0",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/services/api/src/context": {
+          "expected": "43424593729e9a6d23ce71731c7bf6991b7d6c8b",
+          "actual": "43424593729e9a6d23ce71731c7bf6991b7d6c8b",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/services/api/src/data-worker": {
+          "expected": "41f76545e048af489e5b1a260ecb24dbb57c6125",
+          "actual": "41f76545e048af489e5b1a260ecb24dbb57c6125",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/services/api/src/integrations": {
+          "expected": "f8373823ec6063b9ff0f911d83c761d840f97a30",
+          "actual": "f8373823ec6063b9ff0f911d83c761d840f97a30",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp": {
+          "expected": "77fc1cff3ec48ba3bce21322befcf985003ac03c",
+          "actual": "77fc1cff3ec48ba3bce21322befcf985003ac03c",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/services/api/src/sandbox": {
+          "expected": "d0028c442297801dbe57a546ea3ec4f6232adbb2",
+          "actual": "d0028c442297801dbe57a546ea3ec4f6232adbb2",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/services/api/src/routes/chat": {
+          "expected": "69ab556c027e51b655ce8760315ea5547a554b38",
+          "actual": "69ab556c027e51b655ce8760315ea5547a554b38",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/packages/doable-ai": {
+          "expected": "4df61ac8972c156009a661ebf599fb2b91b7ddab",
+          "actual": "4df61ac8972c156009a661ebf599fb2b91b7ddab",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/packages/docore": {
+          "expected": "2a33159a3b92f653ddf1514027982d454bea2fd4",
+          "actual": "2a33159a3b92f653ddf1514027982d454bea2fd4",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/packages/dovault": {
+          "expected": "15532f8f7effbe8a7ebd33b57333b113d64e7606",
+          "actual": "15532f8f7effbe8a7ebd33b57333b113d64e7606",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/packages/shared": {
+          "expected": "8dad7fcadfe23fb5e6d3b3d919f0501e59cfae71",
+          "actual": "8dad7fcadfe23fb5e6d3b3d919f0501e59cfae71",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/packages/doable-sdk": {
+          "expected": "32683d5cd4b42353e790000123176bb3b2eb8f2a",
+          "actual": "32683d5cd4b42353e790000123176bb3b2eb8f2a",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/packages/db": {
+          "expected": "1faf731b078d489040e54bfde4bb2d08086354fe",
+          "actual": "1faf731b078d489040e54bfde4bb2d08086354fe",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/db": {
+          "expected": "3fe1b58f43e135dce8807438769eec032b591bb5",
+          "actual": "3fe1b58f43e135dce8807438769eec032b591bb5",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/frameworks": {
+          "expected": "f106f350efd3362473eb33d18962503d50e4de9a",
+          "actual": "f106f350efd3362473eb33d18962503d50e4de9a",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/projects": {
+          "expected": "654182e0e19b8d44ed0fcb791278ef3841bbd36c",
+          "actual": "654182e0e19b8d44ed0fcb791278ef3841bbd36c",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/lib": {
+          "expected": "7bb5fd5302ce66e97d25d91b8097bada80bc762a",
+          "actual": "7bb5fd5302ce66e97d25d91b8097bada80bc762a",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/middleware": {
+          "expected": "62b0a6ba803d9827f9b0acc6d1a8091febffd5f8",
+          "actual": "62b0a6ba803d9827f9b0acc6d1a8091febffd5f8",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/templates": {
+          "expected": "1289c0ae29d5dc893c6f2db5c80b893f177b1e52",
+          "actual": "1289c0ae29d5dc893c6f2db5c80b893f177b1e52",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/git": {
+          "expected": "830aa877f377e78e9e1df3703ec4ebe8d2158846",
+          "actual": "830aa877f377e78e9e1df3703ec4ebe8d2158846",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/runtime": {
+          "expected": "ae8aa7c249b90eaf6dd66ec82d5d47021d2aeb79",
+          "actual": "ae8aa7c249b90eaf6dd66ec82d5d47021d2aeb79",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/ai-settings": {
+          "expected": "4a571e02559125ade83bb79718786f7c2e14e12f",
+          "actual": "4a571e02559125ade83bb79718786f7c2e14e12f",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/integrations": {
+          "expected": "aa86f44ed28e2d99dcef5f080490bde5c10cc178",
+          "actual": "aa86f44ed28e2d99dcef5f080490bde5c10cc178",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/skills": {
+          "expected": "0223ba3433bd135dc4f769c4bd75874ac8ff6035",
+          "actual": "0223ba3433bd135dc4f769c4bd75874ac8ff6035",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/settings": {
+          "expected": "6fd532bc01a61fe79b49b2c2b4e90c80df1cb7db",
+          "actual": "6fd532bc01a61fe79b49b2c2b4e90c80df1cb7db",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/app/(dashboard)/workspace-settings": {
+          "expected": "75043d2045f565cf8909121b4c13ffd34e15e542",
+          "actual": "75043d2045f565cf8909121b4c13ffd34e15e542",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/app/(dashboard)/ai-settings": {
+          "expected": "1e879c7e3c8a04d8a903f836c3e5b4c1bc12346e",
+          "actual": "1e879c7e3c8a04d8a903f836c3e5b4c1bc12346e",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/packages/marketplace-bundle": {
+          "expected": "1ec662602f29aac2e7f5e60893eae89df62af376",
+          "actual": "1ec662602f29aac2e7f5e60893eae89df62af376",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/ws": {
+          "expected": "819d4f518e66745a03846cf54ee5d580d8880164",
+          "actual": "819d4f518e66745a03846cf54ee5d580d8880164",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/mcp-servers/notebooklm/server": {
+          "expected": "f79499f32c0c0a2fda887bc83f948ad8bc62d9e5",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/_shared": {
+          "expected": "033542e0c4099a118c8a84db22558f9bb65af625",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/pdf-builder": {
+          "expected": "5465b6ad78f92b037683a3e96964a714293c4956",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/presentation-builder": {
+          "expected": "c51d5e561faf0b86f15f849c86c24848b28b1e2e",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/spreadsheet-builder": {
+          "expected": "4742c8bc17d5193ba81e3e2dc9fcdb6297b2390d",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/markdown-builder": {
+          "expected": "f96178af8162a7e12c0f8bdf15af5da695d4e65d",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "ui-reference/apps/web/src/modules/collaboration": {
+          "expected": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+          "actual": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/editor/visual-edit": {
+          "expected": "0870f9143fe46ce726f086d46b9f3d19f6282af0",
+          "actual": "0870f9143fe46ce726f086d46b9f3d19f6282af0",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/mcp-servers/image-generator": {
+          "expected": "bb577a0f9aa583bad5709aab90ffa4dcc38ba437",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/notebooklm": {
+          "expected": "f5b1eaa296cab0506cf94e7fff723598be8aa6a5",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/apps/web/src/modules/editor/visual-edit": {
+          "expected": "0870f9143fe46ce726f086d46b9f3d19f6282af0",
+          "actual": "0870f9143fe46ce726f086d46b9f3d19f6282af0",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/apps/web/src/modules/editor/runtime-render": {
+          "expected": "17a8fa9b75e59dfdde8d97ea3263ffb277a66c34",
+          "actual": "f607124b6595cbb2619615aa85e30cbed2f7cfa6",
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/apps/web/src/modules/editor/context-files": {
+          "expected": "bea119d693ded695c578b1cc34031f358057b2fb",
+          "actual": "bea119d693ded695c578b1cc34031f358057b2fb",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/apps/web/src/modules/editor/build": {
+          "expected": "ab2128830f2358c66d8a6ace64500e29904ab536",
+          "actual": "ab2128830f2358c66d8a6ace64500e29904ab536",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source-extensions/analytics/api": {
+          "expected": "c95b454ee3dc47da65b97272f54ac6fb59f8912e",
+          "actual": "c95b454ee3dc47da65b97272f54ac6fb59f8912e",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/audit/api-admin": {
+          "expected": "7f6ae90802f37fa511f8bb57181ee7643bcea19d",
+          "actual": "7f6ae90802f37fa511f8bb57181ee7643bcea19d",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/audit/web-ui": {
+          "expected": "e905d72ce9a91780f07081fa79750fe8fd4d8c14",
+          "actual": "e905d72ce9a91780f07081fa79750fe8fd4d8c14",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/auth/api": {
+          "expected": "9a70854323c9c56808a8f7d9bbe4e916f06f584a",
+          "actual": "9a70854323c9c56808a8f7d9bbe4e916f06f584a",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/billing/api": {
+          "expected": "8297164bdac979966744fb6568be4493236110a9",
+          "actual": "8297164bdac979966744fb6568be4493236110a9",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/billing/web-ui": {
+          "expected": "f62153be879b9f9926589f257474845d8e927dba",
+          "actual": "f62153be879b9f9926589f257474845d8e927dba",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/build-events/api": {
+          "expected": "3add6484bafae4b25c6e6ab0448aaf0038a10425",
+          "actual": "3add6484bafae4b25c6e6ab0448aaf0038a10425",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/collaboration/api": {
+          "expected": "28217b809e1ed6c45c7f9bfa0e1a8f575108c5de",
+          "actual": "28217b809e1ed6c45c7f9bfa0e1a8f575108c5de",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/dashboard/web": {
+          "expected": "fabda466eea473643634804f10b52729474cf514",
+          "actual": "fabda466eea473643634804f10b52729474cf514",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/deployment/api": {
+          "expected": "b1d3f3d8ddee45d808b5a905af94d4bbf5676133",
+          "actual": "b1d3f3d8ddee45d808b5a905af94d4bbf5676133",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/domains/api": {
+          "expected": "a041c37dd5af661afdb33b9d9181d8c2989f51ed",
+          "actual": "a041c37dd5af661afdb33b9d9181d8c2989f51ed",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/editor/analytics-panels": {
+          "expected": "1847cdb24ae3e85beb08ec7504aad3d0877c7c1f",
+          "actual": "1847cdb24ae3e85beb08ec7504aad3d0877c7c1f",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/editor/components": {
+          "expected": "53ae9890e32082cdaf3a93aea267ca75cf1fe703",
+          "actual": "53ae9890e32082cdaf3a93aea267ca75cf1fe703",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/editor/plan-ui": {
+          "expected": "c9369429541b3c79eb6109ec271088f2e013a9a4",
+          "actual": "c9369429541b3c79eb6109ec271088f2e013a9a4",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/editor/toolbar": {
+          "expected": "8e0bb763b155043041639588a4902552f7325909",
+          "actual": "8e0bb763b155043041639588a4902552f7325909",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/email/api": {
+          "expected": "56970b4bf413f23c87c54f5bf80b2177f4bc3bd5",
+          "actual": "56970b4bf413f23c87c54f5bf80b2177f4bc3bd5",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/github/api": {
+          "expected": "f98793065c4180d1e6e40df37b78fc93e3842841",
+          "actual": "f98793065c4180d1e6e40df37b78fc93e3842841",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/identity-rbac/api-auth": {
+          "expected": "ba9066280d8bdf237fcb71c3f29ff69875cdd4d0",
+          "actual": "ba9066280d8bdf237fcb71c3f29ff69875cdd4d0",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/identity-rbac/web-auth": {
+          "expected": "b61c701de618a39ee17c745b8dced7609b9a1ff7",
+          "actual": "b61c701de618a39ee17c745b8dced7609b9a1ff7",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/integrations/web": {
+          "expected": "aa86f44ed28e2d99dcef5f080490bde5c10cc178",
+          "actual": "aa86f44ed28e2d99dcef5f080490bde5c10cc178",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/marketplace/api": {
+          "expected": "27763dad79b568debdd8c57ff5c9b7c1941660d3",
+          "actual": "27763dad79b568debdd8c57ff5c9b7c1941660d3",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/marketplace/db-queries": {
+          "expected": "8fd2ce7c7c8e20dc5317121d7b7cb461339396df",
+          "actual": "8fd2ce7c7c8e20dc5317121d7b7cb461339396df",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/marketplace/web-module": {
+          "expected": "57013142e894cac66bcf326a32d7648916a84675",
+          "actual": "57013142e894cac66bcf326a32d7648916a84675",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/marketplace/web-pages": {
+          "expected": "efd1ab2cfb07da47b121cdcbe5033c565a068a11",
+          "actual": "efd1ab2cfb07da47b121cdcbe5033c565a068a11",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/notifications/api": {
+          "expected": "befa6215368301aaedde28a0808612ec6b9b8199",
+          "actual": "befa6215368301aaedde28a0808612ec6b9b8199",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/observability/admin-trace-ui": {
+          "expected": "203afe1a7687e5ee2d8cf19b569414ab2954c52e",
+          "actual": "203afe1a7687e5ee2d8cf19b569414ab2954c52e",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/observability/api-tracing": {
+          "expected": "b25fc4b830b0ae204ffaf3d8d67398eeef2faad2",
+          "actual": "b25fc4b830b0ae204ffaf3d8d67398eeef2faad2",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/observability/web-tracing": {
+          "expected": "6867e7d5e9490f990191d00985f24de84245ee0b",
+          "actual": "6867e7d5e9490f990191d00985f24de84245ee0b",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/observability/ws-tracing": {
+          "expected": "60933fdcb370e0998a0d8ca4832926541eb2b99f",
+          "actual": "60933fdcb370e0998a0d8ca4832926541eb2b99f",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/realtime-collaboration/services-ws": {
+          "expected": "624d9d6d277490f10760e4e16d929fd446635a18",
+          "actual": "624d9d6d277490f10760e4e16d929fd446635a18",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/realtime-collaboration/web-collaboration": {
+          "expected": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+          "actual": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/services/api-services": {
+          "expected": "c689deb2c63c738f53e44575eec62356b45c3c47",
+          "actual": "c689deb2c63c738f53e44575eec62356b45c3c47",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/settings/web": {
+          "expected": "6fd532bc01a61fe79b49b2c2b4e90c80df1cb7db",
+          "actual": "6fd532bc01a61fe79b49b2c2b4e90c80df1cb7db",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/skills/web": {
+          "expected": "0223ba3433bd135dc4f769c4bd75874ac8ff6035",
+          "actual": "0223ba3433bd135dc4f769c4bd75874ac8ff6035",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/templates/web": {
+          "expected": "fc396b22fa83b4168507fe17ead874571044dcaf",
+          "actual": "fc396b22fa83b4168507fe17ead874571044dcaf",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/admin": {
+          "expected": "4be629b57a19732d4f25808f35df2d5d0d963ab5",
+          "actual": "4be629b57a19732d4f25808f35df2d5d0d963ab5",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/billing-module": {
+          "expected": "f62153be879b9f9926589f257474845d8e927dba",
+          "actual": "f62153be879b9f9926589f257474845d8e927dba",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/billing-page": {
+          "expected": "c32b3468d69d24c30eebb8f7e5bbcad5a9c0ee82",
+          "actual": "c32b3468d69d24c30eebb8f7e5bbcad5a9c0ee82",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/editor-components": {
+          "expected": "53ae9890e32082cdaf3a93aea267ca75cf1fe703",
+          "actual": "53ae9890e32082cdaf3a93aea267ca75cf1fe703",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/editor-panels": {
+          "expected": "1847cdb24ae3e85beb08ec7504aad3d0877c7c1f",
+          "actual": "1847cdb24ae3e85beb08ec7504aad3d0877c7c1f",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/editor-toolbar": {
+          "expected": "8e0bb763b155043041639588a4902552f7325909",
+          "actual": "8e0bb763b155043041639588a4902552f7325909",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/marketplace-module": {
+          "expected": "57013142e894cac66bcf326a32d7648916a84675",
+          "actual": "57013142e894cac66bcf326a32d7648916a84675",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/marketplace-pages": {
+          "expected": "efd1ab2cfb07da47b121cdcbe5033c565a068a11",
+          "actual": "efd1ab2cfb07da47b121cdcbe5033c565a068a11",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/settings-page": {
+          "expected": "db13ef30d0e43d09c1d7e1c4130123b011079c00",
+          "actual": "db13ef30d0e43d09c1d7e1c4130123b011079c00",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/ui-platform/usage-page": {
+          "expected": "c4da6a46fa27e6863e8546cdcec3dbe582f05b07",
+          "actual": "c4da6a46fa27e6863e8546cdcec3dbe582f05b07",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/usage/api": {
+          "expected": "ab0e6176553895df479320d6c654a5e3a0346656",
+          "actual": "ab0e6176553895df479320d6c654a5e3a0346656",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/version-control/api": {
+          "expected": "bc226a466ddcaf9e3b6e3d10d4f392c554a78ab3",
+          "actual": "bc226a466ddcaf9e3b6e3d10d4f392c554a78ab3",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/workspace-settings/web": {
+          "expected": "75043d2045f565cf8909121b4c13ffd34e15e542",
+          "actual": "75043d2045f565cf8909121b4c13ffd34e15e542",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source-extensions/security": {
+          "expected": "32964d46ad17027ff6264fa52404751b853f42f9",
+          "actual": "32964d46ad17027ff6264fa52404751b853f42f9",
+          "kind": "captured-root",
+          "pass": true
+        },
+        "doable-source/services/api/src/security": {
+          "expected": "ff0b91ebf767edbac1829ae71a8fdde88a7cafa0",
+          "actual": "38ddc1c9b419ca0daebc85675c0f45105e43b316",
+          "kind": "captured-root",
+          "pass": false
+        },
+        "doable-source/services/api/src/ai/__fixtures__": {
+          "expected": "e54150239f1a4f7e6bae9be6855f2196073a8295",
+          "actual": "e54150239f1a4f7e6bae9be6855f2196073a8295",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/__fixtures__/per-app-db": {
+          "expected": "72a16d8ea70c193ec46ed909316b9380314c00e1",
+          "actual": "72a16d8ea70c193ec46ed909316b9380314c00e1",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/__tests__": {
+          "expected": "37a127792148502e8fc1811b82e884cdc3163886",
+          "actual": "37a127792148502e8fc1811b82e884cdc3163886",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/context": {
+          "expected": "86d1469a9ef1119bad4573849537399a982cc97d",
+          "actual": "86d1469a9ef1119bad4573849537399a982cc97d",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/framework-prompts": {
+          "expected": "97d6bb35f52e9a436694d25e4b7de0ae0fb6ec2a",
+          "actual": "97d6bb35f52e9a436694d25e4b7de0ae0fb6ec2a",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/modes": {
+          "expected": "328d4ff8d2151f0cfd907bbb709b92895713e3c0",
+          "actual": "328d4ff8d2151f0cfd907bbb709b92895713e3c0",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/prompts": {
+          "expected": "fccd3cc3ad5a152ff048707b7e35b7b564029c9a",
+          "actual": "fccd3cc3ad5a152ff048707b7e35b7b564029c9a",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/providers": {
+          "expected": "2a79608f12e95525406348038f74a135b708a494",
+          "actual": "2a79608f12e95525406348038f74a135b708a494",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills": {
+          "expected": "9784b6b253e2e5bcc0f88e27c05f4fe030c4096a",
+          "actual": "9784b6b253e2e5bcc0f88e27c05f4fe030c4096a",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system": {
+          "expected": "a2229e78cbe5a2ec06d886635331256dfb6945fe",
+          "actual": "a2229e78cbe5a2ec06d886635331256dfb6945fe",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/ai-testing": {
+          "expected": "4d86cc35209cbb8eba28f7e7e0d623f4e6c4f112",
+          "actual": "4d86cc35209cbb8eba28f7e7e0d623f4e6c4f112",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/business-card-maker": {
+          "expected": "e647ead88c1ff4ea875f6bf10f682866d0fa0b56",
+          "actual": "e647ead88c1ff4ea875f6bf10f682866d0fa0b56",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/competitor-analysis": {
+          "expected": "de6657d7e8376a3edb3303bbda49820c6d53ad5f",
+          "actual": "de6657d7e8376a3edb3303bbda49820c6d53ad5f",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/ecommerce-website": {
+          "expected": "7fa2b62cd5c2cac7147d241b0efa81c1f561fe4b",
+          "actual": "7fa2b62cd5c2cac7147d241b0efa81c1f561fe4b",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/event-invite-maker": {
+          "expected": "7de2de0a639377cb66fb4da95ef486fa0581a456",
+          "actual": "7de2de0a639377cb66fb4da95ef486fa0581a456",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/greeting-card": {
+          "expected": "9a65c15c78c9ccd71067b61e858eccc646f0ff9b",
+          "actual": "9a65c15c78c9ccd71067b61e858eccc646f0ff9b",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/inbuilt-database": {
+          "expected": "c3aad089f42636f036bce0532dace02d20a7d023",
+          "actual": "c3aad089f42636f036bce0532dace02d20a7d023",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/magazine-flipbook": {
+          "expected": "51cc77428a09749b19c4a32083ec01b3e9dacae9",
+          "actual": "51cc77428a09749b19c4a32083ec01b3e9dacae9",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/newsletter-template": {
+          "expected": "f39b152fa6c92a02e52538500b671c0ea54bd172",
+          "actual": "f39b152fa6c92a02e52538500b671c0ea54bd172",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/remotion-video-creation": {
+          "expected": "1131c06b31dde452530881a0d5028a91430238c5",
+          "actual": "1131c06b31dde452530881a0d5028a91430238c5",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/remotion-video-creation/references": {
+          "expected": "d24f178b9900df439dcd18c43e30653ae99c02dd",
+          "actual": "d24f178b9900df439dcd18c43e30653ae99c02dd",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/_system/resume-cv": {
+          "expected": "d68a6aa5bd70555c8ab26f4fe1c8f704bd48dd1d",
+          "actual": "d68a6aa5bd70555c8ab26f4fe1c8f704bd48dd1d",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/nextjs-app": {
+          "expected": "da5892e44e94d2f33615584586a5035998df57f6",
+          "actual": "da5892e44e94d2f33615584586a5035998df57f6",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/skills/vite-react": {
+          "expected": "c5e7c9dc80866f03c19c10109ca53f00133dd9e3",
+          "actual": "c5e7c9dc80866f03c19c10109ca53f00133dd9e3",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/ai/tools": {
+          "expected": "46f41518dca34c83e50739947f0c6ad955cecdb5",
+          "actual": "46f41518dca34c83e50739947f0c6ad955cecdb5",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/data-worker/__tests__": {
+          "expected": "ec51c9117e81631780f9cd129f171d903842d56a",
+          "actual": "ec51c9117e81631780f9cd129f171d903842d56a",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/data-worker/__tests__/integration": {
+          "expected": "7819be384e483651ffd07acd203871e6d0415abe",
+          "actual": "7819be384e483651ffd07acd203871e6d0415abe",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/integrations/enhanced-auth": {
+          "expected": "46dbb9b2f9a27c78152493fa07e9062efd406203",
+          "actual": "46dbb9b2f9a27c78152493fa07e9062efd406203",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/integrations/registry": {
+          "expected": "ca1d2522b65737b8af78b30e6ddecbd8749711db",
+          "actual": "ca1d2522b65737b8af78b30e6ddecbd8749711db",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/integrations/supabase": {
+          "expected": "06d1602ad58b578ded83bb4475f92a892326e231",
+          "actual": "06d1602ad58b578ded83bb4475f92a892326e231",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/__tests__": {
+          "expected": "f840ba98c23e119177e4f210fd979e53038523b6",
+          "actual": "f840ba98c23e119177e4f210fd979e53038523b6",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/builtin": {
+          "expected": "650381857ffe41d48cd74e6d866645c08db0a285",
+          "actual": "650381857ffe41d48cd74e6d866645c08db0a285",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/builtin/data": {
+          "expected": "6d2224ad641bb6917511ee137dc437102b10947b",
+          "actual": "6d2224ad641bb6917511ee137dc437102b10947b",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/builtin/data/__tests__": {
+          "expected": "7905487485ec886290a8d6811fdf1407f04163e0",
+          "actual": "7905487485ec886290a8d6811fdf1407f04163e0",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/builtin/data/__tests__/integration": {
+          "expected": "e8ac0deb9ca412fc5969d2dfe831edf43b790aca",
+          "actual": "e8ac0deb9ca412fc5969d2dfe831edf43b790aca",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/builtin/data/ui": {
+          "expected": "ffba58b1898b4e835a0b065b69b283a0ee51504e",
+          "actual": "ffba58b1898b4e835a0b065b69b283a0ee51504e",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/builtin/data/ui/__tests__": {
+          "expected": "440b2aabdc605b06e04c1e51e65b4b6d9986e601",
+          "actual": "440b2aabdc605b06e04c1e51e65b4b6d9986e601",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/builtin/data/ui/shared": {
+          "expected": "c7943d98cc38d8f8f66930d1ad75fffa90dfe644",
+          "actual": "c7943d98cc38d8f8f66930d1ad75fffa90dfe644",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/mcp/presets": {
+          "expected": "efc8246ea65dd56bf284889cd4f48d1365524c9e",
+          "actual": "efc8246ea65dd56bf284889cd4f48d1365524c9e",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/sandbox/__tests__": {
+          "expected": "79d712053fdda484f99377ee432a13267e723114",
+          "actual": "79d712053fdda484f99377ee432a13267e723114",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/sandbox/profiles": {
+          "expected": "58d94fe50f798f992bdc4567f561f30494603f42",
+          "actual": "58d94fe50f798f992bdc4567f561f30494603f42",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/doable-ai/src": {
+          "expected": "c4e81f89d9a4e98597b8a63250bcd90cd28b4400",
+          "actual": "c4e81f89d9a4e98597b8a63250bcd90cd28b4400",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/docore/src": {
+          "expected": "05dc0777ac300b15d425122f94d19d60639718a4",
+          "actual": "05dc0777ac300b15d425122f94d19d60639718a4",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/docore/src/backends": {
+          "expected": "124d62070bfe0e626e36c9f1882ee9b4a28be31f",
+          "actual": "124d62070bfe0e626e36c9f1882ee9b4a28be31f",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/docore/src/policy": {
+          "expected": "deaefcc615e8f754d716e179b1e44a8f1aa026f7",
+          "actual": "deaefcc615e8f754d716e179b1e44a8f1aa026f7",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/dovault/src": {
+          "expected": "f33ec5c48d5df02a3d209ae6353d14c0611aab66",
+          "actual": "f33ec5c48d5df02a3d209ae6353d14c0611aab66",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/dovault/src/backends": {
+          "expected": "9f605f0f95fcdd022413241bc8d0f270fb4249af",
+          "actual": "9f605f0f95fcdd022413241bc8d0f270fb4249af",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/dovault/src/backends/__tests__": {
+          "expected": "ced580dd0de330eb4045408d1bd38618d11128a9",
+          "actual": "ced580dd0de330eb4045408d1bd38618d11128a9",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/dovault/src/composers": {
+          "expected": "a3bf6f3676598b07ccffd496a1021fc3ac496d4b",
+          "actual": "a3bf6f3676598b07ccffd496a1021fc3ac496d4b",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/shared/src": {
+          "expected": "d1a5f157525c1415a96de8039c7ca849debefdd1",
+          "actual": "d1a5f157525c1415a96de8039c7ca849debefdd1",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/shared/src/ai": {
+          "expected": "ff81639b20f989c7a171712e1fcf270dbf9e3fcc",
+          "actual": "ff81639b20f989c7a171712e1fcf270dbf9e3fcc",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/shared/src/security": {
+          "expected": "9a22ffdb358e751cf32203ddafc2e5081ddf72a2",
+          "actual": "9a22ffdb358e751cf32203ddafc2e5081ddf72a2",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/shared/src/types": {
+          "expected": "5fdb692f3e4fbdc1fcb8523efb2d847a44eda9ad",
+          "actual": "5fdb692f3e4fbdc1fcb8523efb2d847a44eda9ad",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/doable-sdk/src": {
+          "expected": "ee7de2142be5859716e0c6266bba43ef29813b01",
+          "actual": "ee7de2142be5859716e0c6266bba43ef29813b01",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/packages/db/migrations": {
+          "expected": "8523d0c333e46135702830f3bcc6f53afdb86bc9",
+          "actual": "8523d0c333e46135702830f3bcc6f53afdb86bc9",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/packages/db/src": {
+          "expected": "d3b3cfb599ee2e2152a84a825a12e35513a6f6e5",
+          "actual": "d3b3cfb599ee2e2152a84a825a12e35513a6f6e5",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/packages/db/src/queries": {
+          "expected": "8fd2ce7c7c8e20dc5317121d7b7cb461339396df",
+          "actual": "8fd2ce7c7c8e20dc5317121d7b7cb461339396df",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/db/migrations": {
+          "expected": "a1b39b1e179e70a865118b7dc7d54b0cffba2142",
+          "actual": "a1b39b1e179e70a865118b7dc7d54b0cffba2142",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/frameworks/adapters": {
+          "expected": "81da979e90fe2def5a155682d1a20269ea3028c1",
+          "actual": "81da979e90fe2def5a155682d1a20269ea3028c1",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/projects/__tests__": {
+          "expected": "fdf611eb91e9f6ff392c5cf2c744ebb3d898388c",
+          "actual": "fdf611eb91e9f6ff392c5cf2c744ebb3d898388c",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/lib/email": {
+          "expected": "9dd15bdd345ccb2b02144b1f3eb44544877ce81a",
+          "actual": "9dd15bdd345ccb2b02144b1f3eb44544877ce81a",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/templates/definitions": {
+          "expected": "d503a3c5f2fdaaa5726cb6807734336d420173d9",
+          "actual": "d503a3c5f2fdaaa5726cb6807734336d420173d9",
+          "kind": "directory",
+          "pass": true
+        },
+        "dependency-closure/services/api/src/runtime/adapters": {
+          "expected": "5c479183276886c3b167efb26b177b82089d21ae",
+          "actual": "5c479183276886c3b167efb26b177b82089d21ae",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/ai-settings/components": {
+          "expected": "968c4e850394be8eabb3a6ddadc2b7667e4e1036",
+          "actual": "968c4e850394be8eabb3a6ddadc2b7667e4e1036",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/ai-settings/hooks": {
+          "expected": "83a20bd58e9490c3d2e68f6068348c91d0847d44",
+          "actual": "83a20bd58e9490c3d2e68f6068348c91d0847d44",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/ai-settings/utils": {
+          "expected": "5e4d001b4624ac3702c8abe817e777ada4df3051",
+          "actual": "5e4d001b4624ac3702c8abe817e777ada4df3051",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/settings/components": {
+          "expected": "9e20b9a7e075c6fb18ad48a0fd3b658f96afa50d",
+          "actual": "9e20b9a7e075c6fb18ad48a0fd3b658f96afa50d",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/settings/database": {
+          "expected": "7f0780d50de789549fa255f9700240686dad2fc5",
+          "actual": "7f0780d50de789549fa255f9700240686dad2fc5",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/settings/database/hooks": {
+          "expected": "d14d35dc2c43f1aedf41ec2e2c1edd53a1375c06",
+          "actual": "d14d35dc2c43f1aedf41ec2e2c1edd53a1375c06",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/settings/database/panes": {
+          "expected": "72c064f01b965cf9c09573ae6dd1ad58f7a3c26c",
+          "actual": "72c064f01b965cf9c09573ae6dd1ad58f7a3c26c",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/settings/hooks": {
+          "expected": "a7bfd3c56fedab1e2cac9a4f5884be61a32be0f3",
+          "actual": "a7bfd3c56fedab1e2cac9a4f5884be61a32be0f3",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/app/(dashboard)/ai-settings/callback": {
+          "expected": "b1bb766d0d950d7d6e229f452e7333d254118a67",
+          "actual": "b1bb766d0d950d7d6e229f452e7333d254118a67",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/marketplace-bundle/src": {
+          "expected": "673f7ecde995457763e4db48e9b177c2332864d2",
+          "actual": "673f7ecde995457763e4db48e9b177c2332864d2",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/packages/marketplace-bundle/src/codecs": {
+          "expected": "bd509ccaf48d20c10b98ea3609ec6ddab9d21d77",
+          "actual": "bd509ccaf48d20c10b98ea3609ec6ddab9d21d77",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/ws/src": {
+          "expected": "624d9d6d277490f10760e4e16d929fd446635a18",
+          "actual": "624d9d6d277490f10760e4e16d929fd446635a18",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/ws/src/rooms": {
+          "expected": "8918c047a8e2c40339afd27addcc462a159149ab",
+          "actual": "8918c047a8e2c40339afd27addcc462a159149ab",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/ws/src/collaboration": {
+          "expected": "6e12ea4d30a280b8ff93b030003207959d05c1f3",
+          "actual": "6e12ea4d30a280b8ff93b030003207959d05c1f3",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/ws/src/tracing": {
+          "expected": "60933fdcb370e0998a0d8ca4832926541eb2b99f",
+          "actual": "60933fdcb370e0998a0d8ca4832926541eb2b99f",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/mcp-servers/notebooklm/server/src": {
+          "expected": "f1da178e8841dc9562719d2de84e5ee361de2367",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/pdf-builder/skills": {
+          "expected": "35dd9a4fd1c2bc5585479045009b243c5e8dcabd",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/spreadsheet-builder/skills": {
+          "expected": "b7346e39cbd193f3e3800f993a46f309e13ddcc6",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/mcp-servers/markdown-builder/skills": {
+          "expected": "d86cfe6e401e4ebbff9ad9b62b874c931576604d",
+          "actual": null,
+          "kind": "directory",
+          "pass": false
+        },
+        "ui-reference/apps/web/src/modules/collaboration/components": {
+          "expected": "5ffa7385714bcd0cb1597d728bd3e08be0baeabb",
+          "actual": "5ffa7385714bcd0cb1597d728bd3e08be0baeabb",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/collaboration/crdt": {
+          "expected": "096539e2332bf989652bcdaab690dcdb35b5fe61",
+          "actual": "096539e2332bf989652bcdaab690dcdb35b5fe61",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/collaboration/cursors": {
+          "expected": "26880380f73349bf17c9e49a959f6d4617436197",
+          "actual": "26880380f73349bf17c9e49a959f6d4617436197",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/collaboration/hooks": {
+          "expected": "ecf3c07149a2fd0068c93c7a89aed040a67d36dd",
+          "actual": "ecf3c07149a2fd0068c93c7a89aed040a67d36dd",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/editor/visual-edit/property-panels": {
+          "expected": "aeddb1b69de70173e562c00243951b71ef945b69",
+          "actual": "aeddb1b69de70173e562c00243951b71ef945b69",
+          "kind": "directory",
+          "pass": true
+        },
+        "ui-reference/apps/web/src/modules/editor/visual-edit/sticky-notes": {
+          "expected": "9a87effec8c11d9944ef73a2177ca951fec0bba7",
+          "actual": "9a87effec8c11d9944ef73a2177ca951fec0bba7",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/analytics": {
+          "expected": "9a341978a5f7bae928ad3cff3a21afb41d7af111",
+          "actual": "9a341978a5f7bae928ad3cff3a21afb41d7af111",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/auth": {
+          "expected": "ba9066280d8bdf237fcb71c3f29ff69875cdd4d0",
+          "actual": "ba9066280d8bdf237fcb71c3f29ff69875cdd4d0",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/deploy": {
+          "expected": "9fbf41c828ce49f4c6c2894d6281c620229820ca",
+          "actual": "9fbf41c828ce49f4c6c2894d6281c620229820ca",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/github": {
+          "expected": "0ee5186d68cdf50d7b4f286ab27970c85b0064cd",
+          "actual": "0ee5186d68cdf50d7b4f286ab27970c85b0064cd",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/tracing": {
+          "expected": "b25fc4b830b0ae204ffaf3d8d67398eeef2faad2",
+          "actual": "b25fc4b830b0ae204ffaf3d8d67398eeef2faad2",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/version-control": {
+          "expected": "ae65a2762168abb554395b71fe7196b5bc1db193",
+          "actual": "ae65a2762168abb554395b71fe7196b5bc1db193",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/apps/web/src/modules/collaboration": {
+          "expected": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+          "actual": "e798ede8b5a50887d605418d64da2fb91bf66eb6",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/apps/web/src/modules/billing": {
+          "expected": "f62153be879b9f9926589f257474845d8e927dba",
+          "actual": "f62153be879b9f9926589f257474845d8e927dba",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/apps/web/src/modules/dashboard": {
+          "expected": "fabda466eea473643634804f10b52729474cf514",
+          "actual": "fabda466eea473643634804f10b52729474cf514",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/apps/web/src/modules/editor": {
+          "expected": "1aa3f73bd180370aae4bdfa43c832b29b28cf078",
+          "actual": "9004b338beb520500ff13bd29b086005e13d3052",
+          "kind": "directory",
+          "pass": false
+        },
+        "doable-source/apps/web/src/modules/marketplace": {
+          "expected": "57013142e894cac66bcf326a32d7648916a84675",
+          "actual": "57013142e894cac66bcf326a32d7648916a84675",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/routes": {
+          "expected": "cd5c22d0229e24617a8293b6961c2294418cf3e9",
+          "actual": "cd5c22d0229e24617a8293b6961c2294418cf3e9",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/services": {
+          "expected": "c689deb2c63c738f53e44575eec62356b45c3c47",
+          "actual": "c689deb2c63c738f53e44575eec62356b45c3c47",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/build-events": {
+          "expected": "3add6484bafae4b25c6e6ab0448aaf0038a10425",
+          "actual": "3add6484bafae4b25c6e6ab0448aaf0038a10425",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/logging": {
+          "expected": "15c885c5716f5f0c81e9ea2899471589a3449531",
+          "actual": "15c885c5716f5f0c81e9ea2899471589a3449531",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/direct-save": {
+          "expected": "aa2f7ace957437feeae649a262f4f26bba968b14",
+          "actual": "aa2f7ace957437feeae649a262f4f26bba968b14",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/jobs": {
+          "expected": "68c79c0d72a48d3aec37728d97ebde785fbd92d4",
+          "actual": "68c79c0d72a48d3aec37728d97ebde785fbd92d4",
+          "kind": "directory",
+          "pass": true
+        },
+        "doable-source/services/api/src/env": {
+          "expected": "31b4cde0a2415fb03f0b010a80b458dbcf849600",
+          "actual": "31b4cde0a2415fb03f0b010a80b458dbcf849600",
+          "kind": "directory",
+          "pass": true
+        }
+      },
+      "treesExpected": 214,
+      "treesVerified": 184,
+      "treeFailures": [
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server",
+          "expected": "f79499f32c0c0a2fda887bc83f948ad8bc62d9e5",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/_shared",
+          "expected": "033542e0c4099a118c8a84db22558f9bb65af625",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/pdf-builder",
+          "expected": "5465b6ad78f92b037683a3e96964a714293c4956",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/presentation-builder",
+          "expected": "c51d5e561faf0b86f15f849c86c24848b28b1e2e",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/spreadsheet-builder",
+          "expected": "4742c8bc17d5193ba81e3e2dc9fcdb6297b2390d",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/markdown-builder",
+          "expected": "f96178af8162a7e12c0f8bdf15af5da695d4e65d",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/image-generator",
+          "expected": "bb577a0f9aa583bad5709aab90ffa4dcc38ba437",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm",
+          "expected": "f5b1eaa296cab0506cf94e7fff723598be8aa6a5",
+          "actual": null
+        },
+        {
+          "path": "doable-source/apps/web/src/modules/editor/runtime-render",
+          "expected": "17a8fa9b75e59dfdde8d97ea3263ffb277a66c34",
+          "actual": "f607124b6595cbb2619615aa85e30cbed2f7cfa6"
+        },
+        {
+          "path": "doable-source/services/api/src/security",
+          "expected": "ff0b91ebf767edbac1829ae71a8fdde88a7cafa0",
+          "actual": "38ddc1c9b419ca0daebc85675c0f45105e43b316"
+        },
+        {
+          "path": "doable-source/mcp-servers/notebooklm/server/src",
+          "expected": "f1da178e8841dc9562719d2de84e5ee361de2367",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/pdf-builder/skills",
+          "expected": "35dd9a4fd1c2bc5585479045009b243c5e8dcabd",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/spreadsheet-builder/skills",
+          "expected": "b7346e39cbd193f3e3800f993a46f309e13ddcc6",
+          "actual": null
+        },
+        {
+          "path": "doable-source/mcp-servers/markdown-builder/skills",
+          "expected": "d86cfe6e401e4ebbff9ad9b62b874c931576604d",
+          "actual": null
+        },
+        {
+          "path": "doable-source/apps/web/src/modules/editor",
+          "expected": "1aa3f73bd180370aae4bdfa43c832b29b28cf078",
+          "actual": "9004b338beb520500ff13bd29b086005e13d3052"
+        }
+      ],
+      "treesPass": false,
+      "inventory": {
+        "dependency-closure": {
+          "manifestEntries": 307,
+          "invalidEntries": [],
+          "pass": true
+        },
+        "doable-source-extensions": {
+          "manifestEntries": 1,
+          "invalidEntries": [],
+          "pass": true
+        },
+        "doable-source": {
+          "manifestEntries": 397,
+          "invalidEntries": [],
+          "pass": true
+        },
+        "ui-reference": {
+          "manifestEntries": 97,
+          "invalidEntries": [],
+          "pass": true
+        }
+      },
+      "inventoryPass": true,
+      "filesPass": false,
+      "pass": false
+    }
+  },
+  "featureManifests": {
+    "multi-provider": {
+      "path": "capabilities/multi-provider/MANIFEST.md",
+      "present": true
+    },
+    "agents": {
+      "path": "capabilities/agents/MANIFEST.md",
+      "present": true
+    },
+    "tools": {
+      "path": "capabilities/tools/MANIFEST.md",
+      "present": true
+    },
+    "integrations": {
+      "path": "capabilities/integrations/MANIFEST.md",
+      "present": true
+    },
+    "mcp": {
+      "path": "capabilities/mcp/MANIFEST.md",
+      "present": true
+    },
+    "skills": {
+      "path": "capabilities/skills/MANIFEST.md",
+      "present": true
+    },
+    "chat": {
+      "path": "capabilities/chat/MANIFEST.md",
+      "present": true
+    },
+    "context-memory": {
+      "path": "capabilities/context-memory/MANIFEST.md",
+      "present": true
+    },
+    "workspace-sandbox": {
+      "path": "capabilities/workspace-sandbox/MANIFEST.md",
+      "present": true
+    },
+    "ui": {
+      "path": "capabilities/ui/MANIFEST.md",
+      "present": true
+    },
+    "marketplace": {
+      "path": "capabilities/marketplace/MANIFEST.md",
+      "present": true
+    },
+    "notebooklm": {
+      "path": "capabilities/notebooklm/MANIFEST.md",
+      "present": true
+    },
+    "realtime-collaboration": {
+      "path": "capabilities/realtime-collaboration/MANIFEST.md",
+      "present": true
+    },
+    "document-builders": {
+      "path": "capabilities/document-builders/MANIFEST.md",
+      "present": true
+    },
+    "mcp-tool-servers": {
+      "path": "capabilities/mcp-tool-servers/MANIFEST.md",
+      "present": true
+    },
+    "visual-ai-editing": {
+      "path": "capabilities/visual-ai-editing/MANIFEST.md",
+      "present": true
+    },
+    "platform-extensions": {
+      "path": "capabilities/platform-extensions/MANIFEST.md",
+      "present": true
+    },
+    "visual-editing": {
+      "path": "capabilities/visual-editing/MANIFEST.md",
+      "present": true
+    },
+    "ai-media-builders": {
+      "path": "capabilities/ai-media-builders/MANIFEST.md",
+      "present": true
+    },
+    "platform-foundation": {
+      "path": "capabilities/platform-foundation/MANIFEST.md",
+      "present": true
+    },
+    "ai-security": {
+      "path": "capabilities/ai-security/MANIFEST.md",
+      "present": true
+    }
+  },
+  "externalDependencyManifest": true,
+  "pass": false
+}

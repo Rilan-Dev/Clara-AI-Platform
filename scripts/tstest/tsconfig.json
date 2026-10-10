@@ -1,0 +1,1 @@
+{"compilerOptions":{"strict":true,"noEmit":true,"jsx":"preserve","module":"esnext","moduleResolution":"bundler"},"include":["probe.tsx"]}
