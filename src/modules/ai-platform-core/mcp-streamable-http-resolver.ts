@@ -101,11 +101,12 @@ function requestOnce(url: URL, body: string, headers: Record<string,string>, sig
       if (typeof opts === "object" && opts?.all) callback(null, addresses);
       else callback(null, pinned.address, pinned.family);
     }) as unknown as LookupFunction;
+    const agent = new https.Agent({ keepAlive: false, rejectUnauthorized: true, lookup: pinnedLookup });
     const req = https.request(url, {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": PROTOCOL_VERSION, ...headers },
       rejectUnauthorized: true,
-      agent: new https.Agent({ keepAlive: false, rejectUnauthorized: true, lookup: pinnedLookup }),
+      agent,
     }, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400) {
         res.resume(); reject(new Error("MCP redirects are not allowed.")); return;
@@ -122,7 +123,7 @@ function requestOnce(url: URL, body: string, headers: Record<string,string>, sig
     });
     const timer = setTimeout(() => req.destroy(new Error("MCP request timed out.")), REQUEST_TIMEOUT_MS);
     req.on("error", (error) => reject(error));
-    req.on("close", () => clearTimeout(timer));
+    req.on("close", () => { clearTimeout(timer); agent.destroy(); });
     signal?.addEventListener("abort", () => req.destroy(new Error("MCP request cancelled.")), { once: true });
     if (Buffer.byteLength(body, "utf8") > MAX_REQUEST_BYTES) { req.destroy(new Error("MCP request exceeded the size limit.")); return; }
     req.end(body);
