@@ -211,13 +211,45 @@ function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
   throw new Error("Unsupported MCP input schema.");
 }
 
+function normalizeProviderSchema(raw: unknown, depth = 0): JsonObject {
+  if (depth > 8 || !raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Unsupported MCP input schema.");
+  const schema = raw as JsonObject;
+  if (schema.type === "string") {
+    const output: JsonObject = { type: "string" };
+    if (typeof schema.minLength === "number") output.minLength = Math.max(0, Math.min(4096, schema.minLength));
+    if (typeof schema.maxLength === "number") output.maxLength = Math.max(0, Math.min(4096, schema.maxLength));
+    if (Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.length <= 100 && schema.enum.every((v) => typeof v === "string")) output.enum = [...schema.enum];
+    return output;
+  }
+  if (schema.type === "number" || schema.type === "integer") return { type: schema.type };
+  if (schema.type === "boolean") return { type: "boolean" };
+  if (schema.type === "array") return { type: "array", items: normalizeProviderSchema(schema.items, depth + 1), ...(typeof schema.maxItems === "number" ? { maxItems: Math.max(0, Math.min(256, schema.maxItems)) } : {}) };
+  if (schema.type === "object" || schema.type === undefined) {
+    const properties = schema.properties && typeof schema.properties === "object" && !Array.isArray(schema.properties) ? schema.properties as JsonObject : {};
+    if (Object.keys(properties).length > 64) throw new Error("Unsupported MCP object schema.");
+    const normalized: JsonObject = {};
+    for (const [key, value] of Object.entries(properties)) normalized[key] = normalizeProviderSchema(value, depth + 1);
+    const required = Array.isArray(schema.required) ? schema.required.filter((v): v is string => typeof v === "string" && v in properties) : [];
+    return { type: "object", properties: normalized, required, additionalProperties: false };
+  }
+  throw new Error("Unsupported MCP input schema.");
+}
+
+function freezeJson(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  if (Array.isArray(value)) return Object.freeze(value.map(freezeJson));
+  return Object.freeze(Object.fromEntries(Object.entries(value as JsonObject).map(([key, child]) => [key, freezeJson(child)])));
+}
+
 function readTool(raw: JsonObject, serverId: string, approvedSurfaces: readonly SurfaceKind[]): McpToolDescriptor | null {
   if (typeof raw.name !== "string" || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(raw.name) ||
       typeof raw.description === "string" && raw.description.length > 4000) return null;
   const description = typeof raw.description === "string" ? raw.description : `MCP tool ${raw.name}`;
   try {
-    const inputSchema = toZodSchema(raw.inputSchema ?? { type:"object", properties:{} });
-    return Object.freeze({ serverId, name:raw.name, description, inputSchema, allowedSurfaces:Object.freeze([...approvedSurfaces]) });
+    const rawSchema = raw.inputSchema ?? { type:"object", properties:{} };
+    const inputSchema = toZodSchema(rawSchema);
+    const inputSchemaJson = freezeJson(normalizeProviderSchema(rawSchema)) as Readonly<Record<string, unknown>>;
+    return Object.freeze({ serverId, name:raw.name, description, inputSchema, inputSchemaJson, allowedSurfaces:Object.freeze([...approvedSurfaces]) });
   } catch { return null; }
 }
 
