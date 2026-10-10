@@ -10,6 +10,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import https from "node:https";
+import type { IncomingHttpHeaders } from "node:http";
 import type { LookupFunction } from "node:dns";
 import { z } from "zod";
 import { query } from "@/lib/db";
@@ -84,7 +85,7 @@ async function checkedAddresses(hostname: string): Promise<Array<{ address: stri
   return addresses;
 }
 
-function requestOnce(url: URL, body: string, headers: Record<string,string>, signal?: AbortSignal): Promise<{ status: number; headers: https.IncomingHttpHeaders; body: string }> {
+function requestOnce(url: URL, body: string, headers: Record<string,string>, signal?: AbortSignal): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
   return new Promise(async (resolve, reject) => {
     let addresses: Array<{ address: string; family: number }>;
     try { addresses = await checkedAddresses(url.hostname); } catch { reject(new Error("MCP endpoint DNS validation failed.")); return; }
@@ -227,7 +228,7 @@ async function getAuthorizedServer(context: PlatformExecutionContext, serverId: 
   try { plan = await resolveOrgPlanLimits(context.tenantId); } catch { return null; }
   const rows = await query<ServerAccess>(
     `SELECT s.id, s.endpoint_url, s.auth_mode, s.allowed_plans, t.tool_name,
-            t.allowed_surfaces, pgp_sym_decrypt(c.credentials_encrypted, $5) AS bearer_token
+            t.allowed_surfaces, NULLIF((pgp_sym_decrypt(c.credentials_encrypted, $5)::jsonb)->>'bearerToken', '') AS bearer_token
        FROM platform_mcp_servers s
        JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
        JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status='configured'
