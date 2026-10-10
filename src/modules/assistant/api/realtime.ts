@@ -18,7 +18,14 @@ import { isSupportedOpenAIRealtimeVoice } from "./openai-catalog";
 import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret } from "./openai-realtime";
 import { getAuthContext } from "@/modules/auth/core/rbac";
 import { getKbAccessContext } from "@/modules/auth/core/db";
-import { isAgentLoopEnabled, isProviderToolCallingEnabled } from "@/modules/ai-platform-core";
+import {
+  createExecutionContext,
+  isAgentLoopEnabled,
+  isMcpEnabled,
+  isProviderToolCallingEnabled,
+  mcpToolName,
+  streamableHttpMcpToolResolver,
+} from "@/modules/ai-platform-core";
 
 // Legacy document mode only. Unset → no cap (provider default "inf"); the
 // spoken audio counts against this limit, so a small cap truncates answers.
@@ -208,6 +215,47 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
           kbAccess.permissions.has("kb:read")
         ) {
           tools.push(...REALTIME_INTEGRATION_TOOLS);
+
+          // MCP tools are advertised only after a server-side discovery pass
+          // scoped to this authenticated organisation, agent, user and KB.
+          // The realtime tool endpoint repeats these grants at invocation.
+          if (isMcpEnabled()) {
+            const executionContext = createExecutionContext({
+              orgId,
+              kbId,
+              agentId: orgRows[0]!.agent_id,
+              userId: auth.user.id,
+              sessionId: auth.session.id,
+              surface: "realtime",
+            });
+            const mcpRows = await dbQuery<{ server_id: string; tool_name: string }>(
+              `SELECT DISTINCT s.id AS server_id, t.tool_name
+                 FROM platform_mcp_servers s
+                 JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
+                 JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status='configured'
+                 JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name AND g.enabled=true
+                 JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid AND ag.enabled=true
+                 JOIN knowledge_bases kb2 ON kb2.agent_id=ag.agent_id AND kb2.id=$3
+                WHERE s.platform_enabled=true
+                ORDER BY s.id, t.tool_name
+                LIMIT 8`,
+              [orgId, orgRows[0]!.agent_id, kbId],
+            );
+            for (const row of mcpRows) {
+              const descriptor = await streamableHttpMcpToolResolver.resolve({
+                serverId: row.server_id,
+                toolName: row.tool_name,
+                context: executionContext,
+              });
+              if (!descriptor || !descriptor.allowedSurfaces?.includes("realtime")) continue;
+              tools.push({
+                type: "function",
+                name: mcpToolName(descriptor.serverId, descriptor.name),
+                description: descriptor.description.slice(0, 1000),
+                parameters: descriptor.inputSchemaJson ?? { type: "object", properties: {}, additionalProperties: false },
+              });
+            }
+          }
         }
       }
     }
