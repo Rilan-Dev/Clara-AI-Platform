@@ -308,8 +308,8 @@ function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
   if (schema.type === "string") {
     assertSchemaKeys(schema, ["$schema", "$comment", "type", "minLength", "maxLength", "enum", "description", "title", "default"]);
     let value: z.ZodType<unknown> = z.string();
-    if (typeof schema.minLength === "number" && (schema.minLength < 0 || schema.minLength > 4096)) throw new Error("Unsupported MCP string bound.");
-    if (typeof schema.maxLength === "number" && (schema.maxLength < 0 || schema.maxLength > 4096)) throw new Error("Unsupported MCP string bound.");
+    if (typeof schema.minLength === "number" && (!Number.isInteger(schema.minLength) || schema.minLength < 0 || schema.minLength > 4096)) throw new Error("Unsupported MCP string bound.");
+    if (typeof schema.maxLength === "number" && (!Number.isInteger(schema.maxLength) || schema.maxLength < 0 || schema.maxLength > 4096)) throw new Error("Unsupported MCP string bound.");
     if (typeof schema.minLength === "number" && typeof schema.maxLength === "number" && schema.minLength > schema.maxLength) throw new Error("Invalid MCP string bounds.");
     if (typeof schema.minLength === "number") value = (value as z.ZodString).min(Math.max(0, Math.min(4096, schema.minLength)));
     if (typeof schema.maxLength === "number") value = (value as z.ZodString).max(Math.max(0, Math.min(4096, schema.maxLength)));
@@ -338,7 +338,7 @@ function toZodSchema(raw: unknown, depth = 0): z.ZodType<unknown> {
   }
   if (schema.type === "array") {
     assertSchemaKeys(schema, ["$schema", "$comment", "type", "items", "minItems", "maxItems", "description", "title"]);
-    if ((typeof schema.maxItems === "number" && (schema.maxItems < 0 || schema.maxItems > 256)) || (typeof schema.minItems === "number" && (schema.minItems < 0 || schema.minItems > 256))) throw new Error("Unsupported MCP array bound.");
+    if ((typeof schema.maxItems === "number" && (!Number.isInteger(schema.maxItems) || schema.maxItems < 0 || schema.maxItems > 256)) || (typeof schema.minItems === "number" && (!Number.isInteger(schema.minItems) || schema.minItems < 0 || schema.minItems > 256))) throw new Error("Unsupported MCP array bound.");
     const minItems = typeof schema.minItems === "number" ? schema.minItems : 0;
     const maxItems = typeof schema.maxItems === "number" ? schema.maxItems : 256;
     if (minItems > maxItems) throw new Error("Invalid MCP array bounds.");
