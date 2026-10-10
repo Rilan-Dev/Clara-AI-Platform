@@ -1848,3 +1848,7 @@ Source only. Tests/typecheck/build/browser/live OAuth/deployment were not run. D
 3. Consider a platform-admin OAuth test flow only if it can safely use a dedicated test identity/organisation and existing OAuth start/callback runtime; do not create a second OAuth executor.
 4. Preserve encrypted client secrets/tokens, one-time state, exact callback validation, org/agent/plan authorization and the Unified Tool Runtime.
 5. Route migration, deployment, proxy-origin and runtime-environment defects to OPS-01. Do not wait for CI/Vercel/Gates.
+
+
+## FIX-01 Doable source comparison update — 2026-10-10
+Actual Doable source has now been inspected: `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`. Follow-up may evaluate source badges and env credential fallback, but only after checking Clara's current OAuth app model and secrets policy. A platform-admin Connect Test should reuse the existing OAuth lifecycle and must not invent a parallel callback/executor. Current callback UI/server validation correction remains source-only; no tests or live OAuth were run.
