@@ -1959,3 +1959,26 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 - **Next:** Run `npm test -- src/modules/integrations/oauth-app-validation.test.ts src/modules/integrations/oauth-setup-guides.test.ts` in a checked-out working tree; then proceed to provider-backed OAuth consent/callback/token persistence test. Route deployed-origin, proxy, migration/schema, and runtime issues to OPS-01. Keep I-096 OPEN until evidence supports closure.
 
 - Additional UI guidance commit: `427383ea8f0f4c13b1c38991da5e24b9ed28a1dd` adds an explicit warning when a provider has no default scope list; do not assume an empty list is valid without provider confirmation.
+
+
+## I-20261011-STRIPE-ORPHAN-ORG — Stripe invoice webhook references missing tenant
+
+| Field | Value |
+|---|---|
+| Issue ID | I-20261011-STRIPE-ORPHAN-ORG |
+| Title | Reconcile Stripe invoice metadata whose organisation is absent from the active database |
+| Phase | Billing / Stripe webhook |
+| Severity | P1 — paid-event processing repeatedly fails and triggers retries/alerts |
+| Status | OPEN — routed to OPS-01 for data/environment correlation |
+| Date identified | 2026-10-11 |
+| Reporter / role | FIX-01 / Sentinel |
+| Symptom | User's rebuilt backend repeatedly logs SQLSTATE 23503 for Stripe event `evt_1UP9JaSH7giJdRbDjderTSey`: `billing_events_org_id_fkey` rejects `org_id=d8f78644-3198-41db-bcc3-278ecad0ecb4` because that key is absent from `organisations`. |
+| Source trace | `src/lib/stripe-activation.ts::invoiceOrgId` reads legacy/modern subscription or invoice metadata. `src/app/api/webhooks/stripe/route.ts` optionally updates subscriptions by that ID and unconditionally inserts a billing event. Metadata is not proof that the referenced tenant exists. |
+| Confirmed immediate cause | Stripe-derived organisation ID has no matching `organisations` row in the database handling this event. Startup log says all migrations are already applied; no evidence currently points to missing schema. |
+| Underlying cause | UNKNOWN. Possible stale Stripe metadata/event, DB restore/environment mismatch, missing tenant/subscription data, or an application lifecycle defect. Requires read-only invoice/subscription/customer-to-tenant correlation. |
+| Authorized remedy | OPS-01: inspect actual container DB target and correlate invoice/subscription/customer with `org_subscriptions` and `organisations`; report the exact mismatch. No destructive repair is authorized. |
+| FIX-01 disposition | No code patch until the data/environment question is resolved. Do not suppress FK enforcement, insert a placeholder organisation, reset/reseed data, or silently acknowledge a paid invoice. Reopen to FIX-01 only if evidence demonstrates an application-side lifecycle defect. |
+| Regression protection | Not yet appropriate: the underlying invariant/desired handling depends on whether the source is stale metadata or missing tenant data. Once established, add a focused regression preserving payment reconciliation and avoiding dropped paid events. |
+| Evidence | User-provided Docker logs; source review of webhook and invoice metadata helper. |
+| Verification | Source trace only; no DB/Stripe API query, tests, typecheck, or runtime correction. No PASS claimed. |
+| Related records | EVT-FIX-20261011-01; BACKLOG-OPS-20261011-STRIPE-ORPHAN-ORG; SESSION-FIX-20261011-01. |
