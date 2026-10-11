@@ -3,7 +3,18 @@
  * Cloud deployments use REDIS_URL (redis:// or rediss://).
  * VPS/Docker deployments can continue using REDIS_HOST/REDIS_PORT.
  */
-export function getRedisConnectionOptions() {
+type RedisConnectionOptions = {
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  db?: number;
+  tls?: {};
+  maxRetriesPerRequest: null;
+  enableReadyCheck: false;
+};
+
+export function getRedisConnectionOptions(): RedisConnectionOptions {
   const rawUrl = process.env.REDIS_URL?.trim();
   if (rawUrl) {
     const url = new URL(rawUrl);
