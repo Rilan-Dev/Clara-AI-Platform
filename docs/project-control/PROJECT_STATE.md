@@ -697,3 +697,8 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Owner's post-pull compiler run verified the Stripe ambient declaration fix removed the Stripe missing-member cluster, reducing diagnostics from 44/19 files to 33/15 files.
 - FIX-01 committed narrow compatibility changes for the next known diagnostics. These edits are not yet type-checked locally.
 - Verification remains pending; do not call this phase PASS. Next action is a fresh local type-check after pulling latest branch. Keep development moving without waiting for CI/Vercel.
+
+## FIX-01 follow-up — 2026-10-12
+- Latest owner compiler run found 5 residual errors in 4 files.
+- Three targeted corrections are now committed: DayPicker v10 navigation class names, relative imports/mocks in context-builder test, and Redis options/legacy URL handling.
+- No post-correction type-check has been supplied. The ws declaration dependency remains outstanding. Do not claim PASS.
