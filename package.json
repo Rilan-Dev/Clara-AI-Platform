@@ -12,6 +12,7 @@
     "type-check": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest",
     "test:watch": "vitest --watch",
+    "test:voice-benchmark": "node --check scripts/voice-benchmark/conversation.mjs && node --check scripts/voice-benchmark/validate-report.mjs && node --check scripts/voice-benchmark/validate-report.test.mjs && node scripts/voice-benchmark/validate-report.test.mjs",
     "db:migrate": "tsx scripts/migrate.ts",
     "seed": "tsx scripts/seed.ts --prod",
     "seed:prod": "tsx scripts/seed.ts --prod",
