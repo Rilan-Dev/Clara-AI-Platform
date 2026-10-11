@@ -692,3 +692,8 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 ## 2026-10-09 — Integration discovery hardening
 
 [architect-verified] Connected integration discovery now requires user and agent identity and filters candidates by active scoped connection, platform enablement, organisation and agent grants, and organisation plan allowlist before registration. Execution remains in Unified Tool Runtime and the existing runner. Commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`. Chat/realtime dispatch and secure OAuth app configuration remain incomplete. No tests or live provider integrations were run; CI/Vercel/Gates remain deferred.
+
+## FIX-01 type-check follow-up — 2026-10-12
+- Owner's post-pull compiler run verified the Stripe ambient declaration fix removed the Stripe missing-member cluster, reducing diagnostics from 44/19 files to 33/15 files.
+- FIX-01 committed narrow compatibility changes for the next known diagnostics. These edits are not yet type-checked locally.
+- Verification remains pending; do not call this phase PASS. Next action is a fresh local type-check after pulling latest branch. Keep development moving without waiting for CI/Vercel.
