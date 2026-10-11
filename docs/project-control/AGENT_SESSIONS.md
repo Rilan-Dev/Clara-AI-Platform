@@ -388,3 +388,10 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Blockers:** No executable repository checkout is available to this agent; post-change type-check evidence must come from the user's local repository.
 - **Handoff:** EVT-FIX-20261012-01.
 - **Next action:** `git pull origin feature/ai-core-from-doable-source` then `npm run type-check`; share only the new residual diagnostics. Do not wait for CI/Vercel.
+
+### SESSION-FIX-20261012-02 — Type-check residual correction
+- Role: FIX-01 / Sentinel. Date: 2026-10-12.
+- Status: HANDOFF — source corrections committed; post-change local type-check pending.
+- Baseline: owner reported 33 errors in 15 files after the Stripe shadowing correction, down from 44 errors in 19 files.
+- Changes: narrow dependency API/type compatibility fixes. Official @types/ws remains pending because no package-manager-generated dependency/lock update was available in this pass.
+- Next: owner pulls latest branch and supplies fresh npm run type-check output. No CI/Vercel wait.
