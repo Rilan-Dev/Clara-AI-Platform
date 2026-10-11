@@ -74,3 +74,23 @@ Repeat the exact same WAVs, test KB, browser/device and network for `elevenlabs`
 - The existing stage marks use epoch milliseconds; cross-device clock subtraction is invalid. The harness uses its browser click epoch for click-to-audio and keeps request durations within the browser clock.
 - A provider that does not emit a greeting latency event will time out at the welcome gate. Treat that as missing lifecycle instrumentation to fix, not as zero latency.
 - WAV must contain real speech in a browser-decodable RIFF/WAVE format. Validate microphone injection on a non-production test environment first.
+
+## Report acceptance gate
+
+The harness now writes a partial JSON report on a welcome/turn timeout or provider mismatch, so a failed run still preserves observed events, request records, console errors and the failure reason. Schema version 2 distinguishes a telemetry completion barrier from verified answer integrity. The first-audio metric is a **telemetry mark**, not independent proof that a human-audible sample played.
+
+After a run, validate timing-record completeness:
+
+```bash
+node scripts/voice-benchmark/validate-report.mjs \
+  --report=tool-results/openai-conversation.json \
+  --provider=openai
+```
+
+The validator is an acceptance check for the five-turn timing capture only. It emits warnings for missing TTFA, token usage, answer-integrity evidence, console errors and failed requests. A PASS is **not** a functional answer-quality pass and must not be described as proof of non-truncated answers.
+
+## Current milestone status (2026-10-11)
+
+- Implemented: five sequential WAV turns, common telemetry capture, browser-visible request timing/counts, provider label mismatch failure, partial failure report, explicit integrity/usage limitations, report validator.
+- Not yet verified: Node syntax/runtime, Playwright and WAV microphone injection, live session/welcome timing, all four provider paths, answer correctness/non-truncation, token usage, server-internal DB/provider/embedding/Qdrant/MCP call counts.
+- Do not publish comparative latency conclusions until a real run report exists for each provider under the same test KB, WAVs, browser/device and network. Do not mark this milestone fully verified yet.
