@@ -84,3 +84,11 @@ When the parser registry is imported at server startup, a static `pdf-parse` run
 - Installed APIs: Stripe SDK v23 type literal is 2026-09-30.endive; DayPicker v10 uses month_caption / button_previous / button_next and Chevron; react-resizable-panels v4 uses Group / Panel / Separator; Recharts v3 content payload is injected at runtime; ReactMarkdown v10 styling belongs on a wrapper.
 - Keep Redis options structurally inferred rather than widening to ioredis v6 RedisOptions for BullMQ v6.
 - Missing ws declarations should be resolved with official @types/ws and lockfile, not an incomplete ambient declaration.
+
+### 2026-10-12 — five residual errors
+- Latest owner compiler output: 5 errors in 4 files.
+- DayPicker v10 has no nav_button class key; use supported button_previous/button_next keys.
+- For files in runtime/__tests__, sibling runtime modules must be referenced via ../; adjust vi.mock paths as well as dynamic imports.
+- Redis connection helper must preserve URL-in-REDIS_HOST compatibility and literal false for enableReadyCheck to satisfy the structural BullMQ options type.
+- ws needs official @types/ws with package-manager-generated lockfile; avoid incomplete ambient shims.
+- Fixes committed but not yet checked by a subsequent local type-check.
