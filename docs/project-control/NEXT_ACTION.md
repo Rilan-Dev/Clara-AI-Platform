@@ -1988,3 +1988,8 @@ Decision and phased acceptance criteria: `docs/plans/mcp-organization-owned-endp
 7. Keep `ENABLE_MCP=false` and platform servers disabled until executable tests and a controlled live MCP handshake pass. Do not claim runtime PASS from source-only review.
 
 The architecture note is committed in `docs/plans/mcp-organization-owned-endpoints.md` (commit `a8e5ba9439a80290f8a8a4622c368ac25457a161`). This is documentation/plan progress only; tenant-owned endpoint implementation and verification remain pending.
+
+## FIX-01 next action — type-check residuals (2026-10-12)
+1. Pull latest `feature/ai-core-from-doable-source`; calendar class-name correction `829ae96818a84a39110b65517917d9280c57684b` migrates the remaining legacy class keys to DayPicker v10 keys. It is not yet type-checked.
+2. From the repository root run `npm install --save-dev @types/ws` and commit the resulting `package.json` and `package-lock.json` changes. Do not manually edit lock metadata or add an untyped ambient `ws` declaration.
+3. Run `npm run type-check`; share the fresh output and continue fixing only new diagnostics. Do not wait for CI/Vercel; no PASS is recorded until the local type-check evidence supports it.
