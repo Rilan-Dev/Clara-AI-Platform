@@ -22,24 +22,6 @@ export function getRedisConnectionOptions() {
     };
     return options;
   }
-  // Be defensive about legacy/misconfigured deployments where REDIS_HOST
-  // contains a complete redis:// or rediss:// URL. Treat it as REDIS_URL
-  // instead of handing the URL string to ioredis as a DNS hostname.
-  const legacyHost = process.env.REDIS_HOST?.trim();
-  if (legacyHost?.startsWith("redis://") || legacyHost?.startsWith("rediss://")) {
-    const url = new URL(legacyHost);
-    const options = {
-      host: url.hostname,
-      port: url.port ? Number(url.port) : 6379,
-      username: url.username ? decodeURIComponent(url.username) : undefined,
-      password: url.password ? decodeURIComponent(url.password) : undefined,
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    };
-    if (url.pathname.length > 1) options.db = Number(url.pathname.slice(1));
-    if (url.protocol === "rediss:") options.tls = {};
-    return options;
-  }
 
   const port = Number.parseInt(process.env.REDIS_PORT ?? "6379", 10);
   return {
