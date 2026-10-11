@@ -73,10 +73,13 @@ async function main() {
     const path = resolve(args.inputs[n]);
     const fileBytes = readFileSync(path);
     const bytes = path.endsWith(".gz") ? gunzipSync(fileBytes) : fileBytes;
-    if (bytes.length < 44 || bytes.toString("ascii", 0, 4) !== "RIFF" || bytes.toString("ascii", 8, 12) !== "WAVE") {
-      throw new Error(`Input ${n} is not a valid RIFF/WAVE or gzip-compressed WAV file: ${path}`);
+    const isWav = bytes.length >= 44 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WAVE";
+    const isMp3 = path.toLowerCase().endsWith(".mp3") &&
+      (bytes.toString("ascii", 0, 3) === "ID3" || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0));
+    if (!isWav && !isMp3) {
+      throw new Error(`Input ${n} must be a WAV, MP3, or gzip-compressed WAV file: ${path}`);
     }
-    args.inputs[n] = { path, base64: bytes.toString("base64"), bytes: bytes.length, compressedBytes: fileBytes.length };
+    args.inputs[n] = { path, base64: bytes.toString("base64"), bytes: bytes.length, compressedBytes: fileBytes.length, format: isMp3 ? "mp3" : "wav" };
   }
 
   const browser = await chromium.launch({
