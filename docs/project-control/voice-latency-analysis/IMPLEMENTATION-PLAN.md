@@ -93,6 +93,31 @@ Optimise only after the measurements identify the bottleneck. Candidates include
 - Results include p50/p95 (and p90/p99 where sample size supports them), raw records, errors and missing telemetry.
 - No secrets or user transcript/prompt content appear in diagnostic logs.
 
-## Current limitation / next implementation steps
+## Implementation status — 2026-10-11
 
-The existing `run.mjs` is a one-WAV/fixed-window harness and the current latency event does not reliably provide welcome-to-first-audio, request census, complete server spans, token usage, or response truncation evidence for every provider. The next code changes should add provider-neutral session/turn lifecycle events, server timing spans at the real routes, and an adaptive audio-playback driver. Until these land and are run against a live deployment with provider credentials, no measured latency numbers or full provider pass should be claimed.
+### Implemented in repository (not yet runtime-verified)
+
+- `scripts/voice-benchmark/conversation.mjs`: five sequential WAV inputs in one browser session, waits for a shared telemetry completion barrier between inputs, records browser-visible request counts/status/header/body-completion durations, resource timings, failures and console errors.
+- Failure paths now persist a schema-v2 partial report when welcome/turn telemetry times out or observed provider differs from the expected provider.
+- The report explicitly distinguishes a telemetry barrier from answer-integrity verification. Welcome timing is labelled as a `browser.first_audio` telemetry mark, not independently verified audible playback.
+- `scripts/voice-benchmark/validate-report.mjs`: checks schema, provider identity, five turn records, welcome telemetry and per-turn correlation IDs; warns when TTFA, answer integrity, token usage or request health is incomplete.
+- Scenario fixtures and operator instructions are in `scripts/voice-benchmark/scenarios/five-turns.json` and `scripts/voice-benchmark/README.md`.
+
+### Not yet complete / verified
+
+- Node syntax/runtime, Playwright install/runtime, and actual WAV-to-microphone injection have not been executed in this work session.
+- No live session has confirmed that greeting and turn-completion events fire consistently for OpenAI, ElevenLabs, Gemini and Sarvam.
+- The common event does not currently prove a non-empty final answer, non-truncation, final audio drain, provider token usage, or actual audible playback.
+- Browser-visible request census exists; server-only request counts and durations for DB, provider API, embeddings, Qdrant, reranking, integration/MCP and retries still need structured spans.
+- Five-turn timing reports, repeated runs, provider matrix comparison and performance conclusions have not been produced.
+
+### Next implementation steps
+
+1. Execute `node --check` on both scripts and run the report validator against a synthetic fixture.
+2. Test microphone injection against a non-production Clara deployment; capture the first partial report even if the welcome gate fails.
+3. Run one OpenAI session, repair any lifecycle mismatch, and then use the same WAVs/test KB/browser/network for the other providers.
+4. Add privacy-safe provider-specific completion/usage metadata (text length or hash only, finish reason, output token usage, audio completion/drain) without logging transcripts.
+5. Add server timing/call-count spans for the real bootstrap, RAG, provider, embedding/Qdrant and tool/MCP paths.
+6. After these are measured, repeat at least one warm-up plus 10 measured sessions per provider and publish p50/p90/p95/p99 with missing-stage counts.
+
+Until runtime tests and live provider reports exist, the benchmark is **implementation-in-progress**, not a fully verified milestone. No latency numbers or four-provider pass are claimed.
