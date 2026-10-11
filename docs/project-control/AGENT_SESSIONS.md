@@ -376,3 +376,15 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Verification:** Source/test authored only; no Vitest, typecheck, build, deployment, or live handshake run. No PASS claimed.
 - **Security:** Advised revocation/rotation of the session cookie exposed in the user-supplied curl.
 - **Next:** Enter/save a valid bearer credential or send a temporary `bearerToken`; then diagnose any actual probe failure independently.
+
+### SESSION-FIX-20261012-01 — 2026-10-12
+- **Agent:** FIX-01 / Sentinel
+- **Invocation:** Recover repository/control state and root-cause the owner-provided TypeScript diagnostics; apply smallest authorized correction and record the incident.
+- **Started from:** `feature/ai-core-from-doable-source` at `59831ec646a1ed21caa8c80af863d129d3ebe034`.
+- **Scope:** Diagnose the reported type-check errors, starting with the shared Stripe type surface; no unrelated feature, dependency, deployment, or infrastructure work.
+- **Status:** HANDOFF — first root cause corrected; follow-up compiler evidence pending.
+- **Completed:** Removed the incomplete ambient Stripe module declaration from `src/types/payments.d.ts`; retained Razorpay's separate declaration. Commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Pending:** Re-run local type-check after pulling the correction; determine whether Stripe diagnostics clear and triage residual ioredis/BullMQ, UI library, PDF metadata, test import, and `ws` type errors independently.
+- **Blockers:** No executable repository checkout is available to this agent; post-change type-check evidence must come from the user's local repository.
+- **Handoff:** EVT-FIX-20261012-01.
+- **Next action:** `git pull origin feature/ai-core-from-doable-source` then `npm run type-check`; share only the new residual diagnostics. Do not wait for CI/Vercel.
