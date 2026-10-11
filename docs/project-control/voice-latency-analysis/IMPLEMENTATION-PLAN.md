@@ -121,3 +121,9 @@ Optimise only after the measurements identify the bottleneck. Candidates include
 6. After these are measured, repeat at least one warm-up plus 10 measured sessions per provider and publish p50/p90/p95/p99 with missing-stage counts.
 
 Until runtime tests and live provider reports exist, the benchmark is **implementation-in-progress**, not a fully verified milestone. No latency numbers or four-provider pass are claimed.
+
+## Session 005 review — 2026-10-11
+
+- Hardened browser response-finish error redaction and added the package manifest to the script-check workflow path filters; details are in `SESSION-005.md`.
+- These are source-level changes only. The scripts and live session are still not runtime-verified from this environment.
+
