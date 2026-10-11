@@ -707,3 +707,9 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Latest owner-provided local type-check output reports two remaining errors after the prior batch: one obsolete DayPicker v10 class key and missing `ws` declarations.
 - Calendar class-name correction is committed at `829ae96818a84a39110b65517917d9280c57684b`, source-only pending fresh type-check.
 - The remaining package dependency fix is `@types/ws`, installed with npm so the lockfile is generated correctly. No PASS is claimed until the next local compiler output.
+
+## FIX-01 — type-check result — 2026-10-12
+- Current owner-provided evidence: `npm run type-check` passes with zero diagnostics after adding official `@types/ws`.
+- Environment compatibility risk surfaced during install: local Node v20.20.0 does not satisfy multiple installed package engines; strongest observed minimum is Node >=22.22 (`machina`). Align local, Docker, and deployment runtimes to Node 22.22+ before treating test/runtime behavior as validated.
+- npm reports 37 audit vulnerabilities; dependency remediation is a separate reviewed task. No `npm audit fix --force` was run.
+- The owner still needs to commit the generated `@types/ws` manifest/lockfile update after reviewing the working tree. No tests/build/runtime/deployment PASS is claimed.
