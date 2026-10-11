@@ -94,3 +94,13 @@ The validator is an acceptance check for the five-turn timing capture only. It e
 - Implemented: five sequential WAV turns, common telemetry capture, browser-visible request timing/counts, provider label mismatch failure, partial failure report, explicit integrity/usage limitations, report validator.
 - Not yet verified: Node syntax/runtime, Playwright and WAV microphone injection, live session/welcome timing, all four provider paths, answer correctness/non-truncation, token usage, server-internal DB/provider/embedding/Qdrant/MCP call counts.
 - Do not publish comparative latency conclusions until a real run report exists for each provider under the same test KB, WAVs, browser/device and network. Do not mark this milestone fully verified yet.
+
+## Run the local script checks
+
+From the repository root with Node.js 22 or later:
+
+```bash
+npm run test:voice-benchmark
+```
+
+This runs `node --check` against the conversation harness and report validator, then tests the validator against a valid report, missing turns, provider mismatch and missing correlation IDs. The same dependency-free checks run in `.github/workflows/voice-benchmark-script-check.yml` on relevant pushes and pull requests. They do **not** start a Clara session or prove provider speech behavior.
