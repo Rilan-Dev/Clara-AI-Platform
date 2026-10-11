@@ -3,16 +3,14 @@
  * Cloud deployments use REDIS_URL (redis:// or rediss://).
  * VPS/Docker deployments can continue using REDIS_HOST/REDIS_PORT.
  */
-import type { RedisOptions } from "ioredis";
-
-export function getRedisConnectionOptions(): RedisOptions {
+export function getRedisConnectionOptions() {
   const rawUrl = process.env.REDIS_URL?.trim();
   if (rawUrl) {
     const url = new URL(rawUrl);
     if (url.protocol !== "redis:" && url.protocol !== "rediss:") {
       throw new Error("REDIS_URL must use redis:// or rediss://");
     }
-    const options: RedisOptions = {
+    const options = {
       host: url.hostname,
       port: url.port ? Number(url.port) : 6379,
       username: url.username ? decodeURIComponent(url.username) : undefined,
