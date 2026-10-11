@@ -132,7 +132,50 @@ async function main() {
   // into this track on demand; the real app still uses its real session/STT/RAG/
   // model/TTS paths. No text is posted directly to a RAG endpoint.
   await page.addInitScript(() => {
-    const state = { events: [], audioContext: null, destination: null, clickAt: null };
+    const state = { events: [], dataChannelEvents: [], audioContext: null, destination: null, microphoneTrack: null, clickAt: null };
+    const recordDataChannelEvent = (channel, direction, type) => {
+      state.dataChannelEvents.push({
+        at: Date.now(),
+        channelLabel: String(channel?.label ?? "").slice(0, 80),
+        channelState: channel?.readyState ?? null,
+        direction,
+        type: String(type ?? "unknown").slice(0, 100),
+      });
+      if (state.dataChannelEvents.length > 500) state.dataChannelEvents.shift();
+    };
+    const observeDataChannel = (channel) => {
+      if (!channel || channel.__claraBenchObserved) return channel;
+      try { Object.defineProperty(channel, "__claraBenchObserved", { value: true }); } catch {}
+      recordDataChannelEvent(channel, "channel", "created");
+      channel.addEventListener("open", () => recordDataChannelEvent(channel, "channel", "open"));
+      channel.addEventListener("close", () => recordDataChannelEvent(channel, "channel", "close"));
+      channel.addEventListener("error", () => recordDataChannelEvent(channel, "channel", "error"));
+      channel.addEventListener("message", (event) => {
+        let type = "non-json-message";
+        try {
+          const parsed = JSON.parse(String(event.data));
+          type = typeof parsed?.type === "string" ? parsed.type : "json-without-type";
+        } catch {}
+        recordDataChannelEvent(channel, "inbound", type);
+      });
+      const originalSend = channel.send.bind(channel);
+      channel.send = (data) => {
+        let type = "non-json-message";
+        try {
+          const parsed = JSON.parse(String(data));
+          type = typeof parsed?.type === "string" ? parsed.type : "json-without-type";
+        } catch {}
+        recordDataChannelEvent(channel, "outbound", type);
+        return originalSend(data);
+      };
+      return channel;
+    };
+    try {
+      const originalCreateDataChannel = RTCPeerConnection.prototype.createDataChannel;
+      RTCPeerConnection.prototype.createDataChannel = function(...args) {
+        return observeDataChannel(originalCreateDataChannel.apply(this, args));
+      };
+    } catch {}
     window.__claraVoiceBench = state;
     window.addEventListener("clara:voice:latency", (event) => {
       const d = event.detail || {};
@@ -155,7 +198,14 @@ async function main() {
       const destination = ctx.createMediaStreamDestination();
       state.audioContext = ctx;
       state.destination = destination;
-      return new MediaStream([...destination.stream.getAudioTracks()]);
+      const track = destination.stream.getAudioTracks()[0] ?? null;
+      state.microphoneTrack = track;
+      if (track) {
+        track.addEventListener("mute", () => state.dataChannelEvents.push({ at: Date.now(), direction: "microphone", type: "track-muted" }));
+        track.addEventListener("unmute", () => state.dataChannelEvents.push({ at: Date.now(), direction: "microphone", type: "track-unmuted" }));
+        track.addEventListener("ended", () => state.dataChannelEvents.push({ at: Date.now(), direction: "microphone", type: "track-ended" }));
+      }
+      return new MediaStream(track ? [track] : []);
     };
     window.__claraVoiceBenchPlay = async (base64) => {
       if (!state.audioContext || !state.destination) throw new Error("Microphone audio track has not been initialized; connect first.");
@@ -170,7 +220,32 @@ async function main() {
       const ended = new Promise((resolve) => { source.onended = resolve; });
       source.start();
       await ended;
-      return { durationMs: audio.duration * 1000, sampleRate: audio.sampleRate, channels: audio.numberOfChannels };
+      let sumSquares = 0;
+      let sampleCount = 0;
+      let peak = 0;
+      for (let channel = 0; channel < audio.numberOfChannels; channel++) {
+        const samples = audio.getChannelData(channel);
+        for (let i = 0; i < samples.length; i++) {
+          const sample = samples[i];
+          sumSquares += sample * sample;
+          peak = Math.max(peak, Math.abs(sample));
+          sampleCount++;
+        }
+      }
+      return {
+        durationMs: audio.duration * 1000,
+        sampleRate: audio.sampleRate,
+        channels: audio.numberOfChannels,
+        rms: sampleCount ? Math.sqrt(sumSquares / sampleCount) : 0,
+        peak,
+        microphoneTrackState: state.microphoneTrack ? {
+          readyState: state.microphoneTrack.readyState,
+          enabled: state.microphoneTrack.enabled,
+          muted: state.microphoneTrack.muted,
+          settings: state.microphoneTrack.getSettings(),
+        } : null,
+        audioContextState: state.audioContext.state,
+      };
     };
     window.__claraVoiceBenchMarkConnect = () => {
       state.clickAt = { wallTime: Date.now(), monotonicMs: performance.now() };
@@ -309,6 +384,7 @@ async function main() {
     // This prevents the most useful failure evidence from being lost on timeout.
     try {
       const events = await page.evaluate(() => window.__claraVoiceBench?.events ?? []);
+      const dataChannelEvents = await page.evaluate(() => window.__claraVoiceBench?.dataChannelEvents ?? []);
       const out = resolve(args.out);
       mkdirSync(dirname(out), { recursive: true });
       writeFileSync(out, JSON.stringify({
@@ -324,6 +400,16 @@ async function main() {
         session: { connectClick: connectClick.wallTime, welcomeEvent: welcomeEvent ? { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks } : null },
         turns: turnResults,
         observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
+        dataChannelEvents,
+        microphoneDiagnostics: await page.evaluate(() => ({
+          audioContextState: window.__claraVoiceBench?.audioContext?.state ?? null,
+          track: window.__claraVoiceBench?.microphoneTrack ? {
+            readyState: window.__claraVoiceBench.microphoneTrack.readyState,
+            enabled: window.__claraVoiceBench.microphoneTrack.enabled,
+            muted: window.__claraVoiceBench.microphoneTrack.muted,
+            settings: window.__claraVoiceBench.microphoneTrack.getSettings(),
+          } : null,
+        })),
         requestCounts: responseRecords.reduce((counts, r) => { const k = `${r.method} ${r.url} ${r.status}`; counts[k] = (counts[k] ?? 0) + 1; return counts; }, {}),
         requestTimings: responseRecords,
         failures,
