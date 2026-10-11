@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "purpose": "Synthetic, repeatable test questions for a dedicated Clara test KB. Create the matching audio WAVs from these exact prompts and populate the test KB with the expected facts below. The committed audio fixtures are gzip-compressed PCM WAV files; the benchmark automatically decompresses them in memory.",
+  "purpose": "Short synthetic spoken questions for a dedicated Clara test KB. Included MP3 fixtures match the exact prompt text; the browser decodes them into the controlled microphone track.",
   "audioFiles": [
-    "questions/turn-01.wav.gz",
-    "questions/turn-02.wav.gz",
-    "questions/turn-03.wav.gz",
-    "questions/turn-04.wav.gz",
-    "questions/turn-05.wav.gz"
+    "questions/turn-01.mp3",
+    "questions/turn-02.mp3",
+    "questions/turn-03.mp3",
+    "questions/turn-04.mp3",
+    "questions/turn-05.mp3"
   ],
   "turns": [
     {
       "id": "turn-01",
-      "prompt": "What is the support team's working time, and which timezone should I use?",
+      "prompt": "What are support hours?",
       "expectedFacts": [
         "Support hours are 9 AM to 6 PM",
         "Timezone is India Standard Time"
@@ -20,7 +20,7 @@
     },
     {
       "id": "turn-02",
-      "prompt": "How quickly should a normal priority ticket receive its first response?",
+      "prompt": "Normal ticket response time?",
       "expectedFacts": [
         "Normal priority first response target is 4 business hours"
       ],
@@ -28,7 +28,7 @@
     },
     {
       "id": "turn-03",
-      "prompt": "If a ticket is marked urgent, what is the first-response target?",
+      "prompt": "Urgent ticket response time?",
       "expectedFacts": [
         "Urgent ticket first response target is 30 minutes"
       ],
@@ -36,7 +36,7 @@
     },
     {
       "id": "turn-04",
-      "prompt": "Can I change the email address on my account, and what verification is required?",
+      "prompt": "Can I change my email?",
       "expectedFacts": [
         "Email change is allowed",
         "Verify ownership of the current account before changing it"
@@ -45,7 +45,7 @@
     },
     {
       "id": "turn-05",
-      "prompt": "Please summarize the support hours, normal response target, and urgent response target together.",
+      "prompt": "Summarize all response targets.",
       "expectedFacts": [
         "Support hours 9 AM to 6 PM IST",
         "Normal target 4 business hours",
