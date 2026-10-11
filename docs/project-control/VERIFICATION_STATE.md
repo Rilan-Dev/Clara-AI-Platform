@@ -1846,3 +1846,11 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - Build must be rerun against the fixed branch. The old `clara-backend` container remained running after the failed build and is not evidence of the fixed source being deployed.
 - Gmail OAuth save remains unverified. The earlier `normalizeScopes is not a function` trace is from that old image; the prior source export fix is present in the branch, but cannot take effect until a successful rebuild/recreate and fresh retest.
 - No tests, typecheck, post-fix build, deployment, or runtime PASS is claimed.
+
+## 2026-10-12 — FIX-01 Stripe type declaration root-cause correction
+
+- Owner-provided `npm run type-check` reported 44 errors in 19 files. Dependency inspection showed direct `stripe@23.0.0` with no duplicate version in the reported dependency tree.
+- Root cause for the Stripe API missing-member cluster: `src/types/payments.d.ts` declared a partial ambient `"stripe"` module and shadowed official package types.
+- Removed the Stripe ambient module declaration while preserving the independent Razorpay declaration. Commit: `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Not run / not claimed:** post-correction `npm run type-check`, Vitest, lint, build, Docker, CI, Vercel, deployment, Stripe API calls, or billing runtime verification.
+- **Still pending:** rerun type-check against the corrected commit. Remaining non-Stripe diagnostics in the original report must be reassessed independently; no claim is made that the full type-check is clean.
