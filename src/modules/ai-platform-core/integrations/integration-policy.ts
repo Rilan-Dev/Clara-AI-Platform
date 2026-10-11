@@ -1,4 +1,5 @@
-import { query, type QueryResultRow } from "@/lib/db";
+import { query } from "@/lib/db";
+import type { QueryResultRow } from "pg";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { getIntegration } from "@/modules/integrations/registry";
 import type { PlatformExecutionContext } from "../contracts";
