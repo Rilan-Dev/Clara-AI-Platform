@@ -203,3 +203,9 @@ Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/ap
 - Follow-up compatibility fixes are committed across Stripe API version, DayPicker v10, Recharts v3, react-resizable-panels v4, ioredis/BullMQ option typing, PDF metadata, ReactMarkdown v10, test import resolution, and queue generics.
 - Source-only edits pending fresh local type-check. Do not record PASS until owner supplies post-change compiler output.
 - Do not create a partial ambient ws declaration; add official @types/ws with a package-manager-generated lockfile update.
+
+### FIX-01 / 5-error follow-up / 2026-10-12
+- Owner's latest compiler run reports 5 errors in 4 files. Root causes include DayPicker v10 nav_button removal, incorrect relative paths from a nested __tests__ directory, Redis option literal widening and an accidentally omitted legacyHost declaration/URL branch.
+- Fixes committed: 9827502f158ac26b2241e7cc5fabe7c5be6c291e; 4957ddc8c2ee00fb47d8e8785752b9569c340484; 6b79a63482911019c4ebc333901200f555f3614a.
+- ws still needs official @types/ws. No @types/ws entry exists in current lockfile; don't fabricate lock metadata or hide missing types with a partial ambient declaration.
+- Await a fresh type-check before marking resolved.
