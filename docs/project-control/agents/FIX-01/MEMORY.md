@@ -68,3 +68,12 @@ When the parser registry is imported at server startup, a static `pdf-parse` run
 - **Remedy:** Shared dialog primitive correction committed as `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`; DB code left unchanged because its readiness guard is already present.
 - **Prevention:** Confirm runtime commit and migration result before diagnosing repeated missing relations. Fix shared primitives and test narrow viewports/long content before page-specific styling.
 - **Verification:** Source inspection and commit only; no test/build/browser/database/runtime PASS claimed.
+
+### 2026-10-12 — Stripe SDK ambient declaration shadowing
+
+- **Symptom:** Stripe APIs and fields appeared missing from TypeScript across multiple billing routes, even though `stripe@23.0.0` was installed directly.
+- **Root cause:** `src/types/payments.d.ts` declared a partial ambient `"stripe"` module and replaced the package's official type surface.
+- **Remedy:** Remove only the Stripe ambient module declaration; preserve the separate Razorpay declaration. Commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Failed approach to avoid:** Do not downgrade or reinstall the SDK before checking for ambient module declarations. `npm ls`/ `npm explain` showed no duplicate Stripe dependency.
+- **Prevention:** Never use partial `declare module` definitions to model an installed third-party SDK. Use official types or a project-owned adapter.
+- **Verification boundary:** Type-check after the source correction remains pending. Other non-Stripe errors in the supplied 44-error report are separate API-compatibility/type-contract issues and must be triaged from the next compiler output.
