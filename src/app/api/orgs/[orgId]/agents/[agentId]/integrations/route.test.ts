@@ -207,14 +207,28 @@ describe("agent integration catalogue visibility", () => {
   }: {
     agent?: Array<{ integration_id: string; enabled: boolean }>;
     org?: Array<{ integration_id: string; enabled: boolean }>;
-    connections?: Array<{ integration_id: string; count: number }>;
+    connections?: Array<{
+      integration_id: string;
+      active_count: number;
+      expired_count?: number;
+      error_count?: number;
+      revoked_count?: number;
+      last_updated_at?: Date | null;
+    }>;
     platform?: Array<{ integration_id: string; enabled: boolean; allowed_plans: string[] }>;
   }) {
     queryMock.mockReset();
     queryMock
       .mockResolvedValueOnce(agent)
       .mockResolvedValueOnce(org)
-      .mockResolvedValueOnce(connections)
+      .mockResolvedValueOnce(connections.map(c => ({
+        active_count: c.active_count,
+        expired_count: c.expired_count ?? 0,
+        error_count: c.error_count ?? 0,
+        revoked_count: c.revoked_count ?? 0,
+        last_updated_at: c.last_updated_at ?? null,
+        integration_id: c.integration_id,
+      })))
       .mockResolvedValueOnce(platform);
   }
 
@@ -282,6 +296,36 @@ describe("agent integration catalogue visibility", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.integrations[0]).toMatchObject({ id: "github", platformEnabled: true, planAllowed: false });
+  });
+
+  it("reports per-integration connection status and recency for the direct-connect UX", async () => {
+    const updatedAt = new Date("2026-10-01T10:00:00.000Z");
+    seedCatalogue({
+      org: [{ integration_id: "github", enabled: true }],
+      connections: [
+        { integration_id: "github", active_count: 1, last_updated_at: updatedAt },
+        { integration_id: "slack", active_count: 0, expired_count: 1 },
+        { integration_id: "jira", active_count: 0, revoked_count: 2 },
+      ],
+      platform: [
+        { integration_id: "github", enabled: true, allowed_plans: ["pro"] },
+        { integration_id: "slack", enabled: true, allowed_plans: ["pro"] },
+        { integration_id: "jira", enabled: true, allowed_plans: ["pro"] },
+      ],
+    });
+
+    const { GET } = await import("./route");
+    const request = new NextRequest("http://localhost/api/orgs/org-1/agents/agent-1/integrations");
+    const response = await GET(request, {
+      params: Promise.resolve({ orgId: "org-1", agentId: "agent-1" }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const byId = new Map(body.integrations.map((i: { id: string }) => [i.id, i]));
+    expect(byId.get("github")).toMatchObject({ connected: true, connectionStatus: "connected", connectionUpdatedAt: updatedAt.toISOString() });
+    expect(byId.get("slack")).toMatchObject({ connected: false, connectionStatus: "expired" });
+    expect(byId.get("jira")).toMatchObject({ connected: false, connectionStatus: "revoked" });
   });
 
   it("rejects a cross-organisation agent context", async () => {

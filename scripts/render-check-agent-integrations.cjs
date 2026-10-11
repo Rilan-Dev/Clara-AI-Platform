@@ -1,13 +1,15 @@
 /**
- * Render check for the redesigned agent integrations screens.
+ * Render check for the redesigned agent integrations + MCP tools screens.
  * Runs under tsx: `./node_modules/.bin/tsx scripts/render-check-agent-integrations.cjs`
  *
  * Stubs next/navigation + next/link via require-cache seeding, stubs fetch with
  * an n8n-like 39-tool MCP payload plus a filtered integration catalogue, then
  * mounts both screens with React's act() so effects/fetch flush, and asserts
- * the professional layout contract: collapsed MCP cards (no 39-tool dump),
- * readiness gate chips, tiered guidance messaging, and platform-filtered
- * integration cards.
+ * the layout contract:
+ *  - the Integrations screen renders ONLY integrations (direct connect UX,
+ *    plan-blocked messaging, no org-screen navigation links, no MCP region)
+ *  - the MCP screen list stays minimal (no endpoint/tool dump) and the detail
+ *    modal carries the full status, gates, search, bulk actions and tool rows
  */
 "use strict";
 const { createElement } = require("react");
@@ -72,7 +74,8 @@ globalThis.fetch = async (url) => {
         integrations: [
           { id: "google_drive", displayName: "Google Drive", description: "Files", logoUrl: "https://cdn.example/drive.png",
             category: "productivity", authType: "oauth2", actions: ["a", "b"], platformEnabled: true,
-            planAllowed: true, organisationEnabled: true, connected: false, agentEnabled: false },
+            planAllowed: true, organisationEnabled: true, connected: true, connectionStatus: "connected",
+            connectionUpdatedAt: "2026-10-01T10:00:00.000Z", agentEnabled: false },
           { id: "github", displayName: "GitHub", description: "Repos", logoUrl: "https://cdn.example/github.png",
             category: "developer", authType: "secret_text", actions: ["a"], platformEnabled: true,
             planAllowed: false, organisationEnabled: true, connected: true, agentEnabled: true },
@@ -89,61 +92,68 @@ globalThis.fetch = async (url) => {
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const AgentIntegrationsScreen = require("../src/features/admin/screens/agent-integrations-screen").default;
-const AgentMcpToolsPanel = require("../src/features/admin/screens/agent-mcp-tools-panel").default;
+const AgentMcpScreen = require("../src/features/admin/screens/agent-mcp-screen").default;
 
 async function renderLoaded(Component) {
   const container = document.createElement("div");
   const root = createRoot(container);
   await act(async () => { root.render(createElement(Component)); });
   await act(async () => {}); // flush fetch → setState cycles
-  return container.innerHTML;
+  return { html: container.innerHTML, container, root };
 }
 
 (async () => {
-  const htmlPanel = await renderLoaded(AgentMcpToolsPanel);
-  const htmlScreen = await renderLoaded(AgentIntegrationsScreen);
+  const { html: htmlScreen } = await renderLoaded(AgentIntegrationsScreen);
+  const { html: htmlMcpList, container: mcpContainer, root: mcpRoot } = await renderLoaded(AgentMcpScreen);
 
-  // Interaction: expand the collapsed N8N server card and flush.
-  const container = document.createElement("div");
-  const root = createRoot(container);
-  await act(async () => { root.render(createElement(AgentMcpToolsPanel)); });
+  // Interaction: open the minimal N8N row → detail modal renders in full.
+  const openButton = mcpContainer.querySelector('button[aria-label="Open N8N details"]');
+  if (!openButton) throw new Error("minimal MCP server row not found");
+  await act(async () => { openButton.dispatchEvent(new domWindow.MouseEvent("click", { bubbles: true })); });
   await act(async () => {});
-  const expandButton = container.querySelector('button[aria-expanded="false"]');
-  if (!expandButton) throw new Error("collapsed server card header not found");
-  await act(async () => { expandButton.dispatchEvent(new domWindow.MouseEvent("click", { bubbles: true })); });
-  await act(async () => {});
-  const htmlExpanded = container.innerHTML;
-  root.unmount();
+  const htmlDetail = mcpContainer.innerHTML;
+  mcpRoot.unmount();
 
-  const toolRows = (htmlPanel.match(/tool_\d+/g) ?? []).length;
-  const distinctExpandedTools = new Set(htmlExpanded.match(/tool_\d+/g) ?? []).size;
+  const distinctDetailTools = new Set(htmlDetail.match(/tool_\d+/g) ?? []).size;
   const checks = [
-    ["panel renders section heading", htmlPanel.includes("MCP servers")],
-    ["panel renders the N8N server card", htmlPanel.includes("N8N")],
-    ["panel renders tool-count chip (39 tools)", htmlPanel.includes("39 tools")],
-    ["panel renders agent-granted chip (2 granted)", htmlPanel.includes("2 granted to agent")],
-    ["panel card is collapsed — no tool rows dumped", toolRows === 0],
-    ["panel renders connection chip", htmlPanel.includes("Not connected")],
+    // ── Integrations screen: integrations only, direct-connect UX ──────────
     ["screen renders page heading", htmlScreen.includes("Agent integrations")],
-    ["screen renders tiered-model explainer", htmlScreen.includes("three steps")],
-    ["screen renders integrations section heading", htmlScreen.includes("Organisation integrations")],
+    ["screen renders direct-connect explainer", htmlScreen.includes("credentials and choose which ones")],
     ["screen renders all four catalogue cards (server-filtered response)",
       ["Google Drive", "GitHub", "Notion", "Slack"].every(n => htmlScreen.includes(n))],
-    ["screen renders org-enablement guidance", htmlScreen.includes("Organisation enablement required")],
-    ["screen renders credentials guidance", htmlScreen.includes("Credentials not connected")],
-    ["screen renders plan-blocked guidance with plan id", htmlScreen.includes("Not included in the pro plan")],
-    ["screen renders platform-disabled guidance for granted item", htmlScreen.includes("Disabled by platform administration")],
+    ["screen renders plan-blocked message", htmlScreen.includes("This integration is not available for your plan")],
+    ["plan-blocked card has no credentials nag", !htmlScreen.includes("An organisation admin must connect credentials")],
+    ["screen has no link to the retired organisation integrations screen", !htmlScreen.includes("Manage organisation integrations")],
+    ["screen has no MCP region (separate screens)", !htmlScreen.includes("MCP")],
+    ["connected card offers reconnect/disconnect actions",
+      htmlScreen.includes("Reconnect account") && htmlScreen.includes("Disconnect")],
+    ["unconnected plan-allowed card offers direct connect", htmlScreen.includes("Connect account")],
+    ["screen renders connected status", htmlScreen.includes("Connected")],
     ["screen renders enabled-agent counter", htmlScreen.includes("2 of 4 enabled for agent")],
-    ["both API endpoints were requested", calls.some(c => c.includes("mcp-servers")) && calls.some(c => c.includes("agents/agent-1/integrations"))],
-    // Expanded card contract
-    ["expanded card renders readiness gate chips", htmlExpanded.includes("Org grants 3/39") && htmlExpanded.includes("pro plan")],
-    ["expanded card renders blocking-cause guidance", htmlExpanded.includes("Organisation connection required")],
-    ["expanded card links to organisation integrations", htmlExpanded.includes("Go to Organisation")],
-    ["expanded card renders tool search box", htmlExpanded.includes("Search 39 tools")],
-    ["expanded card renders bulk actions", htmlExpanded.includes("Grant all available") && htmlExpanded.includes("Revoke all")],
-    ["expanded card lists all 39 tools once expanded", distinctExpandedTools === 39],
-    ["expanded card shows org-grant status per tool", htmlExpanded.includes("Org granted") && htmlExpanded.includes("Org grant needed")],
-    ["expanded card renders agent grant switches", (htmlExpanded.match(/role="switch"/g) ?? []).length === 39],
+    ["agent integrations endpoint was requested", calls.some(c => c.includes("agents/agent-1/integrations"))],
+
+    // ── MCP screen: minimal list, full detail modal ─────────────────────────
+    ["mcp screen renders page heading", htmlMcpList.includes("MCP tools")],
+    ["mcp list renders the N8N row", htmlMcpList.includes("N8N")],
+    ["mcp list renders status chip", htmlMcpList.includes("Not connected")],
+    ["mcp list renders tool-count chip", htmlMcpList.includes("39 tools")],
+    ["mcp list renders agent-granted chip", htmlMcpList.includes("2 granted")],
+    ["mcp list is minimal — no endpoint URL dumped", !htmlMcpList.includes("https://n8n.example")],
+    ["mcp list is minimal — no tool rows dumped", (htmlMcpList.match(/tool_\d+/g) ?? []).length === 0],
+    ["mcp list has no description text", !htmlMcpList.includes("Workflow automation")],
+    ["mcp endpoint was requested with agent scope", calls.some(c => c.includes("mcp-servers?agentId=agent-1"))],
+
+    // ── Detail modal contract ───────────────────────────────────────────────
+    ["detail modal renders description", htmlDetail.includes("Workflow automation")],
+    ["detail modal renders endpoint URL", htmlDetail.includes("https://n8n.example/mcp-server/http")],
+    ["detail modal renders readiness gates", htmlDetail.includes("Org tools 3/39") && htmlDetail.includes("Platform")],
+    ["detail modal renders connect action", htmlDetail.includes("Connect")],
+    ["detail modal renders tool search box", htmlDetail.includes("Search 39 tools")],
+    ["detail modal renders bulk actions", htmlDetail.includes("Grant all") && htmlDetail.includes("Revoke all")],
+    ["detail modal lists all 39 tools", distinctDetailTools === 39],
+    ["detail modal shows org-grant state per tool", htmlDetail.includes("Org grant needed")],
+    ["detail modal renders agent grant switches", (htmlDetail.match(/role="switch"/g) ?? []).length === 39],
+    ["detail modal has no organisation-screen navigation link", !htmlDetail.includes("Go to Organisation")],
   ];
 
   let failed = 0;

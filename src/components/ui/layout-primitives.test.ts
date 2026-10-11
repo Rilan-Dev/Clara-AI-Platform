@@ -36,7 +36,7 @@ describe("shared floating-panel and card layout contracts", () => {
   });
 
   it("keeps feature-level OAuth and capability panels responsive", () => {
-    const integrationDialog = source("../../features/admin/screens/org-integrations-screen.tsx");
+    const integrationDialog = source("../../features/admin/screens/agent-integrations-screen.tsx");
     const platformOAuthDialog = source("../../features/admin/screens/platform-integrations-screen.tsx");
     const capabilityDrawer = source("../../features/admin/screens/agent-workspace/assistant-ai-screen.tsx");
     const kbDetails = source("../../features/admin/screens/kb-detail-screen.tsx");
