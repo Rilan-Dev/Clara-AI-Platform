@@ -85,6 +85,9 @@ async function main() {
   const consoleErrors = [];
   const clientEvents = [];
   const connectClick = { wallTime: null, monotonicMs: null };
+  const turnResults = [];
+  let welcomeEvent = null;
+  let benchmarkError = null;
   let sequence = 0;
 
   page.on("request", (request) => {
@@ -178,14 +181,14 @@ async function main() {
 
     // The greeting may not emit a telemetry event on every provider yet. A
     // missing greeting event is a failed/missing metric, not a fabricated zero.
-    const welcome = await waitFor(async () => {
+    welcomeEvent = await waitFor(async () => {
       const events = await page.evaluate(() => window.__claraVoiceBench?.events ?? []);
       const candidates = events.filter((e) => typeof e.marks?.["browser.first_audio"] === "number");
       return candidates[0] ?? null;
     }, args.welcomeTimeoutMs, "first audible welcome/assistant audio telemetry");
 
     const clickWallTime = await page.evaluate(() => window.__claraVoiceBench?.clickAt?.wallTime ?? null);
-    const welcomeFirstAudioMark = welcome.marks["browser.first_audio"];
+    const welcomeFirstAudioMark = welcomeEvent.marks["browser.first_audio"];
     // Both values use epoch milliseconds because current shared stage marks use Date.now().
     const welcomeMsFromClick = typeof clickWallTime === "number" && typeof welcomeFirstAudioMark === "number"
       ? welcomeFirstAudioMark - clickWallTime
@@ -193,7 +196,6 @@ async function main() {
 
     console.log(`[conversation-bench] welcome first-audio mark=${welcomeFirstAudioMark ?? "missing"}ms-from-page-origin click-delta=${welcomeMsFromClick ?? "unavailable"}ms`);
 
-    const turnResults = [];
     for (const n of EXPECTED_INPUTS) {
       const before = await page.evaluate(() => (window.__claraVoiceBench?.events ?? []).length);
       const turnStartedAt = Date.now();
@@ -223,7 +225,8 @@ async function main() {
         turnId: event.turnId,
         marks: event.marks,
         latencies: event.latencies,
-        completed: true,
+        telemetryBarrierReached: true,
+        responseIntegrityStatus: "not-verified-no-safe-final-text-or-finish-reason-in-common-event",
         tokenUsage: null,
         tokenUsageStatus: "not-exposed-by-current-common-latency-event",
       };
@@ -264,7 +267,7 @@ async function main() {
       expectedProvider: args.provider,
       browser: "Playwright Chromium",
       inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
-      session: { connectClick: connectClick.wallTime, welcomeEvent: { provider: welcome.provider, model: welcome.model, marks: welcome.marks }, sessionClickToWelcomeAudioMs: welcomeMsFromClick },
+      session: { connectClick: connectClick.wallTime, welcomeEvent: { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks }, sessionClickToWelcomeAudioMs: welcomeMsFromClick, metricMeaning: "first browser.first_audio telemetry mark; not independent confirmation of audible playback" },
       turns: turnResults,
       requestCounts,
       requestTimings: responseRecords,
@@ -272,7 +275,8 @@ async function main() {
       failures,
       consoleErrors,
       summary: {
-        completedTurns: turnResults.filter((t) => t.completed).length,
+        telemetryBarrierTurns: turnResults.filter((t) => t.telemetryBarrierReached).length,
+        responseIntegrityVerifiedTurns: turnResults.filter((t) => t.responseIntegrityStatus === "verified").length,
         requiredTurns: 5,
         providerMatches: turnResults.every((t) => t.providerMatch),
         sessionClickToWelcomeAudioMs: welcomeMsFromClick,
@@ -280,14 +284,46 @@ async function main() {
         turnWallMs: { p50: percentile(metrics.turnWallMs, 50), p95: percentile(metrics.turnWallMs, 95) },
         browserRequests: responseRecords.length,
         failedRequests: failures.length,
-        note: "Browser timings do not include server-internal DB/provider/Qdrant calls. Token usage and final-answer truncation need provider completion telemetry; currently marked unavailable.",
+        note: "Browser timings exclude server-internal DB/provider/Qdrant/MCP calls. A telemetry barrier is not proof of a complete, non-truncated answer. Token usage, final-answer integrity and actual audible playback are not verified by this harness version.",
       },
     };
     const out = resolve(args.out);
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(output, null, 2));
     console.log("[conversation-bench] wrote", out);
-    if (turnResults.length !== 5 || !turnResults.every((t) => t.completed && t.providerMatch)) process.exitCode = 2;
+    if (turnResults.length !== 5 || !turnResults.every((t) => t.telemetryBarrierReached && t.providerMatch)) process.exitCode = 2;
+  } catch (error) {
+    benchmarkError = String(error?.stack || error).slice(0, 4000);
+    // Persist diagnostics even when a provider never emits welcome/turn telemetry.
+    // This prevents the most useful failure evidence from being lost on timeout.
+    try {
+      const events = await page.evaluate(() => window.__claraVoiceBench?.events ?? []);
+      const out = resolve(args.out);
+      mkdirSync(dirname(out), { recursive: true });
+      writeFileSync(out, JSON.stringify({
+        schemaVersion: 2,
+        runStatus: "failed",
+        benchmarkError,
+        startedAt,
+        finishedAt: nowIso(),
+        target: safePath(args.url),
+        expectedProvider: args.provider,
+        browser: "Playwright Chromium",
+        inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
+        session: { connectClick: connectClick.wallTime, welcomeEvent: welcomeEvent ? { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks } : null },
+        turns: turnResults,
+        observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
+        requestCounts: responseRecords.reduce((counts, r) => { const k = `${r.method} ${r.url} ${r.status}`; counts[k] = (counts[k] ?? 0) + 1; return counts; }, {}),
+        requestTimings: responseRecords,
+        failures,
+        consoleErrors,
+        summary: { telemetryBarrierTurns: turnResults.filter((t) => t.telemetryBarrierReached).length, requiredTurns: 5, browserRequests: responseRecords.length, failedRequests: failures.length, note: "Partial failure diagnostics only; no provider benchmark result should be accepted." },
+      }, null, 2));
+      console.error("[conversation-bench] wrote partial diagnostics", out);
+    } catch (writeError) {
+      console.error("[conversation-bench] could not write partial diagnostics:", String(writeError).slice(0, 500));
+    }
+    throw error;
   } finally {
     await browser.close();
   }
