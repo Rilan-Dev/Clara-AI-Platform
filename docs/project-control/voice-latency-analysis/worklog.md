@@ -25,3 +25,4 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Added `scripts/voice-benchmark/scenarios/five-turns.json`: five synthetic prompts and expected KB facts.
 - Added `docs/project-control/voice-latency-analysis/IMPLEMENTATION-PLAN.md` and `SESSION-002.md`.
 - Updated benchmark README with the new harness and limits. Script execution/live validation is still pending; provider token usage and server-internal service spans are explicitly marked as gaps.
+- Extended route trace through `src/app/api/rag/search/route.ts`, `src/app/api/embed/rag/route.ts`, `src/app/api/embed/session/route.ts`, Gemini session delegation, and ElevenLabs/Sarvam realtime-init routes. This confirms provider-specific session bootstrap paths must be measured separately; shared RAG internals are in `src/modules/assistant/api/rag.ts`.
