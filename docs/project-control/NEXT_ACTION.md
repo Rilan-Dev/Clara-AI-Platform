@@ -1944,3 +1944,22 @@ This is a bounded integration-setup follow-up and does not supersede the reposit
 5. Complete a real provider consent → one-time state consume → callback-origin/path check → token exchange → encrypted connection persistence test using a configured test app. Keep I-096 OPEN until evidence exists.
 
 - Scope guidance follow-up: `427383ea8f0f4c13b1c38991da5e24b9ed28a1dd` now makes empty default scopes explicit. Confirm the provider's required permissions before a live connect test.
+
+
+# MCP OWNERSHIP ARCHITECTURE CORRECTION — 2026-10-11
+
+Architecture review found that the current MCP organization API accepts only a `serverId` from `platform_mcp_servers`, while the resolver requires platform registry/tool rows and `platform_enabled=true`. Therefore, the current source supports organization credentials for catalog entries but does not yet meet the self-service requirement that an organization can register its own external MCP endpoint without platform-admin pre-registration.
+
+Decision and phased acceptance criteria: `docs/plans/mcp-organization-owned-endpoints.md`.
+
+## Next implementation scope
+
+1. Inspect the existing plan/subscription schema and `resolveOrgPlanLimits`; add MCP entitlements to the existing source of truth (no parallel plan system and no hardcoded Starter/Pro checks).
+2. Add an additive migration for tenant-owned endpoint registrations and discovered tool/grant records. Keep optional platform catalog/hosted-service records separate.
+3. Implement organization-scoped create/update/test/discovery/credential rotation/disconnect/delete endpoints with plan quota enforcement and secure endpoint validation.
+4. Extend the resolver to resolve persisted tenant-owned connection IDs and re-check tenant, plan, user, agent, connection, organization grant and agent grant at discovery and invocation.
+5. Update the organization Integrations and Agent Integrations UI; keep platform MCP UI for catalog/templates and explicitly hosted Clara services only.
+6. Add focused regression coverage for cross-tenant access, quota/plan transitions, secrets, grants/revocation, SSRF/DNS rebinding, timeouts and Chat/realtime dispatch.
+7. Keep `ENABLE_MCP=false` and platform servers disabled until executable tests and a controlled live MCP handshake pass. Do not claim runtime PASS from source-only review.
+
+The architecture note is committed in `docs/plans/mcp-organization-owned-endpoints.md` (commit `a8e5ba9439a80290f8a8a4622c368ac25457a161`). This is documentation/plan progress only; tenant-owned endpoint implementation and verification remain pending.
