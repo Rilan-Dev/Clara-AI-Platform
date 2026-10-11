@@ -113,11 +113,11 @@ async function main() {
     pendingResponseFinishes.push(response.finished().then((error) => {
       record.responseFinishedAt = Date.now();
       record.responseTotalMs = record.responseFinishedAt - r.startedAt;
-      record.responseBodyError = error ? String(error).slice(0, 300) : null;
+      record.responseBodyError = error ? safeDiagnosticText(error).slice(0, 300) : null;
     }).catch((error) => {
       record.responseFinishedAt = Date.now();
       record.responseTotalMs = record.responseFinishedAt - r.startedAt;
-      record.responseBodyError = String(error).slice(0, 300);
+      record.responseBodyError = safeDiagnosticText(error).slice(0, 300);
     }));
   });
   page.on("console", (msg) => {
