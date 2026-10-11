@@ -197,3 +197,9 @@ Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/ap
 - **Prevention:** Do not recreate third-party SDK modules with partial ambient declarations. Use the installed package's own types; if a local compatibility abstraction is required, define it under a project-owned module rather than replacing the package module.
 - **Evidence/verification:** Owner-provided `npm run type-check` output; source inspection of `src/types/payments.d.ts`; dependency inspection showed `stripe@23.0.0` directly installed. Post-change type-check has not been run; this is not a PASS.
 - **Related record:** I-097; EVT-FIX-20261012-01; `src/types/payments.d.ts`.
+
+### FIX-01 / Type-check follow-up / 2026-10-12
+- Removing incomplete ambient declare module stripe eliminated the Stripe missing-member cluster; owner rerun moved from 44 errors / 19 files to 33 / 15.
+- Follow-up compatibility fixes are committed across Stripe API version, DayPicker v10, Recharts v3, react-resizable-panels v4, ioredis/BullMQ option typing, PDF metadata, ReactMarkdown v10, test import resolution, and queue generics.
+- Source-only edits pending fresh local type-check. Do not record PASS until owner supplies post-change compiler output.
+- Do not create a partial ambient ws declaration; add official @types/ws with a package-manager-generated lockfile update.
