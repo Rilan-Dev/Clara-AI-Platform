@@ -77,3 +77,10 @@ When the parser registry is imported at server startup, a static `pdf-parse` run
 - **Failed approach to avoid:** Do not downgrade or reinstall the SDK before checking for ambient module declarations. `npm ls`/ `npm explain` showed no duplicate Stripe dependency.
 - **Prevention:** Never use partial `declare module` definitions to model an installed third-party SDK. Use official types or a project-owned adapter.
 - **Verification boundary:** Type-check after the source correction remains pending. Other non-Stripe errors in the supplied 44-error report are separate API-compatibility/type-contract issues and must be triaged from the next compiler output.
+
+### 2026-10-12 — Type-check follow-up
+- Owner's fresh run verified the Stripe shadowing correction reduced diagnostics from 44/19 files to 33/15.
+- Compatibility changes are source-only and unverified by a post-change compiler run. Wait for fresh output before claiming diagnostics resolved.
+- Installed APIs: Stripe SDK v23 type literal is 2026-09-30.endive; DayPicker v10 uses month_caption / button_previous / button_next and Chevron; react-resizable-panels v4 uses Group / Panel / Separator; Recharts v3 content payload is injected at runtime; ReactMarkdown v10 styling belongs on a wrapper.
+- Keep Redis options structurally inferred rather than widening to ioredis v6 RedisOptions for BullMQ v6.
+- Missing ws declarations should be resolved with official @types/ws and lockfile, not an incomplete ambient declaration.
