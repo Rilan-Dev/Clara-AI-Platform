@@ -56,11 +56,11 @@ Prepare five WAVs from the exact prompts in `scenarios/five-turns.json` and popu
 node scripts/voice-benchmark/conversation.mjs \
   --url="https://clara.example.com/embed/voice?key=clr_..." \
   --provider=openai \
-  --input-1=questions/turn-01.wav \
-  --input-2=questions/turn-02.wav \
-  --input-3=questions/turn-03.wav \
-  --input-4=questions/turn-04.wav \
-  --input-5=questions/turn-05.wav \
+  --input-1=scripts/voice-benchmark/questions/turn-01.wav \
+  --input-2=scripts/voice-benchmark/questions/turn-02.wav \
+  --input-3=scripts/voice-benchmark/questions/turn-03.wav \
+  --input-4=scripts/voice-benchmark/questions/turn-04.wav \
+  --input-5=scripts/voice-benchmark/questions/turn-05.wav \
   --out=tool-results/openai-conversation.json
 ```
 
@@ -108,7 +108,7 @@ This runs `node --check` against the conversation harness and report validator, 
 
 ## Included synthetic speech fixtures
 
-Five short English MP3 speech recordings matching the exact scenario prompts are committed under `questions/turn-01.mp3` through `questions/turn-05.mp3`. MP3 is decoded by the browser audio context before being played into the benchmark's controlled microphone track; the test does not post text directly to RAG.
+Five short English MP3 speech recordings matching the exact scenario prompts are committed under `scripts/voice-benchmark/questions/turn-01.mp3` through `scripts/voice-benchmark/questions/turn-05.mp3`. MP3 is decoded by the browser audio context before being played into the benchmark's controlled microphone track; the test does not post text directly to RAG.
 
 Example:
 
@@ -116,11 +116,11 @@ Example:
 node scripts/voice-benchmark/conversation.mjs \
   --url="YOUR_NON_PRODUCTION_EMBED_URL" \
   --provider=openai \
-  --input-1=questions/turn-01.mp3 \
-  --input-2=questions/turn-02.mp3 \
-  --input-3=questions/turn-03.mp3 \
-  --input-4=questions/turn-04.mp3 \
-  --input-5=questions/turn-05.mp3 \
+  --input-1=scripts/voice-benchmark/questions/turn-01.mp3 \
+  --input-2=scripts/voice-benchmark/questions/turn-02.mp3 \
+  --input-3=scripts/voice-benchmark/questions/turn-03.mp3 \
+  --input-4=scripts/voice-benchmark/questions/turn-04.mp3 \
+  --input-5=scripts/voice-benchmark/questions/turn-05.mp3 \
   --out=tool-results/openai-conversation.json
 ```
 
