@@ -391,7 +391,7 @@ export default function AnalyticsScreen() {
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                   <XAxis dataKey="bucket" tickFormatter={fmtDate} tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={tooltipStyle} labelFormatter={fmtDate} />
+                  <Tooltip contentStyle={tooltipStyle} labelFormatter={(label) => typeof label === "string" ? fmtDate(label) : String(label ?? "")} />
                   <Area type="monotone" dataKey="count" name="Queries" stroke={CHART_COLORS.primary} fill="url(#qGrad)" strokeWidth={2} dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -449,7 +449,7 @@ export default function AnalyticsScreen() {
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                     <XAxis dataKey="hour" tickFormatter={(h: number) => `${h}:00`} tick={{ fill: CHART_COLORS.text, fontSize: 10 }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={tooltipStyle} labelFormatter={(h: number) => `${h}:00`} />
+                    <Tooltip contentStyle={tooltipStyle} labelFormatter={(label) => typeof label === "number" || typeof label === "string" ? `${label}:00` : ""} />
                     <Bar dataKey="count" name="Queries" fill={CHART_COLORS.secondary} radius={[3,3,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -545,7 +545,7 @@ export default function AnalyticsScreen() {
                     <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                     <XAxis dataKey="day" tickFormatter={fmtDate} tick={{ fill: CHART_COLORS.text, fontSize: 10 }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fill: CHART_COLORS.text, fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `$${v}`} />
-                    <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [`$${Number(v).toFixed(2)}`, "Revenue"]} labelFormatter={fmtDate} />
+                    <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [`$${Number(v).toFixed(2)}`, "Revenue"]} labelFormatter={(label) => typeof label === "string" ? fmtDate(label) : String(label ?? "")} />
                     <Bar dataKey="total_usd" name="USD" fill={CHART_COLORS.success} radius={[3,3,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
