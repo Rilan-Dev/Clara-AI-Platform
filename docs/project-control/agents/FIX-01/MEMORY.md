@@ -97,3 +97,9 @@ When the parser registry is imported at server startup, a static `pdf-parse` run
 - Owner rerun after the previous batch reports only `classNames.table` in the DayPicker v10 calendar and missing official declarations for installed `ws`.
 - Calendar follow-up commit: `829ae96818a84a39110b65517917d9280c57684b`; replaced remaining legacy class-name keys with v10 names. Still needs a fresh type-check.
 - Resolve `ws` with `npm install --save-dev @types/ws` and commit the package-manager-generated lockfile. Do not add a partial ambient `declare module 'ws'`.
+
+### 2026-10-12 — type-check passes; Node runtime warning
+- Owner's latest `npm run type-check` exited successfully with no diagnostics after `@types/ws` installation.
+- Owner's npm output shows Node v20.20.0 while several dependencies require Node 22+, including `machina` >=22.22 and Vitest 5 requiring >=22.12. Type-check passing does not validate tests/runtime on unsupported Node. Align local/Docker/deployment runtime to Node 22.22+ after checking deployment configuration.
+- npm audit reported 37 vulnerabilities; avoid blind `npm audit fix --force`. Handle dependency audit separately with lockfile-aware review.
+- The local npm install's manifest/lockfile changes still need owner review and commit; preserve unrelated working-tree changes.
