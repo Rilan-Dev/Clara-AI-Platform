@@ -99,7 +99,17 @@ async function main() {
     const r = requests.get(request);
     if (!r) return;
     const doneAt = Date.now();
-    responseRecords.push({ ...r, status: response.status(), responseHeadersAt: doneAt, responseHeadersMs: doneAt - r.startedAt });
+    const record = { ...r, status: response.status(), responseHeadersAt: doneAt, responseHeadersMs: doneAt - r.startedAt, responseFinishedAt: null, responseTotalMs: null, responseBodyError: null };
+    responseRecords.push(record);
+    void response.finished().then((error) => {
+      record.responseFinishedAt = Date.now();
+      record.responseTotalMs = record.responseFinishedAt - r.startedAt;
+      record.responseBodyError = error ? String(error).slice(0, 300) : null;
+    }).catch((error) => {
+      record.responseFinishedAt = Date.now();
+      record.responseTotalMs = record.responseFinishedAt - r.startedAt;
+      record.responseBodyError = String(error).slice(0, 300);
+    });
   });
   page.on("console", (msg) => {
     if (msg.type() === "error") consoleErrors.push({ at: nowIso(), text: msg.text().slice(0, 500) });
@@ -173,10 +183,11 @@ async function main() {
       return candidates[0] ?? null;
     }, args.welcomeTimeoutMs, "first audible welcome/assistant audio telemetry");
 
-    const clickMonotonic = await page.evaluate(() => window.__claraVoiceBench?.clickAt?.monotonicMs ?? null);
+    const clickWallTime = await page.evaluate(() => window.__claraVoiceBench?.clickAt?.wallTime ?? null);
     const welcomeFirstAudioMark = welcome.marks["browser.first_audio"];
-    const welcomeMsFromClick = typeof clickMonotonic === "number" && typeof welcomeFirstAudioMark === "number"
-      ? welcomeFirstAudioMark - clickMonotonic
+    // Both values use epoch milliseconds because current shared stage marks use Date.now().
+    const welcomeMsFromClick = typeof clickWallTime === "number" && typeof welcomeFirstAudioMark === "number"
+      ? welcomeFirstAudioMark - clickWallTime
       : null;
 
     console.log(`[conversation-bench] welcome first-audio mark=${welcomeFirstAudioMark ?? "missing"}ms-from-page-origin click-delta=${welcomeMsFromClick ?? "unavailable"}ms`);
