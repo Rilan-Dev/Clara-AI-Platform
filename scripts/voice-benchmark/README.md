@@ -66,6 +66,34 @@ node scripts/voice-benchmark/conversation.mjs \
 
 Repeat the exact same WAVs, test KB, browser/device and network for `elevenlabs`, `gemini`, and `sarvam`, after selecting that provider in Clara's real configuration. The `--provider` argument is an expected label only; the script fails if observed telemetry reports a different provider. Run providers serially at concurrency 1. Run at least one warm-up and 10 measured sessions per provider for stable comparisons.
 
+### Diagnosing a turn timeout
+
+If a run times out after the welcome response, inspect the partial report fields
+`playedInputs`, `dataChannelEvents`, and `microphoneDiagnostics`. The harness
+records audio duration/sample rate/RMS/peak (not speech content), microphone
+track state, and realtime data-channel event **types only**. It deliberately
+does not save data-channel message bodies or transcripts.
+
+Interpret the evidence in this order:
+
+- No `playedInputs`: the audio was not successfully decoded/played into the
+  injected microphone track.
+- `playedInputs` has near-zero RMS/peak: the supplied audio may be silent or
+  invalid for the test.
+- No inbound data-channel events after playback: inspect session/data-channel
+  setup and WebRTC input delivery.
+- Inbound events exist but no transcription-completed event: inspect OpenAI
+  input-audio commit/VAD/transcription configuration and event errors.
+- Transcription-completed is present but no RAG request: inspect Clara's
+  transcription handler and RAG scheduling path.
+- RAG runs but no completed assistant event: inspect RAG result handling,
+  `response.create`, and provider response events.
+
+Use the configured **public voice embed URL** for the target agent, not the
+admin page route `/agents/{agentId}`, unless you are specifically testing the
+admin route's voice UI. The URL path must come from the actual Clara embed
+configuration; never guess or share its secret key in a report.
+
 ### Important interpretation limits
 
 - This measures the actual voice UI and actual provider/STT/RAG/TTS path, not a text-only RAG shortcut.
