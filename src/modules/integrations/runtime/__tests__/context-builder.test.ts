@@ -25,7 +25,7 @@ vi.mock("./files-service.js", () => ({
 
 describe("buildActionContext scope propagation", () => {
   it("passes the explicit agent scope to store and connections manager", async () => {
-    const { buildActionContext } = await import("./context-builder.js");
+    const { buildActionContext } = await import("./context-builder");
 
     buildActionContext({
       auth: undefined,
