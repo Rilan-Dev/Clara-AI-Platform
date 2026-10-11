@@ -82,7 +82,7 @@ describe("MCP tool bridge", () => {
       buildMcpToolDefinition(
         descriptor,
         null as never,
-        resolver,
+        {} as McpToolResolver,
         context,
       ),
     ).toThrow("MCP allowlist policy is malformed");
