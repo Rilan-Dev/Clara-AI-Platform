@@ -26,3 +26,14 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Added `docs/project-control/voice-latency-analysis/IMPLEMENTATION-PLAN.md` and `SESSION-002.md`.
 - Updated benchmark README with the new harness and limits. Script execution/live validation is still pending; provider token usage and server-internal service spans are explicitly marked as gaps.
 - Extended route trace through `src/app/api/rag/search/route.ts`, `src/app/api/embed/rag/route.ts`, `src/app/api/embed/session/route.ts`, Gemini session delegation, and ElevenLabs/Sarvam realtime-init routes. This confirms provider-specific session bootstrap paths must be measured separately; shared RAG internals are in `src/modules/assistant/api/rag.ts`.
+
+## 2026-10-11 — Session 003: benchmark failure diagnostics and report gate
+
+- Updated `scripts/voice-benchmark/conversation.mjs` to write schema-v2 partial diagnostics on welcome/turn timeout or provider mismatch. A failed run now preserves observed latency events, completed turn records, browser request records, request failures, console errors and the failure reason where available.
+- Replaced the ambiguous `completed` flag with `telemetryBarrierReached`; explicitly records that answer integrity and provider token usage are not verified by current shared telemetry.
+- Reworded the welcome metric as a first-audio telemetry mark; it is not independent confirmation of audible playback.
+- Added `scripts/voice-benchmark/validate-report.mjs`, a Node built-in-only report gate requiring five sequential turn records and provider consistency while warning on missing TTFA, token usage, answer-integrity evidence, console errors and failed requests.
+- Updated `scripts/voice-benchmark/README.md` with acceptance usage and explicit milestone status.
+- Verification status: changes are committed to GitHub. This environment has not executed Node, Playwright, a live Clara session or any provider requests; syntax/runtime and real microphone injection remain unverified. No latency measurements are claimed.
+- Remaining milestone blockers: verify Node syntax/runtime; test the synthetic WAV injection against a non-production Clara instance; confirm provider-specific greeting and completion events for OpenAI, ElevenLabs, Gemini and Sarvam; add provider-specific token/finish-reason/answer-integrity telemetry; instrument server-internal RAG/provider/embedding/Qdrant/MCP spans and request counts; run and retain reproducible provider reports.
+- Next action: execute the scripts in the repository runtime (Node + installed Playwright), fix any syntax/runtime defects, then validate one OpenAI session before proceeding through the same five WAVs and test KB for the remaining providers. Do not use CI/Vercel completion as a reason to stop unrelated implementation, but do not claim the measurement milestone is verified without evidence.
