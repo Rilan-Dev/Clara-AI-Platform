@@ -185,3 +185,15 @@ Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/ap
 - **Prevention:** Distinguish local missing configuration (4xx) from a remote MCP endpoint/handshake failure (502). Never infer upstream health from a missing-credential response.
 - **Security:** If an operator pastes a session/bearer cookie into a diagnostic, advise revocation/rotation and never echo it into project records.
 - **Verification:** Source committed; test authored but not executed. Production behavior is not verified. The request without `bearerToken` still cannot perform a handshake; configure a stored credential or supply a temporary token in the request.
+
+### FIX-01 / Sentinel — 2026-10-12 — Stripe ambient type shadowing
+
+- **Date/session:** 2026-10-12 / SESSION-FIX-20261012-01
+- **Agent:** FIX-01 / Sentinel
+- **Issue/symptom:** TypeScript reported missing Stripe SDK methods and fields across checkout, payment health, webhooks, and subscription activation despite the project depending directly on `stripe@23.0.0`.
+- **Root cause:** `src/types/payments.d.ts` declared an ambient module named `"stripe"` containing a hand-written, incomplete replacement surface. It shadowed the installed SDK declarations, omitting APIs such as balance retrieval, Checkout Session retrieval/status, webhook endpoint listing, prices, and current Invoice/Subscription item fields.
+- **Failed approach:** The installed dependency tree did not show duplicate Stripe versions; treating this as a stale install or broadly downgrading dependencies would not fix the declaration that masks the official API.
+- **Remedy:** Removed only the ambient `declare module "stripe"` block from `src/types/payments.d.ts`; preserved the independent Razorpay declaration. Source commit: `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Prevention:** Do not recreate third-party SDK modules with partial ambient declarations. Use the installed package's own types; if a local compatibility abstraction is required, define it under a project-owned module rather than replacing the package module.
+- **Evidence/verification:** Owner-provided `npm run type-check` output; source inspection of `src/types/payments.d.ts`; dependency inspection showed `stripe@23.0.0` directly installed. Post-change type-check has not been run; this is not a PASS.
+- **Related record:** I-097; EVT-FIX-20261012-01; `src/types/payments.d.ts`.
