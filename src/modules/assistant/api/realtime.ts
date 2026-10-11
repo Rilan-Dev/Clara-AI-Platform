@@ -15,7 +15,7 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
 import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
 import { isSupportedOpenAIRealtimeVoice } from "./openai-catalog";
-import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret } from "./openai-realtime";
+import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret, type OpenAIRealtimeFunctionTool } from "./openai-realtime";
 import { getAuthContext } from "@/modules/auth/core/rbac";
 import { getKbAccessContext } from "@/modules/auth/core/db";
 import {
@@ -87,6 +87,8 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     let transcriptionLanguage: string | undefined;
     let toolDescription: string;
     let model: string;
+    let orgRows: Array<{ org_id: string; agent_id: string }> = [];
+    let orgId: string | null = null;
 
     if (kbId) {
       await ensureMigrated();
@@ -96,11 +98,11 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       // ── Plan limit: voice must be enabled on the org's plan ──────────────
       // Runs BEFORE the assistant-config lookup so plan gating is always the
       // first failure a free-plan org sees.
-      const orgRows = await dbQuery<{ org_id: string; agent_id: string }>(
+      orgRows = await dbQuery<{ org_id: string; agent_id: string }>(
         `SELECT a.org_id, a.id AS agent_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
         [kbId]
       );
-      const orgId = orgRows[0]?.org_id ?? null;
+      orgId = orgRows[0]?.org_id ?? null;
 
       // ── Phase 6.4: realtime session rate limit (10 / hour / org) ─────────
       // Ephemeral session minting is expensive (provider round-trip + a
@@ -186,7 +188,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not set on server" }, { status: 500 });
 
-    const tools: Array<Record<string, unknown>> = [{
+    const tools: OpenAIRealtimeFunctionTool[] = [{
       type: "function" as const,
       name: "rag_search",
       description: toolDescription,
