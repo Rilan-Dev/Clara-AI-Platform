@@ -214,3 +214,9 @@ Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/ap
 - Owner's latest local compiler output after pulling the previous fix batch reports two errors: obsolete DayPicker `classNames.table`, and missing type declarations for `ws`.
 - Calendar class-name migration committed as `829ae96818a84a39110b65517917d9280c57684b`; it has not yet been checked by a subsequent local run.
 - Remaining dependency task: install official `@types/ws` with npm and commit the generated `package.json` and `package-lock.json` updates. Never mask the missing types with an `any` ambient declaration or fabricate lock metadata.
+
+### FIX-01 / type-check PASS and runtime compatibility follow-up / 2026-10-12
+- Owner-provided terminal output confirms `npm run type-check` exited successfully after adding `@types/ws` via npm.
+- `npm install` warned that current Node v20.20.0 is below multiple package engines; observed strictest requirement is `machina >=22.22`, with Vitest 5 requiring Node 22.12+ and other packages requiring Node 22+. Treat Node 22.22+ as the candidate supported baseline, and align local, Docker, and deployment runtimes before relying on tests/runtime evidence.
+- npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); no audit fix was run. Do not use `npm audit fix --force` without reviewing breaking updates.
+- @types/ws was installed locally, but manifest/lockfile commit is not yet confirmed. Next: owner checks `git status --short`, commits only intended dependency changes, and continue the existing organization-owned MCP plan. No tests/build/runtime/CI/deployment PASS is implied by type-check PASS.
