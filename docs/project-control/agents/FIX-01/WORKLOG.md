@@ -357,3 +357,17 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Evidence:** User-supplied request payload/response and source inspection of test route and admin MCP screen.
 - **Verification:** Test authored only; not run. No deployed route or actual MCP endpoint handshake verified. User-provided platform session cookie appeared in the diagnostic; advised revocation/invalidation and replacement.
 - **Next action:** Save a valid platform bearer token in Edit, or supply a temporary token in the test request; retest the endpoint. If the response then remains 502, inspect the returned probe error as a separate upstream/transport/auth issue. Route deployment/runtime verification to OPS-01.
+
+### SESSION-FIX-20261012-01 / 2026-10-12
+- **Task:** Trace the 44-error type-check report to root cause and apply the smallest authorized source correction.
+- **Authorization:** Explicit owner instruction in this invocation: act as FIX-01 / Sentinel; recover repository/agent state; trace root cause; make the smallest authorized correction; add regression protection where appropriate; record evidence and next action; route infrastructure-only defects to OPS-01 and do not wait for DEV-01.
+- **Started from:** `feature/ai-core-from-doable-source`, observed branch head `59831ec646a1ed21caa8c80af863d129d3ebe034`.
+- **Actions:** Recovered shared memory, central agent events/sessions/handoffs/backlog, current phase/next action, verification state, issue register, and FIX-01 role-local memory/worklog. Confirmed installed top-level versions and no duplicate Stripe dependency. Traced the Stripe cluster to a partial ambient `declare module "stripe"` in `src/types/payments.d.ts`, which shadowed official SDK declarations. Removed only that Stripe block; kept the Razorpay declaration intact.
+- **Files/code:** `src/types/payments.d.ts`.
+- **Evidence:** User-provided type-check log; `npm ls` and `npm explain stripe` output; source inspection. Correction commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Regression protection:** TypeScript's normal compilation now consumes the official installed Stripe SDK declarations; no redundant runtime test was added for a declaration-only correction.
+- **Failed approaches:** No dependency downgrade/reinstall or broad cleanup was performed. No untracked user files were touched. Do not treat the source edit as proof that all 44 diagnostics are resolved.
+- **Verification:** No post-change `npm run type-check`, tests, build, CI, Vercel, or deployment was run. No PASS claimed.
+- **Blockers/dependencies:** Need the next local compiler output to establish the exact residual diagnostics after removal of the shadow declaration. The ioredis/BullMQ, UI package API, PDF metadata, test import, and `ws` declaration errors may remain as independent causes.
+- **Lesson:** When many real SDK methods disappear at once, inspect ambient declarations before changing dependency versions or individual call sites.
+- **Next action:** Pull the new feature-branch commit and rerun `npm run type-check`; use the new error set to scope the next smallest correction. Continue without waiting for CI/Vercel. Route only true environment/deployment failures to OPS-01.
