@@ -55,3 +55,12 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Added `package.json` to the script-check workflow path filters so edits to the `test:voice-benchmark` command also trigger the workflow.
 - Verification: reviewed the source changes via GitHub API and committed them; did not execute Node/Playwright in this environment. No workflow pass or live voice measurements claimed.
 - Remaining blocker: a runtime with repository dependencies plus a dedicated non-production Clara test session and five WAV fixtures is required to validate microphone injection and real provider events.
+
+## 2026-10-11 — Session 006: commit short synthetic audio fixtures
+
+- Added five compact, synthetic English MP3 input recordings for the benchmark prompts, stored at `scripts/voice-benchmark/questions/turn-01.mp3` through `turn-05.mp3`.
+- Shortened the five scenario prompts to match the included speech: support hours, normal ticket response time, urgent ticket response time, email change, and combined response targets.
+- Updated the harness to accept MP3 input (via browser `decodeAudioData`) as well as WAV and gzip-compressed WAV. Updated the scenario manifest and README to use the repository-relative paths.
+- Verified the five files are present on the target branch and GitHub returns base64-encoded file contents with MP3/ID3 headers. This verifies repository presence/format signature only; no browser audio decode, STT recognition, or live provider run was executed here.
+- Audio fixtures are short, low-bitrate synthetic speech to keep repository size small. If STT recognition fails, replace with higher-quality WAV/MP3 fixtures and compare transcripts only in the isolated test session; do not add transcripts to production logs.
+- Next: run `npm run test:voice-benchmark`, then run the OpenAI test command from the README against a non-production embed session.
