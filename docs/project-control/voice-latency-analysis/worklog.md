@@ -20,3 +20,8 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Verification: GitHub source read only. No tests, build, live provider requests or network measurements executed. No latency numbers claimed.
 - Risks: historical reports may describe fixes already changed since report commit; reconcile against branch HEAD before accepting conclusions.
 - Next: map provider event markers and server `Server-Timing` emission; review historical baseline and existing tests; then design a deterministic benchmark and stage-level attribution tests.
+
+- Added `scripts/voice-benchmark/conversation.mjs`: browser-controlled WAV playback for five sequential turns, wait-for-completion barrier, browser request count/timing records, and welcome-to-first-audio measurement when common telemetry is available.
+- Added `scripts/voice-benchmark/scenarios/five-turns.json`: five synthetic prompts and expected KB facts.
+- Added `docs/project-control/voice-latency-analysis/IMPLEMENTATION-PLAN.md` and `SESSION-002.md`.
+- Updated benchmark README with the new harness and limits. Script execution/live validation is still pending; provider token usage and server-internal service spans are explicitly marked as gaps.
