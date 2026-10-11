@@ -403,3 +403,10 @@ The public contact page now uses shrink-safe layout wrappers, bounded card width
 - **Owner:** FIX-01
 - **Suggested next action:** Pull commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`, rerun `npm run type-check`, and triage only the residual compiler errors. Do not downgrade dependencies or suppress type errors.
 - **Related records:** I-097; SESSION-FIX-20261012-01; `src/types/payments.d.ts`.
+
+### EVT-FIX-20261012-02 — FIX-01 continues type-check correction
+- Date: 2026-10-12.
+- Owner reran npm run type-check after Stripe ambient declaration removal; diagnostics fell from 44 errors / 19 files to 33 / 15 files.
+- FIX-01 committed compatibility corrections for Stripe API version, DayPicker v10, Recharts v3, react-resizable-panels v4, ioredis/BullMQ option typing, pdf-parse v2 metadata, ReactMarkdown v10, test import resolution, and lazy queue typing.
+- Evidence status: source commits only; no post-change compiler output yet. Not PASS.
+- Next: pull latest branch and rerun type-check; triage only fresh residual diagnostics.
