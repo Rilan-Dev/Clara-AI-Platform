@@ -40,7 +40,7 @@ const percentile = (values, p) => {
   return sorted[Math.max(0, Math.ceil(p / 100 * sorted.length) - 1)];
 };
 function argsFrom(argv) {
-  const args = { url: "", provider: "", out: "tool-results/voice-conversation.json", inputs: {}, turnTimeoutMs: 90000, welcomeTimeoutMs: 45000, drainMs: 800 };
+  const args = { url: "", provider: "", out: "tool-results/voice-conversation.json", inputs: {}, turnTimeoutMs: 90000, welcomeTimeoutMs: 45000, welcomeDrainMs: 2000, drainMs: 1800 };
   for (const arg of argv.slice(2)) {
     const raw = arg.replace(/^--/, "");
     const i = raw.indexOf("=");
@@ -50,6 +50,7 @@ function argsFrom(argv) {
     else if (key === "url" || key === "provider" || key === "out") args[key] = value;
     else if (key === "turn-timeout-ms") args.turnTimeoutMs = Number(value);
     else if (key === "welcome-timeout-ms") args.welcomeTimeoutMs = Number(value);
+    else if (key === "welcome-drain-ms") args.welcomeDrainMs = Number(value);
     else if (key === "drain-ms") args.drainMs = Number(value);
   }
   if (!args.url || !args.provider || EXPECTED_INPUTS.some((n) => !args.inputs[n])) {
@@ -216,6 +217,7 @@ async function main() {
       const audio = await state.audioContext.decodeAudioData(bytes.buffer);
       const source = state.audioContext.createBufferSource();
       source.buffer = audio;
+      const playbackStartedAt = Date.now();
       source.connect(state.destination);
       const ended = new Promise((resolve) => { source.onended = resolve; });
       source.start();
@@ -246,7 +248,7 @@ async function main() {
         } : null,
         audioContextState: state.audioContext.state,
       };
-      state.playedInputs.push({ at: Date.now(), ...result });
+      state.playedInputs.push({ playbackStartedAt, playbackCompletedAt: Date.now(), ...result });
       return result;
     };
     window.__claraVoiceBenchMarkConnect = () => {
@@ -282,6 +284,15 @@ async function main() {
 
     console.log(`[conversation-bench] welcome first-audio mark=${welcomeFirstAudioMark ?? "missing"} click-to-first-audio=${welcomeMsFromClick ?? "unavailable"}ms`);
 
+    // response.done / turn.complete means generation finished, not that the
+    // remote audio track has finished playing. The trace showed the first test
+    // input beginning ~118 ms after the welcome response.done, followed by
+    // output_audio_buffer.cleared and conversation.item.truncated. Add a
+    // deliberate welcome drain before touching the microphone track. This is
+    // a conservative quiet period, not a claim of direct audible-playback proof.
+    console.log(`[conversation-bench] draining welcome audio for ${args.welcomeDrainMs}ms before first input`);
+    await page.waitForTimeout(Math.max(0, args.welcomeDrainMs));
+
     for (const n of EXPECTED_INPUTS) {
       const before = await page.evaluate(() => (window.__claraVoiceBench?.events ?? []).length);
       const turnStartedAt = Date.now();
@@ -295,7 +306,10 @@ async function main() {
         );
         return candidates.at(-1) ?? null;
       }, args.turnTimeoutMs, `completed assistant response for input ${n}`);
-      await page.waitForTimeout(args.drainMs);
+      // The latency event marks generation completion; it is not a reliable
+      // signal that all remote audio has drained. Keep a conservative quiet
+      // period before the next input to avoid truncating short spoken answers.
+      await page.waitForTimeout(Math.max(0, args.drainMs));
 
       const providerMatch = String(event.provider ?? "").toLowerCase() === args.provider.toLowerCase();
       const result = {
@@ -401,6 +415,7 @@ async function main() {
         inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
         session: { connectClick: connectClick.wallTime, welcomeEvent: welcomeEvent ? { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks } : null },
         playedInputs: await page.evaluate(() => window.__claraVoiceBench?.playedInputs ?? []),
+        drainSettings: { welcomeDrainMs: args.welcomeDrainMs, interTurnDrainMs: args.drainMs },
         turns: turnResults,
         observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
         dataChannelEvents,
