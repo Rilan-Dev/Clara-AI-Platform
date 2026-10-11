@@ -95,3 +95,16 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Commits: `21bac248` type-check exclusion; `c90f663a` realtime scope/tool typing; `d1c92ed4` MCP test resolver reference; `bbbf72f4` query row constraint.
 - Verification: GitHub branch source reviewed after writes. Type-check, Vitest, Docker build, and live RAG/voice calls have not been rerun from this tool session. Do not interpret the 68-error run as the current post-fix count; the user log predates these follow-up commits. The remaining unrelated type errors include Stripe SDK typing, UI library version mismatches, BullMQ/ioredis types, PDF parser API, and several app-level issues.
 - Next: pull the latest branch, run the focused type-check and grounding test again, and inspect the *new* errors. Resolve the missing Vite test dependency with a lockfile-consistent change; continue the realtime/RAG verification without waiting for CI/Vercel.
+
+## 2026-10-12 — Session 010: post-pull type-check follow-up
+
+- User reran `npm run type-check`: the count decreased from the prior 68 reported errors to 51 across 23 files. The voice benchmark report-validator suite passes. The user did not include a new live RAG result or Docker build result in this update.
+- Follow-up fixes committed:
+  - `31e4f6f8` — validate registry provider IDs against the app's supported AI/voice unions before writing version defaults, rather than assigning arbitrary database strings to typed configuration.
+  - `da99d79a` — remove the invalid `2 as unknown as null` BullMQ retry setting in the queue health check; BullMQ requires `maxRetriesPerRequest: null` for an options-based connection.
+  - `edb6cf36` — accept React 19's nullable DOM ref type in the conversation rail.
+  - `6ad9b281` — remove obsolete global `JSX.Element` annotation, compatible with React 19 JSX typings.
+  - `4f8cbe5d` — simplify the WhatsApp transaction test mock callback typing and remove the self-referential local variable type.
+- Verification: these edits were committed via GitHub and source anchors were matched before writes. No local TypeScript, Vitest, Docker, or live API run was possible in this session. Do not claim these changes are type-check clean until the user reruns the command.
+- Remaining 51-error set includes Stripe SDK type surface inconsistencies, React Day Picker v10 vs legacy calendar props, Recharts v3 type changes, resizable-panels v4 API changes, BullMQ/ioredis major-version type mismatch, and smaller PDF parser, missing `@types/ws`, import-extension, and Markdown component typing issues. The installed dependency majors in `package.json` are newer than the APIs several components were written against; resolve each by an intentional compatibility migration or matching dependency pin, not by broad `any` casts.
+- Next: rerun type-check; address dependency/API compatibility in focused groups, then resolve the Vitest/Vite installation mismatch and return to live Qdrant RAG and voice response verification. Keep development moving independently of CI/Vercel gates.
