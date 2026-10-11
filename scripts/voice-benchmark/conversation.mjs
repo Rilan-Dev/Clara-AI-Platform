@@ -29,6 +29,11 @@ const safePath = (url) => {
     return String(url).split("?")[0];
   }
 };
+const safeDiagnosticText = (value) => String(value ?? "")
+  .replace(/Bearer\\s+[^\\s"'<>]+/gi, "Bearer [REDACTED]")
+  .replace(/\\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_\\-.]{12,}\\b/g, "[REDACTED_TOKEN]")
+  .replace(/https?:\\/\\/[^\\s"'<>]+/g, (url) => safePath(url))
+  .slice(0, 1000);
 const percentile = (values, p) => {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
@@ -96,7 +101,7 @@ async function main() {
   });
   page.on("requestfailed", (request) => {
     const r = requests.get(request);
-    failures.push({ ...(r ?? {}), failure: request.failure()?.errorText ?? "unknown" });
+    failures.push({ ...(r ?? {}), failure: safeDiagnosticText(request.failure()?.errorText ?? "unknown") });
   });
   page.on("response", async (response) => {
     const request = response.request();
@@ -116,7 +121,7 @@ async function main() {
     }));
   });
   page.on("console", (msg) => {
-    if (msg.type() === "error") consoleErrors.push({ at: nowIso(), text: msg.text().slice(0, 500) });
+    if (msg.type() === "error") consoleErrors.push({ at: nowIso(), text: safeDiagnosticText(msg.text()) });
   });
 
   // Inject a controllable, silent microphone track. Each supplied WAV is played
@@ -295,7 +300,7 @@ async function main() {
     console.log("[conversation-bench] wrote", out);
     if (turnResults.length !== 5 || !turnResults.every((t) => t.telemetryBarrierReached && t.providerMatch)) process.exitCode = 2;
   } catch (error) {
-    benchmarkError = String(error?.stack || error).slice(0, 4000);
+    benchmarkError = safeDiagnosticText(error?.stack || error);
     // Persist diagnostics even when a provider never emits welcome/turn telemetry.
     // This prevents the most useful failure evidence from being lost on timeout.
     try {
@@ -331,6 +336,6 @@ async function main() {
   }
 }
 main().catch((error) => {
-  console.error("[conversation-bench] FAILED:", error?.stack || error);
+  console.error("[conversation-bench] FAILED:", safeDiagnosticText(error?.stack || error));
   process.exit(1);
 });
