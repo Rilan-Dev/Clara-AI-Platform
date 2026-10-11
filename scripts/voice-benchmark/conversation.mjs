@@ -71,11 +71,12 @@ async function main() {
   const args = argsFrom(process.argv);
   for (const n of EXPECTED_INPUTS) {
     const path = resolve(args.inputs[n]);
-    const bytes = readFileSync(path);
+    const fileBytes = readFileSync(path);
+    const bytes = path.endsWith(".gz") ? gunzipSync(fileBytes) : fileBytes;
     if (bytes.length < 44 || bytes.toString("ascii", 0, 4) !== "RIFF" || bytes.toString("ascii", 8, 12) !== "WAVE") {
-      throw new Error(`Input ${n} is not a valid RIFF/WAVE file: ${path}`);
+      throw new Error(`Input ${n} is not a valid RIFF/WAVE or gzip-compressed WAV file: ${path}`);
     }
-    args.inputs[n] = { path, base64: bytes.toString("base64"), bytes: bytes.length };
+    args.inputs[n] = { path, base64: bytes.toString("base64"), bytes: bytes.length, compressedBytes: fileBytes.length };
   }
 
   const browser = await chromium.launch({
