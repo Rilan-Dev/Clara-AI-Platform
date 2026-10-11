@@ -6,6 +6,7 @@ on:
       - feature/ai-core-from-doable-source
     paths:
       - "scripts/voice-benchmark/**"
+      - "package.json"
       - ".github/workflows/voice-benchmark-script-check.yml"
   pull_request:
     paths:
