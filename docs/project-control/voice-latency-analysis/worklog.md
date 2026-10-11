@@ -47,3 +47,11 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Review note: OpenAI telemetry emits a provider-neutral event at `response.done` and marks `turn.complete`; the event carries provider/session/generation/turn identifiers. The harness still relies on these shared event contracts and remains unverified for the other provider hooks.
 - Verification: code and workflow committed via GitHub. This session environment cannot resolve GitHub from the shell and did not execute the Node commands locally. The newly added GitHub Actions check is asynchronous; no passing workflow result is claimed.
 - Remaining: run the script check locally or inspect the workflow result when available; then perform one non-production OpenAI session, fix observed runtime issues, add provider completion/usage integrity metadata and server-side request spans, and run the four-provider matrix.
+
+## 2026-10-11 — Session 005: diagnostic redaction and workflow trigger review
+
+- Re-read the committed conversation harness, report validator, validator tests, Node script workflow, scenario fixture and implementation plan from the target branch.
+- Hardened response-body completion diagnostics by applying the existing URL/token redactor before writing response errors to JSON. Previously, an error string could theoretically contain a credential-bearing URL even though the recorded request URL itself strips query values.
+- Added `package.json` to the script-check workflow path filters so edits to the `test:voice-benchmark` command also trigger the workflow.
+- Verification: reviewed the source changes via GitHub API and committed them; did not execute Node/Playwright in this environment. No workflow pass or live voice measurements claimed.
+- Remaining blocker: a runtime with repository dependencies plus a dedicated non-production Clara test session and five WAV fixtures is required to validate microphone injection and real provider events.
