@@ -66,3 +66,13 @@ If the model invokes an integration tool, the client POSTs `/api/realtime/tool`;
 - Five-turn scenario: `scripts/voice-benchmark/scenarios/five-turns.json`
 - Prior session, critique, memory and worklog remain in this directory.
 - Worklog entry for this session: `docs/project-control/voice-latency-analysis/worklog.md`
+
+
+## Additional route-level trace
+
+- `src/app/api/rag/search/route.ts` is a thin route wrapper over `postRagSearch` in `src/modules/assistant/api/rag.ts`; the detailed RAG timing boundary therefore belongs in that shared implementation and its retrieval dependencies, not only in the route wrapper.
+- `src/app/api/embed/rag/route.ts` validates the embed credential/origin, derives the KB from validated embed context, then calls the same `postRagSearch` implementation. Count the outer HTTP request separately from internal provider/embedding/Qdrant calls.
+- `src/app/api/embed/session/route.ts` is a multi-provider router. It migrates, validates the embed credential and voice entitlement, loads KB/config/document titles in parallel, resolves AI + voice config, localizes greeting text when needed, and routes ElevenLabs to Clara-stream or Speech Engine depending on configuration; Sarvam has its own branch. Therefore session startup request count and welcome latency differ by selected provider path.
+- `src/app/api/realtime/gemini-session/route.ts` delegates to `postGeminiSession` in `src/modules/assistant/api/geminiSession.ts`.
+- `src/app/api/voice/elevenlabs/realtime-init/route.ts` delegates to `postElevenLabsRealtimeInit`; `src/app/api/voice/sarvam/realtime-init/route.ts` delegates to `postSarvamRealtimeInit`. The trace harness must preserve and measure these provider-specific bootstrap/relay paths instead of assuming every provider uses `/api/realtime/session`.
+- RAG internals, provider-specific greeting emission, and exact server-side request counts still need line-by-line span instrumentation and live capture. The script currently captures browser-visible request timing and common latency events only.
