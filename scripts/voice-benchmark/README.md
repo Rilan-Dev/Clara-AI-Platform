@@ -153,3 +153,9 @@ node scripts/voice-benchmark/conversation.mjs \
 ```
 
 The recordings contain synthetic English speech generated from the exact short prompts in `five-turns.json`; they are fixtures, not user recordings. The first live run must still confirm that the application captures the injected audio and that the STT provider recognises it as intended.
+
+### Audio drain and timeout controls
+
+The harness now waits `--welcome-drain-ms=2000` after the welcome first-audio telemetry before injecting the first question, and defaults to `--drain-ms=1800` between completed turns. These conservative quiet periods address a trace where the first question started roughly 118 ms after the welcome `response.done`, and the realtime channel then reported output-buffer clearing/truncation events. They reduce overlap risk but are not direct proof that remote audio playback ended; output-buffer lifecycle instrumentation remains diagnostic evidence. Set either value explicitly when reproducing a run, and do not reduce them until the welcome/turn lifecycle is confirmed.
+
+Each `playedInputs` entry records `playbackStartedAt` and `playbackCompletedAt` separately. The `drainSettings` field in failure reports records both configured quiet periods. If transcription-completed and turn-complete telemetry are still absent after this repair, inspect the captured data-channel event types in order; do not treat transcription deltas or a successful realtime connection as a completed turn.
