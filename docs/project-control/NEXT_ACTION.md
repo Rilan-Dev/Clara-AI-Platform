@@ -1993,3 +1993,11 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 1. Pull latest `feature/ai-core-from-doable-source`; calendar class-name correction `829ae96818a84a39110b65517917d9280c57684b` migrates the remaining legacy class keys to DayPicker v10 keys. It is not yet type-checked.
 2. From the repository root run `npm install --save-dev @types/ws` and commit the resulting `package.json` and `package-lock.json` changes. Do not manually edit lock metadata or add an untyped ambient `ws` declaration.
 3. Run `npm run type-check`; share the fresh output and continue fixing only new diagnostics. Do not wait for CI/Vercel; no PASS is recorded until the local type-check evidence supports it.
+
+## LATEST FIX-01 RESULT — TYPE-CHECK PASSES; NODE ENGINE MISMATCH — 2026-10-12
+
+- Owner pulled latest branch, installed official `@types/ws` with npm, and `npm run type-check` exited successfully with no diagnostics. This is a type-check PASS only.
+- Immediate owner action: run `git status --short`; inspect and commit the intended `package.json` and `package-lock.json` changes from the install. Preserve any unrelated local files/changes.
+- Runtime compatibility: install output shows Node v20.20.0 while dependencies require Node 22+, with `machina` requiring `>=22.22` and Vitest 5 requiring `^22.12.0 || ^24.0.0 || >=26.0.0`. Confirm project/runtime compatibility and align local, Docker and deployment runtimes to Node 22.22+ before relying on tests or runtime evidence.
+- npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical). Do a separate lockfile-aware audit; do not blindly run `npm audit fix --force`.
+- Continue the existing organization-owned MCP endpoint plan and focused regression work without waiting for CI/Vercel. No tests, build, deployment or live MCP handshake PASS is implied by type-check PASS.
