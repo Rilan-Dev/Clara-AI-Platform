@@ -43,7 +43,7 @@ let _crawlQueue: Queue<CrawlJobData> | null = null;
 
 export function getCrawlQueue(): Queue<CrawlJobData> {
   if (!_crawlQueue) {
-    _crawlQueue = new Queue<CrawlJobData>("clara-crawl", {
+    _crawlQueue = new Queue<CrawlJobData, any, string, CrawlJobData, any, string>("clara-crawl", {
       connection: redisConnection,
       defaultJobOptions: {
         removeOnComplete: { age: 3_600 },       // keep completed 1 hr
@@ -81,7 +81,7 @@ let _retryQueue: Queue<UrlRetryJobData> | null = null;
 
 export function getRetryQueue(): Queue<UrlRetryJobData> {
   if (!_retryQueue) {
-    _retryQueue = new Queue<UrlRetryJobData>("clara-retry", {
+    _retryQueue = new Queue<UrlRetryJobData, any, string, UrlRetryJobData, any, string>("clara-retry", {
       connection: redisConnection,
       defaultJobOptions: {
         // Each job is already a scheduled retry — do NOT auto-retry on worker crash.
