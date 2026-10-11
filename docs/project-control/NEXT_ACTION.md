@@ -1,3 +1,11 @@
+## NEWEST IMMEDIATE ACTION — FIX-01 FIVE-ERROR FOLLOW-UP — 2026-10-12
+
+- Owner's latest compiler evidence: 5 errors in 4 files.
+- Fixes committed: DayPicker navigation class names (9827502f158ac26b2241e7cc5fabe7c5be6c291e); context-builder test's parent-directory import and mock paths (4957ddc8c2ee00fb47d8e8785752b9569c340484); Redis literal option typing and restored REDIS_HOST URL handling (6b79a63482911019c4ebc333901200f555f3614a).
+- Remaining known item: ws has no declarations; package-lock has no @types/ws entry. Add @types/ws through npm with generated lockfile when package-manager execution is available; don't handcraft lock entries or add an any-only ambient shim.
+- Next: git pull origin feature/ai-core-from-doable-source then npm run type-check. Send fresh output. No post-correction compiler/tests/build run; no PASS. Do not wait for CI/Vercel.
+
+
 ## NEWEST IMMEDIATE ACTION — FIX-01 TYPE-CHECK RESIDUALS — 2026-10-12
 
 - Owner's fresh type-check after Stripe declaration correction dropped from 44 errors / 19 files to 33 errors / 15 files.
