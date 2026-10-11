@@ -1,3 +1,11 @@
+## NEWEST IMMEDIATE ACTION — FIX-01 TYPE-CHECK ROOT CAUSE — 2026-10-12
+
+- Owner-provided `npm run type-check` reported 44 errors in 19 files. FIX-01 traced the Stripe missing-member cluster to an incomplete ambient `declare module "stripe"` in `src/types/payments.d.ts`, which shadowed official `stripe@23.0.0` types.
+- Removed only that Stripe declaration; the independent Razorpay declaration remains. Correction commit: `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- Control evidence is recorded in I-097, EVT-FIX-20261012-01, SESSION-FIX-20261012-01, shared AGENT_MEMORY, and FIX-01 role-local MEMORY/WORKLOG.
+- **Exact next action:** `git pull origin feature/ai-core-from-doable-source`, then `npm run type-check`. Report the new compiler output. Do not assume the other original diagnostics are fixed; triage only the residual set.
+- No post-correction type-check/tests/build/CI/Vercel/deployment were run. No PASS is claimed. Do not wait for CI/Vercel; route genuine infrastructure/deployment defects to OPS-01.
+
 ## NEWEST IMMEDIATE ACTION — FIXED DUPLICATE EXPORT; REBUILD REQUIRED — 2026-10-11
 
 - Owner-provided Docker build failed because `src/modules/ai-platform-core/index.ts` exported `buildClaraToolRuntime` twice.
