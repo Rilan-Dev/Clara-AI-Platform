@@ -28,7 +28,7 @@ export function getRedisConnectionOptions() {
   const legacyHost = process.env.REDIS_HOST?.trim();
   if (legacyHost?.startsWith("redis://") || legacyHost?.startsWith("rediss://")) {
     const url = new URL(legacyHost);
-    const options: RedisOptions = {
+    const options = {
       host: url.hostname,
       port: url.port ? Number(url.port) : 6379,
       username: url.username ? decodeURIComponent(url.username) : undefined,
