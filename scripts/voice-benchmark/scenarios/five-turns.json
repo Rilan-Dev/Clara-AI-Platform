@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "purpose": "Short synthetic spoken questions for a dedicated Clara test KB. Included MP3 fixtures match the exact prompt text; the browser decodes them into the controlled microphone track.",
   "audioFiles": [
-    "questions/turn-01.mp3",
-    "questions/turn-02.mp3",
-    "questions/turn-03.mp3",
-    "questions/turn-04.mp3",
-    "questions/turn-05.mp3"
+    "scripts/voice-benchmark/questions/turn-01.mp3",
+    "scripts/voice-benchmark/questions/turn-02.mp3",
+    "scripts/voice-benchmark/questions/turn-03.mp3",
+    "scripts/voice-benchmark/questions/turn-04.mp3",
+    "scripts/voice-benchmark/questions/turn-05.mp3"
   ],
   "turns": [
     {
