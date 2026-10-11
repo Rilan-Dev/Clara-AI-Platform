@@ -30,9 +30,9 @@ const safePath = (url) => {
   }
 };
 const safeDiagnosticText = (value) => String(value ?? "")
-  .replace(/Bearer\\s+[^\\s"'<>]+/gi, "Bearer [REDACTED]")
-  .replace(/\\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_\\-.]{12,}\\b/g, "[REDACTED_TOKEN]")
-  .replace(/https?:\\/\\/[^\\s"'<>]+/g, (url) => safePath(url))
+  .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]")
+  .replace(/\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\b/g, "[REDACTED_TOKEN]")
+  .replace(/https?:\/\/[^\s"'<>]+/g, (url) => safePath(url))
   .slice(0, 1000);
 const percentile = (values, p) => {
   if (!values.length) return null;
