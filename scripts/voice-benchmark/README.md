@@ -44,3 +44,33 @@ stage marks, derived latencies) plus p50/p95 aggregates for TTFA and each
 stage (STT / RAG / LLM / TTS / playback). Record the aggregates into
 `docs/superpowers/reports/2026-09-20-openai-realtime-ttfa-baseline.md` after
 each real-device run.
+
+
+## Adaptive five-turn conversation + browser request census
+
+The new `conversation.mjs` harness is designed for the requested sequential, same-session speech test. It injects five real WAV files into a controllable browser microphone track, waits for the app's completed-turn telemetry after each input, then sends the next input. It records browser-visible request counts, HTTP status, request-to-response-header and response-completion duration, resource timing, failed requests, session-click-to-first-audio (when the greeting emits common telemetry), and per-turn latency marks.
+
+Prepare five WAVs from the exact prompts in `scenarios/five-turns.json` and populate a dedicated synthetic test KB with the listed facts. Do not commit private audio or production transcripts.
+
+```bash
+node scripts/voice-benchmark/conversation.mjs \
+  --url="https://clara.example.com/embed/voice?key=clr_..." \
+  --provider=openai \
+  --input-1=questions/turn-01.wav \
+  --input-2=questions/turn-02.wav \
+  --input-3=questions/turn-03.wav \
+  --input-4=questions/turn-04.wav \
+  --input-5=questions/turn-05.wav \
+  --out=tool-results/openai-conversation.json
+```
+
+Repeat the exact same WAVs, test KB, browser/device and network for `elevenlabs`, `gemini`, and `sarvam`, after selecting that provider in Clara's real configuration. The `--provider` argument is an expected label only; the script fails if observed telemetry reports a different provider. Run providers serially at concurrency 1. Run at least one warm-up and 10 measured sessions per provider for stable comparisons.
+
+### Important interpretation limits
+
+- This measures the actual voice UI and actual provider/STT/RAG/TTS path, not a text-only RAG shortcut.
+- Browser request timings/counts do **not** include server-internal database, provider, embedding, Qdrant or MCP calls. Those require the planned server spans in `IMPLEMENTATION-PLAN.md`.
+- Current common latency telemetry does not expose provider token usage or a guaranteed finish/truncation reason. Output explicitly labels usage unavailable rather than inventing it. Implement provider completion usage telemetry before claiming token-budget validation.
+- The existing stage marks use epoch milliseconds; cross-device clock subtraction is invalid. The harness uses its browser click epoch for click-to-audio and keeps request durations within the browser clock.
+- A provider that does not emit a greeting latency event will time out at the welcome gate. Treat that as missing lifecycle instrumentation to fix, not as zero latency.
+- WAV must contain real speech in a browser-decodable RIFF/WAVE format. Validate microphone injection on a non-production test environment first.
