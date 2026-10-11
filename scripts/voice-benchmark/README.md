@@ -104,3 +104,24 @@ npm run test:voice-benchmark
 ```
 
 This runs `node --check` against the conversation harness and report validator, then tests the validator against a valid report, missing turns, provider mismatch and missing correlation IDs. The same dependency-free checks run in `.github/workflows/voice-benchmark-script-check.yml` on relevant pushes and pull requests. They do **not** start a Clara session or prove provider speech behavior.
+
+
+## Included synthetic speech fixtures
+
+Five short English PCM speech recordings matching the exact scenario prompts are stored as gzip-compressed WAVs under `questions/turn-01.wav.gz` through `questions/turn-05.wav.gz`. The harness automatically decompresses `.gz` inputs in memory, so no separate audio tools are required.
+
+Example:
+
+```bash
+node scripts/voice-benchmark/conversation.mjs \
+  --url="YOUR_NON_PRODUCTION_EMBED_URL" \
+  --provider=openai \
+  --input-1=questions/turn-01.wav.gz \
+  --input-2=questions/turn-02.wav.gz \
+  --input-3=questions/turn-03.wav.gz \
+  --input-4=questions/turn-04.wav.gz \
+  --input-5=questions/turn-05.wav.gz \
+  --out=tool-results/openai-conversation.json
+```
+
+The recordings are synthetic test fixtures, not real user audio. They use 8 kHz, mono, 8-bit PCM to keep repository size small. Confirm audio quality and the microphone-injection path during the first run; these files do not prove that the provider/STT path is working until a live test completes.
