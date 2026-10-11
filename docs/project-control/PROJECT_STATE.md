@@ -1,3 +1,13 @@
+# FIX-01 TYPE-CHECK ROOT-CAUSE CORRECTION — 2026-10-12
+
+- Branch: `feature/ai-core-from-doable-source`.
+- Source correction: `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964` removes the incomplete ambient Stripe module declaration from `src/types/payments.d.ts` while preserving the Razorpay declaration.
+- Confirmed root cause for the Stripe missing-member diagnostic cluster: the ambient module shadowed the installed Stripe SDK's official types.
+- Issue I-097 remains IN PROGRESS until a fresh local type-check confirms which diagnostics remain.
+- **Verification boundary:** No post-change type-check, tests, build, Docker, CI/Vercel, deployment, or live Stripe/billing verification was run. No PASS claimed.
+- **Recovery:** `git pull origin feature/ai-core-from-doable-source`; `npm run type-check`.
+- Unrelated user working-tree files, including untracked Doable-source extraction files and `tool-results/`, were not modified by this remote source correction.
+
 # MCP RUNTIME IMPLEMENTATION UPDATE — 2026-10-11
 
 - DEV-01 added `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts` behind the existing `McpToolResolver` interface and connected source-level tool advertisement/dispatch in authenticated Chat and OpenAI realtime voice through the Unified Tool Runtime.
