@@ -108,7 +108,7 @@ This runs `node --check` against the conversation harness and report validator, 
 
 ## Included synthetic speech fixtures
 
-Five short English PCM speech recordings matching the exact scenario prompts are stored as gzip-compressed WAVs under `questions/turn-01.wav.gz` through `questions/turn-05.wav.gz`. The harness automatically decompresses `.gz` inputs in memory, so no separate audio tools are required.
+Five short English MP3 speech recordings matching the exact scenario prompts are committed under `questions/turn-01.mp3` through `questions/turn-05.mp3`. MP3 is decoded by the browser audio context before being played into the benchmark's controlled microphone track; the test does not post text directly to RAG.
 
 Example:
 
@@ -116,12 +116,12 @@ Example:
 node scripts/voice-benchmark/conversation.mjs \
   --url="YOUR_NON_PRODUCTION_EMBED_URL" \
   --provider=openai \
-  --input-1=questions/turn-01.wav.gz \
-  --input-2=questions/turn-02.wav.gz \
-  --input-3=questions/turn-03.wav.gz \
-  --input-4=questions/turn-04.wav.gz \
-  --input-5=questions/turn-05.wav.gz \
+  --input-1=questions/turn-01.mp3 \
+  --input-2=questions/turn-02.mp3 \
+  --input-3=questions/turn-03.mp3 \
+  --input-4=questions/turn-04.mp3 \
+  --input-5=questions/turn-05.mp3 \
   --out=tool-results/openai-conversation.json
 ```
 
-The recordings are synthetic test fixtures, not real user audio. They use 8 kHz, mono, 8-bit PCM to keep repository size small. Confirm audio quality and the microphone-injection path during the first run; these files do not prove that the provider/STT path is working until a live test completes.
+The recordings contain synthetic English speech generated from the exact short prompts in `five-turns.json`; they are fixtures, not user recordings. The first live run must still confirm that the application captures the injected audio and that the STT provider recognises it as intended.
