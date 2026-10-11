@@ -1,3 +1,13 @@
+## ARCHITECTURE CORRECTION — ORGANIZATION-OWNED EXTERNAL MCP — 2026-10-11
+
+- User requirement clarified: organizations must be able to register their own compatible external MCP servers (e.g. n8n, Graphify, Camofox, enterprise MCP) without platform-admin pre-registration.
+- Source inspection found current org MCP route and runtime resolver are tied to `platform_mcp_servers` / `platform_mcp_tools`; platform enablement, catalog allowlists and platform OAuth/credential fallback are part of the current path. This is appropriate only for optional platform catalog/shared services and does not fully meet self-service tenant-owned endpoint registration.
+- Architecture decision and phased acceptance criteria: `docs/plans/mcp-organization-owned-endpoints.md`.
+- NEXT_ACTION.md now directs implementation to extend the existing plan source of truth, add tenant-owned endpoint/tool/grant records, add org-scoped lifecycle APIs, extend the resolver and UI, and add security/plan regression coverage.
+- **Progress boundary:** the architecture plan and NEXT_ACTION are committed. No tenant-owned endpoint schema/API/UI/runtime code was changed in this step; no tests, migration, build, or live MCP verification was run. Keep `ENABLE_MCP=false` and platform servers disabled until executable tests and controlled live handshake succeed.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-11 — MCP STREAMABLE HTTP + CHAT/REALTIME RUNTIME SOURCE
 
 - Owner-authorized DEV-01 continuation: implement secure MCP transport behind `McpToolResolver` and expose approved tools through the existing Unified Tool Runtime.
