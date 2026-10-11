@@ -92,3 +92,8 @@ When the parser registry is imported at server startup, a static `pdf-parse` run
 - Redis connection helper must preserve URL-in-REDIS_HOST compatibility and literal false for enableReadyCheck to satisfy the structural BullMQ options type.
 - ws needs official @types/ws with package-manager-generated lockfile; avoid incomplete ambient shims.
 - Fixes committed but not yet checked by a subsequent local type-check.
+
+### 2026-10-12 — type-check reduced to two diagnostics
+- Owner rerun after the previous batch reports only `classNames.table` in the DayPicker v10 calendar and missing official declarations for installed `ws`.
+- Calendar follow-up commit: `829ae96818a84a39110b65517917d9280c57684b`; replaced remaining legacy class-name keys with v10 names. Still needs a fresh type-check.
+- Resolve `ws` with `npm install --save-dev @types/ws` and commit the package-manager-generated lockfile. Do not add a partial ambient `declare module 'ws'`.
