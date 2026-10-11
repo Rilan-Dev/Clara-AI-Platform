@@ -1982,3 +1982,25 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Evidence | User-provided Docker logs; source review of webhook and invoice metadata helper. |
 | Verification | Source trace only; no DB/Stripe API query, tests, typecheck, or runtime correction. No PASS claimed. |
 | Related records | EVT-FIX-20261011-01; BACKLOG-OPS-20261011-STRIPE-ORPHAN-ORG; SESSION-FIX-20261011-01. |
+
+## I-097 — Type-check failures from shadowed Stripe SDK declarations
+
+| Field | Value |
+|---|---|
+| Issue ID | I-097 |
+| Title | Partial ambient Stripe declaration masks the installed SDK API |
+| Phase | TypeScript compatibility / application source |
+| Severity | P1 — type-check blocked |
+| Status | IN PROGRESS — first root cause corrected; post-change compiler evidence pending |
+| Date identified | 2026-10-12 |
+| Reporter / role | Owner-provided compiler output; FIX-01 / Sentinel |
+| Symptom | TypeScript reported missing `Stripe.balance`, `checkout.sessions.retrieve`, Invoice fields, `Stripe.SubscriptionItem`, Checkout Session payment/status fields, `webhookEndpoints`, and `prices` across payment routes and billing helpers. |
+| Root cause | `src/types/payments.d.ts` defined an incomplete ambient module named `"stripe"`, shadowing the installed `stripe@23.0.0` package's official declarations. The dependency was directly installed and no duplicate version was found in the supplied `npm ls` output. |
+| Correction | Removed only the Stripe ambient module declaration and retained the separate Razorpay declaration. Commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`. |
+| Failed approaches | Reinstalling/downgrading the SDK or patching every missing member individually would not address the declaration shadowing. No dependency changes, broad cleanup, or type suppressions were made. |
+| Scope boundary | This correction addresses the shared cause of the Stripe member/type diagnostics only. The supplied report also contains independent BullMQ/ioredis, React UI library API, PDF metadata, test import, and `ws` declaration diagnostics; do not assume they are resolved. |
+| Regression protection | Normal TypeScript compilation now reads official Stripe SDK declarations. No separate runtime test is appropriate for this declaration-only correction. |
+| Evidence | Owner-provided `npm run type-check` output and dependency inspection; source inspection of `src/types/payments.d.ts`. |
+| Verification | Not resolved/verified yet. No post-change type-check, test, build, CI, Vercel, or deployment run. No PASS claimed. |
+| Next action | Pull the correction and rerun `npm run type-check`; use the fresh residual diagnostic list to determine the next bounded correction. |
+| Related records | EVT-FIX-20261012-01; SESSION-FIX-20261012-01; FIX-01 role-local WORKLOG.md. |
