@@ -209,3 +209,8 @@ Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/ap
 - Fixes committed: 9827502f158ac26b2241e7cc5fabe7c5be6c291e; 4957ddc8c2ee00fb47d8e8785752b9569c340484; 6b79a63482911019c4ebc333901200f555f3614a.
 - ws still needs official @types/ws. No @types/ws entry exists in current lockfile; don't fabricate lock metadata or hide missing types with a partial ambient declaration.
 - Await a fresh type-check before marking resolved.
+
+### FIX-01 / type-check follow-up / 2026-10-12 — two diagnostics
+- Owner's latest local compiler output after pulling the previous fix batch reports two errors: obsolete DayPicker `classNames.table`, and missing type declarations for `ws`.
+- Calendar class-name migration committed as `829ae96818a84a39110b65517917d9280c57684b`; it has not yet been checked by a subsequent local run.
+- Remaining dependency task: install official `@types/ws` with npm and commit the generated `package.json` and `package-lock.json` updates. Never mask the missing types with an `any` ambient declaration or fabricate lock metadata.
