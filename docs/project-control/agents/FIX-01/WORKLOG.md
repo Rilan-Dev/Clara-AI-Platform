@@ -382,3 +382,10 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - Evidence boundary: owner-provided pre-change compiler output only. No post-edit type-check, tests, build, CI, Vercel, deployment, or live service check has run. No PASS.
 - Prevention: Avoid partial ambient declarations for third-party SDKs; align API-version literals with pinned SDK types; keep ioredis options structurally inferred for BullMQ v6; don't assume edits type-check without fresh compiler evidence.
 - Next action: Owner pulls latest feature/ai-core-from-doable-source and reruns npm run type-check; fix only fresh residual diagnostics. Route actual environment/deployment faults to OPS-01. Do not wait for CI/Vercel.
+
+### SESSION-FIX-20261012-03 — residual type-check correction
+- Owner supplied fresh compiler evidence after pulling prior changes: 5 errors in 4 files remain (calendar nav_button; context-builder test import; missing ws declarations; Redis option literal and undefined legacyHost).
+- Root causes: DayPicker v10 no longer exposes nav_button; test is under runtime/__tests__ and must import/mock siblings via ../; Redis helper accidentally lost legacyHost URL branch during prior correction, and false widened to boolean in inferred options.
+- Corrections committed: calendar class names 9827502f158ac26b2241e7cc5fabe7c5be6c291e; context-builder test relative imports/mocks 4957ddc8c2ee00fb47d8e8785752b9569c340484; Redis URL compatibility and literal option 6b79a63482911019c4ebc333901200f555f3614a.
+- ws declaration remains. package-lock does not currently contain @types/ws; do not hand-edit lock metadata or add an any-only ambient shim. Add official @types/ws through npm and commit the generated lockfile when package-manager execution is available.
+- Verification: no post-correction type-check/tests run. No PASS. Next: owner pulls latest and reruns npm run type-check; share fresh output. Do not wait for CI/Vercel.
