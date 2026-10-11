@@ -81,6 +81,7 @@ async function main() {
   const requests = new Map();
   const failures = [];
   const responseRecords = [];
+  const pendingResponseFinishes = [];
   const consoleErrors = [];
   const clientEvents = [];
   const connectClick = { wallTime: null, monotonicMs: null };
@@ -101,7 +102,7 @@ async function main() {
     const doneAt = Date.now();
     const record = { ...r, status: response.status(), responseHeadersAt: doneAt, responseHeadersMs: doneAt - r.startedAt, responseFinishedAt: null, responseTotalMs: null, responseBodyError: null };
     responseRecords.push(record);
-    void response.finished().then((error) => {
+    pendingResponseFinishes.push(response.finished().then((error) => {
       record.responseFinishedAt = Date.now();
       record.responseTotalMs = record.responseFinishedAt - r.startedAt;
       record.responseBodyError = error ? String(error).slice(0, 300) : null;
@@ -109,7 +110,7 @@ async function main() {
       record.responseFinishedAt = Date.now();
       record.responseTotalMs = record.responseFinishedAt - r.startedAt;
       record.responseBodyError = String(error).slice(0, 300);
-    });
+    }));
   });
   page.on("console", (msg) => {
     if (msg.type() === "error") consoleErrors.push({ at: nowIso(), text: msg.text().slice(0, 500) });
@@ -230,6 +231,9 @@ async function main() {
       console.log(`[conversation-bench] turn=${n} provider=${result.provider} model=${result.model} wall=${result.wallDurationMs}ms stt=${result.latencies?.sttMs ?? "n/a"} rag=${result.latencies?.ragMs ?? "n/a"} llm-first=${result.latencies?.llmMs ?? "n/a"} tts-first=${result.latencies?.ttsMs ?? "n/a"} ttfa=${result.latencies?.ttfaMs ?? "n/a"}ms`);
       if (!providerMatch) throw new Error(`Expected provider '${args.provider}' but telemetry reported '${event.provider}'. Stop: this is not a valid provider comparison.`);
     }
+
+    // Wait for request bodies to finish before serializing total response durations.
+    await Promise.all(pendingResponseFinishes);
 
     // Collect timing/counts for requests that occurred while the page was live.
     const resourceTimings = await page.evaluate(() => performance.getEntriesByType("resource").map((e) => ({
