@@ -341,12 +341,12 @@ describe("groundClaraContext — cross-lingual retrieval", () => {
       embedText: vi.fn(async (text: string) => [/insurance/i.test(text) ? 1 : 0]),
       chatStream: async function* () { yield "I want some details about home insurance."; },
     });
-    const search = vi.fn(async (_collection: string, params: { vector: number[] }) =>
-      params.vector[0] === 1
+    const query = vi.fn(async (_collection: string, params: { query: number[] }) => ({
+      points: params.query[0] === 1
         ? [{ id: "faq-home", score: 0.71, payload: { chunk: "Home insurance covers fire and theft.", title: "FAQs (All)", documentId: "doc-faq" } }]
         : [],
-    );
-    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query: vi.fn(async () => ({ points: await search() })) });
+    }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query });
 
     const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: tamil, admission: "audit-only" });
     expect(outcome.ok).toBe(true);
@@ -366,13 +366,13 @@ describe("groundClaraContext — cross-lingual retrieval", () => {
       embedText: vi.fn(async () => [1]),
       chatStream,
     });
-    const search = vi.fn(async () => []);
-    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search });
+    const query = vi.fn(async () => ({ points: [] }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query });
 
     const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "home insurance details", admission: "audit-only" });
     expect(outcome.ok && outcome.result.retrievalQuery).toBeNull();
     expect(chatStream).not.toHaveBeenCalled();
-    expect(search).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(1);
   });
 });
 
