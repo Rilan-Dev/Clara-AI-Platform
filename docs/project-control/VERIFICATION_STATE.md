@@ -1872,3 +1872,10 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - Calendar source correction committed: `829ae96818a84a39110b65517917d9280c57684b`; maps remaining legacy class-name keys to DayPicker v10 names. Post-edit compiler result is pending.
 - `@types/ws` remains to be installed via npm with the generated lockfile committed. No ambient shim was added.
 - No post-latest-edit type-check, tests, build, CI, Vercel, deployment, or runtime PASS is claimed. Next evidence: run npm install --save-dev @types/ws, commit manifest/lockfile, then rerun npm run type-check.
+
+## FIX-01 — type-check PASS; runtime compatibility remains open — 2026-10-12
+- Owner-provided latest terminal output shows `npm run type-check` completed successfully with no TypeScript diagnostics after `npm install --save-dev @types/ws`.
+- This is a **type-check PASS only**. Vitest, lint, build, Docker, runtime, migrations, CI, Vercel, deployment and live integrations have not been shown to pass by this evidence.
+- npm emitted `EBADENGINE` warnings under Node v20.20.0. Several dependencies require Node 22+, including `machina >=22.22`, `vitest@5` `^22.12.0 || ^24.0.0 || >=26.0.0`, and `pdfjs-dist >=22.13.0 || >=24`. Type-check success does not negate these runtime engine mismatches. Confirm Node 22.22+ compatibility and align local/container/deployment versions.
+- npm audit summary: 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); no remediation command was run. Review separately; do not force-upgrade blindly.
+- `@types/ws` installation modified local dependency metadata; owner must inspect `git status --short` and commit the intended `package.json` and `package-lock.json` changes. No reset/cleanup of other local files.
