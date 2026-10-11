@@ -64,3 +64,13 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Verified the five files are present on the target branch and GitHub returns base64-encoded file contents with MP3/ID3 headers. This verifies repository presence/format signature only; no browser audio decode, STT recognition, or live provider run was executed here.
 - Audio fixtures are short, low-bitrate synthetic speech to keep repository size small. If STT recognition fails, replace with higher-quality WAV/MP3 fixtures and compare transcripts only in the isolated test session; do not add transcripts to production logs.
 - Next: run `npm run test:voice-benchmark`, then run the OpenAI test command from the README against a non-production embed session.
+
+
+## 2026-10-12 — Session 007: prevent welcome/inter-turn audio overlap
+
+- Evidence reviewed: failed OpenAI runs showed the first fixture playback starting about 118 ms after the welcome `response.done`; the realtime data-channel trace later included output-buffer clearing and conversation-item truncation. This is consistent with overlapping input and still-playing welcome audio, but does not alone prove the root cause of missing turn telemetry.
+- Updated `scripts/voice-benchmark/conversation.mjs`: default welcome drain is now 2000 ms before input 1; default inter-turn drain is now 1800 ms; both remain configurable via `--welcome-drain-ms` and `--drain-ms`. These are conservative quiet periods, not a direct audible-playback completion signal.
+- Added separate `playbackStartedAt` and `playbackCompletedAt` timestamps to each `playedInputs` diagnostic record, and included `drainSettings` in partial failure reports.
+- Updated the benchmark README with the evidence, new controls, interpretation limits, and next diagnostic steps.
+- Verification: GitHub source updates committed as `cbc382da34da686399f48da04fb7e727075a9851` (harness) and `48ec64f33546b9a9aeaf2033d7b75957a2d5f5f6` (README). Node syntax checks, validator tests, browser runs, and live OpenAI session have NOT been executed in this tool session. No benchmark success or latency conclusion is claimed.
+- Next: run `npm run test:voice-benchmark`; then rerun a single OpenAI session against the actual non-production embed URL. If it still times out, inspect the ordered data-channel event types to identify whether audio commit/VAD, transcription completion, RAG scheduling, or response creation is missing.
