@@ -702,3 +702,8 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Latest owner compiler run found 5 residual errors in 4 files.
 - Three targeted corrections are now committed: DayPicker v10 navigation class names, relative imports/mocks in context-builder test, and Redis options/legacy URL handling.
 - No post-correction type-check has been supplied. The ws declaration dependency remains outstanding. Do not claim PASS.
+
+## FIX-01 type-check follow-up — 2026-10-12
+- Latest owner-provided local type-check output reports two remaining errors after the prior batch: one obsolete DayPicker v10 class key and missing `ws` declarations.
+- Calendar class-name correction is committed at `829ae96818a84a39110b65517917d9280c57684b`, source-only pending fresh type-check.
+- The remaining package dependency fix is `@types/ws`, installed with npm so the lockfile is generated correctly. No PASS is claimed until the next local compiler output.
