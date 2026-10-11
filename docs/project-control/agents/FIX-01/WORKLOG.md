@@ -389,3 +389,11 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - Corrections committed: calendar class names 9827502f158ac26b2241e7cc5fabe7c5be6c291e; context-builder test relative imports/mocks 4957ddc8c2ee00fb47d8e8785752b9569c340484; Redis URL compatibility and literal option 6b79a63482911019c4ebc333901200f555f3614a.
 - ws declaration remains. package-lock does not currently contain @types/ws; do not hand-edit lock metadata or add an any-only ambient shim. Add official @types/ws through npm and commit the generated lockfile when package-manager execution is available.
 - Verification: no post-correction type-check/tests run. No PASS. Next: owner pulls latest and reruns npm run type-check; share fresh output. Do not wait for CI/Vercel.
+
+### SESSION-FIX-20261012-04 — follow-up type-check (owner evidence)
+- Owner reran `npm run type-check` after pulling the previous correction batch. Diagnostics are now **2 errors in 2 files**: DayPicker v10 `classNames.table` is unsupported in `src/components/ui/calendar.tsx`; `src/modules/phone/core/call-handler.ts` cannot resolve declarations for installed `ws`.
+- Root causes: calendar still had legacy DayPicker v8/v9 class-name keys beyond the already corrected navigation keys; `ws@8.22.0` is installed without official `@types/ws` in the root manifest/lockfile.
+- Calendar correction committed: `829ae96818a84a39110b65517917d9280c57684b`, replacing legacy table/head/row/day-state keys with DayPicker v10 keys (`month_grid`, `weekdays`, `weekday`, `week`, `day_button`, `selected`, `today`, `outside`, `disabled`, `range_middle`, `range_end`, `hidden`). This source edit has not yet been type-checked.
+- Dependency fix still required: run `npm install --save-dev @types/ws` in the checked-out repo and commit both `package.json` and the generated `package-lock.json`; do not handcraft lock entries or add an `any`-only ambient shim.
+- Verification: owner evidence verifies earlier batch reduced the errors to two. Latest calendar change is unverified. No tests/build/CI/Vercel/deployment PASS is claimed.
+- Next: pull latest, run `npm install --save-dev @types/ws`, commit generated manifest+lockfile, rerun `npm run type-check`, and share any fresh diagnostics. Continue without waiting for CI/Vercel.
