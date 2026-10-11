@@ -1,3 +1,23 @@
+## I-097 — Type-check compatibility corrections after Stripe declaration fix
+
+| Field | Value |
+|---|---|
+| Issue ID | I-097 |
+| Title | Resolve TypeScript errors caused by shadowed SDK types and dependency API drift |
+| Phase | FIX-01 corrective maintenance |
+| Severity | P2 |
+| Status | IN PROGRESS — fresh compiler evidence required |
+| Date identified | 2026-10-12 |
+| Reporter / role | Owner-provided compiler output / FIX-01 Sentinel |
+| Initial symptom | 44 TypeScript errors in 19 files. Removing the incomplete ambient Stripe declaration reduced the owner's next run to 33 errors in 15 files. |
+| Root causes confirmed | An incomplete declare module stripe shadowed official Stripe types; separate remaining errors reflect API/type drift across Stripe SDK v23, DayPicker v10, Recharts v3, react-resizable-panels v4, ioredis/BullMQ v6, pdf-parse v2, ReactMarkdown v10, a test import, and absent ws declarations. |
+| Corrections committed | Stripe shadowing fix 34aca73cd5ad2fc5c67396d1d35f24dcf38d7964; Stripe API version 79f904b35ef038a98c7146e660952e70b25dbed9; DayPicker 274b1a6fe9d654915853b7deee65ac70811b1e1a; resizable 75837afdf485a4643a8f1f163540e2892f2f769e; Redis option typing 2eaad784a7a316b0650df7125effcada5fcb48cd and be6fe066628433e5d78021824d322a2351bef579; PDF metadata a02791f50417c99c9f15d2efdab4b03e8cb5bc2a; test import 13fdbe2cfc9eb528b440bc95689ec2f2a122747e; ReactMarkdown wrapper 0627901f74d1c7bbe6190b9cf84723327b992071; Recharts tooltip formatter c0aeaca45bc187b9fb6961efe6f467990cb81fdc and content typing fd3cd96b3f3d1f7190958e0214e4a422e02dde46; queue generics 876eef106d01a44d527462c6212427ae3259af86. |
+| Verification | Owner has not yet rerun npm run type-check after these follow-up edits. No PASS. |
+| Failed approach / prevention | Do not add partial ambient declarations for official third-party SDKs. Keep package API versions aligned with installed types; use official @types/ws plus package-manager-generated lockfile rather than a handwritten ambient shim. |
+| Next action | Pull latest feature/ai-core-from-doable-source and rerun npm run type-check. Reassess only current diagnostics. |
+| Related records | EVT-FIX-20261012-02; SESSION-FIX-20261012-02; FIX-01 MEMORY.md and WORKLOG.md. |
+
+
 ## I-089 — I-3 redirect failures duplicated HTTP trace entries
 
 | Field | Value |
