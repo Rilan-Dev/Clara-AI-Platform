@@ -17,9 +17,9 @@ export function getRedisConnectionOptions() {
       password: url.password ? decodeURIComponent(url.password) : undefined,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      ...(url.pathname.length > 1 ? { db: Number(url.pathname.slice(1)) } : {}),
+      ...(url.protocol === "rediss:" ? { tls: {} } : {}),
     };
-    if (url.pathname.length > 1) options.db = Number(url.pathname.slice(1));
-    if (url.protocol === "rediss:") options.tls = {};
     return options;
   }
   // Be defensive about legacy/misconfigured deployments where REDIS_HOST
