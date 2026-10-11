@@ -53,7 +53,7 @@ export function getCrawlQueue(): Queue<CrawlJobData> {
       },
     });
   }
-  return _crawlQueue;
+  return _crawlQueue!;
 }
 
 // ── Retry queue ───────────────────────────────────────────────────────────────
@@ -92,5 +92,5 @@ export function getRetryQueue(): Queue<UrlRetryJobData> {
       },
     });
   }
-  return _retryQueue;
+  return _retryQueue!;
 }
