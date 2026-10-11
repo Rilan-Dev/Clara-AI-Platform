@@ -389,19 +389,19 @@ export async function searchSimilarDocuments(
     `[vector-store] searching collection="${collectionName}" topK=${topK}`
   );
 
-  let results = await client.search(collectionName, {
-    vector: embedding,
+  let results = (await client.query(collectionName, {
+    query: embedding,
     limit: topK,
     with_payload: true,
     score_threshold: 0.2,
-  });
+  })).points;
 
   if (!Array.isArray(results) || results.length === 0) {
-    results = await client.search(collectionName, {
-      vector: embedding,
+    results = (await client.query(collectionName, {
+      query: embedding,
       limit: topK,
       with_payload: true,
-    });
+    })).points;
   }
 
   console.log(
