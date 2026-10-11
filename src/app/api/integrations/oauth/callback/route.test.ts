@@ -80,7 +80,9 @@ describe("OAuth callback", () => {
   it("atomically consumes state, exchanges the code, and stores the encrypted tenant connection", async () => {
     const response = await GET(callbackRequest());
     expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toContain("/orgs/org-1/integrations?oauth=connected&integrationId=gmail");
+    // Org-level starts land on the agents list (the org-level integrations
+    // screen was retired in favour of per-agent Integrations screens).
+    expect(response.headers.get("location")).toContain("/orgs/org-1/agents?oauth=connected&integrationId=gmail");
     expect(mocks.query).toHaveBeenCalledWith(
       expect.stringContaining("consumed_at IS NULL"),
       [expect.any(String), "test-encryption-key"],
@@ -115,6 +117,39 @@ describe("OAuth callback", () => {
     expect(headers.Authorization).toBe(`Basic ${Buffer.from("client-id:client-secret").toString("base64")}`);
     expect(String(options.body)).not.toContain("client_secret");
     expect(String(options.body)).not.toContain("client_id");
+  });
+
+  it("returns to the agent integrations screen when the OAuth flow was started from an agent", async () => {
+    mocks.query.mockImplementation(async (sql: string) => {
+      if (sql.includes("UPDATE integration_oauth_states")) {
+        return [{
+          integration_id: "gmail",
+          org_id: "org-1",
+          user_id: "user-1",
+          agent_id: "agent-9",
+          redirect_uri: "https://clara.example/api/integrations/oauth/callback",
+          code_verifier: null,
+        }];
+      }
+      if (sql.includes("pgp_sym_decrypt(client_secret_encrypted")) {
+        return [{
+          client_id: "client-id",
+          client_secret: "client-secret",
+          redirect_uri: "https://clara.example/api/integrations/oauth/callback",
+        }];
+      }
+      if (sql.includes("FROM organisation_integrations")) return [{ enabled: true }];
+      if (sql.includes("FROM platform_integrations")) return [{ enabled: true, allowed_plans: ["pro"] }];
+      return [];
+    });
+
+    const response = await GET(callbackRequest());
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/orgs/org-1/agents/agent-9/integrations?oauth=connected&integrationId=gmail");
+    expect(mocks.transactionQuery).toHaveBeenCalledWith(
+      expect.stringContaining("pgp_sym_encrypt"),
+      expect.arrayContaining(["org-1", "agent-9", "user-1", "gmail"]),
+    );
   });
 
   it("rejects invalid or replayed state without exchanging a token", async () => {

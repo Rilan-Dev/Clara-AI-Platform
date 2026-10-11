@@ -34,6 +34,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({
       integrationId,
       configured: Boolean(row),
+      credentialSource: row ? "database" : "unconfigured",
+      secretConfigured: Boolean(row),
       clientId: row?.client_id ?? "",
       redirectUri: row?.redirect_uri ?? "",
       scopes: Array.isArray(row?.scopes) ? row.scopes : definition.oauth2Config?.scopes ?? [],

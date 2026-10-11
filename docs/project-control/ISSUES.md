@@ -1925,3 +1925,60 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | Source commits only. No browser screenshot, viewport sweep, UI test, typecheck, or build run; visual outcome remains unverified. |
 | Prevention | Prefer shared primitive corrections over scattered per-page patches. On normal UI verification, check desktop and narrow viewports, long labels/descriptions/URLs, and dialogs with content taller than the viewport. |
 | Next action | Continue the authorized roadmap; visually inspect representative existing dialogs/cards on the next ordinary UI verification pass. |
+
+
+## I-096 — OAuth callback placeholder and provider setup ambiguity
+
+| Field | Value |
+|---|---|
+| Issue ID | I-096 |
+| Title | Platform OAuth setup displays a non-actionable callback placeholder |
+| Phase | Integrations / OAuth connection lifecycle |
+| Severity | P1 |
+| Status | OPEN — source correction committed; verification pending |
+| Owner | FIX-01 / Sentinel |
+| Symptom | Platform Admin → Integrations → OAuth setup displayed `https://your-domain/api/.../callback`, leaving administrators unsure which URI to register with the provider. |
+| Root cause | The OAuth settings screen used a generic editable placeholder instead of deriving the callback from the current Clara origin and the existing shared server callback route. The setup copy also incorrectly implied that the interactive OAuth lifecycle had not yet been implemented, despite start/callback source being present. |
+| Correction | UI now pre-populates and displays the deployment-derived `/api/integrations/oauth/callback` as read-only, provides provider-console setup steps, and distinguishes saving OAuth app settings from connecting an account. Server-side validation requires the canonical callback path and rejects query strings and placeholder URLs. |
+| Regression protection | Updated `src/modules/integrations/oauth-app-validation.test.ts` for the canonical route, placeholder rejection, query rejection, and local-development HTTPS exception. |
+| Evidence | Commits: `8c64ed818fdfb1185472ec62f74d3f9e1d79ae25`, `c12071271a9c79870b93093ce78375ddab96b4bd`, `3bb395bef2069d39dd4cf80b9261b73400a99c52`. Source review only. |
+| Failed approaches | A generic `your-domain/api/.../callback` example is not a usable provider registration URI. Treating saved client credentials as proof of a live connection is also incorrect. |
+| Prevention lesson | Keep the callback path owned by the server OAuth route contract; derive only the deployment origin in the UI; validate it again on the server; show explicit provider setup steps and honest readiness state. |
+| Verification | Tests authored but not run. No typecheck/build, browser test, live provider consent, token exchange, deployment, or runtime PASS claimed. |
+| Next action | Inspect Doable's actual source-library implementation path if available; add provider-specific setup links and source-derived scope guidance where the registry has enough metadata; perform focused tests when normal verification is next run. Route live deployment/schema problems to OPS-01. |
+
+
+### I-096 — 2026-10-10 follow-up: provider guidance and credential readiness (OPEN)
+
+- **Scope:** Continue the bounded OAuth setup correction; do not treat this addendum as a new phase or close I-096.
+- **Provider setup guidance:** Added `src/modules/integrations/oauth-setup-guides.ts` and the platform OAuth dialog now links to official provider developer consoles for recognized providers, gives provider-specific callback/permissions instructions, and falls back to generic instructions for unknown IDs rather than guessing a URL.
+- **Credential source:** OAuth-app GET metadata now reports `credentialSource` and `secretConfigured` without returning the encrypted secret. The UI indicates the current source is the encrypted platform database. No environment-variable fallback was added: Clara's current source path is database-backed and encrypted; adding a second credential authority requires an explicit precedence, rotation, deployment-secret, and audit design.
+- **Source commits:** `7fb942255f2dd3daf13e9a9e32270d70ff02938c` (safe readiness metadata), `f1ebf20ef6242204ccb144b570f0ace5a874e052` (provider guidance UI), `9652855d4408737f3a6930f02caced07002eb65f` and `3a0a3e8864f0497facd85626b22e537a8225e1df` (extract guidance helper), `c55294c100647b9d3287503a7909197aa0960c85` (guide regression source), `f97140906cc4c63e7840d007e2a5d3c5b42ba986` (update readiness UI after save).
+- **Regression source:** `src/modules/integrations/oauth-setup-guides.test.ts` covers Google guidance, non-Google provider mappings, and unknown-provider fallback. Existing `oauth-app-validation.test.ts` still covers canonical callback validation and scope normalization.
+- **Verification boundary:** Source files were re-fetched after edits. Tests have **not** been run: this execution environment has no local repository checkout and outbound GitHub DNS resolution failed (`Could not resolve host: github.com`). This is an execution-environment limitation, not a test failure. No typecheck, lint, build, browser check, provider consent, token exchange, deployment, or runtime PASS is claimed.
+- **Next:** Run `npm test -- src/modules/integrations/oauth-app-validation.test.ts src/modules/integrations/oauth-setup-guides.test.ts` in a checked-out working tree; then proceed to provider-backed OAuth consent/callback/token persistence test. Route deployed-origin, proxy, migration/schema, and runtime issues to OPS-01. Keep I-096 OPEN until evidence supports closure.
+
+- Additional UI guidance commit: `427383ea8f0f4c13b1c38991da5e24b9ed28a1dd` adds an explicit warning when a provider has no default scope list; do not assume an empty list is valid without provider confirmation.
+
+
+## I-20261011-STRIPE-ORPHAN-ORG — Stripe invoice webhook references missing tenant
+
+| Field | Value |
+|---|---|
+| Issue ID | I-20261011-STRIPE-ORPHAN-ORG |
+| Title | Reconcile Stripe invoice metadata whose organisation is absent from the active database |
+| Phase | Billing / Stripe webhook |
+| Severity | P1 — paid-event processing repeatedly fails and triggers retries/alerts |
+| Status | OPEN — routed to OPS-01 for data/environment correlation |
+| Date identified | 2026-10-11 |
+| Reporter / role | FIX-01 / Sentinel |
+| Symptom | User's rebuilt backend repeatedly logs SQLSTATE 23503 for Stripe event `evt_1UP9JaSH7giJdRbDjderTSey`: `billing_events_org_id_fkey` rejects `org_id=d8f78644-3198-41db-bcc3-278ecad0ecb4` because that key is absent from `organisations`. |
+| Source trace | `src/lib/stripe-activation.ts::invoiceOrgId` reads legacy/modern subscription or invoice metadata. `src/app/api/webhooks/stripe/route.ts` optionally updates subscriptions by that ID and unconditionally inserts a billing event. Metadata is not proof that the referenced tenant exists. |
+| Confirmed immediate cause | Stripe-derived organisation ID has no matching `organisations` row in the database handling this event. Startup log says all migrations are already applied; no evidence currently points to missing schema. |
+| Underlying cause | UNKNOWN. Possible stale Stripe metadata/event, DB restore/environment mismatch, missing tenant/subscription data, or an application lifecycle defect. Requires read-only invoice/subscription/customer-to-tenant correlation. |
+| Authorized remedy | OPS-01: inspect actual container DB target and correlate invoice/subscription/customer with `org_subscriptions` and `organisations`; report the exact mismatch. No destructive repair is authorized. |
+| FIX-01 disposition | No code patch until the data/environment question is resolved. Do not suppress FK enforcement, insert a placeholder organisation, reset/reseed data, or silently acknowledge a paid invoice. Reopen to FIX-01 only if evidence demonstrates an application-side lifecycle defect. |
+| Regression protection | Not yet appropriate: the underlying invariant/desired handling depends on whether the source is stale metadata or missing tenant data. Once established, add a focused regression preserving payment reconciliation and avoiding dropped paid events. |
+| Evidence | User-provided Docker logs; source review of webhook and invoice metadata helper. |
+| Verification | Source trace only; no DB/Stripe API query, tests, typecheck, or runtime correction. No PASS claimed. |
+| Related records | EVT-FIX-20261011-01; BACKLOG-OPS-20261011-STRIPE-ORPHAN-ORG; SESSION-FIX-20261011-01. |

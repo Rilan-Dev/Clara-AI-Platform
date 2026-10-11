@@ -1,3 +1,21 @@
+## 2026-10-11 — MCP Streamable HTTP resolver and Chat/realtime source wiring
+
+- Added the host-owned Streamable HTTP resolver behind the existing `McpToolResolver`; Chat and OpenAI realtime now have source-level discovery/advertisement and Unified Tool Runtime dispatch paths.
+- Added endpoint/IP guard test source and migration 070 for a `connected` handshake state after successful discovery. Existing control-plane tests and the new resolver/runtime tests have not been executed; migration 070 has not been applied.
+- **Not run / not claimed:** Vitest, `npm run type-check`, lint, build, migration, DNS-rebinding/redirect/timeout integration tests, live MCP handshake/tool call, Chat E2E, realtime voice E2E, CI, Vercel or deployment.
+- **Required before enablement:** focused transport and runtime tests plus a controlled live initialize/list/call against an isolated MCP test server. Keep all platform servers disabled and `ENABLE_MCP=false`.
+- **Known follow-up:** verify the bounded 3-second per-execution-context discovery cache/singleflight under concurrency. It rechecks DB authorization per resolution and is bypassed during invocation; no cross-request cache is used. Cache behavior has not been executed in tests.
+
+---
+
+## 2026-10-11 — Gmail OAuth app save runtime failure
+
+- Owner-provided production log: `TypeError: (0 , k.normalizeScopes) is not a function` in the platform integration OAuth-app PUT handler.
+- Source root cause found: `normalizeScopes` was defined but not exported from `src/modules/integrations/oauth-app-validation.ts`, while the route imports it as a named export.
+- Fix committed on `feature/ai-core-from-doable-source`: `bfc5fc00de27309598b4bcfe4813f8626de9b8b0`.
+- Existing unit test source already imports and exercises the helper. **Not run:** unit tests, typecheck, build, container rebuild, deployment or live OAuth save. Do not claim PASS until observed.
+- Security follow-up: diagnostic command exposed a session cookie and OAuth client secret; rotate/revoke before retry.
+
 ## 2026-10-09 — WhatsApp OAuth, briefing gate, and delivery-order regression source
 
 - Added route-level regression source for OAuth state replay and current agent permission recheck, cross-organisation denial, and the server-side briefing gate/recipient consent path.
@@ -1785,6 +1803,52 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - **Not run / not claimed:** No browser visual check, UI regression test, test suite, typecheck, build, Docker rebuild, DB migration, runtime log comparison, or deployment. No runtime/production PASS is claimed.
 - **Next:** On the next normal runtime verification, compare the running image commit with the branch and capture migration output. Do not manually create missing tables or reset the database.
 
+
+## 2026-10-10 — FIX-01 OAuth callback setup correction — SOURCE ONLY
+
+- The platform OAuth settings UI no longer presents the `your-domain/api/.../callback` placeholder. When no saved URI exists, it derives the current browser origin plus `/api/integrations/oauth/callback`, displays it read-only, and explains provider-console registration, scopes/API enablement, and the distinction between saving an OAuth app and connecting an account.
+- Server validation requires the shared callback pathname and rejects query strings and placeholder URLs. Regression source covers canonical path, placeholder/query rejection, HTTPS requirements, and local loopback HTTP in non-production.
+- Source commits: `8c64ed818fdfb1185472ec62f74d3f9e1d79ae25`, `c12071271a9c79870b93093ce78375ddab96b4bd`, `3bb395bef2069d39dd4cf80b9261b73400a99c52`.
+- Doable reference used: its integration credential and platform-admin setup documentation, which distinguishes sign-in OAuth from integration OAuth and calls for exact callback registration and explicit credential/readiness states. Clara keeps its existing shared callback route; it does not copy Doable's per-integration callback architecture.
+- **Not run / not claimed:** no Vitest, typecheck, lint, build, browser verification, live provider consent, token exchange, Docker, CI, Vercel, deployment, or runtime verification. No PASS is inferred.
+- **Remaining:** actual Doable repository source comparison is incomplete; provider-specific developer-console links and a platform-side OAuth smoke/connect-test flow are not implemented by this correction. Live deployment/schema failures belong to OPS-01.
+
+
+### FIX-01 Doable source comparison addendum — 2026-10-10
+Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`. It confirms public-origin/redirect override handling, a shared callback for that Doable deployment, DB → per-integration env → shared Google/GitHub credential fallback, and admin-safe credential responses. Clara's UI callback correction adapts the principles to Clara's existing route `/api/integrations/oauth/callback`; it does not implement Doable's env fallback/source badges or Connect Test. Source review only; tests and live OAuth remain unverified.
+
+
+## 2026-10-10 — I-096 OAuth setup follow-up — SOURCE CHANGES ONLY
+
+- Provider-specific official-console links and instructions are isolated in `src/modules/integrations/oauth-setup-guides.ts` and covered by `src/modules/integrations/oauth-setup-guides.test.ts` source.
+- Platform OAuth-app GET exposes only safe readiness metadata (`credentialSource` / `secretConfigured`); the encrypted client secret remains unselected and is never returned to the browser. Blank-secret updates retain the stored secret as before.
+- Environment-variable fallback intentionally remains unimplemented; Clara's present platform-managed OAuth path uses the encrypted database. Avoid introducing a second source of truth without a credential-precedence and rotation design.
+- Commits: `7fb942255f2dd3daf13e9a9e32270d70ff02938c`, `f1ebf20ef6242204ccb144b570f0ace5a874e052`, `9652855d4408737f3a6930f02caced07002eb65f`, `3a0a3e8864f0497facd85626b22e537a8225e1df`, `c55294c100647b9d3287503a7909197aa0960c85`, `f97140906cc4c63e7840d007e2a5d3c5b42ba986`.
+- **Not verified:** Tests, typecheck, lint, build, browser behavior, provider consent, token exchange, database writes, deployment, and runtime. The current tool execution environment lacks a checkout and outbound GitHub DNS; this prevented running Vitest locally. No PASS is inferred.
+- **Next:** Execute the focused test command in a checked-out workspace, then coordinate provider-backed verification and deployed callback/migration/runtime checks with OPS-01. I-096 remains OPEN.
+
+- Additional scope UI commit: `427383ea8f0f4c13b1c38991da5e24b9ed28a1dd`; empty default scopes are now explicitly called out for provider-console confirmation. Source-only; no tests or live OAuth verified.
+
+
+## 2026-10-10 — MCP control-plane source slice
+
+- Added migration 069 for platform MCP registry/tool approvals, organisation-owned encrypted credentials, organisation tool grants, and agent tool grants; enabled RLS and revoked Data API access where roles exist.
+- Added super-admin platform MCP registry API, organisation-scoped connection/grant API with plan and cross-organisation agent checks, and MCP management panels embedded in the existing platform/org/agent integration screens.
+- Added regression source for HTTPS endpoint/private-IP validation, org scoping, cross-org agent denial, and bearer-token redaction.
+- **Source evidence only:** GitHub file commits and source rereads. Tests were authored but not executed. No migration application, typecheck, build, Docker, CI/Vercel, runtime connection or production deployment was verified.
+- **Not claimed:** live MCP handshake, tool discovery, Chat MCP invocation, realtime voice MCP invocation, or end-to-end authorization at runtime.
+- **Still pending:** secure Streamable HTTP resolver with DNS rebinding/private-address protection at connection time; discovery/schema conversion; invocation-time platform/plan/org/agent/user/surface rechecks; Chat and realtime voice registration; runtime tests and executed focused verification.
+
+## 2026-10-11 — Latest owner-provided Docker build failure
+
+- Build at source head `985b2a07` failed on duplicate export `buildClaraToolRuntime` in `src/modules/ai-platform-core/index.ts`.
+- Source fix committed as `d755aea0de75509cabfe2ed4c76e7cae2468db2e` by removing the duplicate export.
+- Build must be rerun against the fixed branch. The old `clara-backend` container remained running after the failed build and is not evidence of the fixed source being deployed.
+- Gmail OAuth save remains unverified. The earlier `normalizeScopes is not a function` trace is from that old image; the prior source export fix is present in the branch, but cannot take effect until a successful rebuild/recreate and fresh retest.
+- No tests, typecheck, post-fix build, deployment, or runtime PASS is claimed.
+
+---
+
 ---
 
 ## 2026-10-12 — Organization-owned MCP verification record
@@ -1795,4 +1859,20 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - `npx vitest run` (full suite) → 1334 passed / 50 failed. The 50 failures are byte-identical to the pre-change baseline (verified by stashing tracked changes and diffing failing-test lists; only timing jitter differed). The single interim regression introduced during development (org-integrations responsive-layout contract) was fixed within the session.
 - `npx tsc -p tsconfig.typecheck.json --noEmit` → all new and modified files clean; remaining diagnostics are pre-existing (optional deps absent locally: @vercel/queue, amqplib, @elevenlabs/client, @vercel/analytics, pdf-parse types; and pre-existing errors in untouched files).
 - NOT verified (external): live database migration application, deployment, CI/Vercel, any real MCP server handshake over the network, live Chat/realtime voice tool execution. No runtime PASS is claimed for those.
+- `ENABLE_MCP` stays OFF until the evidence list in `docs/plans/mcp-organization-owned-endpoints.md` §9 is satisfied on a deployed revision.
+
+---
+
+## 2026-10-12 — PR #291 reconciliation verification record
+
+[owner-authorized] The PR head branch was reconciled with the latest target `feature/ai-core-from-doable-source` (`bb51d091`); migration renumbered to 073; runtime unified on the request-scoped Unified Tool Runtime path via `OrgMcpToolResolver`; agent MCP screen unified (platform catalog + organisation-owned sections); governance screen moved to `/settings/mcp/governance`; org Integrations hub restored.
+
+- Executed on the reconciled tree (2026-10-12, local, commands in SESSION-DEV-20261012-01):
+  - Focused MCP suite (modules/mcp + resolver/bridge/oauth tests + org/platform MCP API routes + realtime-tool tests) → **218/218 PASS** (14 files).
+  - Full suite → **1469 passed / 28 failed / 2 skipped**.
+  - Full suite on the pristine target baseline `bb51d091` (same machine/command) → **1364 passed / 32 failed / 2 skipped**.
+  - Failure-set diff: **zero failures introduced by the reconciliation**; 4 baseline-only failures were fixed during reconciliation (pre-existing test drift in `mcp-tool-bridge.test.ts` and a mock gap in `realtime-tool.test.ts`); the remaining 28 are byte-identical pre-existing baseline failures (missing optional dependencies and unrelated legacy files).
+  - `npx tsc -p tsconfig.typecheck.json --noEmit` → no errors in any reconciliation-touched file (remaining diagnostics are pre-existing missing-optional-dep issues in untouched files, present on the baseline too).
+  - `npx eslint` on every changed file → 0 errors, 1 pre-existing warning (verified on the baseline).
+- NOT verified (external, unchanged): live database migration application (073), deployment/CI/Vercel, live MCP handshake over the network, live Chat/realtime voice tool execution, provider OAuth consent flows. No runtime PASS is claimed for those.
 - `ENABLE_MCP` stays OFF until the evidence list in `docs/plans/mcp-organization-owned-endpoints.md` §9 is satisfied on a deployed revision.

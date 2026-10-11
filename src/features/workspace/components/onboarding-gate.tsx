@@ -19,7 +19,7 @@ type Status = {
   } | null;
 };
 
-export default function OnboardingGate({ children }: { children: ReactNode }): JSX.Element {
+export default function OnboardingGate({ children }: { children: ReactNode }) {
   const [data, setData] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
 

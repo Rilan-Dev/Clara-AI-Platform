@@ -75,3 +75,41 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - **Date/session:** 2026-10-09 / SESSION-DEV-20261009-04
 - **Lesson:** Provider delivery callbacks can arrive out of order. A durable message state machine must be monotonic: late `sent` or `failed` events must not regress a `delivered`/`read` state, and `read`, `deleted`, and terminal `failed` states must not be overwritten by late lower-value events. Use the same transition rule in webhook processing and replay/reconciliation paths.
 - **Test boundary:** Route/helper regression source now covers OAuth replay and permission recheck, tenant boundary, briefing gate, signature/idempotency, recipient format/digest, and status ordering. No tests have been executed.
+
+
+- **Date/session:** 2026-10-10 / SESSION-DEV-20261010-01
+- **Agent:** DEV-01 / Forge
+- **Finding:** `mcp-tool-bridge.ts` adapts host-resolved descriptors into Clara's Unified Tool Runtime; it does not itself implement transport or persistent server configuration. Existing integration screens and generic realtime integration dispatch do not prove configured MCP servers are callable end-to-end.
+- **Prevention:** Keep platform approval, organisation-owned connection/credentials, agent grants, discovery, transport and invocation as distinct layers. Recheck platform/org/plan/agent/user/surface policy at execution; isolate discovery caches by tenant; never expose secrets to UI/model; default-deny public embeds and platform-admin invocation.
+- **Related plan:** `docs/superpowers/plans/2026-10-10-mcp-configuration-ui-chat-voice-roadmap.md`.
+- **Verification boundary:** Source/document inspection only; no runtime PASS.
+
+- **Date/session:** 2026-10-10 / SESSION-DEV-20261010-02
+- **Agent:** DEV-01 / Forge
+- **Implementation:** Added MCP registry and grants migration/API/UI on top of existing integration patterns. Platform server, org connection, org tool grant and agent tool grant are separate records.
+- **Security lesson:** Never label a credential save as a live connection. API stores bearer credentials encrypted and does not return them; disabled/revoked permissions must remain revocable. Platform, plan, org and agent grants must be checked again at execution.
+- **SSRF lesson:** Registration-time HTTPS/DNS-host validation is only an early guard. The actual transport must resolve DNS and reject private, loopback, link-local and metadata targets on every connection, prevent unsafe redirects, verify TLS and bound time/response size.
+- **Runtime boundary:** Current implementation does not yet perform MCP transport/discovery or wire MCP tools into actual chat/realtime. Keep server disabled until resolver/runtime implementation exists. Do not claim runtime PASS.
+- **Next:** Implement `McpToolResolver` for Streamable HTTP and connect it to Chat/realtime via Unified Tool Runtime with invocation-time reauthorization.
+
+- **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01
+  - Production OAuth-app PUT stack trace `normalizeScopes is not a function` was caused by `normalizeScopes` being declared but not exported from `src/modules/integrations/oauth-app-validation.ts`, despite a named import in the route.
+  - The existing `oauth-app-validation.test.ts` directly imports this helper; retain its scope validation/deduplication coverage.
+  - Never record or repeat secrets from diagnostic curl commands. If a user pastes session cookies or OAuth client secrets, advise immediate session revocation and secret rotation.
+
+
+- **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01
+- **Agent:** DEV-01 / Forge
+- **Issue/symptom:** MCP registry and grants existed, but there was no host-owned Streamable HTTP transport or Chat/realtime runtime path.
+- **Remedy:** Implement the resolver behind `McpToolResolver`; use per-request DNS validation and pinned IP lookup, strict TLS/no redirects, bounded HTTP and schema handling, and current authorization checks before discovery and invocation. Chat uses a fresh Clara runtime composed with MCP definitions; realtime resolves aliases to exact current grants before constructing a one-tool runtime.
+- **Safety lesson:** The runtime tool descriptor is not the authority. At invocation re-check platform enablement, plan, connection, exact approved server/tool pair, org and agent grants, current user membership/KB read permission, context/session and surface. Keep server enablement and `ENABLE_MCP` off until tests and a controlled live handshake are observed.
+- **Trade-off:** No shared discovery cache is used yet because grant/schema invalidation is not implemented. This is safer against stale grants but adds repeated upstream round trips; optimize only after invalidation is reliable.
+- **Verification boundary:** Source inspection and GitHub writes only. Never describe the resolver or Chat/realtime MCP path as passing, live, or production-ready until tests/typecheck/build and a controlled handshake actually run.
+
+
+- **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01 addendum
+- **Lesson:** Keep persisted credential configuration distinct from a verified transport handshake. Only move `configured` to `connected` after a valid server discovery, and keep the encrypted credential present for either state. A UI status must not imply a live connection before the handshake is observed.
+
+
+- **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01 cache clarification
+- **Lesson:** A tiny cache can remove repeated `tools/list` round trips during one request if it is bound to the exact immutable execution-context identity and credential fingerprint, contains only remote metadata, and does not cache authorization. Recheck DB permissions on every resolution and bypass the cache for invocation/schema validation. Do not turn this into a cross-request cache without explicit invalidation for policy and remote schema changes.

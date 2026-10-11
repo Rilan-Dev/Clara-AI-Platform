@@ -1,3 +1,15 @@
+### SESSION-DEV-20261011-01 — 2026-10-11
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Implement secure Streamable HTTP MCP resolver and Chat/realtime runtime wiring through the Unified Tool Runtime.
+- **Started from:** `feature/ai-core-from-doable-source`, after SESSION-DEV-20261010-02.
+- **Scope:** MCP transport, discovery/schema validation, execution-time authorization, Chat and OpenAI realtime tool advertisement/dispatch.
+- **Status:** ACTIVE — source implementation committed; verification pending.
+- **Completed:** Resolver with HTTPS/DNS IP pinning/TLS/no redirects/timeouts/cancellation/size bounds; paginated discovery; schema conversion and stale-schema denial; DB-backed caller/tenant/plan/grant rechecks; request-scoped Chat runtime composition; realtime advertisement and dispatch; endpoint/IP regression source.
+- **Pending:** Mocked transport/runtime tests; focused tests and type-check; controlled live handshake; tenant-scoped discovery cache only after invalidation semantics are reliable.
+- **Blockers:** Tests, typecheck/build/migration/live MCP flow were not run in this source-only workflow.
+- **Handoff:** None. Security/correctness remains DEV-01 until a concrete substantial defect requires FIX-01; infra-only issues go to OPS-01.
+- **Next action:** Continue mocked transport and revocation/parity coverage; run focused tests and typecheck locally when available without polling CI/Vercel; keep servers disabled until a controlled live handshake succeeds.
+
 ### SESSION-DEV-20261009-02 — 2026-10-09
 - **Agent:** DEV-01 / Forge
 - **Invocation:** Finish explicitly requested I-6 MCP bounded hardening, then continue the Integrations & AI Enhancement Roadmap without waiting for CI/Vercel/Gates.
@@ -310,3 +322,57 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Commits:** `59a671286a55ff04bd34ba41003c5db015b5afa2`, `518c238d84e93f4d214e0ff802c9b317fd834e01`.
 - **Verification:** Not run locally; no Vitest/typecheck/browser screenshot PASS claimed.
 - **Next:** Continue remaining UI surfaces and WhatsApp roadmap.
+
+
+### SESSION-DEV-20261010-01 — 2026-10-10
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Audit MCP completed/pending functionality and plan platform-admin/org UI plus chat/realtime voice usage.
+- **Started from:** `feature/ai-core-from-doable-source`; recovered NEXT_ACTION and role-local memory/worklog.
+- **Scope:** MCP source audit, gap analysis, UI/authorization architecture and project-control continuity.
+- **Status:** ACTIVE
+- **Completed:** Inspected I-6 bridge/test, integration policy/bridge, realtime dispatch and existing UI paths; added MCP roadmap and updated NEXT_ACTION.
+- **Pending:** Persistent server registry/credential contract, platform-admin and org UI/API, host transport/resolver, chat/realtime MCP registration, isolation/security regression source.
+- **Blockers:** None to planning; inspect migration and credential-vault conventions before schema/API changes.
+- **Handoff:** None.
+- **Next action:** Implement registry/credential/grant contract and platform/org UI in existing integration surfaces; retain Unified Tool Runtime and default-deny surfaces until explicitly wired.
+
+### SESSION-DEV-20261010-02 — 2026-10-10
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Implement next MCP server registry/connection/grant contract and admin/org/agent UI.
+- **Started from:** Current branch and MCP audit session SESSION-DEV-20261010-01.
+- **Scope:** Migration, server/org APIs, UI panels, focused regression source and control records.
+- **Status:** ACTIVE
+- **Completed:** Migration 069; platform registry API; org connection/org-tool/agent-tool grant API; platform, organisation and agent UI in existing integration surfaces; endpoint and tenant-isolation test source; NEXT_ACTION updated.
+- **Pending:** Streamable HTTP transport/resolver, live discovery/handshake, chat/realtime MCP registration, invocation-time reauthorization and executable tests/typecheck/build.
+- **Blockers:** Runtime needs DNS/IP SSRF checks and entry-point tracing; config is not live connectivity.
+- **Handoff:** None. FIX-01 for substantial security/correctness defects; OPS-01 for deployment/infrastructure-only work.
+- **Next action:** Implement the transport/resolver and wire authorized MCP tools into actual Chat and realtime voice via the Unified Tool Runtime.
+
+### SESSION-DEV-20261011-01 — 2026-10-11
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Diagnose user-provided production Gmail OAuth-app save failure and fix the source-level root cause.
+- **Status:** SOURCE FIX COMMITTED; runtime verification pending.
+- **Root cause/fix:** Exported the previously non-exported `normalizeScopes` helper imported by the platform OAuth-app PUT route. Commit: `bfc5fc00de27309598b4bcfe4813f8626de9b8b0`.
+- **Next:** Rebuild/redeploy and retry with rotated OAuth secret/fresh session; no CI/Vercel polling.
+
+
+### SESSION-FIX-20261011-01 — 2026-10-11
+- **Role:** FIX-01 / Sentinel
+- **Scope:** Root-cause-first investigation of Stripe `invoice.paid` foreign-key failure.
+- **Repository/runtime evidence:** User reports branch `feature/ai-core-from-doable-source`, pull fast-forward to `1fbd3bf2`, Docker build success, backend startup and `[migrate] All migrations already applied`. Repeated event `evt_1UP9JaSH7giJdRbDjderTSey` fails because organisation `d8f78644-3198-41db-bcc3-278ecad0ecb4` is absent.
+- **Source trace:** `invoiceOrgId()` reads Stripe metadata; webhook inserts returned ID into `billing_events` without proving tenant existence. Immediate failure is data referential mismatch; deeper cause is unknown.
+- **Changes:** No runtime/application code changed. Added durable memory/event/backlog/worklog record and routed read-only database/Stripe correlation to OPS-01.
+- **Failed approaches avoided:** No placeholder org, FK bypass, database reset/reseed, migration changes, or webhook semantics change.
+- **Verification:** Source inspection only; no direct database query, Stripe API lookup, tests, typecheck, or live correction. Not resolved; no PASS claimed.
+- **Next:** OPS-01 correlates event invoice/subscription/customer to `org_subscriptions` and `organisations` in the actual container DB. FIX-01 resumes only if evidence identifies an application-side lifecycle defect.
+
+
+### SESSION-FIX-20261011-02 — 2026-10-11
+- **Role:** FIX-01 / Sentinel
+- **Scope:** MCP platform server test route missing bearer credential error classification.
+- **Finding:** User's request only contained `serverId`. Source resolves the stored credential and returns `MCP_NO_PLATFORM_CREDENTIAL` without calling the remote resolver when no stored/temporary bearer token exists. The 502 status was misleading for this local configuration failure.
+- **Correction:** Specific missing-credential response changed to HTTP 400. Added route test proving no upstream handshake is attempted for this case.
+- **Commits:** `426e06fde3da96ee60b155ecafcf3b6c59825105`; `9e63b8bffcacf391557ad281303294a6e5352d18`.
+- **Verification:** Source/test authored only; no Vitest, typecheck, build, deployment, or live handshake run. No PASS claimed.
+- **Security:** Advised revocation/rotation of the session cookie exposed in the user-supplied curl.
+- **Next:** Enter/save a valid bearer credential or send a temporary `bearerToken`; then diagnose any actual probe failure independently.

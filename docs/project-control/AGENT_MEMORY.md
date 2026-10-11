@@ -146,3 +146,42 @@ If shared memory conflicts with current repository state or current requirements
 - **Remedy:** Constrain shared popover/hover-card/tooltip/dropdown widths to the viewport, allow overflow wrapping for long tokens, and add max-height/scrolling/shrink safety to dialog-like surfaces. Add focused regression tests for the shared contracts.
 - **Prevention:** Fix shared primitives before per-screen overrides. Follow with a feature-level search for custom width/whitespace classes and perform browser checks at narrow and desktop widths.
 - **Related record:** FIX-01 `SESSION-FIX-20261010-02`; `src/components/ui/layout-primitives.test.ts`; commit `da0f74909bfa4e92d1268ef4e0eb384d07ad9ed6`.
+
+
+## 2026-10-10 — FIX-01 OAuth configuration UX lesson
+
+The platform OAuth form must never ask admins to register a generic `your-domain/api/.../callback` placeholder. Clara's current shared callback contract is `/api/integrations/oauth/callback`; the UI should derive the origin from the current deployment, display the URI read-only, and the server must independently validate the same path. Keep platform OAuth app setup separate from end-user consent/connection status. Doable's docs also distinguish sign-in OAuth from integration OAuth and show credential source/readiness; adapt the principle, not its different callback routing architecture. This record is not authorization and does not claim live verification.
+
+
+## 2026-10-10 — Doable integration OAuth source comparison
+Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`. Useful patterns: derive public redirect origin separately from internal service URL; support an explicit public redirect override for reverse proxies; resolve OAuth credentials from admin DB then per-integration and shared Google/GitHub env; never return client secrets; make credential source/readiness visible. Adapt these principles to Clara's own route/schema/runtime; do not copy Doable's different storage/routing implementation.
+
+
+### OAuth setup follow-up — 2026-10-10
+
+- Provider-specific setup guidance belongs in a pure helper with tests; unknown integration IDs must fall back to generic steps instead of guessed links.
+- Safe OAuth-app readiness metadata may expose credential source and a boolean that a secret is configured, but never the encrypted secret itself.
+- Keep platform-managed OAuth credentials database-backed and encrypted. Do not add environment-variable fallback until precedence, rotation, audit, and deployment ownership are explicitly designed.
+- Source commits for the latest follow-up: `7fb942255f2dd3daf13e9a9e32270d70ff02938c`, `f1ebf20ef6242204ccb144b570f0ace5a874e052`, `9652855d4408737f3a6930f02caced07002eb65f`, `3a0a3e8864f0497facd85626b22e537a8225e1df`, `c55294c100647b9d3287503a7909197aa0960c85`, `f97140906cc4c63e7840d007e2a5d3c5b42ba986`.
+- Authored tests are not executed evidence. In an environment without a checkout or GitHub DNS, record the execution blocker separately from test results. Keep I-096 open until provider-backed OAuth and runtime evidence are recorded.
+
+
+## 2026-10-11 — FIX-01 Stripe invoice webhook orphan organisation
+
+- **Symptom/evidence:** User's freshly rebuilt Docker image starts and reports migrations already applied, but repeated `invoice.paid` event `evt_1UP9JaSH7giJdRbDjderTSey` fails inserting `billing_events` with PostgreSQL FK `billing_events_org_id_fkey`: `org_id=d8f78644-3198-41db-bcc3-278ecad0ecb4` does not exist in `organisations`. The app sends an alert email and Stripe retries, producing the same error.
+- **Source trace:** `src/app/api/webhooks/stripe/route.ts` obtains the organisation via `invoiceOrgId(inv)`, optionally updates `org_subscriptions` by that ID, then unconditionally inserts the billing event. `src/lib/stripe-activation.ts` resolves invoice organisation from legacy/modern subscription metadata or invoice metadata; this is metadata, not proof that the organisation exists in the current database.
+- **Root-cause boundary:** Confirmed immediate cause is an orphan/stale Stripe organisation identifier relative to the active database. The evidence does not yet distinguish stale Stripe metadata/test event, database restored without matching organisation/subscription rows, or an earlier lifecycle path that left a Stripe subscription pointing to a deleted/missing tenant. Migration output says all migrations applied, so do not assume this is a missing-schema/migration defect.
+- **Disposition:** Route the live database/Stripe-to-tenant reconciliation to OPS-01. FIX-01 makes no speculative billing or database mutation. Do not create an organisation, disable the FK, insert a placeholder tenant, reset/seed the database, or acknowledge/ignore a paid invoice in application code before tracing subscription/customer mappings and billing invariants.
+- **Prevention:** For FK errors, inspect the exact failed relation/key and correlate Stripe invoice → subscription/customer metadata → `org_subscriptions` → `organisations` in the same deployed database. Verify running image/commit and migration status first. Any eventual app-side orphan-event guard must preserve paid-event reconciliation and avoid silently losing receipts or entitlements.
+- **Verification:** Source trace only; no database query, Stripe API retrieval, tests, or code correction executed by FIX-01. Runtime status remains unresolved.
+
+
+## 2026-10-11 — FIX-01 MCP missing platform bearer credential response
+
+- **Symptom:** `POST /api/platform/mcp-servers/test` returns HTTP 502 with `MCP_NO_PLATFORM_CREDENTIAL` for a registered bearer-auth server when the stored credential is absent and the request omits `bearerToken`.
+- **Root cause:** The route correctly detected missing local credential configuration and did not call the upstream resolver, but mislabeled this local client/configuration error as a Bad Gateway response.
+- **Remedy:** Changed only this specific missing-platform-bearer response to HTTP 400. Added `src/app/api/platform/mcp-servers/test/route.test.ts` asserting the status/error code and that the upstream handshake is not called. Commits: `426e06fde3da96ee60b155ecafcf3b6c59825105`, `9e63b8bffcacf391557ad281303294a6e5352d18`.
+- **Failed approach:** An initial scripted patch failed its exact-text guard and made no change; the edit was retried with a narrower unique response-block match.
+- **Prevention:** Distinguish local missing configuration (4xx) from a remote MCP endpoint/handshake failure (502). Never infer upstream health from a missing-credential response.
+- **Security:** If an operator pastes a session/bearer cookie into a diagnostic, advise revocation/rotation and never echo it into project records.
+- **Verification:** Source committed; test authored but not executed. Production behavior is not verified. The request without `bearerToken` still cannot perform a handshake; configure a stored credential or supply a temporary token in the request.

@@ -15,10 +15,18 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
 import { resolveVoiceConfig } from "@/modules/voice-core/resolve";
 import { isSupportedOpenAIRealtimeVoice } from "./openai-catalog";
-import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret } from "./openai-realtime";
+import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret, type OpenAIRealtimeFunctionTool } from "./openai-realtime";
 import { getAuthContext } from "@/modules/auth/core/rbac";
 import { getKbAccessContext } from "@/modules/auth/core/db";
-import { isAgentLoopEnabled, isMcpEnabled, isProviderToolCallingEnabled } from "@/modules/ai-platform-core";
+import {
+  createExecutionContext,
+  isAgentLoopEnabled,
+  isMcpEnabled,
+  isProviderToolCallingEnabled,
+  mcpToolName,
+  streamableHttpMcpToolResolver,
+} from "@/modules/ai-platform-core";
+import { resolveOrgOwnedMcpCapabilities } from "@/modules/mcp/runtime-resolver";
 
 // Legacy document mode only. Unset → no cap (provider default "inf"); the
 // spoken audio counts against this limit, so a small cap truncates answers.
@@ -67,33 +75,6 @@ const REALTIME_INTEGRATION_TOOLS = [
   },
 ] as const;
 
-const REALTIME_MCP_TOOLS = [
-  {
-    type: "function" as const,
-    name: "mcp_availability",
-    description: "List organization-approved MCP tools available to this agent, including the connection name, tool name, description and input schema. Use mcp_tool with the returned toolId to invoke one.",
-    parameters: {
-      type: "object",
-      properties: {},
-      additionalProperties: false as const,
-    },
-  },
-  {
-    type: "function" as const,
-    name: "mcp_tool",
-    description: "Invoke one organization-approved MCP tool by its toolId. Discover valid toolIds with mcp_availability first. Pass the tool's expected arguments in `args`.",
-    parameters: {
-      type: "object",
-      properties: {
-        toolId: { type: "string", description: "The toolId returned by mcp_availability." },
-        args: { type: "object", additionalProperties: true },
-      },
-      required: ["toolId"],
-      additionalProperties: false as const,
-    },
-  },
-] as const;
-
 export async function postRealtimeSession(request: NextRequest): Promise<NextResponse> {
   try {
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
@@ -107,6 +88,8 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     let transcriptionLanguage: string | undefined;
     let toolDescription: string;
     let model: string;
+    let orgRows: Array<{ org_id: string; agent_id: string }> = [];
+    let orgId: string | null = null;
 
     if (kbId) {
       await ensureMigrated();
@@ -116,11 +99,11 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
       // ── Plan limit: voice must be enabled on the org's plan ──────────────
       // Runs BEFORE the assistant-config lookup so plan gating is always the
       // first failure a free-plan org sees.
-      const orgRows = await dbQuery<{ org_id: string; agent_id: string }>(
+      orgRows = await dbQuery<{ org_id: string; agent_id: string }>(
         `SELECT a.org_id, a.id AS agent_id FROM agents a JOIN knowledge_bases kb2 ON kb2.agent_id = a.id WHERE kb2.id = $1`,
         [kbId]
       );
-      const orgId = orgRows[0]?.org_id ?? null;
+      orgId = orgRows[0]?.org_id ?? null;
 
       // ── Phase 6.4: realtime session rate limit (10 / hour / org) ─────────
       // Ephemeral session minting is expensive (provider round-trip + a
@@ -206,7 +189,7 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "OPENAI_API_KEY is not set on server" }, { status: 500 });
 
-    const tools: Array<Record<string, unknown>> = [{
+    const tools: OpenAIRealtimeFunctionTool[] = [{
       type: "function" as const,
       name: "rag_search",
       description: toolDescription,
@@ -235,11 +218,60 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
           kbAccess.permissions.has("kb:read")
         ) {
           tools.push(...REALTIME_INTEGRATION_TOOLS);
-          // Organization MCP tools use the same authorization surface; they
-          // are advertised only when the owner-controlled ENABLE_MCP flag is
-          // on, and every invocation re-authorizes server-side.
+
+          // MCP tools are advertised only after a server-side discovery pass
+          // scoped to this authenticated organisation, agent, user and KB.
+          // The realtime tool endpoint repeats these grants at invocation.
           if (isMcpEnabled()) {
-            tools.push(...REALTIME_MCP_TOOLS);
+            const executionContext = createExecutionContext({
+              orgId,
+              kbId,
+              agentId: orgRows[0]!.agent_id,
+              userId: auth.user.id,
+              sessionId: auth.session.id,
+              surface: "realtime",
+              metadata: { mcpSignal: request.signal },
+            });
+            const mcpRows = await dbQuery<{ server_id: string; tool_name: string }>(
+              `SELECT DISTINCT s.id AS server_id, t.tool_name
+                 FROM platform_mcp_servers s
+                 JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
+                 JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status IN ('configured','connected')
+                 JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name AND g.enabled=true
+                 JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid AND ag.enabled=true
+                 JOIN knowledge_bases kb2 ON kb2.agent_id=ag.agent_id AND kb2.id=$3
+                WHERE s.platform_enabled=true
+                ORDER BY s.id, t.tool_name
+                LIMIT 8`,
+              [orgId, orgRows[0]!.agent_id, kbId],
+            );
+            for (const row of mcpRows) {
+              const descriptor = await streamableHttpMcpToolResolver.resolve({
+                serverId: row.server_id,
+                toolName: row.tool_name,
+                context: executionContext,
+              });
+              if (!descriptor || !descriptor.allowedSurfaces?.includes("realtime")) continue;
+              tools.push({
+                type: "function",
+                name: mcpToolName(descriptor.serverId, descriptor.name),
+                description: descriptor.description.slice(0, 1000),
+                parameters: descriptor.inputSchemaJson ?? { type: "object", properties: {}, additionalProperties: false },
+              });
+            }
+
+            // Organization-owned MCP connections are advertised through the
+            // same entitlement-gated discovery path used by chat, so voice and
+            // chat share one authorization and tool-execution policy.
+            const orgOwned = await resolveOrgOwnedMcpCapabilities(executionContext);
+            for (const tool of orgOwned.tools) {
+              tools.push({
+                type: "function",
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+              });
+            }
           }
         }
       }

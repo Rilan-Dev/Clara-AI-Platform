@@ -5,13 +5,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import type { ChatMessage, ChatToolDefinition, ToolCallingLLMProvider } from "@/modules/ai-core/types";
 import {
+  buildClaraToolRuntime,
+  buildMcpToolRuntime,
   createExecutionContext,
   getClaraToolRuntime,
+  isMcpEnabled,
+  mcpToolName,
+  streamableHttpMcpToolResolver,
   isAgentLoopEnabled,
   isProviderToolCallingEnabled,
   runBoundedAgenticLoop,
-  isMcpEnabled,
 } from "@/modules/ai-platform-core";
+import {
+  createCompositeMcpResolver,
+  resolveOrgOwnedMcpCapabilities,
+} from "@/modules/mcp/runtime-resolver";
 import {
   embedQuery,
   searchSimilarDocuments,
@@ -73,40 +81,79 @@ const INTEGRATION_CHAT_TOOLS: readonly ChatToolDefinition[] = [
   },
 ];
 
-const MCP_CHAT_TOOLS: readonly ChatToolDefinition[] = [
-  {
-    name: "mcp_availability",
-    description: "List organization-approved MCP tools available to this agent, including the connection name, tool name, description and input schema. Use mcp_tool with the returned toolId to invoke one.",
-    parameters: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "mcp_tool",
-    description: "Invoke one organization-approved MCP tool by its toolId. Discover valid toolIds with mcp_availability first. Pass the tool's expected arguments in `args`.",
-    parameters: {
-      type: "object",
-      properties: {
-        toolId: { type: "string", format: "uuid", description: "The toolId returned by mcp_availability." },
-        args: { type: "object", additionalProperties: true, description: "Arguments matching the tool's input schema." },
-      },
-      required: ["toolId"],
-      additionalProperties: false,
-    },
-  },
-];
+type ChatMcpCapabilities = {
+  requests: Array<{ serverId: string; toolName: string; context: ReturnType<typeof createExecutionContext> }>;
+  policy: { allowedServers: string[]; allowedToolPairs: Array<{ serverId: string; toolName: string }> };
+  tools: ChatToolDefinition[];
+  resolver: typeof streamableHttpMcpToolResolver;
+};
 
-/**
- * Tools advertised to the provider this request. Organization MCP tools are
- * appended only when the owner-controlled ENABLE_MCP flag is on; execution
- * re-authorizes every call server-side regardless.
- */
-function chatToolDefinitions(): readonly ChatToolDefinition[] {
-  return isMcpEnabled()
-    ? [...INTEGRATION_CHAT_TOOLS, ...MCP_CHAT_TOOLS]
-    : INTEGRATION_CHAT_TOOLS;
+async function resolveChatMcpCapabilities(context: ReturnType<typeof createExecutionContext>): Promise<ChatMcpCapabilities> {
+  if (!isMcpEnabled() || context.surface !== "chat" || !context.userId || !context.agentId) {
+    return { requests: [], policy: { allowedServers: [], allowedToolPairs: [] }, tools: [], resolver: streamableHttpMcpToolResolver };
+  }
+  const rows = await dbQuery<{ server_id: string; tool_name: string }>(
+    `SELECT DISTINCT s.id AS server_id, t.tool_name
+       FROM platform_mcp_servers s
+       JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
+       JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status IN ('configured','connected')
+       JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name AND g.enabled=true
+       JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid AND ag.enabled=true
+       JOIN knowledge_bases kb ON kb.agent_id=ag.agent_id AND kb.id=$3
+      WHERE s.platform_enabled=true
+      ORDER BY s.id, t.tool_name
+      LIMIT 8`,
+    [context.tenantId, context.agentId, context.kbId],
+  );
+  const requests = rows.map((row) => ({ serverId: row.server_id, toolName: row.tool_name, context }));
+  const resolved = await Promise.all(requests.map(async (request) => ({
+    request,
+    descriptor: await streamableHttpMcpToolResolver.resolve(request),
+  })));
+  const usable = resolved.filter((item) => item.descriptor !== null);
+  const platformCapabilities: ChatMcpCapabilities = {
+    requests: usable.map((item) => item.request),
+    policy: {
+      allowedServers: [...new Set(usable.map((item) => item.request.serverId))],
+      allowedToolPairs: usable.map((item) => ({ serverId: item.request.serverId, toolName: item.request.toolName })),
+    },
+    tools: usable.map(({ descriptor }) => ({
+      name: mcpToolName(descriptor!.serverId, descriptor!.name),
+      description: descriptor!.description.slice(0, 1000),
+      parameters: descriptor!.inputSchemaJson ?? { type: "object", properties: {}, additionalProperties: false },
+    } as ChatToolDefinition)),
+    resolver: streamableHttpMcpToolResolver,
+  };
+
+  // Organization-owned MCP connections ride the same request-scoped runtime:
+  // entitlement-gated discovery through the OrgMcpToolResolver adapter, then
+  // one composite resolver so a single Unified Tool Runtime serves both the
+  // optional platform catalog and tenant-owned custom endpoints.
+  const orgOwned = await resolveOrgOwnedMcpCapabilities(context);
+  if (orgOwned.requests.length === 0) {
+    return platformCapabilities;
+  }
+  const orgServerIds = new Set(orgOwned.allowedServers);
+  return {
+    requests: [...platformCapabilities.requests, ...orgOwned.requests],
+    policy: {
+      allowedServers: [...platformCapabilities.policy.allowedServers, ...orgOwned.allowedServers],
+      allowedToolPairs: [...platformCapabilities.policy.allowedToolPairs, ...orgOwned.allowedToolPairs],
+    },
+    tools: [
+      ...platformCapabilities.tools,
+      ...orgOwned.tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      } as ChatToolDefinition)),
+    ],
+    resolver: createCompositeMcpResolver({
+      platform: streamableHttpMcpToolResolver,
+      orgOwned: orgOwned.resolver,
+      orgOwnedServerIds: orgServerIds,
+    }),
+  };
 }
 
 // ── P1 FIX: Read max-tokens from env (was hardcoded 500) ──────────────────────
@@ -546,15 +593,25 @@ async function postChatKb(
               kbId,
               agentId: resolved.agentId!,
               userId: authCtx!.user.id,
-              ...(sessionId ? { sessionId } : {}),
+              sessionId: authCtx!.session.id,
               surface: "chat",
+              metadata: { mcpSignal: request.signal },
             });
+            // Discover only the MCP tools granted to this exact org/agent,
+            // and build a request-scoped Unified Tool Runtime so no capability
+            // closure can accidentally retain another chat session's identity.
+            const mcp = authCtx?.user.isSuperAdmin
+              ? { requests: [], policy: { allowedServers: [], allowedToolPairs: [] }, tools: [] as ChatToolDefinition[], resolver: streamableHttpMcpToolResolver }
+              : await resolveChatMcpCapabilities(executionContext);
+            const mcpRuntime = mcp.requests.length > 0
+              ? await buildMcpToolRuntime(executionContext, mcp.requests, mcp.policy, mcp.resolver, buildClaraToolRuntime())
+              : null;
             const loopResult = await runBoundedAgenticLoop(
               provider as ToolCallingLLMProvider,
               chatMessages,
-              chatToolDefinitions(),
+              [...INTEGRATION_CHAT_TOOLS, ...mcp.tools],
               executionContext,
-              getClaraToolRuntime(),
+              mcpRuntime ?? getClaraToolRuntime(),
               {
                 signal: request.signal,
                 enabled: true,

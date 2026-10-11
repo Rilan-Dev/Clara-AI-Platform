@@ -1,7 +1,7 @@
 /**
  * src/modules/embed/core/search.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Thin wrapper around Qdrant search used by public embed endpoints.
+ * Thin wrapper around Qdrant vector query used by public embed endpoints.
  * Keeps embed routes clean — no direct Qdrant imports needed there.
  */
 
@@ -83,7 +83,7 @@ async function searchOnePhrasing(
   const fetchLimit = options?.filter || options?.realtimeVoice ? topK : candidatePoolSize(topK);
 
   const searchParams = {
-    vector: embedding,
+    query: embedding,
     limit: fetchLimit,
     with_payload: ["chunk", "title", "documentId"],
     score_threshold: options?.scoreThreshold ?? SCORE_THRESHOLD,
@@ -93,7 +93,8 @@ async function searchOnePhrasing(
   let results: unknown[] = [];
   try {
     const qdrantStart = Date.now();
-    results = await client.search(collectionName, searchParams as Parameters<typeof client.search>[1]);
+    const response = await client.query(collectionName, searchParams as Parameters<typeof client.query>[1]);
+    results = response.points;
     console.info("[realtime-latency] vector search stages", {
       realtimeVoice: options?.realtimeVoice === true,
       embeddingMs,

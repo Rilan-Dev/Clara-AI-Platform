@@ -110,3 +110,79 @@
 - **Blockers/dependencies:** Architect review pending. No deployment performed.
 - **Lesson:** Realtime model tool descriptors are not an authorization boundary; every tool call must re-enter a same-origin authenticated endpoint and derive tenant/agent/user/session identity server-side before invoking the shared runtime.
 - **Next action:** Architect review this bounded implementation; route any substantial defect to FIX-01. No unrelated implementation is authorized by this task.
+
+
+## 2026-10-11 — Integrations settings page: configure-before-enable + MCP settings menu
+
+- **Owner instruction (session task):** fix the Integrations settings page — most integrations had no configuration entry, everything was default-enabled, the layout was not responsive, and the MCP panel sat exposed at the top of the page; move MCP management into a dedicated settings menu. Referenced the doable-source control plane and the lovable design guidance.
+- **Branch:** `feature/ai-core-from-doable-source`.
+- **Control-plane parity with doable source (`integrations-admin.ts`):**
+  - `src/modules/integrations/platform-credentials.ts` derives the credential fields a platform admin must supply (secret_text → API key; basic_auth → username/password; custom_auth → registry `customAuthFields`) and the `isPlatformConfigured` predicate (oauth2+requiresOAuthApp → platform OAuth app row; non-OAuth → platform credential row; none → always configured).
+  - Focused regression suite `src/modules/integrations/platform-credentials.test.ts` (14 tests) covers field derivation, the configured predicate, input validation, and auth-type predicates.
+- **Migration `071_platform_integration_credentials.sql`:** creates `platform_integration_credentials` (pgp_sym_encrypt with the server ENCRYPTION_KEY, same scheme as platform OAuth apps), flips `platform_integrations.enabled` default to FALSE, and resets seed-default-enabled rows that were never actually configured (OAuth-configured integrations keep their state). Idempotent; auto-discovered by the migration runner.
+- **API:** `GET/PATCH /api/platform/integrations` now reports `configured` and rejects enabling an unconfigured integration with `INTEGRATION_NOT_CONFIGURED` (400). New `GET/PUT/DELETE /api/platform/integrations/[integrationId]/credentials` loads field shapes, upserts encrypted credentials, and disables the integration when credentials are removed so the configured/enable invariant cannot drift. All routes are super-admin gated and never return decrypted secret material.
+- **Production seed:** `seedPlatformIntegrations` no longer force-enables the catalog; rows are inserted disabled and re-runs preserve admin-chosen enablement.
+- **Settings → Integrations screen:** rebuilt responsive card grid (min-w-0 guards, flex-wrap action rows, 1/2/3-column grid, responsive filter bar with search + category + status tabs). Cards show Enabled / Ready to enable / Not configured state; the enable/disable toggle only renders after configuration; unconfigured cards show a Configure / Set up OAuth action that opens the matching dialog (OAuth app dialog for oauth2, encrypted credentials dialog for secret_text/basic_auth/custom_auth with remove-credentials flow).
+- **MCP moved to a dedicated settings menu:** the MCP servers panel that sat at the top of the Integrations page was removed; `Settings → AI & voice → MCP servers` (`/settings/mcp`) now hosts a full screen with register-server dialog (registers disabled by default), tool allowlist approve/revoke, and enable/disable. The organisation-level MCP panel moved to the bottom of the organisation integrations page where org-scoped credential management belongs.
+- **Toolchain:** `tsconfig.json` drops `baseUrl` — removed in TypeScript 7 (TS5102); `paths` resolve relative to the tsconfig as before.
+- **Verification performed:** vitest platform-credentials suite 14/14 PASS; full integrations module suite shows the same 10 pre-existing runtime-test failures as the clean HEAD baseline (no regression); `tsc --noEmit` reports zero errors in every touched file (85 pre-existing errors in unrelated files both before and after); stylesheet guard 8/8 PASS. Full `next build` was attempted three times and OOM-killed by the sandbox's 4 GB limit — not a code failure; Docker rebuild on the deployment host remains the owner's rollout step.
+- **Not done / pending owner action:** deploy-side migration run, Docker rebuild, live UI walkthrough of the new configure flows, and runtime OAuth verification remain pending. No CI/Vercel/Gate result is claimed.
+
+
+## 2026-10-11 — MCP management: live discovery, edit/delete, org connection test, screen rebuilds
+
+- **Owner instruction (session task):** both MCP screens and the integrations page had poor UI/UX; MCP servers could not be edited or deleted; the n8n MCP connection to https://n8n.ostechnologies.in/mcp-server/http could not be made to succeed. Reference the doable source for the production-ready MCP flow (logic + UI), then develop, test, and verify.
+- **Doable-source reference adopted:** MCP panel spec (`UI_CAPABILITY_MATRIX.md`) — list, refresh, active/inactive, reconnect/test, delete, loading, empty, error states; add-server form with auth + discovery + validation; connector-card expandable pattern with status dots, transport badges, tool counts, confirm-delete. Backend pattern from `services/api/src/routes/connectors.ts` — POST /test that runs a live handshake and caches the discovered tool list, DELETE with runtime cleanup.
+- **Root cause of "cannot connect n8n":** the org connect action only stored encrypted credentials with status 'configured'; nothing transitioned to 'connected' outside a chat-time dispatch, which itself requires pre-approved tool rows that could not be known without discovery (chicken-and-egg), plus ENABLE_MCP. The settings UI offered no live handshake at all.
+- **Resolver (`mcp-streamable-http-resolver.ts`):** added exported `probeStreamableHttpServer()` — a live initialize → notifications/initialized → paginated tools/list handshake sharing the hardened transport (DNS re-resolution, private-range rejection, pinned sockets, no redirects, 8s/1MB bounds), with actionable error fidelity (HTTP 401/403/404/405 hints, JSON-RPC error surfacing, stable error codes) and no token logging. Protocol negotiation now accepts the known MCP revisions (2024-11-05, 2025-03-26, 2025-06-18) per spec instead of exact-equality on one string. Also fixed pre-existing type errors (LookupFunction import moved to node:net; auth header Record typing) — module typecheck errors 7 → 0.
+- **Platform API:** new `POST /api/platform/mcp-servers/test` (super-admin; probes a registered server or a raw endpoint before registration; never echoes the token). New `DELETE` handler removing a server with its full cascade (tools, org connections, org/agent grants — all ON DELETE CASCADE from migration 069). POST displayName typing fixed.
+- **Org API (`/api/orgs/[orgId]/mcp-servers`):** new `test` action — decrypts the stored org credentials, runs the live probe, and records `connected` + `last_connected_at` or `error` + `last_error_code` (credentials kept so a rotated token just needs re-entry). GET query now typed (fixes pre-existing TS2345).
+- **Screens rebuilt on the doable pattern:** platform MCP screen — expandable server cards (status dot, tool-count chip, endpoint, details grid), register/edit dialog with **Discover tools** (live handshake; select discovered tools to import into the allowlist), per-server Test connection with an optional API key field, Approve-all/Approve/Revoke tools, enable/disable, and confirm-delete. Org MCP panel — status chips (Connected / Credentials saved / Error / Not connected), connect dialog for the bearer token, **Test connection** with discovered-tool feedback, grant/revoke tool toggles, confirm-disconnect. Integrations screen — stats row, refresh button, loading state.
+- **Critical packaging fix:** `.gitignore` rule `mcp-servers` (added in ed3890bc for the top-level vendored dir) silently ignored ANY path named mcp-servers — the new `src/app/api/platform/mcp-servers/test/route.ts` would not have been committed. Scoped to `/mcp-servers`.
+- **Verification performed:** resolver suite 36/36 PASS (18 new probe tests); integrations suite 14/14 PASS; ai-platform-core suite shows the same 12 pre-existing failures as clean HEAD with 6 additional passing tests and zero new failures; `tsc --noEmit` clean in every touched file (total errors 85 → 78, all remaining pre-existing in untouched files); stylesheet guard 8/8 PASS; **live probe executed against the real n8n endpoint** — DNS/range checks pass and the unauthenticated call returns the intended actionable result (`HTTP 401 — check the API key / bearer token`, errorCode MCP_UNAUTHORIZED, ~800ms). A full tools/list round-trip requires the owner's real n8n API key, which is not present in this environment.
+- **Owner rollout steps for n8n:** pull on the Docker host → rebuild → register/edit the n8n server (auth mode: org bearer token) → Discover tools with the n8n API key (n8n Settings → n8n API) → approve the imported tools → enable the server → org: connect with the key → Test connection (expect Connected + tool list) → grant tools to the org/agents → set ENABLE_MCP=1 for runtime dispatch. No CI/Vercel/Gate result is claimed; full `next build` remains blocked by the sandbox 4 GB OOM limit.
+
+## 2026-10-11 — MCP platform credentials + OAuth 2.1 sign-in (Task C round 3)
+
+User report: registration was n8n-specific, the discovery API key was never stored
+(test-by-serverId returned 401 MCP_UNAUTHORIZED), and OAuth-login MCP servers
+could not be connected at all.
+
+- Migration 072: `platform_mcp_servers.auth_mode` gains `oauth`; new encrypted
+  `platform_credentials_encrypted` (bearer token or OAuth token set), oauth
+  status/error/connected-at columns, and one-time `platform_mcp_oauth_states`
+  (SHA-256 state digest, encrypted PKCE verifier + client secret) mirroring
+  migration 066; idempotent.
+- New `mcp-oauth.ts`: MCP-spec OAuth 2.1 client — RFC 9728 resource probe,
+  RFC 8414 metadata discovery (path-inserted → origin → OIDC fallback),
+  RFC 7591 dynamic client registration (public client + PKCE S256, manual
+  client fallback), authorization-code exchange and refresh rotation. All
+  requests ride the hardened shared transport.
+- Extracted `mcp-http-transport.ts` from the resolver (DNS pinning, private-
+  range rejection, no redirects, bounded size/time) so the OAuth client reuses
+  the same guards without import cycles; resolver re-exports its guards.
+- Resolver `getAuthorizedServer`: tenant bearer wins, else the platform
+  credential; oauth servers resolve their access token with silent refresh +
+  encrypted write-back. Same for admin `test` (serverId mode now uses the
+  stored credential — fixes the 401) and org `test`.
+- API: POST/PATCH accept authMode `oauth` + encrypted bearerToken storage
+  (blank keeps current; auth-mode switch clears credential + resets OAuth
+  state); GET exposes hasPlatformCredential/oauthStatus; new routes
+  `oauth/start` (probe + discovery + DCR + PKCE state → authorization URL),
+  `oauth/callback` (single-use state, code exchange, encrypted token storage,
+  redirect back to /settings/mcp), `oauth/disconnect`.
+- Org API: oauth servers connect platform-managed (no tenant token, requires
+  completed platform sign-in); bearer servers accept an optional tenant token
+  when a platform key is stored.
+- UI: registration is fully generic (any Streamable HTTP MCP server; n8n only
+  as an example), three auth modes, stored-encrypted bearer field, OAuth
+  scopes + manual-client option, "Register and sign in" flow, per-card OAuth
+  status chip with Sign in/Reconnect/Disconnect, callback banner, and
+  "Import discovered tools" after a successful card-level test. Org panel
+  adapts its connect dialog to the three auth modes.
+- Tests: 29 new mcp-oauth unit tests + 4 route validation tests + org route
+  suite rewritten with SQL-keyed mocks (fixes two pre-existing flaky
+  assertions) + opt-in live discovery test. 76/76 pass; typecheck at the
+  pre-existing 78-error baseline; integrations suites unchanged vs HEAD.
+  Live verification: full OAuth discovery against the production n8n instance
+  (401 probe + RFC 8414 metadata + DCR endpoint) and Notion's hosted MCP.

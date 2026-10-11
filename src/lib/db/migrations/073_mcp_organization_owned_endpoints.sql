@@ -1,13 +1,23 @@
--- 069_mcp_organization_owned_endpoints.sql
+-- 073_mcp_organization_owned_endpoints.sql
 -- Clara AI Platform — organization-owned MCP connections, plan MCP
 -- entitlements, platform governance, usage metering and audit.
+--
+-- Renumbered from the original PR's 069: this branch's target already
+-- carries 069_mcp_server_control_plane (platform catalog model), 070
+-- handshake status, 071 platform integration credentials and 072 MCP
+-- platform credentials/OAuth. The organization-owned model is deliberately
+-- a SEPARATE table family from the catalog tables above: platform catalog
+-- servers keep platform_mcp_*/organisation_mcp_* coupling, while org-owned
+-- custom endpoints live in org_mcp_* tables with no platform registry FK.
+-- No migration that may already have been applied is rewritten; this file
+-- was never applied anywhere before this renumber (PR-only numbering).
 --
 -- Ownership model:
 --   * Organizations own their custom MCP connections, endpoints, encrypted
 --     credentials, discovered tools, approvals and agent permissions.
 --   * Organization-owned connections never require platform_mcp_* registry
---     rows (no such registry exists; the optional platform catalog is a
---     separate, independent concern).
+--     rows; the optional platform catalog is a separate, independent
+--     concern and remains fully functional alongside these tables.
 --   * Platform admins control plan entitlements, global security policy and
 --     emergency disablement via mcp_platform_settings + plan columns.
 --
@@ -211,3 +221,41 @@ CREATE TABLE IF NOT EXISTS mcp_platform_audit_log (
 
 CREATE INDEX IF NOT EXISTS mcp_platform_audit_log_created_idx
   ON mcp_platform_audit_log (created_at DESC);
+
+-- ─── 9. Row-level security (matches the 069 catalog conventions) ────────────
+-- The application connects as the table owner (RLS-exempt) and enforces
+-- tenant scoping in every query; RLS plus the role revokes below keep these
+-- tenant-owned tables unreachable for anon/authenticated request roles.
+
+ALTER TABLE public.org_mcp_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.org_mcp_tools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.org_mcp_agent_grants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mcp_tool_usage_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.org_mcp_overrides ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.org_mcp_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mcp_platform_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mcp_platform_settings ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON public.org_mcp_connections FROM anon;
+    REVOKE ALL ON public.org_mcp_tools FROM anon;
+    REVOKE ALL ON public.org_mcp_agent_grants FROM anon;
+    REVOKE ALL ON public.mcp_tool_usage_log FROM anon;
+    REVOKE ALL ON public.org_mcp_overrides FROM anon;
+    REVOKE ALL ON public.org_mcp_audit_log FROM anon;
+    REVOKE ALL ON public.mcp_platform_audit_log FROM anon;
+    REVOKE ALL ON public.mcp_platform_settings FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON public.org_mcp_connections FROM authenticated;
+    REVOKE ALL ON public.org_mcp_tools FROM authenticated;
+    REVOKE ALL ON public.org_mcp_agent_grants FROM authenticated;
+    REVOKE ALL ON public.mcp_tool_usage_log FROM authenticated;
+    REVOKE ALL ON public.org_mcp_overrides FROM authenticated;
+    REVOKE ALL ON public.org_mcp_audit_log FROM authenticated;
+    REVOKE ALL ON public.mcp_platform_audit_log FROM authenticated;
+    REVOKE ALL ON public.mcp_platform_settings FROM authenticated;
+  END IF;
+END $$;

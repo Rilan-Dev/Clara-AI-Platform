@@ -40,19 +40,19 @@ export async function searchHybrid(
 
   // 2. Dense vector search — fetch exactly topK (P8 fix).
   //    First attempt with score threshold (P9 fix); retry without if no hits.
-  let denseResults = await client.search(collectionName, {
-    vector: denseEmbedding,
+  let denseResults = (await client.query(collectionName, {
+    query: denseEmbedding,
     limit: topK,
     with_payload: true,
     score_threshold: SCORE_THRESHOLD,
-  });
+  })).points;
 
   if (!Array.isArray(denseResults) || denseResults.length === 0) {
-    denseResults = await client.search(collectionName, {
-      vector: denseEmbedding,
+    denseResults = (await client.query(collectionName, {
+      query: denseEmbedding,
       limit: topK,
       with_payload: true,
-    });
+    })).points;
   }
 
   // 3. RRF fusion map — structured for multi-source fusion when sparse is added.

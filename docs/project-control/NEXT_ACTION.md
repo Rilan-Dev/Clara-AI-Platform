@@ -1,3 +1,82 @@
+## NEWEST IMMEDIATE ACTION — FIXED DUPLICATE EXPORT; REBUILD REQUIRED — 2026-10-11
+
+- Owner-provided Docker build failed because `src/modules/ai-platform-core/index.ts` exported `buildClaraToolRuntime` twice.
+- Removed the duplicate export in commit `d755aea0de75509cabfe2ed4c76e7cae2468db2e`.
+- **Next action:** `git pull origin feature/ai-core-from-doable-source`, then rebuild `clara-backend`. Do not infer success from the old container remaining healthy. If build passes, recreate backend and retry Gmail OAuth save with a fresh platform session and the rotated Google OAuth secret. If the build reports a new compiler error, fix that next exact error without waiting for CI/Vercel.
+- Runtime OAuth verification remains pending; do not share tokens or secrets in logs/chat.
+
+---
+
+# URGENT CURRENT ACTION — GMAIL OAUTH APP SAVE FAILURE — 2026-10-11
+
+1. Revoke the exposed Clara platform session and rotate the exposed Google OAuth client secret; update the server-side configuration with the replacement secret. Do not put credentials in logs or project-control docs.
+2. Deploy/rebuild the branch containing commit `bfc5fc00de27309598b4bcfe4813f8626de9b8b0` so the corrected named export is present in the runtime bundle.
+3. Retry the Gmail OAuth app save with a fresh session and rotated secret. If it still fails, collect the server-side exception and stack only; redact cookies, client secrets, tokens and request bodies.
+4. Verification remains pending until the save is observed to succeed. Do not poll CI/Vercel continuously.
+
+# CURRENT NEXT ACTION UPDATE — MCP RESOLVER + CHAT/REALTIME SOURCE WIRING — 2026-10-11
+
+DEV-01 has now added the first Streamable HTTP resolver behind `McpToolResolver` and source-level Chat / OpenAI realtime tool advertisement and dispatch through the Unified Tool Runtime. This supersedes the prior exact action to begin the resolver, but does not establish a verified runtime.
+
+## Implemented in source
+- `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts`: HTTPS-only, DNS answer checks and pinned outbound lookup, TLS verification, redirects refused, timeout/cancellation, request/response bounds, JSON-RPC initialization, paginated discovery, supported schema conversion/validation, stale-schema rejection, and execution-time permission checks.
+- Chat advertises eligible MCP tools and uses a fresh request-scoped Clara runtime with MCP capabilities.
+- OpenAI realtime advertises eligible MCP tools and the authenticated realtime tool route dispatches the exact granted pair through a Unified Tool Runtime.
+- Focused endpoint/IP safety test source added.
+- Migration 070 distinguishes saved credentials (`configured`) from a successful discovery handshake (`connected`); the UI shows the last handshake and permits bearer credential rotation. This migration is source-authored but not applied or tested.
+
+## Verification boundary
+No Vitest, type-check, lint, build, migration, DNS-rebinding integration test, live MCP handshake, Chat E2E, realtime E2E, CI, Vercel, or deployment was run. No PASS is claimed. Keep platform servers disabled and `ENABLE_MCP=false` until source is executable-tested and a controlled live handshake succeeds.
+
+## Exact next action
+1. Add mocked transport/runtime regression tests for DNS rebinding/IP pinning, redirects, timeout/cancellation, size limits, stale schema, and revocation/platform/plan/tenant denial.
+2. Run focused MCP bridge/resolver and Chat/realtime tests plus `npm run type-check` locally when execution is available; fix source issues directly without waiting or polling CI/Vercel.
+3. Validate the real MCP initialize/list/call flow against a controlled server before enabling any production registry entry.
+4. Validate the bounded per-execution-context discovery singleflight cache under parallel calls. It caches only remote metadata for 3 seconds, rechecks current DB authorization on every resolve, and is bypassed during invocation. Do not introduce cross-request caching unless grant/schema invalidation is reliable.
+5. Route substantial correctness/security issues to FIX-01 and infrastructure/deployment-only work to OPS-01.
+
+Detailed record: `docs/project-control/sessions/SESSION-DEV-20261011-01.md`.
+
+---
+
+# CURRENT NEXT ACTION UPDATE — MCP CONTROL PLANE SLICE IMPLEMENTED — 2026-10-10
+
+DEV-01 / Forge has implemented the first source-level MCP registry and configuration/grant slice. This supersedes the earlier wording that the registry/UI was only planned; the runtime transport and chat/realtime registration remain pending.
+
+## Implemented in source
+- Migration `069_mcp_server_control_plane.sql`: platform server registry, approved tool allowlist/surfaces, encrypted org-owned credentials, org tool grants, agent tool grants, indexes, RLS and Data API revocations.
+- `/api/platform/mcp-servers`: super-admin-only list/create/update and exact tool approval; HTTPS DNS-host endpoint validation, supported transport/auth validation, server disabled by default.
+- `/api/orgs/[orgId]/mcp-servers`: org-authorized listing/configuration, encrypted write-only bearer token, plan entitlement checks, explicit org/agent grants, cross-org agent ownership check, revoke/disconnect flow.
+- Existing platform Integrations screen now contains MCP Servers management; existing organisation Integrations screen now contains organisation MCP configuration; existing Agent Integrations screen now contains per-agent MCP tool grants.
+- Source regression tests added for endpoint safety validation, org scope, cross-org agent grant denial and credential redaction.
+- Saved credentials are explicitly marked `configured`, not `connected`; no successful live MCP handshake is claimed.
+
+## Exact next action
+1. Implement the supported Streamable HTTP MCP client/resolver behind the existing `McpToolResolver` interface, with DNS resolution validation on every connection, private/link-local/metadata IP blocking, TLS verification, no redirects by default, timeout/cancellation and response-size limits.
+2. Add safe tool discovery, schema conversion/validation, redacted operational errors, tenant-scoped cache invalidation and exact server/tool policy snapshots.
+3. Register MCP tools in the real Chat runtime and realtime voice tool advertisement/dispatch through the existing Unified Tool Runtime. Recheck platform enabled, plan, org connection/grant, agent grant, caller/user, session and surface at invocation; default-deny embed and platform-admin sessions.
+4. Add runtime parity/revocation/stale-discovery/timeout tests and focused execution tests. Do not claim tests passed unless run and observed.
+5. Continue without polling CI/Vercel. Route substantial correctness/security defects to FIX-01 and deployment/infrastructure-only work to OPS-01.
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-10 — MCP CONFIGURATION, TENANT ISOLATION, CHAT + REALTIME VOICE
+
+[owner-authorized] DEV-01 / Forge is authorized to continue MCP product development from the current branch state. Source audit/roadmap: `docs/superpowers/plans/2026-10-10-mcp-configuration-ui-chat-voice-roadmap.md`.
+
+## Source audit disposition
+- I-6 MCP Tool Bridge is complete at source level; it adapts a host-supplied resolver into the existing Unified Tool Runtime and has regression source.
+- The bridge is not an MCP transport/client or persistent server configuration UI.
+- Existing platform/org/agent integration screens and realtime integration dispatch exist, but do not establish a working configured MCP server end-to-end.
+- No executable tests/typecheck/build/live MCP connection were run or claimed.
+
+## Exact next implementation slice
+1. Inspect active migrations, existing platform integration CRUD, org/agent grant APIs, credential vault and runtime context contracts.
+2. Implement a narrow persisted MCP server/configuration contract and migration with platform approval, encrypted write-only auth, org connection ownership, exact server/tool-pair policy and agent grants. Never persist or return plaintext secrets.
+3. Add platform-admin MCP server management to the existing integrations UI and organisation connection/tool-grant controls to the existing organisation integrations UI; do not add another sidebar.
+4. Connect the first supported transport to a host-owned `McpToolResolver`; fail closed for unsupported transport and enforce SSRF/TLS/timeout/size/redirect safety.
+5. Wire authorized MCP tools into provider chat and realtime voice through the same Unified Tool Runtime, with server-derived identity and authorization rechecks at invocation. Do not expose to platform-admin sessions or public embeds by default.
+6. Add regression source for cross-organisation isolation, revoked grants, platform/plan denial, secret redaction, transport abuse, chat/realtime parity, and stale tool discovery.
+7. Update project-control, DEV-01 memory/worklog, and session records. Do not wait for CI/Vercel; route substantial security/correctness defects to FIX-01 and infrastructure/deployment-only work to OPS-01.
+
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-09 — WHATSAPP CONNECTION + DAILY BRIEFING SOURCE
 
 [owner-authorized] DEV-01 has implemented the main source path from Meta authorization through signed webhook persistence and a gated daily briefing sender. The live Meta app and runtime behavior remain unverified.
@@ -1824,6 +1903,69 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 - Inspect Doable and reusable-library references for multi-provider capability/tool-loop patterns when useful, but keep Clara authorization and Unified Tool Runtime authoritative.
 - Do not claim all providers support tool calling unless their adapter explicitly implements it. Never expose credentials to model-visible tool definitions.
 
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-10 — FIX-01 OAUTH CONFIGURATION CLARITY
+
+[owner-authorized] Continue bounded integration/OAuth configuration work without waiting for DEV-01, CI, Vercel, or external gates.
+
+## Completed source correction
+- Replaced the generic OAuth callback placeholder with a deployment-derived, read-only canonical callback URI: `/api/integrations/oauth/callback`.
+- Replaced stale setup warning copy with actionable provider-console steps and clear save-vs-connect semantics.
+- Server-side redirect validation now enforces the same callback path and rejects query strings/placeholders.
+- Focused regression source updated for canonical callback validation.
+
+Commits: `8c64ed818fdfb1185472ec62f74d3f9e1d79ae25`, `c12071271a9c79870b93093ce78375ddab96b4bd`, `3bb395bef2069d39dd4cf80b9261b73400a99c52`.
+
+## Verification
+Source only. Tests/typecheck/build/browser/live OAuth/deployment were not run. Do not infer a PASS.
+
+## Next bounded work
+1. Continue actual Doable source comparison for platform OAuth app setup and credential resolution, not docs alone.
+2. Add registry-backed provider console setup links and scope/API enablement guidance only where grounded in provider metadata.
+3. Consider a platform-admin OAuth test flow only if it can safely use a dedicated test identity/organisation and existing OAuth start/callback runtime; do not create a second OAuth executor.
+4. Preserve encrypted client secrets/tokens, one-time state, exact callback validation, org/agent/plan authorization and the Unified Tool Runtime.
+5. Route migration, deployment, proxy-origin and runtime-environment defects to OPS-01. Do not wait for CI/Vercel/Gates.
+
+
+## FIX-01 Doable source comparison update — 2026-10-10
+Actual Doable source has now been inspected: `services/api/src/integrations/oauth2.ts`, `services/api/src/routes/integrations-oauth.ts`, and `services/api/src/routes/integrations-admin.ts`. Follow-up may evaluate source badges and env credential fallback, but only after checking Clara's current OAuth app model and secrets policy. A platform-admin Connect Test should reuse the existing OAuth lifecycle and must not invent a parallel callback/executor. Current callback UI/server validation correction remains source-only; no tests or live OAuth were run.
+
+
+## FIX-01 OAuth follow-up — 2026-10-10 (I-096 remains OPEN)
+
+This is a bounded integration-setup follow-up and does not supersede the repository's other active implementation track.
+
+1. Run focused tests from a working checkout: `npm test -- src/modules/integrations/oauth-app-validation.test.ts src/modules/integrations/oauth-setup-guides.test.ts`; fix any failures before claiming source-test evidence.
+2. Review the provider setup-guide mapping against the current OAuth-enabled registry IDs. Unknown IDs intentionally get generic instructions rather than guessed links. Scopes displayed by Clara remain registry/database-driven; verify each provider's scopes against its current console before production use.
+3. Keep credentials database-only for now. Do not add environment-variable fallback until precedence, secret rotation, auditability, and deployment-secret ownership are explicitly designed.
+4. Ask OPS-01 to verify the deployed callback origin, reverse-proxy headers/base URL, required OAuth-app migration, and runtime config. Do not wait for CI/Vercel to continue source work.
+5. Complete a real provider consent → one-time state consume → callback-origin/path check → token exchange → encrypted connection persistence test using a configured test app. Keep I-096 OPEN until evidence exists.
+
+- Scope guidance follow-up: `427383ea8f0f4c13b1c38991da5e24b9ed28a1dd` now makes empty default scopes explicit. Confirm the provider's required permissions before a live connect test.
+
+
+# MCP OWNERSHIP ARCHITECTURE CORRECTION — 2026-10-11
+
+Architecture review found that the current MCP organization API accepts only a `serverId` from `platform_mcp_servers`, while the resolver requires platform registry/tool rows and `platform_enabled=true`. Therefore, the current source supports organization credentials for catalog entries but does not yet meet the self-service requirement that an organization can register its own external MCP endpoint without platform-admin pre-registration.
+
+Decision and phased acceptance criteria: `docs/plans/mcp-organization-owned-endpoints.md`.
+
+## Next implementation scope
+
+1. Inspect the existing plan/subscription schema and `resolveOrgPlanLimits`; add MCP entitlements to the existing source of truth (no parallel plan system and no hardcoded Starter/Pro checks).
+2. Add an additive migration for tenant-owned endpoint registrations and discovered tool/grant records. Keep optional platform catalog/hosted-service records separate.
+3. Implement organization-scoped create/update/test/discovery/credential rotation/disconnect/delete endpoints with plan quota enforcement and secure endpoint validation.
+4. Extend the resolver to resolve persisted tenant-owned connection IDs and re-check tenant, plan, user, agent, connection, organization grant and agent grant at discovery and invocation.
+5. Update the organization Integrations and Agent Integrations UI; keep platform MCP UI for catalog/templates and explicitly hosted Clara services only.
+6. Add focused regression coverage for cross-tenant access, quota/plan transitions, secrets, grants/revocation, SSRF/DNS rebinding, timeouts and Chat/realtime dispatch.
+7. Keep `ENABLE_MCP=false` and platform servers disabled until executable tests and a controlled live MCP handshake pass. Do not claim runtime PASS from source-only review.
+
+The architecture note is committed in `docs/plans/mcp-organization-owned-endpoints.md` (commit `a8e5ba9439a80290f8a8a4622c368ac25457a161`). This is documentation/plan progress only; tenant-owned endpoint implementation and verification remain pending.
+
+---
+
 ---
 
 # CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-12 — ORGANIZATION-OWNED MCP IMPLEMENTED AT SOURCE LEVEL
@@ -1845,3 +1987,28 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 3. Enable `ENABLE_MCP` only after: migration applied, governance configured, a controlled live handshake against a known-good HTTPS MCP server, and the focused suites green on the deployed revision.
 4. Live-verify one organization end to end: wizard → tool approval → agent grant → chat invocation → metering/usage counts → audit entries.
 5. Continue without waiting for CI/Vercel; route defects to FIX-01 and infrastructure-only work to OPS-01 per the standing rules.
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-12 — PR #291 RECONCILED WITH THE LATEST TARGET BRANCH
+
+[owner-authorized] The organization-owned MCP implementation (PR #291, head `7b5274d0`) has been reconciled with the evolved target branch `feature/ai-core-from-doable-source` (`bb51d091`) onto the PR head branch so it can be reviewed conflict-free.
+
+## Reconciliation decisions (supersede stale claims in the 2026-10-12 source-level entry above)
+- Migration renumbered `069_mcp_organization_owned_endpoints.sql` → `073_mcp_organization_owned_endpoints.sql` (the target already ships 069–072 for the platform-catalog model; duplicate numbers hard-fail the migration runner). RLS + anon/authenticated revokes now match the 069 catalog conventions.
+- The org-owned table family (`org_mcp_*`) is intentionally separate from the catalog family (`platform_mcp_*` / `organisation_mcp_*`) per `docs/plans/mcp-organization-owned-endpoints.md` on both branches: the optional platform catalog and tenant-owned endpoints are distinct concerns; both flows keep working.
+- Runtime unified on the target's request-scoped architecture: the PR's global `mcp_availability`/`mcp_tool` meta-tool registration was removed; org-owned tools are advertised as REAL tools through `buildMcpToolRuntime` + the new `OrgMcpToolResolver` adapter (`src/modules/mcp/runtime-resolver.ts`) and a composite resolver, sharing one Unified Tool Runtime authorization/metering path with the platform catalog for chat and realtime.
+- `/settings/mcp` keeps the target's MCP Servers (catalog registry) screen; the governance screen moved to `/settings/mcp/governance` (nav entry "MCP governance", group Platform).
+- The organisation-level Integrations hub is restored at `/orgs/:id/integrations` (the target's redirect-to-agents placeholder is obsolete now that the screen carries the org-owned MCP surface); the agent-level consolidated integrations screen from the target is preserved unchanged; the agent MCP screen now renders both the platform-catalog section and the organisation-owned section.
+- Agent integrations API route and screen keep the target's richer versions (per-status connection counts, revocation-preserving visibility) — a superset of the PR's changes.
+
+## Verification status
+- Focused MCP suites, type-check and lint re-run on the reconciled tree; see the session record for exact counts. Full-suite baseline comparison against the pre-reconciliation commit is recorded there too.
+- Unchanged blockers: live DB migration application, deployment/CI/Vercel, live MCP handshake, live chat/voice execution. `ENABLE_MCP` stays OFF until the documented evidence list is satisfied on a deployed revision.
+
+## Exact next implementation
+1. Review and merge PR #291 (head branch `feat/mcp-org-owned-directive`).
+2. Deploy and apply migration `073` (additive only).
+3. Configure governance (`/settings/mcp/governance`) and per-plan MCP entitlements (Subscriptions → Plans).
+4. Enable `ENABLE_MCP` only after the migration is applied, governance is configured, a controlled live handshake passes against a known-good HTTPS MCP server, and the focused suites are green on the deployed revision.
+5. Live-verify one organisation end to end: wizard → tool approval → agent grant → chat invocation → metering → audit entries.

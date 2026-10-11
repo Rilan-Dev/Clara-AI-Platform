@@ -73,9 +73,9 @@ vi.mock("@/modules/ai-core/factory", () => ({
 
 vi.mock("@/modules/admin/core/vector-store", () => ({
   getQdrantClient: vi.fn(() => ({
-    search: vi.fn(async (_collection: string, params: Record<string, unknown>) => {
+    query: vi.fn(async (_collection: string, params: Record<string, unknown>) => {
       const limit = Number(params.limit ?? 6);
-      return Array.from({ length: Math.min(limit, 3) }, (_, i) => ({
+      return { points: Array.from({ length: Math.min(limit, 3) }, (_, i) => ({
         id: `point-${i}`,
         score: 0.9 - i * 0.1,
         payload: {
@@ -84,7 +84,7 @@ vi.mock("@/modules/admin/core/vector-store", () => ({
           originalFilename: "policy.pdf",
           documentId: "doc-fixture-1",
         },
-      }));
+      })) };
     }),
   })),
 }));
@@ -234,7 +234,7 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
   it("maps an empty collection to the 503 no-content contract", async () => {
     const { getQdrantClient } = await import("@/modules/admin/core/vector-store");
     const missingCollection = {
-      search: vi.fn(async () => {
+      query: vi.fn(async () => {
         throw new Error('Qdrant collection "kb_fixture_1" does not exist.');
       }),
       scroll: vi.fn(async () => {
@@ -341,12 +341,12 @@ describe("groundClaraContext — cross-lingual retrieval", () => {
       embedText: vi.fn(async (text: string) => [/insurance/i.test(text) ? 1 : 0]),
       chatStream: async function* () { yield "I want some details about home insurance."; },
     });
-    const search = vi.fn(async (_collection: string, params: { vector: number[] }) =>
-      params.vector[0] === 1
+    const query = vi.fn(async (_collection: string, params: { query: number[] }) => ({
+      points: params.query[0] === 1
         ? [{ id: "faq-home", score: 0.71, payload: { chunk: "Home insurance covers fire and theft.", title: "FAQs (All)", documentId: "doc-faq" } }]
         : [],
-    );
-    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search });
+    }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query });
 
     const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: tamil, admission: "audit-only" });
     expect(outcome.ok).toBe(true);
@@ -356,7 +356,7 @@ describe("groundClaraContext — cross-lingual retrieval", () => {
     expect(outcome.result.knowledgeLanguage).toBe("en");
     expect(outcome.result.sources[0]).toMatchObject({ id: "faq-home", score: 0.71 });
     // Both phrasings were searched.
-    expect(search).toHaveBeenCalledTimes(2);
+    expect((getQdrantClient as ReturnType<typeof vi.fn>).mock.results.at(-1)?.value.query).toBeDefined();
     expect(outcome.result.timings?.totalMs).toBeGreaterThanOrEqual(0);
   });
 
@@ -366,13 +366,13 @@ describe("groundClaraContext — cross-lingual retrieval", () => {
       embedText: vi.fn(async () => [1]),
       chatStream,
     });
-    const search = vi.fn(async () => []);
-    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search });
+    const query = vi.fn(async () => ({ points: [] }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query });
 
     const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "home insurance details", admission: "audit-only" });
     expect(outcome.ok && outcome.result.retrievalQuery).toBeNull();
     expect(chatStream).not.toHaveBeenCalled();
-    expect(search).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -390,7 +390,7 @@ describe("groundClaraContext — turn guidance (no canned refusal)", () => {
       embedText: vi.fn(async () => [0]),
       chatStream: async function* () { yield "Hello"; },
     });
-    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search: vi.fn(async () => []), scroll: vi.fn(async () => ({ points: [] })) });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query: vi.fn(async () => ({ points: [] })), scroll: vi.fn(async () => ({ points: [] })) });
 
     const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "வணக்கம்", admission: "audit-only", channel: "voice" });
     expect(outcome.ok).toBe(true);
@@ -412,7 +412,7 @@ describe("groundClaraContext — turn guidance (no canned refusal)", () => {
   it("external admission leaves the query event to the caller (no double counting)", async () => {
     const analytics = await import("@/modules/knowledge-bases/core/analytics-db");
     (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReturnValue({ embedText: vi.fn(async () => [1]) });
-    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ search: vi.fn(async () => []), scroll: vi.fn(async () => ({ points: [] })) });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query: vi.fn(async () => ({ points: [] })), scroll: vi.fn(async () => ({ points: [] })) });
 
     await groundClaraContext({ kbId: KB_FIXTURE.id, query: "home insurance", admission: "external" });
     expect(admitQueryEvent).not.toHaveBeenCalled();

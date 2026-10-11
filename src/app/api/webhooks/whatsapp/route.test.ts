@@ -23,7 +23,7 @@ describe("WhatsApp webhook route idempotency", () => {
         .mockResolvedValueOnce({ rows: [{ id: "connection-1", org_id: "org-1", agent_id: "agent-1", display_phone_number: "+14155550100" }] })
         .mockResolvedValueOnce({ rowCount: 0, rows: [] }),
     };
-    txMock.mockImplementation(async (callback: never) => (callback as (client: typeof client) => Promise<unknown>)(client) as never);
+    txMock.mockImplementation(async (callback) => callback(client as never));
 
     const raw = JSON.stringify({
       object: "whatsapp_business_account",

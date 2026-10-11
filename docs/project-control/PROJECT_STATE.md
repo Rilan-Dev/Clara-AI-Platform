@@ -1,3 +1,33 @@
+# MCP RUNTIME IMPLEMENTATION UPDATE — 2026-10-11
+
+- DEV-01 added `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts` behind the existing `McpToolResolver` interface and connected source-level tool advertisement/dispatch in authenticated Chat and OpenAI realtime voice through the Unified Tool Runtime.
+- The resolver performs per-request DNS validation with a pinned public IP, TLS verification, no redirects, bounded request/response sizes, timeout/cancellation, paginated discovery, schema conversion/validation, stale-schema checks, and execution-time tenant/caller/plan/grant rechecks.
+- Migration 070 records a successful MCP discovery as `connected` while preserving the encrypted-credential requirement; the org UI shows the last handshake and supports bearer credential rotation. The migration is not applied/verified in this workflow.
+- A bounded 3-second discovery singleflight cache is scoped to one exact execution context and credential fingerprint. Every resolution rechecks DB authorization; invocation bypasses the cache and re-discovers the current schema. No cross-request or cross-tenant cache is used.
+- **Verification pending:** no tests, typecheck, lint/build, migration, live handshake, Chat/realtime E2E, CI, Vercel or deployment was run. This is not a PASS.
+- Keep platform MCP servers disabled and `ENABLE_MCP=false` until focused execution tests and a controlled live handshake succeed.
+- Details and next steps: `docs/project-control/sessions/SESSION-DEV-20261011-01.md` and `docs/project-control/NEXT_ACTION.md`.
+
+---
+
+# OAUTH APP SAVE FAILURE FIX — 2026-10-11
+
+- Production evidence identified a runtime missing-export error: `normalizeScopes is not a function` in the platform integration OAuth-app PUT route.
+- Fixed source by exporting `normalizeScopes` from `src/modules/integrations/oauth-app-validation.ts` (commit `bfc5fc00de27309598b4bcfe4813f8626de9b8b0` on `feature/ai-core-from-doable-source`).
+- This is a source fix only. The deployed container must rebuild/reload the module before retest; live save is not verified.
+- The pasted diagnostic command contained a session cookie and Google OAuth client secret. Rotate/revoke them before retry. Never store those values in project-control records.
+- Detailed record: `docs/project-control/sessions/SESSION-DEV-20261011-01.md`.
+
+# MCP CONTROL-PLANE UPDATE — 2026-10-10
+
+- MCP control-plane source slice added on `feature/ai-core-from-doable-source`: migration 069; platform super-admin registry API; org-scoped encrypted connection and org/agent grant API; existing platform/org/agent integration UI panels; focused regression source.
+- Credentials are encrypted and never returned by API; saved credentials are marked `configured`, not `connected`. Server defaults disabled.
+- **Runtime remains incomplete:** no live transport/discovery/handshake or MCP tool registration in actual Chat/realtime voice is established. Keep servers disabled until resolver/runtime wiring lands.
+- Current exact next action is in `docs/project-control/NEXT_ACTION.md`; detailed session in `docs/project-control/sessions/SESSION-DEV-20261010-02.md`.
+- Verification boundary: source commits and rereads only; tests were authored but not run; no migration/build/deployment/runtime PASS claimed.
+
+---
+
 # CURRENT PROJECT STATE — 2026-10-09 — WHATSAPP CONNECTION + BRIEFING SENDER SOURCE ADDED
 
 - Branch: `feature/ai-core-from-doable-source`.

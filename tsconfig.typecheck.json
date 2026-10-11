@@ -22,6 +22,7 @@
     "tool-results",
     "ai-platform-core/**",
     "clara-core/**",
+    "docs/clara-core/**",
     "docs/doable-source/**"
   ]
 }

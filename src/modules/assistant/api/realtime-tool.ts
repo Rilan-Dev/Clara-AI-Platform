@@ -3,20 +3,21 @@ import { query as dbQuery } from "@/lib/db";
 import { getAuthContext } from "@/modules/auth/core/rbac";
 import { getKbAccessContext } from "@/modules/auth/core/db";
 import {
+  buildMcpToolRuntime,
   createExecutionContext,
   getClaraToolRuntime,
+  isMcpEnabled,
+  mcpToolName,
+  streamableHttpMcpToolResolver,
   isAgentLoopEnabled,
   isProviderToolCallingEnabled,
+  type McpToolResolver,
 } from "@/modules/ai-platform-core";
+import { OrgMcpToolResolver } from "@/modules/mcp/runtime-resolver";
 
 const ALLOWED_REALTIME_INTEGRATION_TOOLS = new Set([
   "integration_availability",
   "integration_action",
-  // Organization MCP tools share the same Unified Tool Runtime authorization
-  // path; they only execute while ENABLE_MCP is on (checked by the tool
-  // itself, fail closed).
-  "mcp_availability",
-  "mcp_tool",
 ]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -49,7 +50,10 @@ export async function postRealtimeTool(request: NextRequest): Promise<NextRespon
   const kbId = typeof body.kbId === "string" ? body.kbId.trim() : "";
   const toolName = typeof body.toolName === "string" ? body.toolName : "";
   const input = body.arguments;
-  if (!kbId || kbId.length > 128 || !ALLOWED_REALTIME_INTEGRATION_TOOLS.has(toolName) || !isPlainObject(input)) {
+  const isMcpCandidate = toolName.startsWith("mcp_") && /^[a-z0-9_]{3,64}$/.test(toolName);
+  if (!kbId || kbId.length > 128 ||
+      (!ALLOWED_REALTIME_INTEGRATION_TOOLS.has(toolName) && !(isMcpEnabled() && isMcpCandidate)) ||
+      !isPlainObject(input)) {
     return NextResponse.json({ error: "Invalid realtime integration tool request." }, { status: 400 });
   }
 
@@ -82,7 +86,65 @@ export async function postRealtimeTool(request: NextRequest): Promise<NextRespon
     userId: auth.user.id,
     sessionId: auth.session.id,
     surface: "realtime",
+    metadata: { mcpSignal: request.signal },
   });
+
+  if (isMcpCandidate && !ALLOWED_REALTIME_INTEGRATION_TOOLS.has(toolName)) {
+    // The model/client supplies only the public tool alias. Resolve it back to
+    // an exact tenant-owned server/tool pair from current grants, then build a
+    // one-tool runtime whose resolver rechecks every grant before execution.
+    // Both grant families are matched: the optional platform catalog
+    // (platform_mcp_servers) and organization-owned connections
+    // (org_mcp_connections); an alias must resolve to exactly one pair.
+    const grants = await dbQuery<{ server_id: string; tool_name: string }>(
+      `SELECT DISTINCT s.id AS server_id, t.tool_name
+         FROM platform_mcp_servers s
+         JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
+         JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1 AND c.status IN ('configured','connected')
+         JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name AND g.enabled=true
+         JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid AND ag.enabled=true
+         JOIN knowledge_bases kb ON kb.agent_id=ag.agent_id AND kb.id=$3
+        WHERE s.platform_enabled=true
+        ORDER BY s.id, t.tool_name
+        LIMIT 128`,
+      [access.orgId, agentId, kbId],
+    );
+    let matches = grants.filter((row) => mcpToolName(row.server_id, row.tool_name) === toolName);
+    let resolver: McpToolResolver = streamableHttpMcpToolResolver;
+    if (matches.length === 0) {
+      const orgGrants = await dbQuery<{ connection_id: string; tool_name: string }>(
+        `SELECT c.id AS connection_id, t.tool_name
+           FROM org_mcp_agent_grants g
+           JOIN org_mcp_tools t ON t.id = g.tool_id
+           JOIN org_mcp_connections c ON c.id = t.connection_id
+           JOIN agents a ON a.id = g.agent_id AND a.org_id = g.org_id
+           JOIN knowledge_bases kb ON kb.agent_id = a.id AND kb.id = $3
+          WHERE g.org_id = $1 AND g.agent_id = $2 AND g.enabled = TRUE
+            AND t.approved = TRUE AND t.status = 'approved'
+            AND c.status = 'active'
+          ORDER BY c.id, t.tool_name
+          LIMIT 128`,
+        [access.orgId, agentId, kbId],
+      );
+      matches = orgGrants.filter(
+        (row) => mcpToolName(row.connection_id, row.tool_name) === toolName,
+      ).map((row) => ({ server_id: row.connection_id, tool_name: row.tool_name }));
+      if (matches.length > 0) resolver = new OrgMcpToolResolver();
+    }
+    if (matches.length !== 1) return NextResponse.json({ error: "MCP tool is not currently granted to this agent." }, { status: 403 });
+    const grant = matches[0]!;
+    const requestForTool = { serverId: grant.server_id, toolName: grant.tool_name, context };
+    const runtime = await buildMcpToolRuntime(
+      context,
+      [requestForTool],
+      { allowedServers: [grant.server_id], allowedToolPairs: [{ serverId: grant.server_id, toolName: grant.tool_name }] },
+      resolver,
+    );
+    if (!runtime) return NextResponse.json({ error: "MCP tool is unavailable or no longer authorized." }, { status: 404 });
+    const outcome = await runtime.invoke(toolName, input, context);
+    return NextResponse.json({ outcome });
+  }
+
   const outcome = await getClaraToolRuntime().invoke(toolName, input, context);
   // The runtime returns typed success/failure envelopes. Keep this response
   // transport-neutral; the voice client passes the envelope back to the model.

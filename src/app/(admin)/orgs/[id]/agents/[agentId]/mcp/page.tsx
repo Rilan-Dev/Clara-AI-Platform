@@ -1,1 +1,1 @@
-export { default } from "@/features/admin/screens/agent-mcp-tools-screen";
+export { default } from "@/features/admin/screens/agent-mcp-screen";

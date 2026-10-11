@@ -29,8 +29,8 @@ import {
 } from "lucide-react";
 
 export type SettingsSection =
-  | "account" | "appearance" | "ai" | "environment" | "embed"
-  | "payments" | "email" | "templates" | "phone" | "announcements" | "integrations" | "mcp";
+  | "account" | "appearance" | "ai" | "environment" | "embed" | "mcp" | "mcpGovernance"
+  | "payments" | "email" | "templates" | "phone" | "announcements" | "integrations";
 
 export type SettingsGroup = "You" | "Platform" | "AI & voice" | "Billing" | "Communications" | "Channels";
 
@@ -96,12 +96,12 @@ export const ADMIN_SETTINGS_PAGES: SettingsPage[] = [
     audience: "Platform admin",
   },
   {
-    id: "mcp",
-    href: "/settings/mcp",
+    id: "mcpGovernance",
+    href: "/settings/mcp/governance",
     icon: Cable,
     label: "MCP governance",
     title: "MCP governance",
-    description: "Global MCP enablement, security policy, emergency controls and platform catalog switches.",
+    description: "Global MCP enablement, security policy, emergency controls, plan-entitlement boundaries and platform catalog switches.",
     group: "Platform",
     audience: "Platform admin",
   },
@@ -132,6 +132,16 @@ export const ADMIN_SETTINGS_PAGES: SettingsPage[] = [
     label: "Voice & AI runtime",
     title: "Voice & AI runtime",
     description: "ElevenLabs and Sarvam feature switches, Speech Engine, webhook secrets and platform-wide limits.",
+    group: "AI & voice",
+    audience: "Platform admin",
+  },
+  {
+    id: "mcp",
+    href: "/settings/mcp",
+    icon: Cable,
+    label: "MCP servers",
+    title: "MCP servers",
+    description: "Register platform-approved Model Context Protocol servers and manage their tool allowlists for Chat and Voice.",
     group: "AI & voice",
     audience: "Platform admin",
   },

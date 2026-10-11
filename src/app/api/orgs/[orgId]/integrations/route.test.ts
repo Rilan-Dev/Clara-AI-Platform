@@ -77,6 +77,9 @@ describe("organisation integration entitlement enforcement", () => {
   it("allows disabling an existing integration after a plan downgrade without reading plan limits", async () => {
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["pro"] }])
+      // Disable runs inside the org-slot advisory-lock transaction:
+      // platform check + advisory lock + upsert.
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
     const { POST } = await import("./route");
@@ -93,7 +96,7 @@ describe("organisation integration entitlement enforcement", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, enabled: false });
     expect(getOrgPlanLimitsMock).not.toHaveBeenCalled();
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(queryMock).toHaveBeenCalledTimes(3);
   });
 
   it("disconnects only the caller's user-scoped credentials by default", async () => {
@@ -120,6 +123,8 @@ describe("organisation integration entitlement enforcement", () => {
   it("rejects a direct connection that would implicitly exceed the organisation integration limit", async () => {
     queryMock
       .mockResolvedValueOnce([{ enabled: true, allowed_plans: ["free"] }])
+      // Connect transaction order: advisory lock → current grant → slot count.
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ enabled: false }])
       .mockResolvedValueOnce([{ count: 2 }]);
     resolveOrgPlanLimitsMock.mockResolvedValue({ plan_id: "free", max_integrations: 2 });
@@ -147,7 +152,7 @@ describe("organisation integration entitlement enforcement", () => {
       current: 2,
     });
     expect(resolveOrgPlanLimitsMock).toHaveBeenCalledWith("org-1");
-    expect(queryMock).toHaveBeenCalledTimes(3);
+    expect(queryMock).toHaveBeenCalledTimes(4);
     expect(withTransactionMock).toHaveBeenCalledTimes(1);
   });
 

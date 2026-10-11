@@ -113,3 +113,72 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Actions:** Added authenticated `verify` action to check access to the selected WABA using the encrypted active token. HTTP 401/403 marks the connection `error`, disables daily briefing eligibility, and presents the reconnect path. Messaging now exposes Verify Meta access and refreshes state after subscription/verification failures.
 - **Regression source:** Added a route test for a rejected Meta token and the resulting unhealthy state/briefing disablement. It is source only and has not been executed.
 - **Boundary:** Proactive periodic health probing remains pending; expiry and send-time 401/403 are guarded, while the manual probe is user-triggered.
+
+
+### SESSION-DEV-20261010-01 / 2026-10-10
+- **Task:** Audit completed/incomplete MCP functionality and plan platform-admin, organisation, agent, chat and realtime voice experience.
+- **Authorization:** Explicit current owner request; DEV-01 / Forge.
+- **Started from:** `feature/ai-core-from-doable-source`; current project-control and role-local records recovered from GitHub.
+- **Actions:** Inspected project state/next action/verification state, DEV-01 memory/worklog and central sessions; inspected I-6 MCP bridge/tests, shared integration policy, integration bridge, realtime dispatch and existing UI paths. Added MCP audit/roadmap and made it authoritative NEXT_ACTION.
+- **Files:** `docs/superpowers/plans/2026-10-10-mcp-configuration-ui-chat-voice-roadmap.md`; `docs/project-control/NEXT_ACTION.md`; `docs/project-control/sessions/SESSION-DEV-20261010-01.md`.
+- **Commits:** `7a57655b4df9a347456dde9f7cb3749cb1fd4c8b`, `d85b3bab2342d548af1313d0c80aee4487442b4c`.
+- **Evidence:** Source inspection and successful document commits. No tests/typecheck/build/CI/Vercel/runtime verification performed or claimed.
+- **Blockers:** Need inspect migration, integration API, credential vault and runtime context before active MCP persistence/transport. Bridge expects a host resolver; no end-to-end MCP transport/configuration path established by this inspection.
+- **Lesson:** Bridge completion does not prove configured servers, tenant-safe credentials, discovery or chat/voice availability. Recheck grants at discovery and execution; never trust client-supplied identity.
+- **Next action:** Implement registry/credential/grant contract and platform/org UI in existing integration surfaces; wire supported transport to chat/realtime via Unified Tool Runtime.
+
+### SESSION-DEV-20261010-02 / 2026-10-10
+- **Task:** Implement first MCP server registry and connection/grant contract plus platform/org/agent UI.
+- **Actions:** Inspected migrations 060–062, existing encryption and integration APIs/UI; added migration 069, platform MCP registry API, org-scoped connection/grant API, platform/org/agent panels, and regression test source.
+- **Files:** `src/lib/db/migrations/069_mcp_server_control_plane.sql`; `src/app/api/platform/mcp-servers/route.ts`; `src/app/api/orgs/[orgId]/mcp-servers/route.ts`; matching `.test.ts` files; `src/features/admin/screens/{mcp-servers-panel,org-mcp-servers-panel,agent-mcp-tools-panel}.tsx`; existing integration screens; `docs/project-control/NEXT_ACTION.md`; session record.
+- **Evidence:** Successful GitHub source commits; source rereads for key files. Tests were authored, not executed. No typecheck/build/runtime/CI/Vercel PASS claimed.
+- **Security:** Org tokens use existing server-side pgcrypto encryption; APIs do not return credentials; org/agent grants are separate; server disabled by default; URL registration rejects HTTPS/IP/private obvious endpoint patterns; credential save status is `configured`, not `connected`.
+- **Pending:** Live transport and DNS-rebinding-resistant resolver, real tool discovery/schema conversion, chat and realtime runtime registration, invocation-time reauthorization, runtime audit and end-to-end tests.
+- **Lesson:** Config-time URL filtering is not enough for SSRF protection; actual transport must validate DNS/IP targets at connect time. Stored credentials are not proof of connectivity.
+- **Next action:** Implement secure Streamable HTTP resolver and register the authorized tool set in Chat and realtime voice through Unified Tool Runtime.
+- **Follow-up hardening:** Registration rejects literal IP and numeric-host endpoint forms (`d5b9dcb4`); tool-surface and transport test cases were separated (`f03ae80a`); disabled servers and unapproved tools still permit tenant-side revocation/disconnect (`f393f753`); MCP connection state is explicitly `configured`, not a successful handshake.
+
+### SESSION-DEV-20261011-01 / 2026-10-11
+
+- **Task:** Fix Gmail OAuth app configuration PUT failure from production logs.
+- **Authorization:** User supplied production curl/log evidence; bounded source bug fix on current branch.
+- **Started from:** `feature/ai-core-from-doable-source`.
+- **Actions:** Traced the runtime error to a named import of a non-exported helper; exported `normalizeScopes` from its existing validation module.
+- **Files/code:** `src/modules/integrations/oauth-app-validation.ts`.
+- **Evidence:** Existing `oauth-app-validation.test.ts` already imports and exercises `normalizeScopes`; source commit `bfc5fc00de27309598b4bcfe4813f8626de9b8b0` created. No test/build/deployment/live request executed.
+- **Blockers/dependencies:** Deployment must rebuild/reload the updated module. Exposed cookie/client secret need revocation/rotation before retry.
+- **Lesson:** A named export mismatch may surface as a runtime `is not a function` when build/runtime configuration does not reject the missing export; check the source export and deployed build revision together.
+- **Next action:** Rebuild/redeploy, then retest using fresh credentials; inspect only redacted logs if another failure occurs.
+
+
+### SESSION-DEV-20261011-01 / 2026-10-11
+
+- **Task:** Implement secure Streamable HTTP MCP resolver and wire discovered tools into Chat and realtime voice via the Unified Tool Runtime.
+- **Authorization:** Explicit next action in `docs/project-control/NEXT_ACTION.md`; continuation from SESSION-DEV-20261010-02.
+- **Started from:** `feature/ai-core-from-doable-source`.
+- **Actions:** Added server-side resolver; HTTPS/DNS public-IP pinning/TLS/no-redirect/timeout/cancellation/size guards; JSON-RPC initialize and paginated tools/list; bounded schema conversion and stale-schema check; execution-time platform/plan/org/agent/user/KB/session/surface rechecks; request-scoped runtime composition; Chat and OpenAI realtime advertisement/dispatch; focused endpoint/IP regression source.
+- **Files/code:** `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts`, `mcp-streamable-http-resolver.test.ts`, `mcp-tool-bridge.ts`, `index.ts`, `src/modules/assistant/api/chat.ts`, `src/modules/assistant/api/realtime.ts`, `src/modules/assistant/api/realtime-tool.ts`, and project-control records.
+- **Evidence:** Source commits written to the feature branch and changed files re-fetched for review. No executable verification was run.
+- **Blockers/dependencies:** No local test/typecheck execution or controlled MCP test server available in this source-only workflow; no verified live transport.
+- **Lesson:** Keep MCP definitions bound to a request-scoped execution context; never attach them to the process-global runtime. Recheck current DB grants on every resolution/invocation and do not cache tool discovery until invalidation semantics cover platform, organisation, agent and remote-schema changes.
+- **Next action:** Add mocked transport/runtime regressions, run focused tests and `npm run type-check` when execution is available, fix source issues without waiting for CI/Vercel, then validate a controlled live initialize/list/call before enabling servers.
+
+
+#### SESSION-DEV-20261011-01 addendum — 2026-10-11
+
+- Added `070_mcp_connection_handshake_status.sql` to distinguish encrypted-but-unverified configuration from a successful MCP discovery handshake.
+- Resolver now records `connected` and `last_connected_at` only after valid approved-tool discovery. Runtime queries and organisation/agent UI accept both `configured` and `connected`; organisation UI shows the last handshake and permits bearer credential rotation.
+- Migration application and all executable verification remain pending; keep MCP servers disabled.
+
+
+#### SESSION-DEV-20261011-01 cache clarification — 2026-10-11
+
+- Added a 3-second bounded singleflight cache only for remote tool metadata within the same immutable execution context and credential fingerprint. Every resolve still rechecks authoritative DB authorization; side-effecting invocation bypasses this cache and rechecks current grants/schema immediately before `tools/call`.
+- This is not a cross-request or cross-tenant cache. The earlier no-cache guidance applies to shared caches without reliable invalidation. Cache concurrency remains untested.
+
+## 2026-10-11 — FIX-01 build failure: duplicate named export
+
+- **Observed:** Owner-provided Docker build at branch head `985b2a07` failed Next.js webpack compilation: `src/modules/ai-platform-core/index.ts` exported `buildClaraToolRuntime` twice. Docker therefore did not produce a new backend image; the healthy container logs afterward are from the previous image and still showed the earlier `normalizeScopes` runtime exception.
+- **Correction:** Removed the duplicate `buildClaraToolRuntime` export. Commit: `d755aea0de75509cabfe2ed4c76e7cae2468db2e`.
+- **Verification:** Source correction committed only. No post-fix build/typecheck/tests or production OAuth save was executed. Do not treat the old container as updated.
+- **Next:** Rebuild `clara-backend` from the feature branch. If another compiler error appears, fix that exact failure. Once build succeeds, recreate the backend and retry OAuth save with a fresh session and rotated Google client secret; never reuse the exposed credentials.

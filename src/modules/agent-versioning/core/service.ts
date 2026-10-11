@@ -50,6 +50,9 @@ import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver"
 import { randomUUID } from "node:crypto";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { cloneKbCollection } from "@/modules/admin/core/vector-store-kb";
+import type { AIProvider } from "@/modules/ai-core/config-types";
+import type { VoiceProvider } from "@/modules/voice-core/types";
+import { isVoiceProvider } from "@/modules/voice-core/types";
 
 // ─── Ensure / bootstrap ───────────────────────────────────────────────────────
 
@@ -261,9 +264,14 @@ async function seedInitialAIDefaults(): Promise<NonNullable<AgentVersionConfig["
     // If a capability has no explicit platform provider yet, inherit the chat
     // provider for the initial snapshot rather than leaving a newly-created
     // agent with a contradictory null selection.
-    const chatProvider = chat?.providerId ?? null;
-    const voiceProvider = voiceChat?.providerId ?? chatProvider;
-    const realtimeProvider = realtime?.providerId ?? voiceProvider;
+    const asAIProvider = (value: string | null | undefined): AIProvider | null =>
+      value === "openai" || value === "gemini" || value === "sarvam" ? value : null;
+    const asVoiceProvider = (value: string | null | undefined): VoiceProvider | null =>
+      isVoiceProvider(value) ? value : null;
+
+    const chatProvider = asAIProvider(chat?.providerId);
+    const voiceProvider = asVoiceProvider(voiceChat?.providerId) ?? asVoiceProvider(chatProvider);
+    const realtimeProvider = asVoiceProvider(realtime?.providerId) ?? voiceProvider;
 
     const pickDefaultModel = async (
       providerId: string | null,

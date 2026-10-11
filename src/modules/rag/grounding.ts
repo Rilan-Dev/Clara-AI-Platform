@@ -462,7 +462,7 @@ async function searchKbVector(
   const fetchLimit = filter ? topK : candidatePoolSize(topK);
 
   const searchParams: Record<string, unknown> = {
-    vector: embedding,
+    query: embedding,
     limit: fetchLimit,
     // Only the fields the context builder reads — smaller responses from
     // Qdrant (https://qdrant.tech/documentation/concepts/payload/).
@@ -473,10 +473,11 @@ async function searchKbVector(
 
   let results;
   try {
-    results = await client.search(
+    const response = await client.query(
       collectionName,
-      searchParams as Parameters<typeof client.search>[1],
+      searchParams as Parameters<typeof client.query>[1],
     );
+    results = response.points;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (/not found/i.test(msg)) {

@@ -1,0 +1,293 @@
+import { NextRequest, NextResponse } from "next/server";
+import { ensureMigrated } from "@/lib/db/migrate";
+import { query, withTransaction } from "@/lib/db";
+import { ENCRYPTION_KEY } from "@/lib/secrets";
+import { requireAgentPermission, requireAuth, requireOrgPermission } from "@/modules/auth/core/rbac";
+import { resolveOrgPlanLimits } from "@/lib/plan-guard";
+import { probeStreamableHttpServer } from "@/modules/ai-platform-core/mcp-streamable-http-resolver";
+import { parseMcpPlatformCredential, resolveMcpAccessToken } from "@/modules/ai-platform-core/mcp-oauth";
+
+type Params = { params: Promise<{ orgId: string }> };
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest, { params }: Params) {
+  try {
+    await ensureMigrated();
+    const { orgId } = await params;
+    const auth = await requireAuth(req);
+    await requireOrgPermission(auth, orgId, "config:read");
+    const agentId = req.nextUrl.searchParams.get("agentId");
+    if (agentId) {
+      if (!/^[0-9a-f-]{36}$/i.test(agentId)) return NextResponse.json({ error: "Invalid agentId" }, { status: 400 });
+      const agent = await requireAgentPermission(auth, agentId, "project:read");
+      if (agent.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to this organisation" }, { status: 403 });
+    }
+    const [servers, limits] = await Promise.all([
+      query<{
+        id: string; serverKey: string; displayName: string; description: string;
+        transportType: string; endpointUrl: string; platformEnabled: boolean;
+        authMode: "none" | "bearer" | "oauth"; allowedPlans: string[]; connectionStatus: string | null;
+        hasPlatformCredential: boolean; oauthStatus: string;
+        lastConnectedAt: string | null; lastErrorCode: string | null;
+        tools: Array<{ name: string; approved: boolean; allowedSurfaces: string[]; organisationEnabled: boolean; agentEnabled: boolean }>;
+      }>(`SELECT s.id, s.server_key AS "serverKey", s.display_name AS "displayName",
+                    s.description, s.transport_type AS "transportType", s.endpoint_url AS "endpointUrl",
+                    s.platform_enabled AS "platformEnabled",
+                    s.auth_mode AS "authMode", s.allowed_plans AS "allowedPlans",
+                    (s.platform_credentials_encrypted IS NOT NULL) AS "hasPlatformCredential",
+                    s.oauth_status AS "oauthStatus",
+                    c.status AS "connectionStatus", c.last_connected_at AS "lastConnectedAt",
+                    c.last_error_code AS "lastErrorCode",
+                    COALESCE(jsonb_agg(jsonb_build_object('name', t.tool_name, 'approved', t.approved,
+                      'allowedSurfaces', t.allowed_surfaces, 'organisationEnabled', COALESCE(g.enabled,false),
+                      'agentEnabled', COALESCE(ag.enabled,false)))
+                      FILTER (WHERE t.tool_name IS NOT NULL), '[]'::jsonb) AS tools
+               FROM platform_mcp_servers s
+               LEFT JOIN organisation_mcp_connections c ON c.server_id=s.id AND c.org_id=$1
+               LEFT JOIN platform_mcp_tools t ON t.server_id=s.id AND t.approved=true
+               LEFT JOIN organisation_mcp_tool_grants g ON g.org_id=$1 AND g.server_id=s.id AND g.tool_name=t.tool_name
+               LEFT JOIN agent_mcp_tool_grants ag ON ag.org_id=$1 AND ag.server_id=s.id AND ag.tool_name=t.tool_name AND ag.agent_id=$2::uuid
+              WHERE s.platform_enabled=true OR c.org_id IS NOT NULL OR g.org_id IS NOT NULL
+              GROUP BY s.id,c.status,c.last_connected_at,c.last_error_code
+              ORDER BY s.display_name`, [orgId, agentId]),
+      resolveOrgPlanLimits(orgId),
+    ]);
+    const planId = limits.plan_id;
+    return NextResponse.json({
+      plan: { id: planId },
+      servers: servers.map(s => ({
+        ...s,
+        planAllowed: Array.isArray(s.allowedPlans) && (s.allowedPlans.includes(planId) || s.allowedPlans.includes("*")),
+      })),
+    });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("[org MCP GET]", err);
+    return NextResponse.json({ error: "Failed to load organisation MCP servers" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest, { params }: Params) {
+  try {
+    await ensureMigrated();
+    const { orgId } = await params;
+    const auth = await requireAuth(req);
+    await requireOrgPermission(auth, orgId, "config:update");
+    const body = await req.json() as {
+      serverId?: string; action?: "connect"|"disconnect"|"test"|"grant-tool"|"grant-agent-tool";
+      credentials?: { bearerToken?: string }; toolName?: string; enabled?: boolean; agentId?: string;
+    };
+    if (!body.serverId || !/^[0-9a-f-]{36}$/i.test(body.serverId) ||
+        !["connect","disconnect","test","grant-tool","grant-agent-tool"].includes(body.action ?? "")) {
+      return NextResponse.json({ error: "serverId and a supported action are required" }, { status: 400 });
+    }
+    const server = (await query<{
+      id:string; auth_mode:string; allowed_plans:string[]; platform_enabled:boolean; endpoint_url:string;
+      platform_credential:string | null;
+    }>(`SELECT id,auth_mode,allowed_plans,platform_enabled,endpoint_url,
+                pgp_sym_decrypt(platform_credentials_encrypted,$2) AS platform_credential
+         FROM platform_mcp_servers WHERE id=$1`, [body.serverId, ENCRYPTION_KEY]))[0];
+    if (!server) return NextResponse.json({ error: "MCP server not found" }, { status: 404 });
+    const enablingAccess = body.action === "connect" || ((body.action === "grant-tool" || body.action === "grant-agent-tool") && body.enabled === true);
+    if (!server.platform_enabled && enablingAccess) return NextResponse.json({ error: "MCP server is disabled by platform administration", code:"MCP_SERVER_DISABLED" }, { status: 403 });
+
+    // Live handshake test with the organisation's stored credentials. Unlike
+    // connect (which only stores the encrypted secret) this performs a real
+    // initialize + tools/list round-trip and records the outcome, so admins
+    // get immediate feedback instead of waiting for a chat-time dispatch.
+    // A failed test keeps the stored credentials (status 'error') — the fix is
+    // usually a rotated token, re-entered through connect.
+    if (body.action === "test") {
+      const connection = (await query<{ credentials_encrypted: Buffer | null; status: string }>(
+        `SELECT credentials_encrypted, status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,
+        [orgId, body.serverId],
+      ))[0];
+      if (!connection || !connection.credentials_encrypted) {
+        return NextResponse.json({ error: "Save the connection credentials before testing", code:"NOT_CONFIGURED" }, { status: 409 });
+      }
+      let bearerToken: string | null = null;
+      if (server.auth_mode === "bearer") {
+        // Tenant-supplied token wins; otherwise the platform-managed bearer
+        // token applies (admins can store one when all orgs share a key).
+        const decrypted = (await query<{ bearer_token: string | null }>(
+          `SELECT NULLIF((pgp_sym_decrypt(credentials_encrypted, $3)::jsonb)->>'bearerToken', '') AS bearer_token
+             FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,
+          [orgId, body.serverId, ENCRYPTION_KEY],
+        ))[0];
+        const platform = parseMcpPlatformCredential(server.platform_credential);
+        bearerToken = decrypted?.bearer_token ?? (platform?.type === "bearer" ? platform.bearerToken : null);
+        if (!bearerToken) {
+          return NextResponse.json({ error: "No bearer token is available for this organisation — provide one, or ask the platform administrator to store a platform key", code:"NOT_CONFIGURED" }, { status: 409 });
+        }
+      } else if (server.auth_mode === "oauth") {
+        // OAuth servers are platform-managed: the stored access token is
+        // refreshed silently by the shared resolver helper.
+        bearerToken = await resolveMcpAccessToken(body.serverId, server.platform_credential);
+        if (!bearerToken) {
+          return NextResponse.json({ error: "The platform OAuth sign-in for this server is missing or expired. Ask the platform administrator to sign in again.", code:"MCP_OAUTH_NOT_CONNECTED" }, { status: 409 });
+        }
+      }
+      const probe = await probeStreamableHttpServer(server.endpoint_url, bearerToken);
+      if (probe.ok) {
+        await query(
+          `UPDATE organisation_mcp_connections SET status='connected', last_connected_at=now(),
+             last_error_code=NULL, updated_at=now() WHERE org_id=$1 AND server_id=$2`,
+          [orgId, body.serverId],
+        );
+      } else {
+        await query(
+          `UPDATE organisation_mcp_connections SET status='error', last_error_code=$3, updated_at=now()
+             WHERE org_id=$1 AND server_id=$2`,
+          [orgId, body.serverId, probe.errorCode ?? "MCP_PROBE_FAILED"],
+        );
+      }
+      return NextResponse.json({
+        ok: probe.ok,
+        connectionStatus: probe.ok ? "connected" : "error",
+        probe: {
+          ok: probe.ok,
+          durationMs: probe.durationMs,
+          serverInfo: probe.serverInfo ?? null,
+          toolCount: probe.toolCount ?? 0,
+          tools: probe.tools ?? [],
+          ...(probe.error ? { error: probe.error, errorCode: probe.errorCode } : {}),
+        },
+      }, { status: probe.ok ? 200 : 502 });
+    }
+
+    if (body.action === "connect") {
+      let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
+      try { limits = await resolveOrgPlanLimits(orgId); }
+      catch { return NextResponse.json({ error: "MCP plan entitlement could not be verified" }, { status: 503 }); }
+      if (!Array.isArray(server.allowed_plans) ||
+          (!server.allowed_plans.includes(limits.plan_id) && !server.allowed_plans.includes("*"))) {
+        return NextResponse.json({ error: `The ${limits.plan_id} plan cannot use this MCP server`, code:"PLAN_NOT_ENTITLED" }, { status: 402 });
+      }
+      if (server.auth_mode === "oauth") {
+        // Platform-managed OAuth connection: organisations never handle
+        // tokens; the platform's signed-in credential is used at runtime.
+        const platform = parseMcpPlatformCredential(server.platform_credential);
+        if (!platform || platform.type !== "oauth") {
+          return NextResponse.json({ error: "The platform administrator must complete the OAuth sign-in before organisations can connect this server", code:"MCP_OAUTH_NOT_CONNECTED" }, { status: 409 });
+        }
+        if (body.credentials?.bearerToken) {
+          return NextResponse.json({ error: "This MCP server is authorized with the platform OAuth sign-in; no tenant token is needed" }, { status: 400 });
+        }
+      } else if (server.auth_mode === "bearer") {
+        const platform = parseMcpPlatformCredential(server.platform_credential);
+        const platformBearer = platform?.type === "bearer" ? platform.bearerToken : null;
+        const suppliedToken = typeof body.credentials?.bearerToken === "string" ? body.credentials.bearerToken : "";
+        if (!suppliedToken && !platformBearer) {
+          return NextResponse.json({ error: "A valid bearer token is required" }, { status: 400 });
+        }
+        if (suppliedToken && (suppliedToken.trim().length < 8 || suppliedToken.length > 8192)) {
+          return NextResponse.json({ error: "A valid bearer token is required" }, { status: 400 });
+        }
+      }
+      if (server.auth_mode === "none" && body.credentials?.bearerToken) {
+        return NextResponse.json({ error: "This MCP server does not accept tenant credentials" }, { status: 400 });
+      }
+      // Org-supplied tokens are stored encrypted; platform-managed modes
+      // (oauth, or bearer with no tenant token) store an empty object and the
+      // runtime falls back to the platform credential.
+      const orgToken = typeof body.credentials?.bearerToken === "string" && body.credentials.bearerToken.trim() ? body.credentials.bearerToken.trim() : null;
+      const secret = server.auth_mode === "bearer" && orgToken ? JSON.stringify({ bearerToken: orgToken }) : "{}";
+      await query(
+        `INSERT INTO organisation_mcp_connections(org_id,server_id,credentials_encrypted,status,connected_by,last_error_code,last_connected_at)
+         VALUES($1,$2,pgp_sym_encrypt($3,$4),'configured',$5,NULL,NULL)
+         ON CONFLICT(org_id,server_id) DO UPDATE SET credentials_encrypted=EXCLUDED.credentials_encrypted,
+           status='configured',connected_by=EXCLUDED.connected_by,last_error_code=NULL,last_connected_at=NULL,updated_at=now()`,
+        [orgId, body.serverId, secret, ENCRYPTION_KEY, auth.user.id],
+      );
+      return NextResponse.json({ ok:true, connectionStatus:"configured" }, { status: 201 });
+    }
+
+    if (body.action === "disconnect") {
+      await withTransaction(async client => {
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [orgId]);
+        await client.query(
+          `UPDATE organisation_mcp_connections SET credentials_encrypted=NULL,status='disconnected',
+             last_error_code=NULL,updated_at=now() WHERE org_id=$1 AND server_id=$2`,
+          [orgId, body.serverId],
+        );
+        await client.query(
+          `UPDATE organisation_mcp_tool_grants SET enabled=false,updated_at=now()
+             WHERE org_id=$1 AND server_id=$2`, [orgId, body.serverId],
+        );
+        await client.query(
+          `UPDATE agent_mcp_tool_grants SET enabled=false,updated_at=now()
+             WHERE org_id=$1 AND server_id=$2`, [orgId, body.serverId],
+        );
+      });
+      return NextResponse.json({ ok:true, connectionStatus:"disconnected" });
+    }
+
+    if (!body.toolName || !/^[a-zA-Z0-9_.:-]{1,160}$/.test(body.toolName) || typeof body.enabled !== "boolean") {
+      return NextResponse.json({ error: "toolName and enabled are required" }, { status: 400 });
+    }
+    const tool = (await query<{tool_name:string;approved:boolean}>(
+      `SELECT tool_name,approved FROM platform_mcp_tools WHERE server_id=$1 AND tool_name=$2`,
+      [body.serverId, body.toolName],
+    ))[0];
+    if (!tool || (!tool.approved && body.enabled)) return NextResponse.json({ error: "This MCP tool has not been approved by platform administration", code:"MCP_TOOL_NOT_APPROVED" }, { status: 403 });
+    if (body.action === "grant-tool") {
+      if (body.enabled) {
+        let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
+        try { limits = await resolveOrgPlanLimits(orgId); }
+        catch { return NextResponse.json({ error: "MCP plan entitlement could not be verified" }, { status: 503 }); }
+        if (!Array.isArray(server.allowed_plans) || (!server.allowed_plans.includes(limits.plan_id) && !server.allowed_plans.includes("*"))) {
+          return NextResponse.json({ error: "The current plan is not entitled to this MCP server", code: "PLAN_NOT_ENTITLED" }, { status: 402 });
+        }
+        const connection = (await query<{status:string}>(
+          `SELECT status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,
+          [orgId, body.serverId],
+        ))[0];
+        if (!["configured", "connected"].includes(connection?.status ?? "")) return NextResponse.json({ error: "Connect this MCP server before granting tools" }, { status: 409 });
+      }
+      await query(
+        `INSERT INTO organisation_mcp_tool_grants(org_id,server_id,tool_name,enabled,created_by)
+         VALUES($1,$2,$3,$4,$5) ON CONFLICT(org_id,server_id,tool_name)
+         DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=now()`,
+        [orgId, body.serverId, body.toolName, body.enabled, auth.user.id],
+      );
+      if (!body.enabled) await query(
+        `UPDATE agent_mcp_tool_grants SET enabled=false,updated_at=now()
+           WHERE org_id=$1 AND server_id=$2 AND tool_name=$3`,
+        [orgId, body.serverId, body.toolName],
+      );
+      return NextResponse.json({ ok:true, enabled:body.enabled });
+    }
+
+    if (!body.agentId || !/^[0-9a-f-]{36}$/i.test(body.agentId)) {
+      return NextResponse.json({ error: "agentId is required for an agent tool grant" }, { status: 400 });
+    }
+    const agent = await requireAgentPermission(auth, body.agentId, body.enabled ? "config:update" : "project:update");
+    if (agent.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to this organisation" }, { status: 403 });
+    if (body.enabled) {
+      let limits: Awaited<ReturnType<typeof resolveOrgPlanLimits>>;
+      try { limits = await resolveOrgPlanLimits(orgId); }
+      catch { return NextResponse.json({ error: "MCP plan entitlement could not be verified" }, { status: 503 }); }
+      if (!Array.isArray(server.allowed_plans) || (!server.allowed_plans.includes(limits.plan_id) && !server.allowed_plans.includes("*"))) {
+        return NextResponse.json({ error: "The current plan is not entitled to this MCP server", code: "PLAN_NOT_ENTITLED" }, { status: 402 });
+      }
+    }
+    const [orgGrant, connection] = await Promise.all([
+      query<{enabled:boolean}>(`SELECT enabled FROM organisation_mcp_tool_grants WHERE org_id=$1 AND server_id=$2 AND tool_name=$3`,[orgId,body.serverId,body.toolName]),
+      query<{status:string}>(`SELECT status FROM organisation_mcp_connections WHERE org_id=$1 AND server_id=$2`,[orgId,body.serverId]),
+    ]);
+    if (body.enabled && (!orgGrant[0]?.enabled || !["configured", "connected"].includes(connection[0]?.status ?? ""))) {
+      return NextResponse.json({ error: "Organisation connection and tool grant are required before enabling this agent tool" }, { status: 409 });
+    }
+    await query(
+      `INSERT INTO agent_mcp_tool_grants(org_id,agent_id,server_id,tool_name,enabled,created_by)
+       VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(agent_id,server_id,tool_name)
+       DO UPDATE SET enabled=EXCLUDED.enabled,updated_at=now()`,
+      [orgId,body.agentId,body.serverId,body.toolName,body.enabled,auth.user.id],
+    );
+    return NextResponse.json({ ok:true, enabled:body.enabled });
+  } catch (err) {
+    if (err instanceof NextResponse) return err;
+    console.error("[org MCP POST]", err);
+    return NextResponse.json({ error: "Failed to update organisation MCP configuration" }, { status: 500 });
+  }
+}

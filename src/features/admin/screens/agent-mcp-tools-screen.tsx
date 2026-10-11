@@ -1,10 +1,12 @@
 "use client";
 /**
- * Agent editor → MCP tools.
+ * Agent editor → MCP tools — organisation-owned section.
  *
  * Lists the organisation's approved MCP tools (grouped by connection) with
  * grant/revoke switches and explicit unavailability reasons. Granting is
  * re-authorized and limited server-side; this UI only reflects real state.
+ * Rendered as a section of the unified agent MCP screen alongside the
+ * platform catalog section.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -33,7 +35,7 @@ type Response = {
   tools: AgentMcpTool[];
 };
 
-export default function AgentMcpToolsScreen() {
+export function AgentMcpToolsSection() {
   const { id = "", agentId = "" } = useParams<{ id: string; agentId: string }>();
   const router = useRouter();
   const [data, setData] = useState<Response | null>(null);
@@ -98,21 +100,22 @@ export default function AgentMcpToolsScreen() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="h-8 w-56 animate-pulse rounded-lg bg-muted" />
+      <div className="space-y-3">
+        <div className="h-6 w-48 animate-pulse rounded-lg bg-muted" />
         <div className="h-40 animate-pulse rounded-2xl bg-muted" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold">MCP tools</h1>
+          <h2 className="text-lg font-semibold">Organisation-owned MCP servers</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Grant this agent access to organisation-approved MCP tools. Every
-            invocation re-checks the grant, connection health and plan entitlement.
+            Your organisation&apos;s own MCP connections. Grant this agent access to
+            organisation-approved tools; every invocation re-checks the grant,
+            connection health and plan entitlement.
           </p>
         </div>
         {data?.available && (

@@ -469,7 +469,7 @@ function ConversationRail({
   messages: ConversationMessage[];
   citeSources: boolean;
   lastMessage?: ConversationMessage;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
   welcomeMessage: string;
   thinking: boolean;
   streaming: boolean;

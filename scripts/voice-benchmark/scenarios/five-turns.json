@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Short synthetic spoken questions for a dedicated Clara test KB. Included MP3 fixtures match the exact prompt text; the browser decodes them into the controlled microphone track.",
+  "audioFiles": [
+    "scripts/voice-benchmark/questions/turn-01.mp3",
+    "scripts/voice-benchmark/questions/turn-02.mp3",
+    "scripts/voice-benchmark/questions/turn-03.mp3",
+    "scripts/voice-benchmark/questions/turn-04.mp3",
+    "scripts/voice-benchmark/questions/turn-05.mp3"
+  ],
+  "turns": [
+    {
+      "id": "turn-01",
+      "prompt": "What are support hours?",
+      "expectedFacts": [
+        "Support hours are 9 AM to 6 PM",
+        "Timezone is India Standard Time"
+      ],
+      "testKbFact": "Synthetic test policy: support hours are 9 AM to 6 PM India Standard Time (IST)."
+    },
+    {
+      "id": "turn-02",
+      "prompt": "Normal ticket response time?",
+      "expectedFacts": [
+        "Normal priority first response target is 4 business hours"
+      ],
+      "testKbFact": "Synthetic test policy: normal priority tickets have a first-response target of 4 business hours."
+    },
+    {
+      "id": "turn-03",
+      "prompt": "Urgent ticket response time?",
+      "expectedFacts": [
+        "Urgent ticket first response target is 30 minutes"
+      ],
+      "testKbFact": "Synthetic test policy: urgent tickets have a first-response target of 30 minutes."
+    },
+    {
+      "id": "turn-04",
+      "prompt": "Can I change my email?",
+      "expectedFacts": [
+        "Email change is allowed",
+        "Verify ownership of the current account before changing it"
+      ],
+      "testKbFact": "Synthetic test policy: users may change their account email after verifying ownership of the current account."
+    },
+    {
+      "id": "turn-05",
+      "prompt": "Summarize all response targets.",
+      "expectedFacts": [
+        "Support hours 9 AM to 6 PM IST",
+        "Normal target 4 business hours",
+        "Urgent target 30 minutes"
+      ],
+      "testKbFact": "Synthetic test policy: support hours are 9 AM to 6 PM IST; normal priority first-response target is 4 business hours; urgent first-response target is 30 minutes."
+    }
+  ],
+  "validation": {
+    "minimumCompletedTurns": 5,
+    "requireNonEmptyAnswer": true,
+    "requireCompletionSignal": true,
+    "requireObservedProviderMatch": true,
+    "requireSingleFinalAnswerPerTurn": true,
+    "transcriptLogging": false,
+    "notes": "Expected facts are for offline evaluator/test fixture only. Do not put prompts, transcripts, API keys, or raw provider payloads into production logs."
+  }
+}
