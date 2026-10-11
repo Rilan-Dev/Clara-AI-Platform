@@ -27,11 +27,26 @@ export function getRedisConnectionOptions(): RedisConnectionOptions {
       username: url.username ? decodeURIComponent(url.username) : undefined,
       password: url.password ? decodeURIComponent(url.password) : undefined,
       maxRetriesPerRequest: null,
-      enableReadyCheck: false,
+      enableReadyCheck: false as const,
       ...(url.pathname.length > 1 ? { db: Number(url.pathname.slice(1)) } : {}),
       ...(url.protocol === "rediss:" ? { tls: {} } : {}),
     };
     return options;
+  }
+
+  const legacyHost = process.env.REDIS_HOST?.trim();
+  if (legacyHost?.startsWith("redis://") || legacyHost?.startsWith("rediss://")) {
+    const url = new URL(legacyHost);
+    return {
+      host: url.hostname,
+      port: url.port ? Number(url.port) : 6379,
+      username: url.username ? decodeURIComponent(url.username) : undefined,
+      password: url.password ? decodeURIComponent(url.password) : undefined,
+      ...(url.pathname.length > 1 ? { db: Number(url.pathname.slice(1)) } : {}),
+      ...(url.protocol === "rediss:" ? { tls: {} } : {}),
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false as const,
+    };
   }
 
   const port = Number.parseInt(process.env.REDIS_PORT ?? "6379", 10);
@@ -41,7 +56,7 @@ export function getRedisConnectionOptions(): RedisConnectionOptions {
     username: process.env.REDIS_USERNAME?.trim() || undefined,
     password: process.env.REDIS_PASSWORD || undefined,
     maxRetriesPerRequest: null,
-    enableReadyCheck: false,
+    enableReadyCheck: false as const,
   };
 }
 export const redisConnection = getRedisConnectionOptions();
