@@ -260,7 +260,9 @@ async function main() {
       ttfaMs: turnResults.map((t) => t.latencies?.ttfaMs).filter((v) => typeof v === "number"),
     };
     const output = {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      runStatus: "completed",
+      benchmarkError: null,
       startedAt,
       finishedAt: nowIso(),
       target: safePath(args.url),
