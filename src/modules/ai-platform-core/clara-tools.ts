@@ -67,6 +67,7 @@ import { claraRuntime, type ClaraRuntimeContext } from "./clara-runtime";
 import { createToolRuntime, type ToolRuntime } from "./tool-registry";
 import { buildIntegrationAvailabilityTool } from "./integration-ai-tools";
 import { buildIntegrationActionTool } from "./integration-action-tool";
+import { buildMcpAvailabilityTool, buildMcpToolInvoker } from "./integrations/org-mcp-tools";
 import type {
   ToolAuthorizationAdapter,
   ToolAuthorizationDecision,
@@ -343,6 +344,8 @@ export function buildClaraToolRuntime(overrides?: {
   runtime.registerTool(buildRagSearchTool());
   runtime.registerTool(buildIntegrationAvailabilityTool());
   runtime.registerTool(buildIntegrationActionTool());
+  runtime.registerTool(buildMcpAvailabilityTool());
+  runtime.registerTool(buildMcpToolInvoker());
   return runtime;
 }
 

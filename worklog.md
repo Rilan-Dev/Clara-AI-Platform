@@ -757,3 +757,30 @@ Disposition:
 
 ## 2026-10-08 — I-3 bounded Action Runner continuation
 [architect-verified] Without waiting for GitHub Actions, Vercel, Gate-C, or Gate-D, ChatGPT continued the active I-3 Action Runner source acceptance track. Two concrete defects were corrected: (1) redirect validation now preserves typed EGRESS_BLOCKED failures for private/loopback redirect targets instead of relabeling them REDIRECT_BLOCKED (`42527f0a2c83e8b7d3d6baa5fd70c8d1c2dd7d78`, regression `e74b9f6f1e82102474ccb53c56da3931fde3fdd6`); (2) strict action validation now rejects supplied props when no usable action schema exists, while preserving empty-props and non-strict compatibility (`d6bdaa4238b9694430a4a484af2eb480f28fa5eb`, regression `d90a314df428bd13d18a6655a81bd498945d549e`). I-3 remains IN PROGRESS; external execution evidence is deferred by owner instruction. Next bounded work remains deterministic result propagation, remaining strict schema edge cases, egress/redirect invariants, redacted trace invariants, and tenant-isolation regression review.
+
+## 2026-10-12 — Organization-owned MCP + plan entitlements implementation START
+
+[owner-authorized] New implementation directive: complete organization-owned MCP product, Platform Admin-configurable plan MCP entitlements, subscription validation, usage enforcement, global governance, agent permissions, Chat/realtime runtime integration, security controls, and regression tests. Branch `feature/ai-core-from-doable-source`, worktree `/home/z/my-project/.worktrees/vc`.
+
+- Inspected: plan system (`subscription_plans`/`subscription_plan_versions`/`org_subscriptions`, plan-guard resolver), integrations control plane (migrations 060-068), auth RBAC, MCP tool bridge (`ENABLE_MCP` flag), SSRF egress policy (`assertSafeEgressUrl`), chat/realtime tool surfaces, admin shell navigation, settings nav, subscriptions plan editor.
+- Implementation starting with centralized entitlement module + migration, then platform admin configuration, org-owned MCP APIs/UI, runtime integration, metering, tests, docs.
+
+## 2026-10-12 — Organization-owned MCP + plan entitlements — implementation complete at source level
+
+[owner-authorized] Executed the full 2026-10-12 directive on `feature/ai-core-from-doable-source` (worktree `/home/z/my-project/.worktrees/vc`).
+
+Work log:
+- Inspected plan/subscription architecture (plan-guard resolver semantics), integrations control plane (060–068), auth RBAC, Unified Tool Runtime, chat/realtime tool surfaces, SSRF egress policy, admin shell navigation, plan editor.
+- Added migration `069_mcp_organization_owned_endpoints.sql` (additive): `mcp_entitlements` JSONB on plans + versions, `mcp_platform_settings` singleton, `org_mcp_connections`, `org_mcp_tools`, `org_mcp_agent_grants`, `mcp_tool_usage_log`, `org_mcp_overrides`, `org_mcp_audit_log`, `mcp_platform_audit_log`.
+- Created `src/modules/mcp/`: `entitlements.ts` (centralized schema + authoritative resolver: global ∩ plan ∩ subscription ∩ overrides, fail-closed, system safety maxima), `client.ts` (Streamable HTTP JSON-RPC handshake/discovery/invocation; HTTPS + SSRF per-hop + bounded redirects/timeouts; implemented auth methods only), `metering.ts` (period quota + per-minute rate limit with advisory-lock admission), `audit.ts` (sanitized projections), `service.ts` (full lifecycle with per-operation entitlement enforcement + invocation-time reauthorization).
+- Platform admin APIs: `/api/platform/mcp-settings` (typed confirmations for disable/emergency), plan MCP entitlements in `/api/platform/subscription-plans` (validated centrally, audited, `DISABLE-PLAN-MCP` confirmation), `/api/platform/orgs/[orgId]/mcp-override` (reason + expiry, audited).
+- Org APIs: `/api/orgs/[orgId]/mcp/overview|connections|connections/[id](+test|tools|credentials|activity|agents)` and `/api/orgs/[orgId]/agents/[agentId]/mcp-tools` — org-scoped, entitlement-enforced.
+- UI: reworked org Integrations hub (quota stats, search/filter/sort cards, actions, denial/empty/loading/error states; catalog connect flow preserved under collapsed section with OAuth callback banner restored); 5-step Add-MCP-server wizard; connection detail (5 tabs); agent MCP tools screen; billing MCP usage card; plan editor MCP section; platform MCP governance screen; billing-drawer MCP entitlements + override panel; nav links (org Integrations, agent MCP Tools).
+- Runtime: `mcp_availability`/`mcp_tool` registered on `buildClaraToolRuntime`; chat + realtime advertise them only while `ENABLE_MCP` is on; realtime allowlist extended; invocation re-authorizes entitlement/connection/approval/grant + quota/rate-limit and meters both outcomes.
+- Tests: 91 new focused tests (all passing) across entitlement validation/resolution, metering, client transport, org/platform APIs, runtime reauthorization, governance guards. Full suite: 1334 passed / 50 failed == pre-change baseline (stash-diff verified; zero new failures; the one interim layout-contract regression was fixed in-session).
+- Docs: `docs/plans/mcp-organization-owned-endpoints.md` created; PROJECT_STATE / NEXT_ACTION / VERIFICATION_STATE / worklog updated.
+
+Stage summary:
+- All directive sections implemented at source level except items requiring live infrastructure (migration application on a deployed database, live MCP handshake over the network, live chat/voice execution) — explicitly recorded as unverified, not claimed as PASS.
+- `ENABLE_MCP` remains OFF; enabling requires the evidence list in the plan doc §9.
+- No destructive operations, no secrets exposed, no mocks substituted for real functionality; catalog functionality preserved.

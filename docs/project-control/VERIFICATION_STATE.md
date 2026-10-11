@@ -1784,3 +1784,15 @@ Owner-provided build output showed unresolved imports in `execution-authorizatio
 - **Correction:** Shared `src/components/ui/dialog.tsx` updated for viewport-safe width/height, overflow scrolling, min-width handling, and robust text wrapping. Commits: dialog `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`; card `f309ab93f80eb9eaa6246d72d17aa5d2d1c5c88f`.
 - **Not run / not claimed:** No browser visual check, UI regression test, test suite, typecheck, build, Docker rebuild, DB migration, runtime log comparison, or deployment. No runtime/production PASS is claimed.
 - **Next:** On the next normal runtime verification, compare the running image commit with the branch and capture migration output. Do not manually create missing tables or reset the database.
+
+---
+
+## 2026-10-12 — Organization-owned MCP verification record
+
+[owner-authorized] Local executable verification performed in the development environment:
+
+- `npx vitest run src/modules/mcp src/app/api/orgs/[orgId]/mcp src/app/api/platform/mcp-settings src/modules/ai-platform-core/integrations/org-mcp-tools.test.ts` → 91/91 PASS (entitlements validation + resolution, metering, MCP client transport, org/platform APIs, runtime reauthorization, governance confirmation guards).
+- `npx vitest run` (full suite) → 1334 passed / 50 failed. The 50 failures are byte-identical to the pre-change baseline (verified by stashing tracked changes and diffing failing-test lists; only timing jitter differed). The single interim regression introduced during development (org-integrations responsive-layout contract) was fixed within the session.
+- `npx tsc -p tsconfig.typecheck.json --noEmit` → all new and modified files clean; remaining diagnostics are pre-existing (optional deps absent locally: @vercel/queue, amqplib, @elevenlabs/client, @vercel/analytics, pdf-parse types; and pre-existing errors in untouched files).
+- NOT verified (external): live database migration application, deployment, CI/Vercel, any real MCP server handshake over the network, live Chat/realtime voice tool execution. No runtime PASS is claimed for those.
+- `ENABLE_MCP` stays OFF until the evidence list in `docs/plans/mcp-organization-owned-endpoints.md` §9 is satisfied on a deployed revision.

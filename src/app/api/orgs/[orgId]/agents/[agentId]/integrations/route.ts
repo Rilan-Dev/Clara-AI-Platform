@@ -16,15 +16,33 @@ export async function GET(req: NextRequest, { params }: Params) {
     const auth = await requireAuth(req);
     const access = await requireAgentPermission(auth, agentId, "project:read");
     if (access.orgId !== orgId) return NextResponse.json({ error: "Agent does not belong to organisation" }, { status: 403 });
-    const rows = await query<{integration_id:string;enabled:boolean}>(`SELECT integration_id, enabled FROM agent_integrations WHERE agent_id=$1`, [agentId]);
-    const orgRows = await query<{integration_id:string;enabled:boolean}>(`SELECT integration_id,enabled FROM organisation_integrations WHERE org_id=$1 AND enabled=true`, [orgId]);
-    const connections = await query<{integration_id:string;count:number}>(`SELECT integration_id,COUNT(*)::int count FROM integration_connections WHERE org_id=$1 AND status='active' AND (agent_id=$2 OR agent_id IS NULL) GROUP BY integration_id`, [orgId,agentId]);
+    const [rows, orgRows, connections, platformRows, limitsRows] = await Promise.all([
+      query<{integration_id:string;enabled:boolean}>(`SELECT integration_id, enabled FROM agent_integrations WHERE agent_id=$1`, [agentId]),
+      query<{integration_id:string;enabled:boolean}>(`SELECT integration_id,enabled FROM organisation_integrations WHERE org_id=$1 AND enabled=true`, [orgId]),
+      query<{integration_id:string;count:number}>(`SELECT integration_id,COUNT(*)::int count FROM integration_connections WHERE org_id=$1 AND status='active' AND (agent_id=$2 OR agent_id IS NULL) GROUP BY integration_id`, [orgId,agentId]),
+      query<{integration_id:string;enabled:boolean;allowed_plans:string[]}>(`SELECT integration_id, enabled, allowed_plans FROM platform_integrations`, []),
+      resolveOrgPlanLimits(orgId).catch(() => null),
+    ]);
     const granted = new Map(rows.map(r=>[r.integration_id,r.enabled]));
     const orgEnabled = new Set(orgRows.map(r=>r.integration_id));
     const connected = new Map(connections.map(r=>[r.integration_id,r.count]));
-    return NextResponse.json({ integrations: listIntegrations().map(def=>({
-      ...def, organisationEnabled: orgEnabled.has(def.id), agentEnabled: granted.get(def.id) ?? false, connected:(connected.get(def.id)??0)>0,
-    }))});
+    const platformById = new Map(platformRows.map(r=>[r.integration_id,r]));
+    const planId = limitsRows?.plan_id ?? "free";
+    return NextResponse.json({ integrations: listIntegrations().map(def=>{
+      const platform = platformById.get(def.id);
+      const planAllowed = Boolean(platform?.enabled) && (
+        Array.isArray(platform?.allowed_plans) &&
+        (platform!.allowed_plans.includes(planId) || platform!.allowed_plans.includes("*"))
+      );
+      return {
+        ...def,
+        platformEnabled: platform?.enabled ?? false,
+        planAllowed,
+        organisationEnabled: orgEnabled.has(def.id) && planAllowed,
+        agentEnabled: granted.get(def.id) ?? false,
+        connected:(connected.get(def.id)??0)>0,
+      };
+    })});
   } catch(err){ if(err instanceof NextResponse)return err; console.error("[agent integrations GET]",err); return NextResponse.json({error:"Failed to load agent integrations"},{status:500}); }
 }
 

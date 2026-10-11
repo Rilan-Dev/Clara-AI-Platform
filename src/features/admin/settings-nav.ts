@@ -14,6 +14,7 @@
 
 import {
   Bot,
+  Cable,
   CreditCard,
   FileText,
   KeyRound,
@@ -29,7 +30,7 @@ import {
 
 export type SettingsSection =
   | "account" | "appearance" | "ai" | "environment" | "embed"
-  | "payments" | "email" | "templates" | "phone" | "announcements" | "integrations";
+  | "payments" | "email" | "templates" | "phone" | "announcements" | "integrations" | "mcp";
 
 export type SettingsGroup = "You" | "Platform" | "AI & voice" | "Billing" | "Communications" | "Channels";
 
@@ -91,6 +92,16 @@ export const ADMIN_SETTINGS_PAGES: SettingsPage[] = [
     label: "Integrations",
     title: "Integrations",
     description: "Control the integration catalog exposed to organisations and their agents.",
+    group: "Platform",
+    audience: "Platform admin",
+  },
+  {
+    id: "mcp",
+    href: "/settings/mcp",
+    icon: Cable,
+    label: "MCP governance",
+    title: "MCP governance",
+    description: "Global MCP enablement, security policy, emergency controls and platform catalog switches.",
     group: "Platform",
     audience: "Platform admin",
   },

@@ -18,7 +18,7 @@ import { isSupportedOpenAIRealtimeVoice } from "./openai-catalog";
 import { buildOpenAIRealtimeSession, createOpenAIRealtimeClientSecret } from "./openai-realtime";
 import { getAuthContext } from "@/modules/auth/core/rbac";
 import { getKbAccessContext } from "@/modules/auth/core/db";
-import { isAgentLoopEnabled, isProviderToolCallingEnabled } from "@/modules/ai-platform-core";
+import { isAgentLoopEnabled, isMcpEnabled, isProviderToolCallingEnabled } from "@/modules/ai-platform-core";
 
 // Legacy document mode only. Unset → no cap (provider default "inf"); the
 // spoken audio counts against this limit, so a small cap truncates answers.
@@ -63,6 +63,33 @@ const REALTIME_INTEGRATION_TOOLS = [
       },
       required: ["integrationId", "actionName"],
       additionalProperties: false,
+    },
+  },
+] as const;
+
+const REALTIME_MCP_TOOLS = [
+  {
+    type: "function" as const,
+    name: "mcp_availability",
+    description: "List organization-approved MCP tools available to this agent, including the connection name, tool name, description and input schema. Use mcp_tool with the returned toolId to invoke one.",
+    parameters: {
+      type: "object",
+      properties: {},
+      additionalProperties: false as const,
+    },
+  },
+  {
+    type: "function" as const,
+    name: "mcp_tool",
+    description: "Invoke one organization-approved MCP tool by its toolId. Discover valid toolIds with mcp_availability first. Pass the tool's expected arguments in `args`.",
+    parameters: {
+      type: "object",
+      properties: {
+        toolId: { type: "string", description: "The toolId returned by mcp_availability." },
+        args: { type: "object", additionalProperties: true },
+      },
+      required: ["toolId"],
+      additionalProperties: false as const,
     },
   },
 ] as const;
@@ -208,6 +235,12 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
           kbAccess.permissions.has("kb:read")
         ) {
           tools.push(...REALTIME_INTEGRATION_TOOLS);
+          // Organization MCP tools use the same authorization surface; they
+          // are advertised only when the owner-controlled ENABLE_MCP flag is
+          // on, and every invocation re-authorizes server-side.
+          if (isMcpEnabled()) {
+            tools.push(...REALTIME_MCP_TOOLS);
+          }
         }
       }
     }

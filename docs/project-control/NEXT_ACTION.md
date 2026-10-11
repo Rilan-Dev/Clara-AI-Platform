@@ -1823,3 +1823,25 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 - **Next implementation:** wire provider chat and realtime voice tool calls to this same authorized runtime/context while preserving existing Clara/Qdrant RAG, provider capability differences, cancellation, and metering; then add focused regressions. Also continue secure platform OAuth client configuration/callback work.
 - Inspect Doable and reusable-library references for multi-provider capability/tool-loop patterns when useful, but keep Clara authorization and Unified Tool Runtime authoritative.
 - Do not claim all providers support tool calling unless their adapter explicitly implements it. Never expose credentials to model-visible tool definitions.
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-12 — ORGANIZATION-OWNED MCP IMPLEMENTED AT SOURCE LEVEL
+
+[owner-authorized] The complete organization-owned MCP product has been implemented at source level per the 2026-10-12 execution directive. See `docs/plans/mcp-organization-owned-endpoints.md` for the full record.
+
+## Implemented at source
+- Migration `069_mcp_organization_owned_endpoints.sql` (additive): plan MCP entitlements, global governance singleton, org-owned connections/tools/grants, usage metering, overrides, audit trails.
+- Centralized entitlement module `src/modules/mcp/` (resolver, validation, client, metering, audit, service) — plan ∩ global policy ∩ subscription ∩ overrides, fail closed.
+- Platform admin: `/settings/mcp` governance screen + `/api/platform/mcp-settings` (typed confirmations, emergency disablement); plan editor MCP configuration (validated, audited, `DISABLE-PLAN-MCP` confirmation); per-org override panel in the billing drawer + `/api/platform/orgs/[orgId]/mcp-override`.
+- Org APIs: overview, connections CRUD + probe/create with live handshake + discovery, test, rediscover, tool approval, credential rotation, activity, agent grants.
+- Org UI: Integrations hub (search/filter/sort cards, real counts, quota stats), 5-step Add-MCP-server wizard, connection detail (Overview/Tools/Agent access/Activity/Settings), billing MCP usage card. Catalog connect flow preserved inside the collapsed Platform-integrations section.
+- Agent editor: `/orgs/:id/agents/:agentId/mcp` tools screen; runtime `mcp_availability`/`mcp_tool` on the Unified Tool Runtime, advertised to chat + realtime only while `ENABLE_MCP` is on; every invocation re-authorized and metered.
+- 91 focused tests, all passing. Full suite 1334 passed / 50 failed — the 50 failures are the pre-change branch baseline (verified via stash diff). Typecheck clean for all new/changed files.
+
+## Exact next implementation
+1. Deploy the branch and apply migration `069` (the migration is purely additive; no destructive change).
+2. Configure global MCP governance (`/settings/mcp`) and per-plan MCP entitlements (Subscriptions → Plans) — both are admin-UI driven, no code or manual DB edits required.
+3. Enable `ENABLE_MCP` only after: migration applied, governance configured, a controlled live handshake against a known-good HTTPS MCP server, and the focused suites green on the deployed revision.
+4. Live-verify one organization end to end: wizard → tool approval → agent grant → chat invocation → metering/usage counts → audit entries.
+5. Continue without waiting for CI/Vercel; route defects to FIX-01 and infrastructure-only work to OPS-01 per the standing rules.

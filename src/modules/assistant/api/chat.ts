@@ -10,6 +10,7 @@ import {
   isAgentLoopEnabled,
   isProviderToolCallingEnabled,
   runBoundedAgenticLoop,
+  isMcpEnabled,
 } from "@/modules/ai-platform-core";
 import {
   embedQuery,
@@ -71,6 +72,42 @@ const INTEGRATION_CHAT_TOOLS: readonly ChatToolDefinition[] = [
     },
   },
 ];
+
+const MCP_CHAT_TOOLS: readonly ChatToolDefinition[] = [
+  {
+    name: "mcp_availability",
+    description: "List organization-approved MCP tools available to this agent, including the connection name, tool name, description and input schema. Use mcp_tool with the returned toolId to invoke one.",
+    parameters: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "mcp_tool",
+    description: "Invoke one organization-approved MCP tool by its toolId. Discover valid toolIds with mcp_availability first. Pass the tool's expected arguments in `args`.",
+    parameters: {
+      type: "object",
+      properties: {
+        toolId: { type: "string", format: "uuid", description: "The toolId returned by mcp_availability." },
+        args: { type: "object", additionalProperties: true, description: "Arguments matching the tool's input schema." },
+      },
+      required: ["toolId"],
+      additionalProperties: false,
+    },
+  },
+];
+
+/**
+ * Tools advertised to the provider this request. Organization MCP tools are
+ * appended only when the owner-controlled ENABLE_MCP flag is on; execution
+ * re-authorizes every call server-side regardless.
+ */
+function chatToolDefinitions(): readonly ChatToolDefinition[] {
+  return isMcpEnabled()
+    ? [...INTEGRATION_CHAT_TOOLS, ...MCP_CHAT_TOOLS]
+    : INTEGRATION_CHAT_TOOLS;
+}
 
 // ── P1 FIX: Read max-tokens from env (was hardcoded 500) ──────────────────────
 //
@@ -515,7 +552,7 @@ async function postChatKb(
             const loopResult = await runBoundedAgenticLoop(
               provider as ToolCallingLLMProvider,
               chatMessages,
-              INTEGRATION_CHAT_TOOLS,
+              chatToolDefinitions(),
               executionContext,
               getClaraToolRuntime(),
               {

@@ -12,6 +12,11 @@ import {
 const ALLOWED_REALTIME_INTEGRATION_TOOLS = new Set([
   "integration_availability",
   "integration_action",
+  // Organization MCP tools share the same Unified Tool Runtime authorization
+  // path; they only execute while ENABLE_MCP is on (checked by the tool
+  // itself, fail closed).
+  "mcp_availability",
+  "mcp_tool",
 ]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
