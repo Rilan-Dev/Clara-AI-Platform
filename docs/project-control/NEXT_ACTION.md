@@ -1,3 +1,12 @@
+## NEWEST IMMEDIATE ACTION — FIX-01 TYPE-CHECK RESIDUALS — 2026-10-12
+
+- Owner's fresh type-check after Stripe declaration correction dropped from 44 errors / 19 files to 33 errors / 15 files.
+- FIX-01 has since committed targeted compatibility corrections for Stripe API version, DayPicker v10, react-resizable-panels v4, Recharts v3, ioredis/BullMQ option typing, pdf-parse v2 metadata, ReactMarkdown v10, test import resolution, and BullMQ queue generic typing.
+- Exact next action: git pull origin feature/ai-core-from-doable-source then npm run type-check. Send fresh compiler output; do not reuse the old 33-error list as current evidence.
+- src/modules/phone/core/call-handler.ts still needs official @types/ws with a package-manager-generated lockfile update. Do not paper over it with an incomplete ambient declaration.
+- No post-edit type-check/tests/build/CI/Vercel/deployment has run. No PASS is claimed. Do not wait for CI/Vercel; route infrastructure/deployment faults to OPS-01.
+
+
 ## NEWEST IMMEDIATE ACTION — FIX-01 TYPE-CHECK ROOT CAUSE — 2026-10-12
 
 - Owner-provided `npm run type-check` reported 44 errors in 19 files. FIX-01 traced the Stripe missing-member cluster to an incomplete ambient `declare module "stripe"` in `src/types/payments.d.ts`, which shadowed official `stripe@23.0.0` types.
