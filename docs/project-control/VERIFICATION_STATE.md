@@ -1860,3 +1860,9 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - Source corrections: 79f904b35ef038a98c7146e660952e70b25dbed9; 274b1a6fe9d654915853b7deee65ac70811b1e1a; 75837afdf485a4643a8f1f163540e2892f2f769e; 2eaad784a7a316b0650df7125effcada5fcb48cd; a02791f50417c99c9f15d2efdab4b03e8cb5bc2a; 13fdbe2cfc9eb528b440bc95689ec2f2a122747e; 0627901f74d1c7bbe6190b9cf84723327b992071; c0aeaca45bc187b9fb6961efe6f467990cb81fdc; 81b694bab4ceba005cb9d080cf35273a98b6f1a0; 876eef106d01a44d527462c6212427ae3259af86; fd3cd96b3f3d1f7190958e0214e4a422e02dde46.
 - Verification status: no post-edit type-check, focused tests, build, CI, Vercel, deployment, or live service checks. No PASS. @types/ws remains unresolved pending package-manager-backed dependency/lockfile update.
 - Required next evidence: new local npm run type-check output from latest branch.
+
+## FIX-01 residual type-check correction — 2026-10-12
+- Latest owner evidence before this batch: 5 errors in 4 files.
+- Corrective commits: 9827502f158ac26b2241e7cc5fabe7c5be6c291e (DayPicker v10 class names); 4957ddc8c2ee00fb47d8e8785752b9569c340484 (test import and sibling mock paths); 6b79a63482911019c4ebc333901200f555f3614a (Redis option literal and legacy URL branch).
+- Post-correction type-check and tests have not been run. No PASS. ws remains unresolved pending official @types/ws plus generated lockfile update.
+- Next evidence required: owner runs npm run type-check after pulling latest branch.
