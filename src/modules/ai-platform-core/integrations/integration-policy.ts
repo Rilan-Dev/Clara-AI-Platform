@@ -1,10 +1,10 @@
-import { query } from "@/lib/db";
+import { query, type QueryResultRow } from "@/lib/db";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { getIntegration } from "@/modules/integrations/registry";
 import type { PlatformExecutionContext } from "../contracts";
 import { ToolExecutionError } from "../tool-contracts";
 
-async function authorizationQuery<T>(sql: string, params: unknown[], purpose: string): Promise<T[]> {
+async function authorizationQuery<T extends QueryResultRow>(sql: string, params: unknown[], purpose: string): Promise<T[]> {
   try {
     return await query<T>(sql, params);
   } catch {
