@@ -215,7 +215,7 @@ async function checkQueues(redisUp: boolean): Promise<CheckResult & {
     const { redisConnection } = await import("@/modules/queue/redis");
 
     const collect = async (name: string) => {
-      const q = new Queue(name, { connection: { ...redisConnection, maxRetriesPerRequest: 2 as unknown as null } });
+      const q = new Queue(name, { connection: { ...redisConnection, maxRetriesPerRequest: null } });
       try {
         const counts = await withTimeout(
           Promise.all([q.getJobCounts("waiting", "active", "delayed", "failed")]),
