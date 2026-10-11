@@ -1866,3 +1866,9 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - Corrective commits: 9827502f158ac26b2241e7cc5fabe7c5be6c291e (DayPicker v10 class names); 4957ddc8c2ee00fb47d8e8785752b9569c340484 (test import and sibling mock paths); 6b79a63482911019c4ebc333901200f555f3614a (Redis option literal and legacy URL branch).
 - Post-correction type-check and tests have not been run. No PASS. ws remains unresolved pending official @types/ws plus generated lockfile update.
 - Next evidence required: owner runs npm run type-check after pulling latest branch.
+
+## FIX-01 residual type-check correction — 2026-10-12 (latest owner evidence)
+- Owner reran `npm run type-check` after pulling the previous changes. Compiler output narrowed from five diagnostics to **two errors in two files**: `src/components/ui/calendar.tsx` (`classNames.table` is not a DayPicker v10 class name) and `src/modules/phone/core/call-handler.ts` (missing declaration for installed `ws`).
+- Calendar source correction committed: `829ae96818a84a39110b65517917d9280c57684b`; maps remaining legacy class-name keys to DayPicker v10 names. Post-edit compiler result is pending.
+- `@types/ws` remains to be installed via npm with the generated lockfile committed. No ambient shim was added.
+- No post-latest-edit type-check, tests, build, CI, Vercel, deployment, or runtime PASS is claimed. Next evidence: run npm install --save-dev @types/ws, commit manifest/lockfile, then rerun npm run type-check.
