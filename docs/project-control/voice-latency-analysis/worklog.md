@@ -74,3 +74,14 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Updated the benchmark README with the evidence, new controls, interpretation limits, and next diagnostic steps.
 - Verification: GitHub source updates committed as `cbc382da34da686399f48da04fb7e727075a9851` (harness) and `48ec64f33546b9a9aeaf2033d7b75957a2d5f5f6` (README). Node syntax checks, validator tests, browser runs, and live OpenAI session have NOT been executed in this tool session. No benchmark success or latency conclusion is claimed.
 - Next: run `npm run test:voice-benchmark`; then rerun a single OpenAI session against the actual non-production embed URL. If it still times out, inspect the ordered data-channel event types to identify whether audio commit/VAD, transcription completion, RAG scheduling, or response creation is missing.
+
+
+## 2026-10-12 — Session 008: Qdrant REST client breaking API migration
+
+- New user-provided backend log gives a direct root cause: `[rag] postRagSearch: TypeError: a.search is not a function` while handling `/api/embed/rag`. The source uses `@qdrant/js-client-rest: ^1.19.0`; upstream v1.19.0 removed `QdrantClient.search()` in favor of `query()`, and the new query response shape is `{ points: [...] }`. Source: https://github.com/qdrant/qdrant-js/blob/master/packages/js-client-rest/CHANGELOG.md
+- Migrated all four known application retrieval call sites from `client.search(collection, { vector, ... })` to `client.query(collection, { query, ... })` and unwrap `response.points`: `src/modules/rag/grounding.ts`, `src/modules/embed/core/search.ts`, `src/modules/admin/core/hybrid-search.ts`, and `src/modules/admin/core/vector-store.ts`.
+- Updated grounding unit-test Qdrant mocks to model the new `query()` API and `{ points }` response shape, including missing-collection and cross-lingual retrieval cases.
+- Commits: `ff30781c` grounding; `d5bf1a67` embed retrieval; `757edaf2` hybrid retrieval; `cfe2945c` vector-store retrieval; `c971c5b3` initial test-mock migration; `dde8c781` cross-lingual mock correction.
+- Verification: changes were committed via GitHub source API. No local type-check, unit tests, Docker rebuild, or live Qdrant request was executed in this session. The earlier running container still contains the old build until rebuilt/recreated from the updated branch.
+- Separate warnings: Next.js invalid Server Reference ID and ElevenLabs 403 are not addressed by this Qdrant fix. The PDF canvas warnings are also separate from the RAG retrieval exception.
+- Next: pull the branch, run `npm run type-check` and the focused grounding/embed/vector-store tests, rebuild/recreate `clara-backend`, then send a single test query and confirm the Qdrant request reaches the query endpoint and `/api/embed/rag` returns a successful JSON response. Then rerun the voice benchmark.
