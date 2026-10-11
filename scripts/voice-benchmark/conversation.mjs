@@ -132,7 +132,7 @@ async function main() {
   // into this track on demand; the real app still uses its real session/STT/RAG/
   // model/TTS paths. No text is posted directly to a RAG endpoint.
   await page.addInitScript(() => {
-    const state = { events: [], dataChannelEvents: [], audioContext: null, destination: null, microphoneTrack: null, clickAt: null };
+    const state = { events: [], dataChannelEvents: [], playedInputs: [], audioContext: null, destination: null, microphoneTrack: null, clickAt: null };
     const recordDataChannelEvent = (channel, direction, type) => {
       state.dataChannelEvents.push({
         at: Date.now(),
@@ -232,7 +232,7 @@ async function main() {
           sampleCount++;
         }
       }
-      return {
+      const result = {
         durationMs: audio.duration * 1000,
         sampleRate: audio.sampleRate,
         channels: audio.numberOfChannels,
@@ -246,6 +246,8 @@ async function main() {
         } : null,
         audioContextState: state.audioContext.state,
       };
+      state.playedInputs.push({ at: Date.now(), ...result });
+      return result;
     };
     window.__claraVoiceBenchMarkConnect = () => {
       state.clickAt = { wallTime: Date.now(), monotonicMs: performance.now() };
@@ -278,7 +280,7 @@ async function main() {
       ? welcomeFirstAudioMark - clickWallTime
       : null;
 
-    console.log(`[conversation-bench] welcome first-audio mark=${welcomeFirstAudioMark ?? "missing"}ms-from-page-origin click-delta=${welcomeMsFromClick ?? "unavailable"}ms`);
+    console.log(`[conversation-bench] welcome first-audio mark=${welcomeFirstAudioMark ?? "missing"} click-to-first-audio=${welcomeMsFromClick ?? "unavailable"}ms`);
 
     for (const n of EXPECTED_INPUTS) {
       const before = await page.evaluate(() => (window.__claraVoiceBench?.events ?? []).length);
@@ -398,6 +400,7 @@ async function main() {
         browser: "Playwright Chromium",
         inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
         session: { connectClick: connectClick.wallTime, welcomeEvent: welcomeEvent ? { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks } : null },
+        playedInputs: await page.evaluate(() => window.__claraVoiceBench?.playedInputs ?? []),
         turns: turnResults,
         observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
         dataChannelEvents,
