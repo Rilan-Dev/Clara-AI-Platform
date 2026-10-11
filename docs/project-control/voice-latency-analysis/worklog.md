@@ -32,6 +32,7 @@ Dedicated worklog for the voice latency/network benchmark audit. Keep this separ
 - Updated `scripts/voice-benchmark/conversation.mjs` to write schema-v2 partial diagnostics on welcome/turn timeout or provider mismatch. A failed run now preserves observed latency events, completed turn records, browser request records, request failures, console errors and the failure reason where available.
 - Replaced the ambiguous `completed` flag with `telemetryBarrierReached`; explicitly records that answer integrity and provider token usage are not verified by current shared telemetry.
 - Reworded the welcome metric as a first-audio telemetry mark; it is not independent confirmation of audible playback.
+- Added redaction for bearer/token-like strings and URL query values in captured browser errors and benchmark failure diagnostics.
 - Added `scripts/voice-benchmark/validate-report.mjs`, a Node built-in-only report gate requiring five sequential turn records and provider consistency while warning on missing TTFA, token usage, answer-integrity evidence, console errors and failed requests.
 - Updated `scripts/voice-benchmark/README.md` with acceptance usage and explicit milestone status.
 - Verification status: changes are committed to GitHub. This environment has not executed Node, Playwright, a live Clara session or any provider requests; syntax/runtime and real microphone injection remain unverified. No latency measurements are claimed.
