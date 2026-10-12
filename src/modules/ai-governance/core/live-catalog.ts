@@ -143,7 +143,7 @@ async function syncGemini(): Promise<void> {
     const body = (await jsonFetch(`https://generativelanguage.googleapis.com/v1beta/models?${qs}`, {
       headers: { "x-goog-api-key": apiKey },
     })) as {
-      models?: Array<{ name?: string; displayName?: string; supportedGenerationMethods?: string[] }>;
+      models?: Array<{ name?: string; displayName?: string; description?: string; inputTokenLimit?: number; outputTokenLimit?: number; supportedGenerationMethods?: string[]; temperature?: number; topP?: number; topK?: number }>;
       nextPageToken?: string;
     };
     for (const model of body.models ?? []) {
@@ -151,13 +151,13 @@ async function syncGemini(): Promise<void> {
       if (!id) continue;
       const methods = model.supportedGenerationMethods ?? [];
       if (methods.includes("embedContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id });
+        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
       }
       if (methods.includes("generateContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id });
+        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
       }
       if (methods.some((method) => /bidi/i.test(method))) {
-        items.push({ providerId: "gemini", capability: "realtime_voice", kind: "realtime", modelId: id, displayName: model.displayName ?? id });
+        items.push({ providerId: "gemini", capability: "realtime_voice", kind: "realtime", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
       }
     }
     pageToken = body.nextPageToken ?? "";
@@ -214,13 +214,23 @@ async function syncElevenLabs(): Promise<void> {
   for (const model of models ?? []) {
     if (!model.model_id) continue;
     if (model.can_do_text_to_speech) {
-      modelItems.push({
-        providerId: "elevenlabs",
-        capability: "voice_chat",
-        kind: "tts",
-        modelId: model.model_id,
-        displayName: model.name ?? model.model_id,
-      });
+      // Vendor model discovery is shared by Voice Chat and Realtime Voice.
+      // The old realtime picker hardcoded eleven_flash_v2_5, even when the
+      // workspace advertised newer/cheaper supported TTS models.
+      for (const capability of ["voice_chat", "realtime_voice"] as const) {
+        modelItems.push({
+          providerId: "elevenlabs",
+          capability,
+          kind: "tts",
+          modelId: model.model_id,
+          displayName: model.name ?? model.model_id,
+          metadata: {
+            canDoTextToSpeech: true,
+            canDoVoiceConversion: model.can_do_voice_conversion ?? false,
+            modelType: model.model_id.toLowerCase().includes("flash") ? "low_latency" : "standard",
+          },
+        });
+      }
     }
   }
 
@@ -259,7 +269,8 @@ async function syncElevenLabs(): Promise<void> {
   }));
 
   await upsertItems([...modelItems, ...voiceItems, ...realtimeVoiceItems]);
-  await disableMissing("elevenlabs", "voice_chat", "tts", new Set(modelItems.map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "voice_chat", "tts", new Set(modelItems.filter((item) => item.capability === "voice_chat").map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "realtime_voice", "tts", new Set(modelItems.filter((item) => item.capability === "realtime_voice").map((item) => item.modelId)));
   await disableMissing("elevenlabs", "voice_chat", "voice", new Set(voiceItems.map((item) => item.modelId)));
   await disableMissing("elevenlabs", "realtime_voice", "voice", new Set(realtimeVoiceItems.map((item) => item.modelId)));
 }
