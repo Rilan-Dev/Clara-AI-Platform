@@ -224,3 +224,7 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 
 
 - Added regression source for a Gemini realtime model preference containing the vendor models/ prefix (commit bff9ccbae2f89717a4f111ef931d8a7f6c822eff). Not run.
+
+
+- Added GeminiProvider dimension safety and compatibility regression source (commit 712eebf8e4295bc987c65db2d1acb371af987972); tests were authored only, not run.
+- Known fixed-size Gemini models reject conflicting configured dimensions; Matryoshka dimensions remain configurable; unknown model dimensions require explicit confirmation.
