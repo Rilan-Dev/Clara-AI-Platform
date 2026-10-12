@@ -14,7 +14,6 @@
  * the provider marketing copy shown on the option cards.
  */
 
-import { visibleSarvamChatModels } from "@/modules/ai-core/model-catalog";
 import {
   SARVAM_TTS_MODELS,
   SARVAM_STT_MODELS,
@@ -141,14 +140,10 @@ export function elevenlabsRealtimeTtsOptions(liveModels: LiveAIModelOption[] = [
 
 // ─── Sarvam (voice axis — pipeline only, static catalogue by design) ────────
 
-export function sarvamChatOptions() {
-  // Dark-launch gated: renders exactly as before while SARVAM_ENABLED is off
-  // (visibleSarvamChatModels returns [] unless enabled + beta flag per model).
-  return visibleSarvamChatModels().map((m) => ({
-    value: m.id,
-    label: m.label ?? m.id,
-    meta: m.inputUsdPerMTokens != null ? `$${m.inputUsdPerMTokens}/M in` : undefined,
-  }));
+export function sarvamChatOptions(liveModels: LiveAIModelOption[] = []) {
+  // Model availability comes from the same live governance catalogue as the
+  // other providers; this helper no longer owns a static Sarvam model list.
+  return liveOptions(liveModels, ["chat"]);
 }
 
 export function sarvamTtsOptions() {
