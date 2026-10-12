@@ -19,12 +19,12 @@ vi.mock("@/lib/db", () => ({
       const planId = String(params?.[0] ?? "free");
       return state.plans[planId] ? [state.plans[planId]] : [];
     }
-    if (sql.includes("FROM plan_ai_capabilities")) return state.capabilities[String(params?.[0])] ?? [];
-    if (sql.includes("FROM plan_ai_provider_entitlements")) return state.providers[String(params?.[0])] ?? [];
-    if (sql.includes("FROM plan_ai_model_entitlements")) return state.models[String(params?.[0])] ?? [];
     if (sql.includes("SELECT EXISTS (SELECT 1 FROM plan_ai_provider_entitlements)")) {
       return [{ matrix_configured: state.providerMatrixConfigured }];
     }
+    if (sql.includes("FROM plan_ai_capabilities")) return state.capabilities[String(params?.[0])] ?? [];
+    if (sql.includes("FROM plan_ai_provider_entitlements")) return state.providers[String(params?.[0])] ?? [];
+    if (sql.includes("FROM plan_ai_model_entitlements")) return state.models[String(params?.[0])] ?? [];
     throw new Error(`Unexpected entitlement query: ${sql}`);
   }),
 }));
