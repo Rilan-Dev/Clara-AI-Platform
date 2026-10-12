@@ -133,7 +133,7 @@ async function main() {
   // into this track on demand; the real app still uses its real session/STT/RAG/
   // model/TTS paths. No text is posted directly to a RAG endpoint.
   await page.addInitScript(() => {
-    const state = { events: [], dataChannelEvents: [], playedInputs: [], audioContext: null, destination: null, microphoneTrack: null, peerConnection: null, dataChannel: null, clickAt: null };
+    const state = { events: [], dataChannelEvents: [], playedInputs: [], ragRequests: [], audioContext: null, destination: null, microphoneTrack: null, peerConnection: null, dataChannel: null, clickAt: null };
     const recordDataChannelEvent = (channel, direction, type, detail = null) => {
       state.dataChannelEvents.push({
         at: Date.now(),
@@ -249,6 +249,38 @@ async function main() {
       };
     } catch {}
     window.__claraVoiceBench = state;
+    // Capture RAG request timing and server-side stage timings without storing
+    // questions, context, snippets, credentials, or response bodies.
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (...fetchArgs) => {
+      const startedAt = performance.now();
+      const response = await originalFetch(...fetchArgs);
+      try {
+        const input = fetchArgs[0];
+        const rawUrl = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+        const url = new URL(rawUrl, window.location.href);
+        if (url.pathname.endsWith("/api/rag/search") || url.pathname.endsWith("/api/embed/rag")) {
+          const record = {
+            endpoint: url.pathname.endsWith("/api/embed/rag") ? "embed-rag" : "rag-search",
+            status: response.status,
+            elapsedMs: Math.round(performance.now() - startedAt),
+            serverTimingHeader: response.headers.get("server-timing"),
+            timings: null,
+          };
+          state.ragRequests.push(record);
+          void response.clone().json().then((payload) => {
+            if (payload && payload.timings && typeof payload.timings === "object") {
+              const safeTimings = {};
+              for (const [key, value] of Object.entries(payload.timings)) {
+                if (typeof value === "number" && Number.isFinite(value)) safeTimings[key] = value;
+              }
+              record.timings = safeTimings;
+            }
+          }).catch(() => {});
+        }
+      } catch {}
+      return response;
+    };
     window.addEventListener("clara:voice:latency", (event) => {
       const d = event.detail || {};
       state.events.push({
@@ -499,6 +531,7 @@ async function main() {
       inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
       session: { connectClick: connectClick.wallTime, welcomeEvent: { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks }, sessionClickToWelcomeAudioMs: welcomeMsFromClick, metricMeaning: "first browser.first_audio telemetry mark; not independent confirmation of audible playback" },
       turns: turnResults,
+      ragRequests: await page.evaluate(() => window.__claraVoiceBench?.ragRequests ?? []),
       requestCounts,
       requestTimings: responseRecords,
       resourceTimings,
@@ -543,6 +576,7 @@ async function main() {
         inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
         session: { connectClick: connectClick.wallTime, welcomeEvent: welcomeEvent ? { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks } : null },
         playedInputs: await page.evaluate(() => window.__claraVoiceBench?.playedInputs ?? []),
+        ragRequests: await page.evaluate(() => window.__claraVoiceBench?.ragRequests ?? []),
         drainSettings: { welcomeDrainMs: args.welcomeDrainMs, interTurnDrainMs: args.drainMs },
         turns: turnResults,
         observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
