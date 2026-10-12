@@ -11,6 +11,8 @@
  */
 
 import { execute } from "@/lib/db";
+import { findChatModel, findEmbeddingModel } from "@/modules/ai-core/model-catalog";
+import { findTTSModel } from "@/modules/voice-core/model-catalog";
 
 type Provider = "openai" | "gemini" | "sarvam" | "elevenlabs";
 type Capability = "chat" | "voice_chat" | "realtime_voice";
@@ -115,7 +117,18 @@ async function syncOpenAI(): Promise<void> {
         ...slot,
         modelId: model.id,
         displayName: model.id,
-        metadata: { ownedBy: model.owned_by ?? null },
+        metadata: {
+          ownedBy: model.owned_by ?? null,
+          ...(slot.kind === "chat" ? {
+            inputUsdPerMTokens: findChatModel(model.id)?.inputUsdPerMTokens ?? null,
+            outputUsdPerMTokens: findChatModel(model.id)?.outputUsdPerMTokens ?? null,
+            contextTokens: findChatModel(model.id)?.contextTokens ?? null,
+          } : slot.kind === "embedding" ? {
+            inputUsdPerMTokens: findEmbeddingModel(model.id)?.inputUsdPerMTokens ?? null,
+            dimension: findEmbeddingModel(model.id)?.dimension ?? null,
+          } : {}),
+          ...((model.id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: model.id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}),
+        },
       });
     }
   }
@@ -151,10 +164,10 @@ async function syncGemini(): Promise<void> {
       if (!id) continue;
       const methods = model.supportedGenerationMethods ?? [];
       if (methods.includes("embedContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
+        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findEmbeddingModel(id)?.inputUsdPerMTokens ?? null, dimension: findEmbeddingModel(id)?.dimension ?? null, ...((id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}) } });
       }
       if (methods.includes("generateContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
+        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findChatModel(id)?.inputUsdPerMTokens ?? null, outputUsdPerMTokens: findChatModel(id)?.outputUsdPerMTokens ?? null, contextTokens: findChatModel(id)?.contextTokens ?? model.inputTokenLimit ?? null, ...((id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}) } });
       }
       if (methods.some((method) => /bidi/i.test(method))) {
         items.push({ providerId: "gemini", capability: "realtime_voice", kind: "realtime", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
@@ -231,6 +244,7 @@ async function syncElevenLabs(): Promise<void> {
             canDoTextToSpeech: true,
             canDoVoiceConversion: model.can_do_voice_conversion ?? false,
             modelType: model.model_id.toLowerCase().includes("flash") ? "low_latency" : "standard",
+            usdPer1kChars: findTTSModel(model.model_id)?.usdPer1kChars ?? null,
           },
         });
       }
