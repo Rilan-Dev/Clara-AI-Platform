@@ -215,3 +215,6 @@ could not be connected at all.
 
 - Hardened Gemini embedding dimension overrides: explicit dimensions must be positive integers <=3072; known fixed-size models reject mismatches; gemini-embedding-001 retains compatible Matryoshka dimensions; unknown models require explicit dimensions (commit 1b91683b4079736898be686e380417a064884c76).
 - Added focused GeminiProvider dimension regression source (commit 712eebf8e4295bc987c65db2d1acb371af987972). No tests/type-check/build were run.
+
+
+- GeminiProvider now requires chat/embedding model IDs in the resolved config and does not independently fall back to GEMINI_CHAT_MODEL or GEMINI_EMBEDDING_MODEL. Added regression source ensuring environment preferences cannot bypass live governance resolution. Commits a02e92d47982a3977b82d1d3071e507eefe2feab, ffff0cf29be92740c8709fb4bc389b3522a6e350. No tests/type-check/build were run.
