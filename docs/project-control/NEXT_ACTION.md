@@ -2027,3 +2027,20 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 - Runtime compatibility: install output shows Node v20.20.0 while dependencies require Node 22+, with `machina` requiring `>=22.22` and Vitest 5 requiring `^22.12.0 || ^24.0.0 || >=26.0.0`. Confirm project/runtime compatibility and align local, Docker and deployment runtimes to Node 22.22+ before relying on tests or runtime evidence.
 - npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical). Do a separate lockfile-aware audit; do not blindly run `npm audit fix --force`.
 - Continue the existing organization-owned MCP endpoint plan and focused regression work without waiting for CI/Vercel. No tests, build, deployment or live MCP handshake PASS is implied by type-check PASS.
+
+
+# CURRENT OWNER-AUTHORIZED NEXT ACTION — 2026-10-12 — GEMINI CATALOGUE CONSUMERS
+
+The active bounded task is the owner-requested audit of remaining Gemini catalogue consumers and environment/seed defaults. Availability comes only from enabled governance rows marked vendor_live; environment IDs are preferences validated against those rows.
+
+Completed source changes in this continuation:
+- Corrected live model release-date parsing.
+- Runtime embedding fallback now uses only live-discovered embedding rows and respects the organisation allow-list.
+- Gemini embedding dimension resolution fails closed for unknown dimensions instead of assuming 768.
+- Governance model counts, default summaries and provider workspace inventory exclude seed-only rows.
+- Legacy env examples no longer pin Gemini chat/embedding/realtime IDs; production seed does not set static model IDs.
+- Corrected malformed models/ prefix normalization in Gemini session and embed-session routes.
+
+Next action: add/refine focused regressions for stale model IDs, unknown embedding dimensions, model-prefix normalization and vendor-live-only availability; then continue the branch-local search for remaining bypasses. Do not wait/poll CI or Vercel. Route substantial unrelated correctness/security defects to FIX-01 and deployment/infra-only work to OPS-01.
+
+Verification: source-only. Tests, type-check, build, live vendor calls, UI, deployment and production runtime have not been run. No PASS is claimed.
