@@ -208,3 +208,10 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Correction:** Removed the duplicate `buildClaraToolRuntime` export. Commit: `d755aea0de75509cabfe2ed4c76e7cae2468db2e`.
 - **Verification:** Source correction committed only. No post-fix build/typecheck/tests or production OAuth save was executed. Do not treat the old container as updated.
 - **Next:** Rebuild `clara-backend` from the feature branch. If another compiler error appears, fix that exact failure. Once build succeeds, recreate the backend and retry OAuth save with a fresh session and rotated Google client secret; never reuse the exposed credentials.
+
+
+## 2026-10-12 — Live model catalogue audit
+- Committed fixes for release-date metadata parsing, live-only embedding fallback, unknown Gemini embedding dimension safety, and governance inventory/counting based only on vendor-live rows.
+- Removed pinned Gemini model defaults from legacy env templates; production seed does not establish static model availability.
+- Commits: 865e657901d479e29ce1625b1869edfaa0eb04d5, d7d6a144750799ab127b92e84e2546dacb20e59b, c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3, 6bed6c178884df567e8478974d693ed033f49631, af5e16ef22bc79249fee95b3d09cc74a10e4edc2, 1d9de9d29483c3b8781194e6988d0e84a703aad9, 4869b25802fae07ff5061c2e970cc4cc4418856a.
+- Verification not run; continue targeted regression source and branch audit. Do not wait for CI/Vercel.
