@@ -71,15 +71,7 @@ function productionSettingValues(): Record<string, string> {
   const env = process.env;
   const values: Record<string, string> = {
     AI_PROVIDER: "openai",
-    OPENAI_CHAT_MODEL: "gpt-5.6-terra",
-    OPENAI_EMBEDDING_MODEL: "text-embedding-3-small",
-    OPENAI_REALTIME_MODEL: "gpt-realtime-2.1-mini",
-    OPENAI_TRANSCRIPTION_MODEL: "gpt-realtime-whisper",
     OPENAI_DEFAULT_VOICE: "alloy",
-    GEMINI_CHAT_MODEL: "gemini-2.5-flash",
-    GEMINI_EMBEDDING_MODEL: "text-embedding-004",
-    GEMINI_REALTIME_MODEL: "gemini-2.5-flash-preview-tts",
-    GEMINI_TRANSCRIPTION_MODEL: "gemini-2.5-flash",
     GEMINI_DEFAULT_VOICE: "Puck",
     AI_MAX_CHAT_TOKENS: "4000",
     AI_MAX_REALTIME_TOKENS: "1000",
@@ -109,7 +101,8 @@ function productionSettingValues(): Record<string, string> {
   // Non-secret env knobs win over the table above when present.
   for (const key of [
     "AI_PROVIDER", "PHONE_PROVIDER", "NEXT_PUBLIC_APP_URL",
-    "OPENAI_CHAT_MODEL", "GEMINI_CHAT_MODEL",
+    "OPENAI_CHAT_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_REALTIME_MODEL", "OPENAI_TRANSCRIPTION_MODEL",
+    "GEMINI_CHAT_MODEL", "GEMINI_EMBEDDING_MODEL", "GEMINI_REALTIME_MODEL", "GEMINI_TRANSCRIPTION_MODEL", "SARVAM_CHAT_MODEL",
     "EMAIL_PROVIDER", "EMAIL_FROM_NAME", "EMAIL_FROM_ADDRESS",
   ]) {
     const v = env[key]?.trim();
