@@ -31,6 +31,27 @@ describe("Gemini embedding dimension safety", () => {
     expect(provider().getEmbeddingDimension()).toBe(768);
   });
 
+  it("does not treat GEMINI_CHAT_MODEL env values as an availability source", () => {
+    process.env.GEMINI_CHAT_MODEL = "gemini-2.5-flash";
+    try {
+      expect(() => provider({ chatModel: undefined }).getModelName("chat"))
+        .toThrow(/No Gemini chat model is configured/);
+    } finally {
+      delete process.env.GEMINI_CHAT_MODEL;
+    }
+  });
+
+  it("does not treat GEMINI_EMBEDDING_MODEL env values as an availability source", () => {
+    process.env.GEMINI_EMBEDDING_MODEL = "text-embedding-004";
+    try {
+      expect(() => provider({ embeddingModel: undefined }).getModelName("embedding"))
+        .toThrow(/No Gemini embedding model is configured/);
+    } finally {
+      delete process.env.GEMINI_EMBEDDING_MODEL;
+    }
+  });
+
+
   it("rejects a configured dimension that conflicts with a fixed-size model", () => {
     expect(() => provider({ embeddingDimension: 1536 }).getEmbeddingDimension())
       .toThrow(/does not match the fixed output dimension 768/);
