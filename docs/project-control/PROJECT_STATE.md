@@ -728,3 +728,10 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Environment compatibility risk surfaced during install: local Node v20.20.0 does not satisfy multiple installed package engines; strongest observed minimum is Node >=22.22 (`machina`). Align local, Docker, and deployment runtimes to Node 22.22+ before treating test/runtime behavior as validated.
 - npm reports 37 audit vulnerabilities; dependency remediation is a separate reviewed task. No `npm audit fix --force` was run.
 - The owner still needs to commit the generated `@types/ws` manifest/lockfile update after reviewing the working tree. No tests/build/runtime/deployment PASS is claimed.
+
+
+## DEV-01 — Live Gemini catalogue audit — 2026-10-12
+- Current bounded work: replace static availability decisions with live governance catalogue, including environment/seed defaults and embedding dimension safety.
+- Commits in this continuation: 865e657901d479e29ce1625b1869edfaa0eb04d5 (release-date parsing), d7d6a144750799ab127b92e84e2546dacb20e59b (live-only embedding fallback), c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3 and 6bed6c178884df567e8478974d693ed033f49631 (legacy env examples), af5e16ef22bc79249fee95b3d09cc74a10e4edc2 (seed semantics), 1d9de9d29483c3b8781194e6988d0e84a703aad9 (unknown Gemini embedding dimensions fail closed), 4869b25802fae07ff5061c2e970cc4cc4418856a (governance availability views).
+- Static Gemini model entries remain pricing/vector compatibility metadata only. No hardcoded chat/embedding/realtime model defaults were found in the current production seed; env-specified IDs are candidates and runtime resolution validates against live rows.
+- Verification remains pending: no tests/type-check/build/live provider calls/UI/deployment were run or awaited. No PASS is claimed.
