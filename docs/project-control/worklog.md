@@ -203,3 +203,8 @@ could not be connected at all.
 - GeminiProvider.getEmbeddingDimension() now uses known dimension metadata or explicit configuration and throws for unknown dimensions rather than guessing 768 (commit 1d9de9d29483c3b8781194e6988d0e84a703aad9).
 - Governance registry counts, default-model summaries, and provider workspace model inventory exclude seed-only rows (commit 4869b25802fae07ff5061c2e970cc4cc4418856a).
 - No tests, type-check, build, live provider API, UI or deployment verification was run. No PASS is claimed. Next: targeted regressions and remaining consumer audit.
+
+
+## 2026-10-12 — Gemini model ID normalization follow-up
+- Current branch audit found malformed escaping in model-prefix normalization in src/modules/assistant/api/geminiSession.ts and src/app/api/embed/session/route.ts. Corrected these to strip a literal models/ prefix properly (commits 024f37a9a3599f5e036a13aea9524c60f234c6b7 and 32e7908b84d386d5b0a9c4607b0128dec382a20c).
+- This is source-only; no test/type-check/build/live vendor/deployment verification was run. No PASS is claimed.
