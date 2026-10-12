@@ -1,3 +1,15 @@
+## NEWEST DEV-01 PRODUCT ACTION — DYNAMIC GEMINI + ELEVENLABS REALTIME CATALOGUE — 2026-10-12
+
+This is an independent DEV-01 product task and does not supersede the parallel FIX-01 type-check correction action below.
+
+- Source changes are committed for live Gemini realtime selection, live ElevenLabs realtime TTS selection, shared live-model option adapters, live sync on catalogue reads, stale seeded model reconciliation, and guarded cost/release sorting.
+- **Exact next action:** inspect `src/modules/ai-core/model-catalog.ts`, `src/modules/ai-core/resolve.ts`, `src/lib/db/seed/production.ts`, model settings UI consumers and any Gemini model defaults. Replace selectable static model arrays with live governance catalogue data; retain pricing/dimension metadata only where required for metering and Qdrant compatibility, clearly separated from availability. Ensure current selections are validated against live provider capability, and unknown price/release metadata is not fabricated.
+- Add focused regression coverage for Gemini chat/embedding/realtime capability filtering, provider-discovery failure, stale seeded model exclusion, ElevenLabs realtime TTS availability, and cost/release sorting.
+- **Verification boundary:** no tests/typecheck/build/migration/live API/CI/Vercel/deployment/browser verification has been run. No PASS. Do not poll CI/Vercel.
+- **Role boundary:** route substantial independent bugs to FIX-01; CI/CD, deployment, database-operation or infrastructure failures to OPS-01. DEV-01 continues product implementation.
+
+---
+
 ## NEWEST IMMEDIATE ACTION — FIX-01 FIVE-ERROR FOLLOW-UP — 2026-10-12
 
 - Owner's latest compiler evidence: 5 errors in 4 files.
