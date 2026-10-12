@@ -1,3 +1,18 @@
+# LIVE MODEL DISCOVERY — GEMINI + ELEVENLABS REALTIME — 2026-10-12
+
+- **Agent/session:** DEV-01 / Forge — SESSION-DEV-20261012-01.
+- **Branch:** `feature/ai-core-from-doable-source`.
+- **Scope:** continue owner-authorized model discovery/filtering work without waiting for CI/Vercel. Gemini realtime models and ElevenLabs realtime TTS must be sourced from the provider live catalogue, not hardcoded selectable model lists.
+- **Source changes committed:** live catalogue now enriches Gemini/OpenAI/ElevenLabs model rows with known pricing/release metadata; successful Gemini/OpenAI discovery reconciles stale seeded rows; confirmed live rows are re-enabled on upsert; model list reads trigger live sync and rank by known unit price then release metadata; provider option builders accept live model rows; Gemini realtime session and public embed session validate against vendor-discovered realtime models; Gemini provider no longer silently falls back to hardcoded chat/embedding model IDs; ElevenLabs realtime TTS uses live TTS rows.
+- **Key commits:** `c84acc50538653a98a8bcdb3cb2dce3cc2b6c94c`, `45923e33361da9f360d42fce7c93a1129aeac0e1`, `00c6dd8a71197b527fab59cfec0c24cbd6d6ade5`, `07eb032b366386886ca01a47d48f5701dcdb491b`, `66f22879253530d5faf66c6575bb2f3ac128580d`, `ad7003c8a09cab44137411ceefe5b0840140c0fc`, `87bdfbc7f06baea44c465ce1a53cb2972db3ffa8`, `bdb9b3b54d32551fc67b9d2f9c374f4b172cbae0`, `2c489a24a4f81f7cd06502d53e46e2fa3d77f9bd`, `4496851781f13426a8db363764cabf8c8a85ccf2`, `6f0cea8f4d682ae76a3fa7a8a522512b91e648bb`, `9b850ec47a42103b5e6cb4b4916d19b4f26e7dbe`.
+- **Verification boundary:** source commits/rereads only. Tests, type-check, lint/build, migration execution, live provider calls, CI/Vercel, deployment, and browser verification have not been run. No PASS claimed.
+- **Remaining:** inspect and remove remaining static Gemini availability/default lists outside the two realtime routes (including legacy core option helpers, bootstrap/seed defaults, and any consumers not routed through governance); validate dynamic selectors in all admin/org/agent surfaces; add/fix focused regressions for empty/failed discovery and model sorting. Vendor list endpoints do not always expose authoritative prices/release dates; preserve honest unknown-price ordering and do not fabricate dates.
+- **Exact next action:** continue DEV-01 from `docs/project-control/NEXT_ACTION.md`; inspect the remaining Gemini model catalog and all callers, then replace any remaining selectable static lists with the governance live catalogue. Do not wait for CI/Vercel.
+- **Parallel known work:** FIX-01 I-097 type-check residuals remain active; follow the latest FIX-01 NEXT_ACTION separately. Do not assume those diagnostics are fixed.
+- **Security:** API keys remain server-side. When provider discovery fails, realtime runtime selection fails closed instead of using a seeded static model.
+
+---
+
 # FIX-01 TYPE-CHECK ROOT-CAUSE CORRECTION — 2026-10-12
 
 - Branch: `feature/ai-core-from-doable-source`.
