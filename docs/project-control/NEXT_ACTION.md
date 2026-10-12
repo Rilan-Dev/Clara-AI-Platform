@@ -2001,3 +2001,12 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 - Runtime compatibility: install output shows Node v20.20.0 while dependencies require Node 22+, with `machina` requiring `>=22.22` and Vitest 5 requiring `^22.12.0 || ^24.0.0 || >=26.0.0`. Confirm project/runtime compatibility and align local, Docker and deployment runtimes to Node 22.22+ before relying on tests or runtime evidence.
 - npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical). Do a separate lockfile-aware audit; do not blindly run `npm audit fix --force`.
 - Continue the existing organization-owned MCP endpoint plan and focused regression work without waiting for CI/Vercel. No tests, build, deployment or live MCP handshake PASS is implied by type-check PASS.
+
+## 2026-10-12 — OpenAI realtime VAD diagnostic follow-up
+
+- Latest benchmark script syntax check passes, but the live run still times out on input 1.
+- Observed inbound sequence: `speech_started`, then nine `conversation.item.input_audio_transcription.delta` events spread across ~20 seconds; no `speech_stopped`, `input_audio_buffer.committed`, final transcription, or follow-up `response.create`.
+- RAG has not been proven to run. Keep `create_response: false` unchanged until turn-finalization evidence is available.
+- Diagnostic-only benchmark update records safe effective input turn-detection/transcription settings from `session.updated`, transcription delta lengths (not transcript text), additional VAD timeout/clear/failure event metadata, and WebRTC audio RTP counters before/after playback and on timeout.
+- Next: pull `fix/openai-vad-audio-diagnostics-clean`, run `node --check scripts/voice-benchmark/conversation.mjs`, rerun the benchmark with a new output path, and inspect effective session settings plus RTP counter changes. Use that evidence to distinguish audio transport/silence generation from server-VAD/session behavior before touching production runtime.
+- Status: diagnosis narrowed; root cause NOT FIXED; no syntax check or fresh benchmark run has been executed against this diagnostic branch yet.
