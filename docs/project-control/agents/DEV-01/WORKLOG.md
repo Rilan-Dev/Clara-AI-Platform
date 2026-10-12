@@ -221,3 +221,6 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - Corrected model prefix normalization in the Gemini realtime session and embed session routes so vendor model names like models/model-id are normalized without malformed regex escaping.
 - Commits: 024f37a9a3599f5e036a13aea9524c60f234c6b7, 32e7908b84d386d5b0a9c4607b0128dec382a20c.
 - No verification was run. No PASS is claimed.
+
+
+- Added regression source for a Gemini realtime model preference containing the vendor models/ prefix (commit bff9ccbae2f89717a4f111ef931d8a7f6c822eff). Not run.
