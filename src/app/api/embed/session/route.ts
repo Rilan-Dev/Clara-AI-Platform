@@ -36,6 +36,7 @@ import {
 } from "@/modules/assistant/api/openai-realtime";
 import { getRealtimeAudioPolicy } from "@/modules/assistant/core/voice/realtime-audio-config";
 import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtime-auth";
+import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
 import {
   resolveVoiceConfigCached,
   VoiceConfigResolutionError,
@@ -416,12 +417,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // server-side). Model/voice fall back to the platform environment when
       // the brain chain has no Gemini-realtime values (e.g. a Sarvam brain
       // with a Gemini realtime voice selection).
-      const geminiModel =
+      const liveGeminiRealtimeModels = (await listProviderModels("gemini", "realtime_voice"))
+        .filter((item) => item.enabled && item.kind === "realtime");
+      if (liveGeminiRealtimeModels.length === 0) {
+        return NextResponse.json(
+          { error: "No Gemini realtime models are currently advertised for this API key. Refresh provider discovery and verify the Gemini credential." },
+          { status: 503, headers: corsHeaders },
+        );
+      }
+      const liveGeminiIds = new Set(liveGeminiRealtimeModels.map((item) => item.modelId.replace(/^models\\//, "")));
+      const requestedGeminiModel =
         resolved.realtimeModel && /gemini/i.test(resolved.realtimeModel)
-          ? resolved.realtimeModel
-          : process.env.GEMINI_REALTIME_MODEL?.trim() ||
-            process.env.GEMINI_LIVE_MODEL?.trim() ||
-            "gemini-2.5-flash-native-audio-preview-12-2025";
+          ? resolved.realtimeModel.replace(/^models\\//, "")
+          : process.env.GEMINI_REALTIME_MODEL?.trim()?.replace(/^models\\//, "") ||
+            process.env.GEMINI_LIVE_MODEL?.trim()?.replace(/^models\\//, "") ||
+            "";
+      const rankedGeminiModels = [...liveGeminiRealtimeModels].sort((a, b) => {
+        const aRelease = typeof a.metadata.releaseDate === "string" ? a.metadata.releaseDate : "";
+        const bRelease = typeof b.metadata.releaseDate === "string" ? b.metadata.releaseDate : "";
+        if (aRelease !== bRelease) return bRelease.localeCompare(aRelease);
+        return a.modelId.localeCompare(b.modelId);
+      });
+      const geminiModel = requestedGeminiModel && liveGeminiIds.has(requestedGeminiModel)
+        ? requestedGeminiModel
+        : rankedGeminiModels.find((item) => item.isDefault)?.modelId ?? rankedGeminiModels[0]!.modelId;
       // Only trust the brain-resolved voice when the brain itself is Gemini —
       // an OpenAI brain's voice id ("alloy") is not a Gemini voice name.
       const geminiVoice =
