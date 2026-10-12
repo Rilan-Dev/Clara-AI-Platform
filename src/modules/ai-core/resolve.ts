@@ -400,20 +400,22 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     registryDefaultModel(provider, "realtime_voice", "voice") ?? defaults.models[provider].defaultVoice;
 
   const chatCandidate =
-    effectiveKbOverrides?.chatModel ?? versionAI?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel;
+    effectiveKbOverrides?.chatModel ?? versionAI?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaults.models[provider].chat;
   const embeddingCandidate =
-    effectiveKbOverrides?.embeddingModel ?? versionAI?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel;
+    effectiveKbOverrides?.embeddingModel ?? versionAI?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaults.models[embeddingProvider].embedding;
   const realtimeCandidate =
     effectiveKbOverrides?.realtimeModel ??
     versionAI?.realtimeLlmModel ??
     versionAI?.realtimeModel ??
     agentSettings?.realtimeModel ??
-    orgSettings?.defaultRealtimeModel;
+    orgSettings?.defaultRealtimeModel ??
+    defaults.models[provider].realtime;
   const transcriptionCandidate =
     effectiveKbOverrides?.transcriptionModel ??
     versionAI?.transcriptionModel ??
     agentSettings?.transcriptionModel ??
-    orgSettings?.defaultTranscriptionModel;
+    orgSettings?.defaultTranscriptionModel ??
+    defaults.models[provider].transcription;
 
   const chooseLiveModel = (
     candidate: string | null | undefined,
