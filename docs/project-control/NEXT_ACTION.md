@@ -2044,3 +2044,7 @@ Completed source changes in this continuation:
 Next action: add/refine focused regressions for stale model IDs, unknown embedding dimensions, model-prefix normalization and vendor-live-only availability; then continue the branch-local search for remaining bypasses. Do not wait/poll CI or Vercel. Route substantial unrelated correctness/security defects to FIX-01 and deployment/infra-only work to OPS-01.
 
 Verification: source-only. Tests, type-check, build, live vendor calls, UI, deployment and production runtime have not been run. No PASS is claimed.
+
+
+## 2026-10-12 — Gemini dimension compatibility regression source
+Added src/modules/ai-core/providers/gemini.test.ts covering known fixed dimensions, rejecting incompatible overrides, Matryoshka dimensions, unknown-model fail-closed behavior, explicit unknown-model dimensions, and invalid dimensions. Commit: 712eebf8e4295bc987c65db2d1acb371af987972. Test source is not executed; verification remains pending.
