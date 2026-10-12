@@ -433,10 +433,15 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // The write path now rejects this, but reads must not silently corrupt
   // retrieval: fall back to the provider default and log loudly instead.
   if (embeddingModel && looksLikeChatModel(embeddingModel)) {
+    const allowedEmbeddingIds = getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider);
+    // Never fall back to a stale allow-list entry: only rows discovered live
+    // for the embedding capability may be selected, and the org allow-list
+    // still applies when one is configured.
     const fallback =
-      getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider)?.find(
-        (m) => !looksLikeChatModel(m),
-      ) ?? defaultEmbedding ?? null;
+      liveEmbeddingRows.find(
+        (row) => (!allowedEmbeddingIds || allowedEmbeddingIds.includes(row.modelId)) &&
+          !looksLikeChatModel(row.modelId),
+      )?.modelId ?? null;
     console.error(
       `[ai-config] embedding model "${embeddingModel}" (source: ${input.kbId ? "kb/agent/org config" : "env"}) ` +
       `is a chat model — falling back to "${fallback ?? "provider default"}". ` +
