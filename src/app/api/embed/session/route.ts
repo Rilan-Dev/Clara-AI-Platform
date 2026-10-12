@@ -418,7 +418,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // the brain chain has no Gemini-realtime values (e.g. a Sarvam brain
       // with a Gemini realtime voice selection).
       const liveGeminiRealtimeModels = (await listProviderModels("gemini", "realtime_voice"))
-        .filter((item) => item.enabled && item.kind === "realtime");
+        .filter((item) => item.enabled && item.metadata.catalogSource === "vendor_live" && item.kind === "realtime");
       if (liveGeminiRealtimeModels.length === 0) {
         return NextResponse.json(
           { error: "No Gemini realtime models are currently advertised for this API key. Refresh provider discovery and verify the Gemini credential." },
