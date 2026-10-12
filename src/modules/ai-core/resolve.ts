@@ -11,7 +11,7 @@ import {
   getProductionVersionConfigCached,
 } from "@/modules/agent-versioning/core/db";
 import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
-import { getPlatformAIRegistry } from "@/modules/ai-governance/core/registry-db";
+import { getPlatformAIRegistry, listProviderModels } from "@/modules/ai-governance/core/registry-db";
 import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
 import type { AgentVersionConfig } from "@/modules/agent-versioning/core/types";
 import type {
@@ -362,53 +362,59 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     registry.embeddingDefault?.providerId ??
     (provider === "sarvam" ? parseSarvamEmbeddingFallbackProvider() : provider);
 
-  // Platform default chat model (when it belongs to the resolved provider).
-  const platformDefaultChatModel =
-    chatDefault?.modelId && chatDefault.providerId === provider ? chatDefault.modelId : null;
-  const defaultChat = platformDefaultChatModel ?? registryDefaultModel(provider, "chat", "chat") ?? defaults.models[provider].chat;
-  // Embedding defaults ALWAYS come from the backbone record — for openai/gemini
-  // brains this is identical to the previous behaviour. The registry's default
-  // embedding model (catalogued under the chat capability) is consulted before
-  // the env var so the platform catalogue governs when env is unset.
-  const defaultEmbedding =
-    registry.embeddingDefault?.modelId ??
-    registryDefaultModel(embeddingProvider, "chat", "embedding") ??
-    defaults.models[embeddingProvider].embedding;
-  const defaultRealtime =
-    registryDefaultModel(provider, "realtime_voice", "realtime") ?? defaults.models[provider].realtime;
-  const defaultTranscription =
-    registryDefaultModel(provider, "realtime_voice", "transcription") ?? defaults.models[provider].transcription;
+  // Model availability is owned by the vendor-refreshed governance catalogue,
+  // not by static lists, env defaults, or migration seed rows. Load each model
+  // kind for its actual provider and filter to vendor-discovered rows.
+  const [chatRows, embeddingRows, realtimeRows, transcriptionRows] = await Promise.all([
+    listProviderModels(provider, "chat"),
+    listProviderModels(embeddingProvider, "chat"),
+    listProviderModels(provider, "realtime_voice"),
+    listProviderModels(provider, "realtime_voice"),
+  ]);
+  const liveRows = (rows: typeof chatRows, kind: string) =>
+    rows.filter((row) => row.enabled && row.metadata.catalogSource === "vendor_live" && row.kind === kind);
+  const liveChatRows = liveRows(chatRows, "chat");
+  const liveEmbeddingRows = liveRows(embeddingRows, "embedding");
+  const liveRealtimeRows = liveRows(realtimeRows, "realtime");
+  const liveTranscriptionRows = liveRows(transcriptionRows, "transcription");
+  const defaultFrom = (rows: typeof chatRows) =>
+    rows.find((row) => row.isDefault)?.modelId ?? rows[0]?.modelId ?? null;
+  const defaultChat = defaultFrom(liveChatRows);
+  const defaultEmbedding = defaultFrom(liveEmbeddingRows);
+  const defaultRealtime = defaultFrom(liveRealtimeRows);
+  const defaultTranscription = defaultFrom(liveTranscriptionRows);
   const defaultVoice =
     registryDefaultModel(provider, "realtime_voice", "voice") ?? defaults.models[provider].defaultVoice;
 
   const chatCandidate =
-    effectiveKbOverrides?.chatModel ?? versionAI?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel ?? defaultChat;
+    effectiveKbOverrides?.chatModel ?? versionAI?.chatModel ?? agentSettings?.chatModel ?? orgSettings?.defaultChatModel;
   const embeddingCandidate =
-    effectiveKbOverrides?.embeddingModel ?? versionAI?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel ?? defaultEmbedding;
+    effectiveKbOverrides?.embeddingModel ?? versionAI?.embeddingModel ?? agentSettings?.embeddingModel ?? orgSettings?.defaultEmbeddingModel;
   const realtimeCandidate =
     effectiveKbOverrides?.realtimeModel ??
     versionAI?.realtimeLlmModel ??
     versionAI?.realtimeModel ??
     agentSettings?.realtimeModel ??
-    orgSettings?.defaultRealtimeModel ??
-    defaultRealtime;
+    orgSettings?.defaultRealtimeModel;
   const transcriptionCandidate =
     effectiveKbOverrides?.transcriptionModel ??
     versionAI?.transcriptionModel ??
     agentSettings?.transcriptionModel ??
-    orgSettings?.defaultTranscriptionModel ??
-    defaultTranscription;
+    orgSettings?.defaultTranscriptionModel;
 
-  const chatModel = pickAllowedString(
-    chatCandidate,
-    getAllowedValues(orgSettings?.allowedChatModels, provider),
-    defaultChat,
-  );
-  let embeddingModel = pickAllowedString(
-    embeddingCandidate,
-    getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider),
-    defaultEmbedding,
-  );
+  const chooseLiveModel = (
+    candidate: string | null | undefined,
+    rows: typeof chatRows,
+    allowed: string[] | null,
+  ): string | null => {
+    const ids = new Set(rows.map((row) => row.modelId));
+    const validCandidate = candidate && ids.has(candidate) ? candidate : null;
+    return pickAllowedString(validCandidate, allowed ? allowed.filter((id) => ids.has(id)) : null, defaultFrom(rows));
+  };
+  const chatModel = chooseLiveModel(chatCandidate, liveChatRows, getAllowedValues(orgSettings?.allowedChatModels, provider));
+  let embeddingModel = chooseLiveModel(embeddingCandidate, liveEmbeddingRows, getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider));
+  const realtimeModel = chooseLiveModel(realtimeCandidate, liveRealtimeRows, getAllowedValues(orgSettings?.allowedRealtimeModels, provider));
+  const transcriptionModel = chooseLiveModel(transcriptionCandidate, liveTranscriptionRows, null);
 
   // ── WS-0.4 runtime self-heal ─────────────────────────────────────────────
   // Legacy rows can still carry a chat model id in the embedding field (the
@@ -435,12 +441,6 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
       `requests for this tenant would fail. Ask the operator to fix the stored configuration.`,
     );
   }
-  const realtimeModel = pickAllowedString(
-    realtimeCandidate,
-    getAllowedValues(orgSettings?.allowedRealtimeModels, provider),
-    defaultRealtime,
-  );
-
   const fallbackLanguageCode = process.env.DEFAULT_LANGUAGE_CODE?.trim().toLowerCase() || "en";
 
   // Keep the complete organisation voice allow-list available so an assistant
@@ -606,7 +606,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     chatModel,
     embeddingModel,
     realtimeModel,
-    transcriptionModel: transcriptionCandidate ?? null,
+    transcriptionModel,
     voiceId,
     allowedLanguages: agentSelection.allowedLanguages,
     defaultLanguage: agentSelection.defaultLanguage,
