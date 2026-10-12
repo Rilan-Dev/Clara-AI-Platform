@@ -1,3 +1,10 @@
+### 2026-10-12 continuation — live ElevenLabs preview selection
+
+- Updated `src/modules/voice-core/api/elevenlabs/voices.ts`: preview TTS now uses live vendor-discovered `voice_chat/tts` rows, rejects an explicitly selected stale model, and chooses the lowest known unit-cost live model when no ID is supplied.
+- Commit: `b567dd5f433e371cea94d7d4ea9fc5a1edaf3461`.
+- Static `eleven_flash_v2_5` fallback was removed from the realtime platform default, relay realtime path, and realtime usage metering. Commits: `1b5625adc219c74092ab6a51310f7b80de0b3288`, `f1c55cb2a948e5110129c48e4c38237d08eb0521`, `f3778cecf76d47aeaa31dc91b47ca0e0fde3d936`.
+- Verification has not been run. Next: audit all remaining Gemini static catalogue consumers and selectors.
+
 ### 2026-10-12 continuation — ElevenLabs realtime fallback removal
 
 - Removed the compile-time realtime TTS model fallback from `src/modules/voice-core/model-catalog.ts`.
