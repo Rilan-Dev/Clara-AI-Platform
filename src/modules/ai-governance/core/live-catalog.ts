@@ -127,7 +127,7 @@ async function syncOpenAI(): Promise<void> {
             inputUsdPerMTokens: findEmbeddingModel(model.id)?.inputUsdPerMTokens ?? null,
             dimension: findEmbeddingModel(model.id)?.dimension ?? null,
           } : {}),
-          ...((model.id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: model.id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}),
+          ...((model.id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: model.id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}),
         },
       });
     }
@@ -166,10 +166,10 @@ async function syncGemini(): Promise<void> {
       if (!id) continue;
       const methods = model.supportedGenerationMethods ?? [];
       if (methods.includes("embedContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findEmbeddingModel(id)?.inputUsdPerMTokens ?? null, dimension: findEmbeddingModel(id)?.dimension ?? null, ...((id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}) } });
+        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findEmbeddingModel(id)?.inputUsdPerMTokens ?? null, dimension: findEmbeddingModel(id)?.dimension ?? null, ...((id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}) } });
       }
       if (methods.includes("generateContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findChatModel(id)?.inputUsdPerMTokens ?? null, outputUsdPerMTokens: findChatModel(id)?.outputUsdPerMTokens ?? null, contextTokens: findChatModel(id)?.contextTokens ?? model.inputTokenLimit ?? null, ...((id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}) } });
+        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findChatModel(id)?.inputUsdPerMTokens ?? null, outputUsdPerMTokens: findChatModel(id)?.outputUsdPerMTokens ?? null, contextTokens: findChatModel(id)?.contextTokens ?? model.inputTokenLimit ?? null, ...((id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}) } });
       }
       if (methods.some((method) => /bidi/i.test(method))) {
         items.push({ providerId: "gemini", capability: "realtime_voice", kind: "realtime", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
