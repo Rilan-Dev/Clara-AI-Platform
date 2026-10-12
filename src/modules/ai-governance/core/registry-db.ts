@@ -116,13 +116,15 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
         `SELECT provider_id, capability, count(*)::int AS model_count
            FROM platform_ai_provider_models
           WHERE enabled
+            AND metadata->>'catalogSource' = 'vendor_live'
           GROUP BY provider_id, capability`,
       ),
       query<Row>("SELECT capability, provider_id, model_id FROM platform_ai_defaults"),
       query<Row>(
         `SELECT provider_id, capability, kind, model_id
            FROM platform_ai_provider_models
-          WHERE enabled AND is_default`,
+          WHERE enabled AND is_default
+            AND metadata->>'catalogSource' = 'vendor_live'`,
       ),
       query<Row>(
         `SELECT provider_id, model_id, updated_at
@@ -230,6 +232,7 @@ export async function getProviderWorkspace(providerId: GovernanceProviderId): Pr
   const rows = await query<Row>(
     `SELECT * FROM platform_ai_provider_models
       WHERE provider_id = $1
+        AND metadata->>'catalogSource' = 'vendor_live'
       ORDER BY capability, kind,
         CASE WHEN jsonb_typeof(metadata->'inputUsdPerMTokens') = 'number'
           THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
