@@ -408,8 +408,15 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     allowed: string[] | null,
   ): string | null => {
     const ids = new Set(rows.map((row) => row.modelId));
-    const validCandidate = candidate && ids.has(candidate) ? candidate : null;
-    return pickAllowedString(validCandidate, allowed ? allowed.filter((id) => ids.has(id)) : null, defaultFrom(rows));
+    const defaultId = defaultFrom(rows);
+    const allowedLiveIds = allowed ? allowed.filter((id) => ids.has(id)) : null;
+    if (allowedLiveIds) {
+      if (candidate && allowedLiveIds.includes(candidate)) return candidate;
+      if (defaultId && allowedLiveIds.includes(defaultId)) return defaultId;
+      return allowedLiveIds[0] ?? null;
+    }
+    if (candidate && ids.has(candidate)) return candidate;
+    return defaultId;
   };
   const chatModel = chooseLiveModel(chatCandidate, liveChatRows, getAllowedValues(orgSettings?.allowedChatModels, provider));
   let embeddingModel = chooseLiveModel(embeddingCandidate, liveEmbeddingRows, getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider));
