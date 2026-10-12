@@ -741,3 +741,6 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 
 
 - During the catalogue audit, DEV-01 found duplicated top-level exports and a dangling SQL fragment in registry-db.ts; removed the duplicated tail in commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8. Issue I-098 is recorded and handed to FIX-01 for independent diff/export review and local type-check/focused governance tests. No verification PASS is claimed.
+
+
+- Removed direct GEMINI_CHAT_MODEL/GEMINI_EMBEDDING_MODEL fallbacks from GeminiProvider so environment IDs cannot bypass governance resolution; added regression source proving this boundary (commits a02e92d47982a3977b82d1d3071e507eefe2feab, ffff0cf29be92740c8709fb4bc389b3522a6e350). Tests not run.
