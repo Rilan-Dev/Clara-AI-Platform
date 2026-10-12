@@ -1,3 +1,9 @@
+## DEV-01 CONTINUATION — LIVE MODEL SELECTION FOR ELEVENLABS PREVIEW — 2026-10-12
+
+- ElevenLabs voice preview now obtains TTS models from the vendor-refreshed governance catalogue, rejects an explicitly selected model that is no longer available, and defaults to the lowest known unit-cost live model (unknown costs sort after known costs; release date breaks ties).
+- **Exact next action:** audit remaining consumers of `GEMINI_CHAT_MODELS` / `GEMINI_EMBEDDING_MODELS` and all model fields in PlatformEnvPanel, OrgAIConfigEditor, agent editor, embed and phone/realtime paths. Static price/dimension metadata may remain for metering and Qdrant compatibility, but must not be treated as current availability. Replace any remaining selectable static arrays/default IDs with live governance rows and capability filters. Add regressions, then run focused tests/typecheck if local execution is available. Do not wait for CI/Vercel; no PASS until evidence exists.
+
+---
 ## DEV-01 CONTINUATION — REMOVE REMAINING ELEVENLABS REALTIME MODEL FALLBACKS — 2026-10-12
 
 - Removed the static realtime TTS fallback from `getPlatformDefaultRealtimeTTSModel()`; it now returns only an explicitly configured supported model or empty, allowing the voice resolver to select from the live catalogue.
