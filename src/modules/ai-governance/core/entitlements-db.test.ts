@@ -131,7 +131,7 @@ describe("resolvePlanAIEntitlements", () => {
 
   it("retains legacy compatibility only while the provider entitlement matrix is completely empty", async () => {
     state.providerMatrixConfigured = false;
-    state.providers.starter = [];
+    state.providers = { free: [], starter: [], pro: [] };
     state.subscriptions = [{
       plan_id: "starter",
       plan_name: "Starter",
