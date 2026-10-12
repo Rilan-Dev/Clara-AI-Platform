@@ -196,3 +196,6 @@ could not be connected at all.
 - Refactored `src/modules/ai-governance/core/entitlements-db.ts` to query subscription, capability, provider, and model matrices separately; removed joined query's 200-row truncation; fail closed for missing provider rows when the entitlement matrix is populated; use Free plan metadata for expired/non-active subscriptions.
 - Added tests for stale provider list vs governance, live Starter provider restrictions, expired Pro fallback, partial provider matrix and legacy empty-matrix compatibility.
 - Not verified: no Vitest, type-check, build, DB, runtime, CI or Vercel run. Next: pull branch and run the exact commands in NEXT_ACTION.md.
+
+
+- Additional audit finding: `validateAgentAISelection` previously returned `ok: true` immediately for known providers absent from the registry, bypassing subscription entitlement checks. Changed it to retain legacy registry compatibility only while still enforcing current plan capability/provider/model restrictions. Added regression coverage for Sarvam absent from registry but denied by Starter. Not verified by execution.
