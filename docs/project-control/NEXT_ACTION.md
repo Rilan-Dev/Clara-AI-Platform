@@ -2019,3 +2019,11 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
   then `npm run type-check`. Fix failures from current output only.
 - **Verification boundary:** tests/type-check/build/database checks/production session have NOT run. No PASS. Do not wait for or poll CI/Vercel.
 - Runtime acceptance: on a plan entitled to Sarvam, stale legacy org list must not block Sarvam; after plan downgrade/expiry, a previously published Sarvam agent must be denied by live entitlement checks.
+
+
+### I-098 follow-up — missing provider registry row
+
+- Additional fail-open found during adjacent-path audit: `validateAgentAISelection` returned early for known providers missing from `platform_ai_providers`, skipping subscription entitlement checks. This could affect chat and voice paths when the registry is partially seeded.
+- Fixed on `fix/subscription-ai-entitlements-authority`: known-provider registry fallback now skips only the platform registry check; it still evaluates current plan capability/provider/model entitlements.
+- Added regression in `src/modules/ai-governance/core/resolver.test.ts` for Sarvam missing from the registry but denied by Starter entitlement.
+- This follow-up is also unverified; run the governance resolver test alongside the two focused tests listed above. Do not wait for CI/Vercel.
