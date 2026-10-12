@@ -2041,3 +2041,18 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 - Performance target: first audible response <=500 ms is an aspiration, not currently met and not guaranteed by this baseline. Full grounded answer generation within 500 ms is not a credible promise under the current serial STT → RAG → model → TTS path. A fast acknowledgement is not equivalent to answering the question; metrics must distinguish acknowledgement TTFA from grounded-answer TTFA.
 - GitHub Actions owner policy: only `workflow_dispatch` is allowed. `ci.yml` and `platform-health-scan.yml` already comply; `voice-benchmark-script-check.yml` was changed to manual-only in commit `08708e3aae6849012c011250c77b665962c4dfc7`.
 - Do not claim production latency fixed until a fresh report confirms the effect after the required deployment. The owner handles deployment; source and benchmark work can continue without waiting for Actions/Vercel.
+
+
+
+## VOICE LATENCY WORKSTREAM — DURABLE HANDOFF — 2026-10-12
+
+Authoritative detailed session: `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md`.
+
+- Active branch: `fix/openai-vad-audio-diagnostics-clean`; PR #295 is open and must not be merged without explicit owner authorization.
+- Objective: reduce OpenAI realtime **grounded-answer** TTFA while preserving Clara/Qdrant grounding, tenant isolation, quota/authorization checks, and exactly-one-response behavior. Aspirational <=500 ms target is not met and is not guaranteed; do not count welcome audio or acknowledgements as answers.
+- Latest owner-provided five-turn baseline: TTFA 8273, 6078, 5213, 1447, 1704 ms; median 5213 ms. RAG 7249, 5186, 4433, 527, 663 ms; STT 1374–1642 ms; LLM-first 592–806 ms; TTS-first 680–940 ms. Full table, command, and architecture notes are in the session record.
+- Benchmark-only fixes: silent synthetic audio keepalive to avoid VAD/commit stalls; bounded 2-second response-body flush so report finalization does not hang. These do not alter production audio behavior.
+- Privacy-safe timing instrumentation records RAG endpoint/status/browser elapsed, Server-Timing, and numeric server timing fields only. It does not store user query text, snippets, context, response bodies, or credentials.
+- GitHub Actions policy: manual-only `workflow_dispatch`; do not re-enable push/PR/schedule triggers. Relevant commits: `08708e3aae6849012c011250c77b665962c4dfc7`, `a78b4aebc9a2f71e5287698004b9e9e46e81164f`.
+- **Immediate next action:** pull this branch, run `node --check scripts/voice-benchmark/conversation.mjs`, run the documented five-turn command with output `tool-results/openai-rag-stage-timings.json`, and share the report. Use server `metadataMs/admissionMs/configMs/translationMs/retrievalMs/graphMs/totalMs` to select the measured bottleneck.
+- Then make a narrow, measured optimization and focused regression coverage without waiting for CI/Vercel. If production code changes, deployment/rebuild is needed before a production comparison. No latency fix, production deployment, or <=500 ms PASS is claimed.
