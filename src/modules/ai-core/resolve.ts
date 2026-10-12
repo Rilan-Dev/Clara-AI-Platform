@@ -318,6 +318,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // strict and are checked by the governance gate below.
   if (providerSource === "platform") {
     const candidates = registry.providers.filter((candidate) =>
+      (["openai", "gemini", "sarvam"] as AIProvider[]).includes(candidate.providerId as AIProvider) &&
       candidate.enabled &&
       candidate.configured &&
       candidate.capabilities.some((cap) => cap.capability === "chat" && cap.supported),
