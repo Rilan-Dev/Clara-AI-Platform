@@ -1876,3 +1876,14 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
   - `npx eslint` on every changed file → 0 errors, 1 pre-existing warning (verified on the baseline).
 - NOT verified (external, unchanged): live database migration application (073), deployment/CI/Vercel, live MCP handshake over the network, live Chat/realtime voice tool execution, provider OAuth consent flows. No runtime PASS is claimed for those.
 - `ENABLE_MCP` stays OFF until the evidence list in `docs/plans/mcp-organization-owned-endpoints.md` §9 is satisfied on a deployed revision.
+
+### 2026-10-12 — OAuth proxy-return hotfix (SESSION-DEV-20261012-02)
+
+- Live report: Gmail OAuth connect at `https://clara.ai.amazetechclans.com` redirected to `https://0.0.0.0:3000/orgs/<org>/agents/<agent>/integrations?oauth=error&integrationId=gmail` (ERR_ADDRESS_INVALID). Root cause and correction recorded as `I-20261012-OAUTH-PROXY-RETURN` in ISSUES.md.
+- Executed on `feat/mcp-org-owned-directive` after the reconciliation commit `a889cfb2`:
+  - Focused OAuth suites → **47/47 PASS** across 4 files (`public-origin.test.ts` 34 new unit tests; integrations callback 9 incl. 4 new regression cases; integrations start 2; WhatsApp callback 2).
+  - `email-verification.test.ts` (resolvePublicOrigin consumer) → **23/23 PASS**.
+  - `tsc --noEmit -p tsconfig.typecheck.json` → 43 errors on the pristine tree AND 43 with the hotfix (byte-identical pre-existing set; zero new).
+  - ESLint could not run: typescript-eslint rejects the locally installed TS 7.0.2 (fails identically on untouched files — pre-existing environment limitation, recorded, not introduced).
+  - Environment note: the worktree `node_modules` was pruned after the last session (`vite`, `@tailwindcss/postcss` missing); `@tailwindcss/postcss@4.3.3` reinstalled per package.json; test runs used the identical-version (2.1.9) parent vitest binary with `--root` pointed at the worktree.
+- NOT verified (external): deployed-runtime behaviour at clara.ai.amazetechclans.com, live Google consent round-trip, proxy header configuration, deployment/CI/Vercel. No runtime PASS claimed.
