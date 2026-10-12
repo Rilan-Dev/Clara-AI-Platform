@@ -630,3 +630,7 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 ## 2026-10-09 — Integration discovery hardening / dispatch remains active
 
 [architect-verified] Connected integration discovery requires user and agent identity and scopes candidates by active connection, platform enablement, organisation grant, agent grant/ownership, and plan allowlist. Execution remains in Unified Tool Runtime and the existing runner. Commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`. Next: wire provider chat and realtime voice call sites to the shared runtime without changing Clara/Qdrant RAG behavior. Secure OAuth configuration remains pending. External verification is deferred.
+
+
+## 2026-10-12 — DEV-01 model availability continuation
+Current bounded task: audit remaining Gemini catalogue consumers and environment/seed defaults. Source fixes make governance availability summaries vendor-live-only, prevent stale allow-list IDs from becoming embedding fallbacks, and fail closed for unknown Gemini embedding dimensions. Static Gemini lists remain metadata only. Verification is pending; no PASS is claimed. Continue source audit and targeted regressions without polling CI/Vercel.
