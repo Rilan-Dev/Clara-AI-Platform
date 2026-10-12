@@ -99,6 +99,9 @@ function productionSettingValues(): Record<string, string> {
     if (v) values[key] = v;
   }
   // Non-secret env knobs win over the table above when present.
+  // Model IDs are preferences only: runtime resolution validates them against
+  // vendor_live governance rows and falls back to a compatible discovered model.
+  // This seed deliberately supplies no static chat/embedding/realtime model IDs.
   for (const key of [
     "AI_PROVIDER", "PHONE_PROVIDER", "NEXT_PUBLIC_APP_URL",
     "OPENAI_CHAT_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_REALTIME_MODEL", "OPENAI_TRANSCRIPTION_MODEL",
