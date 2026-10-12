@@ -247,10 +247,10 @@ export async function listProviderModels(
   providerId: GovernanceProviderId,
   capability?: AICapability,
 ): Promise<ProviderModelRow[]> {
-  // Every consumer (admin, organisation picker, and runtime resolver) reads
-  // the same vendor-refreshed catalogue. Previously only the admin workspace
-  // triggered synchronization, leaving runtime selectors on seeded models.
-  await syncLiveProviderCatalog();
+  // Do not await vendor network calls on the runtime hot path. Provider workspace
+  // reads perform an awaited refresh; runtime reads kick off a shared background
+  // refresh and consume the last successfully discovered catalogue immediately.
+  void syncLiveProviderCatalog();
   const rows = capability
     ? await query<Row>(
         `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1 AND capability = $2
