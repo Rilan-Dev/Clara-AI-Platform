@@ -203,10 +203,31 @@ describe("validateAgentAISelection (runtime gate)", () => {
     if (!result.ok) expect(result.code).toBe("PLAN_NOT_ENTITLED");
   });
 
-  it("passes known providers when the registry is not yet populated (legacy compat)", async () => {
+  it("passes known providers when the registry is not yet populated only when the current plan allows them", async () => {
     setProviders([]);
+    entitlementState.entitlements = {
+      planId: "pro",
+      planName: "Pro",
+      capabilities: { chat: true, voice_chat: true, realtime_voice: true },
+      allowedProviders: { openai: true, gemini: true, sarvam: true, elevenlabs: true },
+      modelExceptions: [],
+    };
     const result = await validateAgentAISelection({ organizationId: "org-1", provider: "openai", capability: "chat" });
     expect(result.ok).toBe(true);
+  });
+
+  it("does not let a missing provider-registry row bypass current subscription entitlements", async () => {
+    setProviders([]);
+    entitlementState.entitlements = {
+      planId: "starter",
+      planName: "Starter",
+      capabilities: { chat: true, voice_chat: true, realtime_voice: true },
+      allowedProviders: { openai: true, gemini: true, sarvam: false, elevenlabs: false },
+      modelExceptions: [],
+    };
+    const result = await validateAgentAISelection({ organizationId: "org-1", provider: "sarvam", capability: "chat" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("PLAN_PROVIDER_NOT_ALLOWED");
   });
 
   it("rejects unknown provider ids outright", async () => {
