@@ -304,35 +304,44 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     providerSource = "kb_override";
   }
 
-  const allowedProviders = orgSettings?.allowedProviders?.length
-    ? orgSettings.allowedProviders
-    : (["openai", "gemini", "sarvam"] as AIProvider[]);
-
-  if (!allowedProviders.includes(provider)) {
-    throw new AIConfigResolutionError(`Agent provider ${provider} is not enabled for this organisation.`);
-  }
-
+  // Legacy org_ai_settings.allowed_providers is a denormalized field from the
+  // retired organisation-level provider settings surface (PATCH now returns
+  // 410). It can be stale after a plan change or provider rollout, so it must
+  // NOT decide runtime access. The shared governance gate below is the source
+  // of truth: platform availability/capability → current subscription
+  // entitlement → selected agent provider. This also means a published Pro
+  // agent loses Starter-ineligible providers immediately after downgrade.
+  //
   // A broken platform default must not take the entire tenant/embed surface
-  // down. If the provider came from the platform default and has no usable
-  // credential, select another enabled/configured chat provider. Explicit
-  // agent/org/KB selections remain strict and still fail loudly.
+  // down. Pick only providers that are platform-usable AND entitled for this
+  // organisation's current plan. Explicit agent/org/KB selections remain
+  // strict and are checked by the governance gate below.
   if (providerSource === "platform") {
-    const selected = registry.providers.find((candidate) =>
+    const candidates = registry.providers.filter((candidate) =>
       candidate.enabled &&
       candidate.configured &&
-      allowedProviders.includes(candidate.providerId as AIProvider) &&
       candidate.capabilities.some((cap) => cap.capability === "chat" && cap.supported),
     );
+    const eligible = await Promise.all(candidates.map(async (candidate) => ({
+      candidate,
+      gate: await validateAgentAISelection({
+        organizationId: orgId,
+        provider: candidate.providerId,
+        capability: "chat",
+        modelId: null,
+      }),
+    })));
+    const selected = eligible.find(({ gate }) => gate.ok)?.candidate;
     const selectedProvider = selected?.providerId as AIProvider | undefined;
     if (selectedProvider && selectedProvider !== provider) {
       console.error(
-        `[ai-config] platform default provider "${provider}" is not configured; falling back to configured provider "${selectedProvider}". Configure the platform default in Settings → AI.`,
+        `[ai-config] platform default provider "${provider}" is unavailable or not entitled; falling back to configured and entitled provider "${selectedProvider}". Configure plan entitlements and the platform default in Settings → AI.`,
       );
       provider = selectedProvider;
       providerSource = "platform";
     } else if (!selectedProvider) {
       throw new AIConfigResolutionError(
-        `Platform AI provider ${provider} has no configured credentials and no configured chat provider is available.`,
+        `Platform AI provider ${provider} is unavailable or not entitled, and no configured chat provider is available for this organisation's plan.`,
       );
     }
   }
