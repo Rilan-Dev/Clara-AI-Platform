@@ -162,11 +162,28 @@ export class GeminiProvider implements LLMProvider {
   }
 
   getEmbeddingDimension(): number {
-    if (this.config.embeddingDimension) return this.config.embeddingDimension;
-    const envDim = process.env.GEMINI_EMBEDDING_DIMENSION;
-    if (envDim) return Number(envDim);
-
     const model = this.getEmbeddingModelName();
+    const configured = this.config.embeddingDimension;
+    const envDim = process.env.GEMINI_EMBEDDING_DIMENSION?.trim();
+    const requestedDimension = configured ?? (envDim ? Number(envDim) : null);
+
+    if (requestedDimension != null) {
+      if (!Number.isInteger(requestedDimension) || requestedDimension <= 0 || requestedDimension > 3072) {
+        throw new Error("GEMINI_EMBEDDING_DIMENSION must be a positive integer no greater than 3072.");
+      }
+      // gemini-embedding-001 is Matryoshka and can emit a smaller vector on
+      // request. Other known Gemini embedding models have fixed dimensions.
+      if (model.includes("gemini-embedding-001")) return requestedDimension;
+      const knownDimension = embeddingDimensionFor(model);
+      if (knownDimension != null && requestedDimension !== knownDimension) {
+        throw new Error(
+          `Configured embedding dimension ${requestedDimension} does not match the fixed output dimension ${knownDimension} for Gemini model "${model}". Re-index with a compatible model/dimension before switching.`,
+        );
+      }
+      // Unknown models require an explicit, operator-confirmed dimension.
+      return requestedDimension;
+    }
+
     const knownDimension = embeddingDimensionFor(model);
     if (knownDimension != null) return knownDimension;
     throw new Error(
