@@ -231,7 +231,11 @@ export async function getProviderWorkspace(providerId: GovernanceProviderId): Pr
     `SELECT * FROM platform_ai_provider_models
       WHERE provider_id = $1
       ORDER BY capability, kind,
-        CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)? ~ '^\\d{4}-\\d{2}-\\d{2}'
+        CASE WHEN jsonb_typeof(metadata->'inputUsdPerMTokens') = 'number'
+          THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
+        CASE WHEN jsonb_typeof(metadata->'usdPer1kChars') = 'number'
+          THEN (metadata->>'usdPer1kChars')::numeric END ASC NULLS LAST,
+        CASE WHEN metadata->>'releaseDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
           THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
         display_name ASC`,
     [providerId],
@@ -252,9 +256,11 @@ export async function listProviderModels(
         `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1 AND capability = $2
           ORDER BY
             kind,
-            CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)?$'
+            CASE WHEN jsonb_typeof(metadata->'inputUsdPerMTokens') = 'number'
               THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
-            CASE WHEN metadata->>'releaseDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+            CASE WHEN jsonb_typeof(metadata->'usdPer1kChars') = 'number'
+              THEN (metadata->>'usdPer1kChars')::numeric END ASC NULLS LAST,
+            CASE WHEN metadata->>'releaseDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
               THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
             display_name ASC`,
         [providerId, capability],
@@ -262,9 +268,11 @@ export async function listProviderModels(
     : await query<Row>(
         `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1
           ORDER BY capability, kind,
-            CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)?$'
+            CASE WHEN jsonb_typeof(metadata->'inputUsdPerMTokens') = 'number'
               THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
-            CASE WHEN metadata->>'releaseDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+            CASE WHEN jsonb_typeof(metadata->'usdPer1kChars') = 'number'
+              THEN (metadata->>'usdPer1kChars')::numeric END ASC NULLS LAST,
+            CASE WHEN metadata->>'releaseDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
               THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
             display_name ASC`,
         [providerId],
