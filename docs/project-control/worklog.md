@@ -194,3 +194,12 @@ could not be connected at all.
   pre-existing 78-error baseline; integrations suites unchanged vs HEAD.
   Live verification: full OAuth discovery against the production n8n instance
   (401 probe + RFC 8414 metadata + DCR endpoint) and Notion's hosted MCP.
+
+
+## 2026-10-12 — DEV-01 Gemini live catalogue and defaults audit
+- Fixed model release-date extraction in src/modules/ai-governance/core/live-catalog.ts (commit 865e657901d479e29ce1625b1869edfaa0eb04d5).
+- Corrected embedding recovery in src/modules/ai-core/resolve.ts: fallback candidates must be enabled vendor-live embedding rows and must respect the organisation allow-list (commit d7d6a144750799ab127b92e84e2546dacb20e59b).
+- Removed static Gemini model IDs from legacy .env.example.v2 and .env.example.v3; clarified that env IDs are preferences only. Production seed has no static model ID defaults and now documents this contract (commits c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3, 6bed6c178884df567e8478974d693ed033f49631, af5e16ef22bc79249fee95b3d09cc74a10e4edc2).
+- GeminiProvider.getEmbeddingDimension() now uses known dimension metadata or explicit configuration and throws for unknown dimensions rather than guessing 768 (commit 1d9de9d29483c3b8781194e6988d0e84a703aad9).
+- Governance registry counts, default-model summaries, and provider workspace model inventory exclude seed-only rows (commit 4869b25802fae07ff5061c2e970cc4cc4418856a).
+- No tests, type-check, build, live provider API, UI or deployment verification was run. No PASS is claimed. Next: targeted regressions and remaining consumer audit.
