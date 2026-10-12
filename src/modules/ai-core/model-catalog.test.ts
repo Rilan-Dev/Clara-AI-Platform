@@ -15,7 +15,7 @@ import {
 
 describe("model catalogue classification", () => {
   it("recognises known chat models", () => {
-    for (const id of ["gpt-4o", "gpt-4o-2024-08-06", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-4o-mini", "gemini-2.5-flash"]) {
+    for (const id of ["gpt-4o", "gpt-4o-2024-08-06", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-4o-mini", "gemini-2.5-flash", "gemini-3.7-flash"]) {
       expect(looksLikeChatModel(id), id).toBe(true);
     }
   });
@@ -29,7 +29,9 @@ describe("model catalogue classification", () => {
   it("classifies unknown future models by pattern", () => {
     expect(looksLikeChatModel("gpt-5.7-nova")).toBe(true);      // future chat model
     expect(looksLikeChatModel("gpt-6")).toBe(true);
+    expect(looksLikeChatModel("gemini-3.7-flash")).toBe(true);
     expect(looksLikeEmbeddingModel("text-embedding-4-small")).toBe(true); // future embedding model
+    expect(looksLikeEmbeddingModel("gemini-embedding-002")).toBe(true);
   });
 
   it("never classifies a chat model as an embedding model and vice versa", () => {
@@ -37,6 +39,7 @@ describe("model catalogue classification", () => {
     expect(looksLikeEmbeddingModel("gpt-4o-2024-08-06")).toBe(false);
     expect(looksLikeChatModel("text-embedding-3-small")).toBe(false);
     expect(looksLikeChatModel("gemini-embedding-001")).toBe(false);
+    expect(looksLikeChatModel("gemini-embedding-002")).toBe(false);
   });
 
   it("treats blank input as neither", () => {
