@@ -159,9 +159,9 @@ async function main() {
         for (const key of ["type", "code", "param", "message"]) {
           if (typeof error[key] === "string") {
             safeError[key] = String(error[key])
-              .replace(/Bearer\\s+[^\\s"'<>]+/gi, "Bearer [REDACTED]")
-              .replace(/\\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\\b/g, "[REDACTED_TOKEN]")
-              .replace(/https?:\\/\\/[^\\s"'<>]+/g, "[URL]")
+              .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]")
+              .replace(/\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\b/g, "[REDACTED_TOKEN]")
+              .replace(/https?:\/\/[^\s"'<>]+/g, "[URL]")
               .slice(0, 300);
           }
         }
@@ -170,7 +170,11 @@ async function main() {
       if (message?.response && typeof message.response === "object") {
         const response = message.response;
         if (typeof response.status === "string") detail.responseStatus = response.status.slice(0, 80);
-        if (typeof response.status_details?.reason === "string") detail.responseReason = response.status_details.reason.slice(0, 120);
+        if (typeof response.status_details?.reason === "string") detail.responseReason = response.status_details.reason
+          .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]")
+          .replace(/\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\b/g, "[REDACTED_TOKEN]")
+          .replace(/https?:\/\/[^\s"'<>]+/g, "[URL]")
+          .slice(0, 120);
       }
       for (const key of ["audio_start_ms", "audio_end_ms"]) {
         if (typeof message?.[key] === "number") detail[key] = message[key];
