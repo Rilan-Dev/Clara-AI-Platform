@@ -2056,3 +2056,13 @@ Authoritative detailed session: `docs/project-control/sessions/SESSION-VOICE-LAT
 - GitHub Actions policy: manual-only `workflow_dispatch`; do not re-enable push/PR/schedule triggers. Relevant commits: `08708e3aae6849012c011250c77b665962c4dfc7`, `a78b4aebc9a2f71e5287698004b9e9e46e81164f`.
 - **Immediate next action:** pull this branch, run `node --check scripts/voice-benchmark/conversation.mjs`, run the documented five-turn command with output `tool-results/openai-rag-stage-timings.json`, and share the report. Use server `metadataMs/admissionMs/configMs/translationMs/retrievalMs/graphMs/totalMs` to select the measured bottleneck.
 - Then make a narrow, measured optimization and focused regression coverage without waiting for CI/Vercel. If production code changes, deployment/rebuild is needed before a production comparison. No latency fix, production deployment, or <=500 ms PASS is claimed.
+
+
+## 2026-10-12 — Voice benchmark welcome telemetry timeout
+
+- Owner ran the updated five-turn benchmark after pulling through `1a6e5086`; the script syntax check produced no visible error, but benchmark timed out after 45 seconds waiting for `browser.first_audio` welcome telemetry before it played any question clips. It wrote partial diagnostics to `tool-results/openai-rag-stage-timings.json`.
+- This failure does not establish a production outage or RAG latency; the run did not reach the question-turn measurements.
+- Corrective harness change: welcome telemetry is now optional diagnostic metadata. If it is missing, the benchmark logs a warning and continues to the five question turns; the welcome mark is represented as null/unavailable, never zero. Per-turn telemetry barriers and provider checks remain required, and failure diagnostics remain available.
+- Commits: `fb2a17b874a084e9294166ca6ad88f01830f21ee` (continue without welcome mark); `513a317b2063bb27035b581a3f3f1c4b300b2f27` (null-safe successful report serialization).
+- **Pending verification:** owner must pull latest branch, run `node --check scripts/voice-benchmark/conversation.mjs`, then rerun the same five-turn benchmark to `tool-results/openai-rag-stage-timings.json`. Share the new report. If it fails again, share the full new failure summary including `dataChannelEvents`, `observedLatencyEvents`, `microphoneDiagnostics`, `requestCounts`, `failures`, and `consoleErrors`.
+- Do not claim benchmark PASS, production latency improvement, or <=500 ms target attainment. Continue without waiting for Actions/Vercel; keep all workflows manual-only.
