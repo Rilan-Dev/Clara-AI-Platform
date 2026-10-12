@@ -105,17 +105,6 @@ function getAllowedValues(map: ProviderScopedList | undefined, provider: AIProvi
   return Array.isArray(values) && values.length > 0 ? values : null;
 }
 
-function pickAllowedString(
-  candidate: string | null | undefined,
-  allowed: string[] | null,
-  fallback: string | null,
-): string | null {
-  if (!allowed || allowed.length === 0) return candidate ?? fallback ?? null;
-  if (candidate && allowed.includes(candidate)) return candidate;
-  if (fallback && allowed.includes(fallback)) return fallback;
-  return allowed[0] ?? null;
-}
-
 function clampNumber(value: number | null, max: number | null): number | null {
   if (value == null || max == null) return value;
   return Math.min(value, max);
