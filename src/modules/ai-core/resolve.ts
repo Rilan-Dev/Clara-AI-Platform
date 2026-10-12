@@ -377,11 +377,24 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const liveEmbeddingRows = liveRows(embeddingRows, "embedding");
   const liveRealtimeRows = liveRows(realtimeRows, "realtime");
   const liveTranscriptionRows = liveRows(transcriptionRows, "transcription");
-  const defaultFrom = (rows: typeof chatRows) =>
-    rows.find((row) => row.isDefault)?.modelId ?? rows[0]?.modelId ?? null;
-  const defaultChat = defaultFrom(liveChatRows);
-  const defaultEmbedding = defaultFrom(liveEmbeddingRows);
-  const defaultRealtime = defaultFrom(liveRealtimeRows);
+  const defaultFrom = (rows: typeof chatRows, configuredId?: string | null) =>
+    (configuredId && rows.some((row) => row.modelId === configuredId) ? configuredId : null) ??
+    rows.find((row) => row.isDefault)?.modelId ??
+    rows[0]?.modelId ??
+    null;
+  const defaultChat = defaultFrom(
+    liveChatRows,
+    chatDefault?.providerId === provider ? chatDefault.modelId : null,
+  );
+  const defaultEmbedding = defaultFrom(
+    liveEmbeddingRows,
+    registry.embeddingDefault?.providerId === embeddingProvider ? registry.embeddingDefault.modelId : null,
+  );
+  const realtimeDefault = registry.defaults.find((item) => item.capability === "realtime_voice");
+  const defaultRealtime = defaultFrom(
+    liveRealtimeRows,
+    realtimeDefault?.providerId === provider ? realtimeDefault.modelId : null,
+  );
   const defaultTranscription = defaultFrom(liveTranscriptionRows);
   const defaultVoice =
     registryDefaultModel(provider, "realtime_voice", "voice") ?? defaults.models[provider].defaultVoice;
