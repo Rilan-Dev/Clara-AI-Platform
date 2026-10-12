@@ -102,6 +102,7 @@ function toModelOptions(
       displayName: m.displayName,
       kind: m.kind,
       isDefault: m.isDefault,
+      metadata: m.metadata,
     }));
 }
 
