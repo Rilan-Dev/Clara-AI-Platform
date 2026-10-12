@@ -1,9 +1,6 @@
 import { GoogleGenAI, type Content } from "@google/genai";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
 
-const CONFIGURED_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL?.trim();
-const CONFIGURED_EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL?.trim();
-
 export class GeminiProvider implements LLMProvider {
   private config: ProviderConfig;
   private ai: GoogleGenAI;
@@ -21,7 +18,7 @@ export class GeminiProvider implements LLMProvider {
   }
 
   private getChatModelName(): string {
-    const model = this.config.chatModel?.trim() || CONFIGURED_CHAT_MODEL;
+    const model = this.config.chatModel?.trim() || process.env.GEMINI_CHAT_MODEL?.trim();
     if (!model) {
       throw new Error("No Gemini chat model is configured. Discover available models with the Gemini API and select an enabled chat model in AI settings.");
     }
@@ -29,7 +26,7 @@ export class GeminiProvider implements LLMProvider {
   }
 
   private getEmbeddingModelName(): string {
-    const model = this.config.embeddingModel?.trim() || CONFIGURED_EMBEDDING_MODEL;
+    const model = this.config.embeddingModel?.trim() || process.env.GEMINI_EMBEDDING_MODEL?.trim();
     if (!model) {
       throw new Error("No Gemini embedding model is configured. Discover available models with the Gemini API and select an enabled embedding model in AI settings.");
     }
