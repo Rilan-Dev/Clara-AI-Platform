@@ -106,6 +106,20 @@ vi.mock("@/modules/voice-core/api/gemini/realtime-auth", () => ({
   mintGeminiRealtimeToken: vi.fn(() => "gemini-hmac-token"),
 }));
 
+vi.mock("@/modules/ai-governance/core/registry-db", () => ({
+  listProviderModels: vi.fn(async () => [{
+    id: "live-gemini-realtime",
+    providerId: "gemini",
+    capability: "realtime_voice",
+    kind: "realtime",
+    modelId: "gemini-2.5-flash-native-audio-preview-12-2025",
+    displayName: "Gemini Live Preview",
+    enabled: true,
+    isDefault: true,
+    metadata: {},
+  }]),
+}));
+
 vi.mock("@/modules/voice-core/resolve", () => {
   const resolveVoiceConfig = vi.fn(async () => ({
     voiceProvider: "sarvam",
