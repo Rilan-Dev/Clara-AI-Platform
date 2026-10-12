@@ -1,9 +1,8 @@
 import { GoogleGenAI, type Content } from "@google/genai";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
 
-const DEFAULT_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.0-flash";
-const DEFAULT_EMBEDDING_MODEL =
-  process.env.GEMINI_EMBEDDING_MODEL ?? "text-embedding-004";
+const CONFIGURED_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL?.trim();
+const CONFIGURED_EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL?.trim();
 
 export class GeminiProvider implements LLMProvider {
   private config: ProviderConfig;
@@ -22,11 +21,19 @@ export class GeminiProvider implements LLMProvider {
   }
 
   private getChatModelName(): string {
-    return this.config.chatModel ?? DEFAULT_CHAT_MODEL;
+    const model = this.config.chatModel?.trim() || CONFIGURED_CHAT_MODEL;
+    if (!model) {
+      throw new Error("No Gemini chat model is configured. Discover available models with the Gemini API and select an enabled chat model in AI settings.");
+    }
+    return model;
   }
 
   private getEmbeddingModelName(): string {
-    return this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const model = this.config.embeddingModel?.trim() || CONFIGURED_EMBEDDING_MODEL;
+    if (!model) {
+      throw new Error("No Gemini embedding model is configured. Discover available models with the Gemini API and select an enabled embedding model in AI settings.");
+    }
+    return model;
   }
 
   async *chatStream(
@@ -151,9 +158,9 @@ export class GeminiProvider implements LLMProvider {
 
   getModelName(type: "chat" | "embedding"): string {
     if (type === "chat") {
-      return this.config.chatModel ?? DEFAULT_CHAT_MODEL;
+      return this.getChatModelName();
     }
-    return this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    return this.getEmbeddingModelName();
   }
 
   getEmbeddingDimension(): number {
