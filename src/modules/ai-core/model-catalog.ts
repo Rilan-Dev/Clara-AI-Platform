@@ -20,7 +20,7 @@
  */
 
 import type { AIProvider } from "./types";
-import { isSarvamEnabled } from "@/modules/voice-core/model-catalog";
+
 
 // ─── Catalogue entries ────────────────────────────────────────────────────────
 
@@ -332,23 +332,16 @@ export function estimateEmbeddingCostUsdMicros(
 
 // ─── Dropdown option lists (UI helpers) ───────────────────────────────────────
 
-// Dark-launch gate: Sarvam entries join the option lists ONLY when the
-// provider kill switch is on (SARVAM_ENABLED + key present) — with the kill
-// switch off, every dropdown renders exactly as before V0. Beta entries
-// additionally require SARVAM_BETA_MODELS_ENABLED.
-export function visibleSarvamChatModels(): ChatModelEntry[] {
-  if (!isSarvamEnabled()) return [];
-  return isSarvamBetaModelsEnabled()
-    ? SARVAM_CHAT_MODELS
-    : SARVAM_CHAT_MODELS.filter((m) => !m.beta);
+/**
+ * Selectable option lists must be supplied by the live governance catalogue.
+ * These helpers only format/filter rows already returned by provider discovery;
+ * the compile-time arrays above remain pricing/dimension metadata, not proof of
+ * current availability.
+ */
+export function chatModelOptions(provider?: AIProvider, liveModels: ChatModelEntry[] = []): ChatModelEntry[] {
+  return provider ? liveModels.filter((model) => model.provider === provider) : [...liveModels];
 }
 
-export function chatModelOptions(provider?: AIProvider): ChatModelEntry[] {
-  const all = [...OPENAI_CHAT_MODELS, ...GEMINI_CHAT_MODELS, ...visibleSarvamChatModels()];
-  return provider ? all.filter((m) => m.provider === provider) : all;
-}
-
-export function embeddingModelOptions(provider?: AIProvider): EmbeddingModelEntry[] {
-  const all = [...OPENAI_EMBEDDING_MODELS, ...GEMINI_EMBEDDING_MODELS];
-  return provider ? all.filter((m) => m.provider === provider) : all;
+export function embeddingModelOptions(provider?: AIProvider, liveModels: EmbeddingModelEntry[] = []): EmbeddingModelEntry[] {
+  return provider ? liveModels.filter((model) => model.provider === provider) : [...liveModels];
 }
