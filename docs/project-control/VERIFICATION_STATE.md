@@ -1879,3 +1879,12 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - npm emitted `EBADENGINE` warnings under Node v20.20.0. Several dependencies require Node 22+, including `machina >=22.22`, `vitest@5` `^22.12.0 || ^24.0.0 || >=26.0.0`, and `pdfjs-dist >=22.13.0 || >=24`. Type-check success does not negate these runtime engine mismatches. Confirm Node 22.22+ compatibility and align local/container/deployment versions.
 - npm audit summary: 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); no remediation command was run. Review separately; do not force-upgrade blindly.
 - `@types/ws` installation modified local dependency metadata; owner must inspect `git status --short` and commit the intended `package.json` and `package-lock.json` changes. No reset/cleanup of other local files.
+
+
+## Subscription AI entitlement authority — 2026-10-12
+
+- Source review confirmed the stale organisation provider-list rejection and the subscription entitlement query's joined-matrix truncation risk.
+- Corrections and two focused regression test files have been committed to branch `fix/subscription-ai-entitlements-authority`.
+- **Not run:** focused Vitest, type-check, lint, build, database migration, production Sarvam session, downgrade/expiry runtime test, CI, Vercel or deployment.
+- Status: IMPLEMENTED / UNVERIFIED. No PASS or production-fix claim.
+- Required evidence: focused test output, type-check output, and one controlled Pro→Starter/Free entitlement check with no secrets/tokens in logs.
