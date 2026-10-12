@@ -2057,3 +2057,7 @@ DEV-01 corrected the duplicated governance registry implementation blocks while 
 1. FIX-01: inspect commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8; confirm the retained registry exports and callers are complete, then run npm run type-check and focused governance tests when local execution is available.
 2. DEV-01: continue the branch-local search for static Gemini availability bypasses and add focused regressions for live model selection / stale configuration.
 3. Do not wait/poll CI or Vercel. Source commits are not PASS evidence. Current task remains IN PROGRESS with verification pending.
+
+
+## 2026-10-12 — Gemini provider env fallback removed
+The Gemini provider no longer reads GEMINI_CHAT_MODEL or GEMINI_EMBEDDING_MODEL directly when the resolved config is blank; both IDs must be supplied by the governance-resolved runtime config. Regression source verifies env variables cannot bypass catalogue validation. Commits: a02e92d47982a3977b82d1d3071e507eefe2feab and ffff0cf29be92740c8709fb4bc389b3522a6e350. Tests are authored only, not run. Continue the branch-local audit; I-098 remains verification pending with FIX-01.
