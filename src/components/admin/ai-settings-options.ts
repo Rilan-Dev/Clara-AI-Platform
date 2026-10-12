@@ -66,10 +66,14 @@ function sortLiveModels(models: LiveAIModelOption[]): LiveAIModelOption[] {
 
 function liveOptions(models: LiveAIModelOption[], kinds: string[]) {
   return sortLiveModels(models.filter((model) => kinds.includes(model.kind))).map((model) => {
-    const price = model.metadata?.inputUsdPerMTokens;
+    const tokenPrice = model.metadata?.inputUsdPerMTokens;
+    const charPrice = model.metadata?.usdPer1kChars;
+    const minutePrice = model.metadata?.usdPerMinute;
     const dimension = model.metadata?.dimension;
-    const meta = typeof price === "number" ? \`$\${price}/M input\`
-      : typeof dimension === "number" ? \`\${dimension} dims\`
+    const meta = typeof tokenPrice === "number" ? `$${tokenPrice}/M input`
+      : typeof charPrice === "number" ? `$${charPrice}/1k chars`
+      : typeof minutePrice === "number" ? `$${minutePrice}/min`
+      : typeof dimension === "number" ? `${dimension} dims`
       : undefined;
     return { value: model.modelId, label: model.displayName || model.modelId, meta };
   });
