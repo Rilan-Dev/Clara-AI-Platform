@@ -208,3 +208,6 @@ could not be connected at all.
 ## 2026-10-12 — Gemini model ID normalization follow-up
 - Current branch audit found malformed escaping in model-prefix normalization in src/modules/assistant/api/geminiSession.ts and src/app/api/embed/session/route.ts. Corrected these to strip a literal models/ prefix properly (commits 024f37a9a3599f5e036a13aea9524c60f234c6b7 and 32e7908b84d386d5b0a9c4607b0128dec382a20c).
 - This is source-only; no test/type-check/build/live vendor/deployment verification was run. No PASS is claimed.
+
+
+- Added source-level regression fixture for a prefixed Gemini realtime model ID in the embed session route test (commit bff9ccbae2f89717a4f111ef931d8a7f6c822eff). No test execution or PASS claimed.
