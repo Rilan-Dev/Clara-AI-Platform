@@ -139,9 +139,11 @@ async function syncOpenAI(): Promise<void> {
     groups.get(group)!.add(item.modelId);
   }
   await upsertItems(items);
-  for (const [group, ids] of groups) {
+  // A successful /v1/models response is authoritative for each selectable
+  // OpenAI model kind, including kinds with zero currently accessible models.
+  for (const group of ["chat:chat", "chat:embedding", "realtime_voice:realtime", "realtime_voice:transcription"]) {
     const [capability, kind] = group.split(":") as [Capability, Kind];
-    await disableMissing("openai", capability, kind, ids);
+    await disableMissing("openai", capability, kind, groups.get(group) ?? new Set<string>());
   }
 }
 
