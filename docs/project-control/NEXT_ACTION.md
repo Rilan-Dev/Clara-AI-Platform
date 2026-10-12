@@ -1,3 +1,11 @@
+## DEV-01 CONTINUATION — REMOVE REMAINING ELEVENLABS REALTIME MODEL FALLBACKS — 2026-10-12
+
+- Removed the static realtime TTS fallback from `getPlatformDefaultRealtimeTTSModel()`; it now returns only an explicitly configured supported model or empty, allowing the voice resolver to select from the live catalogue.
+- The ElevenLabs realtime relay now rejects a missing resolved model instead of silently pinning `eleven_flash_v2_5`. Realtime usage metering requires the actual model ID and no longer fabricates static TTS/STT model IDs.
+- **Exact next action:** inspect and remove the remaining static fallback in ElevenLabs voice-preview requests and the remaining legacy Gemini chat/embedding catalogue consumers. Keep static pricing/vector-dimension metadata only where technically required; it must not determine model availability. Confirm every AI settings surface gets vendor-discovered model rows and uses capability filtering plus cost/release ordering.
+- Regression tests/typecheck/build/live vendor calls have not been run. No PASS. Do not wait for CI/Vercel.
+
+---
 ## NEWEST DEV-01 PRODUCT ACTION — DYNAMIC GEMINI + ELEVENLABS REALTIME CATALOGUE — 2026-10-12
 
 This is an independent DEV-01 product task and does not supersede the parallel FIX-01 type-check correction action below.
