@@ -738,3 +738,6 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 
 
 - Follow-up regression source added at src/modules/ai-core/providers/gemini.test.ts for known/fixed dimensions, Matryoshka output dimensions, unknown models and invalid overrides (commit 712eebf8e4295bc987c65db2d1acb371af987972). Not run.
+
+
+- During the catalogue audit, DEV-01 found duplicated top-level exports and a dangling SQL fragment in registry-db.ts; removed the duplicated tail in commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8. Issue I-098 is recorded and handed to FIX-01 for independent diff/export review and local type-check/focused governance tests. No verification PASS is claimed.
