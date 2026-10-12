@@ -21,7 +21,7 @@
  */
 
 import { query } from "@/lib/db";
-import { getPlatformAIRegistry } from "./registry-db";
+import { getPlatformAIRegistry, syncLiveProviderCatalog } from "./registry-db";
 import { resolvePlanAIEntitlements } from "./entitlements-db";
 import { listProviderModels } from "./registry-db";
 import type {
@@ -113,6 +113,9 @@ function toModelOptions(
 export async function resolveAvailableAIOptions(
   input: ResolveAvailableAIOptionsInput,
 ): Promise<ResolveAvailableAIOptionsResult> {
+  // Settings selectors can afford an awaited refresh; runtime resolution uses
+  // the last successful catalogue and never waits on four vendor APIs.
+  await syncLiveProviderCatalog();
   const capability = input.capability;
 
   // Fan out the three independent lookups concurrently: the registry (an
