@@ -1,5 +1,6 @@
 import { GoogleGenAI, type Content } from "@google/genai";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
+import { embeddingDimensionFor } from "../model-catalog";
 
 export class GeminiProvider implements LLMProvider {
   private config: ProviderConfig;
@@ -166,8 +167,11 @@ export class GeminiProvider implements LLMProvider {
     if (envDim) return Number(envDim);
 
     const model = this.getEmbeddingModelName();
-    if (model.includes("gemini-embedding-001")) return 3072;
-    return 768;
+    const knownDimension = embeddingDimensionFor(model);
+    if (knownDimension != null) return knownDimension;
+    throw new Error(
+      `Unknown output dimension for Gemini embedding model "${model}". Set GEMINI_EMBEDDING_DIMENSION only after confirming the vendor output dimension and compatibility with the existing Qdrant collection.`,
+    );
   }
 
   /**
