@@ -1879,3 +1879,13 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - npm emitted `EBADENGINE` warnings under Node v20.20.0. Several dependencies require Node 22+, including `machina >=22.22`, `vitest@5` `^22.12.0 || ^24.0.0 || >=26.0.0`, and `pdfjs-dist >=22.13.0 || >=24`. Type-check success does not negate these runtime engine mismatches. Confirm Node 22.22+ compatibility and align local/container/deployment versions.
 - npm audit summary: 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); no remediation command was run. Review separately; do not force-upgrade blindly.
 - `@types/ws` installation modified local dependency metadata; owner must inspect `git status --short` and commit the intended `package.json` and `package-lock.json` changes. No reset/cleanup of other local files.
+
+
+
+## 2026-10-12 — Realtime voice latency baseline and pending stage timing
+
+- Owner-provided benchmark evidence: five turns completed and benchmark process exited after a bounded response-flush fix. Per-turn TTFA: 8273, 6078, 5213, 1447, 1704 ms; median 5213 ms; fastest 1447 ms.
+- The benchmark-only silent audio keepalive resolved the prior synthetic-input/VAD progression stall in the reported run. This is not a production VAD fix.
+- RAG stage instrumentation source is committed, but the new output report with numeric server stage timings has not yet been supplied. Need `tool-results/openai-rag-stage-timings.json` to compare browser elapsed with `metadataMs`, `admissionMs`, `configMs`, `translationMs`, `retrievalMs`, `graphMs`, and `totalMs`.
+- Script syntax check and fresh diagnostic run after the instrumentation commit have not been observed in this session. No tests/build/deployment or production latency improvement is claimed.
+- Target <=500 ms is aspirational and currently not met. Separate grounded-answer TTFA from welcome/acknowledgement audio. Next action and exact command: `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md`.
