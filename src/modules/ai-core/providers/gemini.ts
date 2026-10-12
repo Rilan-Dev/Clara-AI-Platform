@@ -19,7 +19,7 @@ export class GeminiProvider implements LLMProvider {
   }
 
   private getChatModelName(): string {
-    const model = this.config.chatModel?.trim() || process.env.GEMINI_CHAT_MODEL?.trim();
+    const model = this.config.chatModel?.trim();
     if (!model) {
       throw new Error("No Gemini chat model is configured. Discover available models with the Gemini API and select an enabled chat model in AI settings.");
     }
@@ -27,7 +27,7 @@ export class GeminiProvider implements LLMProvider {
   }
 
   private getEmbeddingModelName(): string {
-    const model = this.config.embeddingModel?.trim() || process.env.GEMINI_EMBEDDING_MODEL?.trim();
+    const model = this.config.embeddingModel?.trim();
     if (!model) {
       throw new Error("No Gemini embedding model is configured. Discover available models with the Gemini API and select an enabled embedding model in AI settings.");
     }
