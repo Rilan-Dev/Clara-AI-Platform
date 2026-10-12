@@ -413,16 +413,23 @@ async function main() {
     connectClick.monotonicMs = await page.evaluate(() => performance.now());
     await connect.click();
 
-    // The greeting may not emit a telemetry event on every provider yet. A
-    // missing greeting event is a failed/missing metric, not a fabricated zero.
-    welcomeEvent = await waitFor(async () => {
-      const events = await page.evaluate(() => window.__claraVoiceBench?.events ?? []);
-      const candidates = events.filter((e) => typeof e.marks?.["browser.first_audio"] === "number");
-      return candidates[0] ?? null;
-    }, args.welcomeTimeoutMs, "first audible welcome/assistant audio telemetry");
+    // Welcome telemetry is useful but is not a prerequisite for measuring question turns.
+    // Some sessions/providers do not emit a welcome first-audio mark. Preserve that as
+    // unavailable, then continue; each actual question still has its own required telemetry
+    // barrier and provider check. Never fabricate a zero or count the greeting as an answer.
+    try {
+      welcomeEvent = await waitFor(async () => {
+        const events = await page.evaluate(() => window.__claraVoiceBench?.events ?? []);
+        const candidates = events.filter((e) => typeof e.marks?.["browser.first_audio"] === "number");
+        return candidates[0] ?? null;
+      }, args.welcomeTimeoutMs, "first audible welcome/assistant audio telemetry");
+    } catch (welcomeError) {
+      if (!String(welcomeError?.message ?? welcomeError).includes("first audible welcome/assistant audio telemetry")) throw welcomeError;
+      console.warn("[conversation-bench] welcome audio telemetry unavailable; continuing to question-turn diagnostics");
+    }
 
     const clickWallTime = await page.evaluate(() => window.__claraVoiceBench?.clickAt?.wallTime ?? null);
-    const welcomeFirstAudioMark = welcomeEvent.marks["browser.first_audio"];
+    const welcomeFirstAudioMark = welcomeEvent?.marks?.["browser.first_audio"] ?? null;
     // Both values use epoch milliseconds because current shared stage marks use Date.now().
     const welcomeMsFromClick = typeof clickWallTime === "number" && typeof welcomeFirstAudioMark === "number"
       ? welcomeFirstAudioMark - clickWallTime
