@@ -159,9 +159,9 @@ async function main() {
         for (const key of ["type", "code", "param", "message"]) {
           if (typeof error[key] === "string") {
             safeError[key] = String(error[key])
-              .replace(/Bearer\\s+[^\\s"'<>]+/gi, "Bearer [REDACTED]")
-              .replace(/\\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\\b/g, "[REDACTED_TOKEN]")
-              .replace(/https?:\\/\\/[^\\s"'<>]+/g, "[URL]")
+              .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]")
+              .replace(/\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\b/g, "[REDACTED_TOKEN]")
+              .replace(/https?:\/\/[^\s"'<>]+/g, "[URL]")
               .slice(0, 300);
           }
         }
@@ -170,10 +170,33 @@ async function main() {
       if (message?.response && typeof message.response === "object") {
         const response = message.response;
         if (typeof response.status === "string") detail.responseStatus = response.status.slice(0, 80);
-        if (typeof response.status_details?.reason === "string") detail.responseReason = response.status_details.reason.slice(0, 120);
+        if (typeof response.status_details?.reason === "string") detail.responseReason = response.status_details.reason
+          .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]")
+          .replace(/\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\b/g, "[REDACTED_TOKEN]")
+          .replace(/https?:\/\/[^\s"'<>]+/g, "[URL]")
+          .slice(0, 120);
       }
       for (const key of ["audio_start_ms", "audio_end_ms"]) {
         if (typeof message?.[key] === "number") detail[key] = message[key];
+      }
+      // Keep transcription diagnostics useful without storing transcript text.
+      if (typeof message?.delta === "string") detail.deltaLength = message.delta.length;
+      if (typeof message?.transcript === "string") detail.transcriptLength = message.transcript.length;
+      // Record only non-secret effective input configuration returned by the service.
+      if (message?.type === "session.updated" && message?.session && typeof message.session === "object") {
+        const session = message.session;
+        const input = session.audio?.input ?? {};
+        const turn = input.turn_detection ?? session.turn_detection ?? {};
+        const transcription = input.transcription ?? session.input_audio_transcription ?? {};
+        detail.effectiveInputConfig = {
+          turnDetectionType: typeof turn.type === "string" ? turn.type : null,
+          threshold: typeof turn.threshold === "number" ? turn.threshold : null,
+          prefixPaddingMs: typeof turn.prefix_padding_ms === "number" ? turn.prefix_padding_ms : null,
+          silenceDurationMs: typeof turn.silence_duration_ms === "number" ? turn.silence_duration_ms : null,
+          createResponse: typeof turn.create_response === "boolean" ? turn.create_response : null,
+          transcriptionModel: typeof transcription.model === "string" ? transcription.model : null,
+          transcriptionLanguage: typeof transcription.language === "string" ? transcription.language : null,
+        };
       }
       return Object.keys(detail).length ? detail : null;
     };
@@ -191,10 +214,15 @@ async function main() {
         try {
           const parsed = JSON.parse(String(event.data));
           type = typeof parsed?.type === "string" ? parsed.type : "json-without-type";
-          if (type === "error" || type === "input_audio_buffer.speech_started" ||
+          if (type === "error" || type === "session.updated" ||
+              type === "input_audio_buffer.speech_started" ||
               type === "input_audio_buffer.speech_stopped" ||
               type === "input_audio_buffer.committed" ||
+              type === "input_audio_buffer.timeout_triggered" ||
+              type === "input_audio_buffer.cleared" ||
+              type === "conversation.item.input_audio_transcription.delta" ||
               type === "conversation.item.input_audio_transcription.completed" ||
+              type === "conversation.item.input_audio_transcription.failed" ||
               type === "response.done") {
             detail = safeEventDetail(parsed);
           }
@@ -261,6 +289,36 @@ async function main() {
       const source = state.audioContext.createBufferSource();
       source.buffer = audio;
       const playbackStartedAt = Date.now();
+      const readAudioRtpStats = async () => {
+        try {
+          const report = await state.peerConnection?.getStats();
+          if (!report) return null;
+          const rows = [];
+          report.forEach((stat) => {
+            if (
+              (stat.type === "outbound-rtp" && stat.kind === "audio") ||
+              (stat.type === "remote-inbound-rtp" && stat.kind === "audio") ||
+              (stat.type === "media-source" && stat.kind === "audio")
+            ) {
+              rows.push({
+                type: stat.type,
+                kind: stat.kind ?? null,
+                packetsSent: typeof stat.packetsSent === "number" ? stat.packetsSent : null,
+                bytesSent: typeof stat.bytesSent === "number" ? stat.bytesSent : null,
+                packetsReceived: typeof stat.packetsReceived === "number" ? stat.packetsReceived : null,
+                bytesReceived: typeof stat.bytesReceived === "number" ? stat.bytesReceived : null,
+                audioLevel: typeof stat.audioLevel === "number" ? stat.audioLevel : null,
+                totalAudioEnergy: typeof stat.totalAudioEnergy === "number" ? stat.totalAudioEnergy : null,
+                totalSamplesDuration: typeof stat.totalSamplesDuration === "number" ? stat.totalSamplesDuration : null,
+              });
+            }
+          });
+          return rows;
+        } catch {
+          return null;
+        }
+      };
+      const rtpBefore = await readAudioRtpStats();
       source.connect(state.destination);
       const ended = new Promise((resolve) => { source.onended = resolve; });
       source.start();
@@ -277,9 +335,12 @@ async function main() {
           sampleCount++;
         }
       }
+      const rtpAfter = await readAudioRtpStats();
       const result = {
         durationMs: audio.duration * 1000,
         sampleRate: audio.sampleRate,
+        rtpBefore,
+        rtpAfter,
         channels: audio.numberOfChannels,
         rms: sampleCount ? Math.sqrt(sumSquares / sampleCount) : 0,
         peak,
@@ -462,7 +523,7 @@ async function main() {
         turns: turnResults,
         observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
         dataChannelEvents,
-        microphoneDiagnostics: await page.evaluate(() => {
+        microphoneDiagnostics: await page.evaluate(async () => {
           const state = window.__claraVoiceBench;
           const pc = state?.peerConnection;
           const dc = pc?.getDataChannels?.()?.[0] ?? null;
@@ -479,6 +540,34 @@ async function main() {
               iceConnectionState: pc.iceConnectionState,
               iceGatheringState: pc.iceGatheringState,
               signalingState: pc.signalingState,
+              audioRtpStats: await (async () => {
+                try {
+                  const report = await pc.getStats();
+                  const rows = [];
+                  report.forEach((stat) => {
+                    if (
+                      (stat.type === "outbound-rtp" && stat.kind === "audio") ||
+                      (stat.type === "remote-inbound-rtp" && stat.kind === "audio") ||
+                      (stat.type === "media-source" && stat.kind === "audio")
+                    ) {
+                      rows.push({
+                        type: stat.type,
+                        kind: stat.kind ?? null,
+                        packetsSent: typeof stat.packetsSent === "number" ? stat.packetsSent : null,
+                        bytesSent: typeof stat.bytesSent === "number" ? stat.bytesSent : null,
+                        packetsReceived: typeof stat.packetsReceived === "number" ? stat.packetsReceived : null,
+                        bytesReceived: typeof stat.bytesReceived === "number" ? stat.bytesReceived : null,
+                        audioLevel: typeof stat.audioLevel === "number" ? stat.audioLevel : null,
+                        totalAudioEnergy: typeof stat.totalAudioEnergy === "number" ? stat.totalAudioEnergy : null,
+                        totalSamplesDuration: typeof stat.totalSamplesDuration === "number" ? stat.totalSamplesDuration : null,
+                      });
+                    }
+                  });
+                  return rows;
+                } catch {
+                  return null;
+                }
+              })(),
             } : null,
             dataChannel: state?.dataChannelEvents?.length ? {
               readyState: dc?.readyState ?? state.dataChannelEvents[state.dataChannelEvents.length - 1]?.channelState ?? null,
