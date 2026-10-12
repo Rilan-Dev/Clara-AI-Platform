@@ -2021,3 +2021,12 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 - Diagnostic experiment: keep a zero-gain oscillator connected to the synthetic microphone destination so audio frames continue after the injected clip. This is benchmark-only; do not change production VAD or `create_response: false`.
 - Next: run `node --check scripts/voice-benchmark/conversation.mjs`, rerun one benchmark into a NEW report path, then compare outbound RTP counters and VAD events. If `speech_stopped`/commit/transcription completion appears, investigate benchmark track continuity as the cause; only then evaluate RAG and response dispatch.
 - Status: hypothesis under test; production root cause and fix are NOT confirmed.
+
+
+## OpenAI realtime benchmark shutdown hang — 2026-10-12
+
+- Latest run completed all five input turns and emitted latency results, but did not print the final report path / exit. This narrows the hang to post-turn finalization rather than VAD, STT, RAG, or response generation.
+- Code inspection identified an unbounded `await Promise.all(pendingResponseFinishes)`. The benchmark tracks every browser response's `response.finished()`; a long-lived/streaming response may not finish until the browser is closed, while browser close is in the later `finally` block. This can deadlock successful runs after turn 5.
+- Fix committed to bound the response-body flush wait to 2 seconds, then proceed with available timings and leave still-pending timing fields unset. This preserves the five-turn telemetry barrier and avoids requiring all browser responses to end.
+- Next: pull latest branch, run `node --check scripts/voice-benchmark/conversation.mjs`, rerun five-turn benchmark to a new output path, and confirm it prints `wrote ...`, writes `runStatus: "completed"`, and exits. If it still hangs, capture the last log line and inspect other finalization/close waits.
+- Commit: `76640c39a77e3c1f7600285eeb405260f7a5f5b8`. Source change is not locally syntax-checked or runtime-verified yet; do not mark PASS until the user run confirms it.
