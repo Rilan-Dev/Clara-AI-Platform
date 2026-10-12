@@ -120,3 +120,11 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 
 - **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01 cache clarification
 - **Lesson:** A tiny cache can remove repeated `tools/list` round trips during one request if it is bound to the exact immutable execution-context identity and credential fingerprint, contains only remote metadata, and does not cache authorization. Recheck DB permissions on every resolution and bypass the cache for invocation/schema validation. Do not turn this into a cross-request cache without explicit invalidation for policy and remote schema changes.
+
+
+## 2026-10-12 — Model catalogue lessons
+- A configured environment model ID is only a preference, never proof of availability. Runtime selectors must validate against enabled metadata.catalogSource === vendor_live rows.
+- Never recover from a bad embedding selection by taking the first raw organisation allow-list string; intersect allow-list values with live rows of kind embedding.
+- Do not assume 768 dimensions for an unknown Gemini embedding model. Use a confirmed compatibility dimension or explicit operator configuration; otherwise fail closed to protect Qdrant collections.
+- Registry counts and workspace inventories must not present migration seed rows as vendor-available models.
+- Do not wait/poll CI/Vercel; source commits do not constitute test/runtime PASS.
