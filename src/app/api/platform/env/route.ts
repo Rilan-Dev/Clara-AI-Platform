@@ -219,7 +219,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         row.enabled &&
         row.metadata.catalogSource === "vendor_live" &&
         liveModelField.kinds.includes(row.kind) &&
-        row.modelId === body.value.trim(),
+        row.modelId === body.value.trim().replace(/^models\\//, ""),
       );
       if (!available) {
         return NextResponse.json(
