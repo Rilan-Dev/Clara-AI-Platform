@@ -22,6 +22,7 @@ const registryState = {
 
 vi.mock("@/modules/ai-governance/core/registry-db", () => ({
   getPlatformAIRegistry: vi.fn(async () => registryState),
+  syncLiveProviderCatalog: vi.fn(async () => {}),
   listProviderModels: vi.fn(async (providerId: string, capability?: string) => {
     const provider = registryState.providers.find((p) => p.providerId === providerId) as
       | { providerId: string; models?: Array<Record<string, unknown>> }
