@@ -97,7 +97,7 @@ async function disableMissing(provider: Provider, capability: Capability, kind: 
 function classifyOpenAIModel(id: string): Array<{ capability: Capability; kind: Kind }> {
   const value = id.toLowerCase();
   if (value.includes("embedding")) return [{ capability: "chat", kind: "embedding" }];
-  if (value.includes("transcribe") || value === "whisper-1") return [{ capability: "realtime_voice", kind: "transcription" }];
+  if (value.includes("transcribe") || value.includes("whisper")) return [{ capability: "realtime_voice", kind: "transcription" }];
   if (value.includes("realtime")) return [{ capability: "realtime_voice", kind: "realtime" }];
   if (/^(gpt-|o[1-9]|chatgpt-)/.test(value)) return [{ capability: "chat", kind: "chat" }];
   return [];
