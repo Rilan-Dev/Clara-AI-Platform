@@ -42,7 +42,7 @@ const OPENAI_EMBEDDING = [
 const CHAT_IDS = new Set([...OPENAI_CHAT, ...SARVAM_CHAT].map((s) => s.toLowerCase()));
 const EMBEDDING_IDS = new Set([...OPENAI_EMBEDDING].map((s) => s.toLowerCase()));
 
-const CHAT_PATTERNS = [/^gpt-\d/, /^gpt-realtime/, /^o[1-9](-|$)/, /^chat-bison/, /^sarvam-/];
+const CHAT_PATTERNS = [/^gpt-\d/, /^gpt-realtime/, /^gemini-/, /^o[1-9](-|$)/, /^chat-bison/, /^sarvam-/];
 const EMBEDDING_PATTERNS = [/embedding/, /^embed-?gecko/];
 // Voice-surface model ids (Sarvam Bulbul/Saaras) — invalid in ANY brain field.
 const VOICE_PATTERNS = [/^bulbul:/, /^saaras:/];
