@@ -1888,3 +1888,10 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - **Not run:** focused Vitest, type-check, lint, build, database migration, production Sarvam session, downgrade/expiry runtime test, CI, Vercel or deployment.
 - Status: IMPLEMENTED / UNVERIFIED. No PASS or production-fix claim.
 - Required evidence: focused test output, type-check output, and one controlled Pro→Starter/Free entitlement check with no secrets/tokens in logs.
+
+
+### I-098 follow-up — missing registry row
+
+- Fixed a second fail-open path: known providers absent from the platform registry no longer return success before subscription checks.
+- Added regression coverage to `src/modules/ai-governance/core/resolver.test.ts`.
+- Not run; remains IMPLEMENTED / UNVERIFIED until the focused tests and type-check are executed.
