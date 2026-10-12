@@ -536,7 +536,7 @@ async function main() {
       expectedProvider: args.provider,
       browser: "Playwright Chromium",
       inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
-      session: { connectClick: connectClick.wallTime, welcomeEvent: { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks }, sessionClickToWelcomeAudioMs: welcomeMsFromClick, metricMeaning: "first browser.first_audio telemetry mark; not independent confirmation of audible playback" },
+      session: { connectClick: connectClick.wallTime, welcomeEvent: welcomeEvent ? { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks } : null, sessionClickToWelcomeAudioMs: welcomeMsFromClick, metricMeaning: "first browser.first_audio telemetry mark; null means unavailable, not zero; not independent confirmation of audible playback" },
       turns: turnResults,
       ragRequests: await page.evaluate(() => window.__claraVoiceBench?.ragRequests ?? []),
       requestCounts,
