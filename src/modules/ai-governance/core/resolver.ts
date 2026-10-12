@@ -265,15 +265,81 @@ export type AgentAISelectionValidation =
 /**
  * Runtime gate used by resolveAIConfig / resolveVoiceConfig: does the
  * platform currently permit this provider (+ optional model) for this
- * organisation + capability? Registry not yet populated (pre-data-migration
- * boot) → allow through (legacy posture, logged by the caller as a
- * dual-read fallback).
+ * organisation + capability? A missing registry row for a known legacy
+ * provider preserves the pre-migration platform-availability fallback only;
+ * it MUST NOT bypass current subscription entitlements.
  */
 export async function validateAgentAISelection(input: {
   organizationId: string | null;
   provider: string;
   capability: AICapability;
   modelId?: string | null;
+}): Promise<AgentAISelectionValidation> {
+  const registry = await getPlatformAIRegistry();
+  const provider = registry.providers.find((p) => p.providerId === input.provider);
+  const knownProvider = ["openai", "gemini", "sarvam", "elevenlabs"].includes(input.provider);
+
+  if (!provider && !knownProvider) {
+    return {
+      ok: false,
+      code: "PROVIDER_UNKNOWN",
+      reason: `Unknown AI provider "${input.provider}".`,
+    };
+  }
+
+  // Registry row missing → pre-migration provider (e.g. legacy env default).
+  // Skip only the platform-registry check for known providers; continue below
+  // to enforce current plan/capability/model entitlements for the organisation.
+  if (provider) {
+    const gate = providerUsable(provider, input.capability);
+    if (!gate.usable) {
+      const label =
+        gate.reason === "provider_disabled"
+          ? `Provider ${provider.displayName} is disabled by the platform.`
+          : gate.reason === "provider_not_configured"
+            ? `Provider ${provider.displayName} has no configured credentials.`
+            : gate.reason === "provider_capability_unsupported"
+              ? `Provider ${provider.displayName} does not support ${input.capability.replace("_", " ")}.`
+              : `Provider ${provider.displayName} is currently unhealthy.`;
+      return { ok: false, code: gate.reason.toUpperCase(), reason: label };
+    }
+  }
+
+  if (input.organizationId != null) {
+    const entitlements = await resolvePlanAIEntitlements(input.organizationId);
+    if (entitlements.capabilities[input.capability] === false) {
+      return {
+        ok: false,
+        code: "PLAN_NOT_ENTITLED",
+        reason: `The ${entitlements.planName} plan does not include ${input.capability.replace("_", " ")}.`,
+      };
+    }
+    if (entitlements.allowedProviders[input.provider as GovernanceProviderId] === false) {
+      return {
+        ok: false,
+        code: "PLAN_PROVIDER_NOT_ALLOWED",
+        reason: `Provider ${provider?.displayName ?? input.provider} is not available on the ${entitlements.planName} plan.`,
+      };
+    }
+    if (input.modelId) {
+      const exception = entitlements.modelExceptions.find(
+        (x) =>
+          x.providerId === input.provider &&
+          x.capability === input.capability &&
+          x.modelId === input.modelId &&
+          x.allowed === false,
+      );
+      if (exception) {
+        return {
+          ok: false,
+          code: "PLAN_MODEL_NOT_ALLOWED",
+          reason: `Model ${input.modelId} is not available on the ${entitlements.planName} plan.`,
+        };
+      }
+    }
+  }
+
+  return { ok: true };
 }): Promise<AgentAISelectionValidation> {
   const registry = await getPlatformAIRegistry();
   const provider = registry.providers.find((p) => p.providerId === input.provider);
