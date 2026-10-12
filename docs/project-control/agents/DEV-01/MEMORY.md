@@ -1,3 +1,10 @@
+## 2026-10-12 — live provider catalogue
+- Dynamic discovery is only authoritative when the runtime filters to `metadata.catalogSource === "vendor_live"`; seeded rows should not silently satisfy realtime selection after vendor discovery fails.
+- Re-enable a model on upsert when the vendor advertises it again; stale-row reconciliation should happen only after a successful API response.
+- Vendor model-list APIs often omit pricing and actual release dates. Use known pricing metadata only where available, sort unknown prices after known prices, and never infer a release date from a refresh timestamp.
+- ElevenLabs `/v1/models` must be mapped into both `voice_chat/tts` and `realtime_voice/tts` if the same model supports both. Voice IDs remain a separate catalogue kind.
+- Gemini chat/embedding lists must be sourced from `supportedGenerationMethods`; preserve embedding dimensions/Qdrant compatibility as separate metadata, not as a claim of current model availability.
+
 # DEV-01 Role-Local Memory
 
 This is durable memory for DEV-01. It supplements, but never overrides, shared APCP memory or repository authority.
