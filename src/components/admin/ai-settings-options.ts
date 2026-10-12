@@ -69,8 +69,8 @@ function liveOptions(models: LiveAIModelOption[], kinds: string[]) {
   return sortLiveModels(models.filter((model) => kinds.includes(model.kind))).map((model) => {
     const price = model.metadata?.inputUsdPerMTokens;
     const dimension = model.metadata?.dimension;
-    const meta = typeof price === "number" ? \`$\${price}/M input\`
-      : typeof dimension === "number" ? \`\${dimension} dims\`
+    const meta = typeof price === "number" ? `$${price}/M input`
+      : typeof dimension === "number" ? `${dimension} dims`
       : undefined;
     return { value: model.modelId, label: model.displayName || model.modelId, meta };
   });
