@@ -1,3 +1,15 @@
+# DEV-01 CONTINUATION — LIVE MODEL CATALOGUE — 2026-10-12
+
+- **Status:** IN_PROGRESS — source implementation partial; verification pending.
+- **Authorization:** user explicitly directed DEV-01 / Forge to recover current branch state and continue the next authorized product work; scope is Gemini live discovery/filtering and ElevenLabs realtime model discovery.
+- **Implemented:** vendor live catalogue now feeds Gemini realtime runtime selection and ElevenLabs realtime TTS selection; seeded Gemini/OpenAI model rows are reconciled after successful live discovery; model catalogue reads synchronize vendor data; known cost/release metadata is used for ranking.
+- **Not complete:** static Gemini chat/embedding pricing/dimension metadata and bootstrap values remain in the legacy core catalogue/seed/migration layers. These must be separated from availability and reviewed against every consumer before the task can be marked complete.
+- **Verification:** no tests, typecheck, build, migration, live API calls, CI/Vercel, deployment or UI walkthrough run. No PASS.
+- **Exact next:** inspect remaining Gemini model constants and consumers; migrate all selectable lists and defaults to the governance live catalogue without breaking embedding dimensions/Qdrant compatibility. Keep the existing FIX-01 and OPS-01 role boundaries.
+- **Relevant session:** `docs/project-control/sessions/SESSION-DEV-20261012-01.md`.
+
+---
+
 ## ARCHITECTURE CORRECTION — ORGANIZATION-OWNED EXTERNAL MCP — 2026-10-11
 
 - User requirement clarified: organizations must be able to register their own compatible external MCP servers (e.g. n8n, Graphify, Camofox, enterprise MCP) without platform-admin pre-registration.
