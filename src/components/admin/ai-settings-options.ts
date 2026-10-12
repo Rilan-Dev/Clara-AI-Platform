@@ -51,8 +51,9 @@ export type LiveAIModelOption = {
 function sortLiveModels(models: LiveAIModelOption[]): LiveAIModelOption[] {
   return [...models].sort((a, b) => {
     const price = (m: LiveAIModelOption) => {
-      const value = m.metadata?.inputUsdPerMTokens;
-      return typeof value === "number" && Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+      const values = [m.metadata?.inputUsdPerMTokens, m.metadata?.usdPer1kChars, m.metadata?.usdPerMinute];
+      const known = values.find((value) => typeof value === "number" && Number.isFinite(value));
+      return typeof known === "number" ? known : Number.POSITIVE_INFINITY;
     };
     const priceDiff = price(a) - price(b);
     if (priceDiff !== 0 && Number.isFinite(priceDiff)) return priceDiff;
