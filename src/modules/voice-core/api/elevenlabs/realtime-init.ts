@@ -140,11 +140,10 @@ export async function postElevenLabsRealtimeMeter(request: NextRequest): Promise
       // Streaming TTS WebSocket metering — once per assistant generation
       // (plan Task 6.3: "Do not call TTS once per sentence" — same for billing).
       const characters = Number(body.characters);
-      const model =
-        typeof body.model === "string" && body.model ? body.model : "eleven_flash_v2_5";
-      if (!orgId || !Number.isFinite(characters) || characters <= 0) {
+      const model = typeof body.model === "string" ? body.model.trim() : "";
+      if (!orgId || !model || !Number.isFinite(characters) || characters <= 0) {
         return NextResponse.json(
-          { error: "orgId and characters are required for tts metering." },
+          { error: "orgId, model, and characters are required for tts metering." },
           { status: 400 },
         );
       }
@@ -160,11 +159,10 @@ export async function postElevenLabsRealtimeMeter(request: NextRequest): Promise
     }
 
     // STT: meter per committed transcript (audio seconds actually streamed).
-    const model =
-      typeof body.model === "string" && body.model ? body.model : "scribe_v2_realtime";
+    const model = typeof body.model === "string" ? body.model.trim() : "";
     const audioSeconds = Number(body.audioSeconds);
-    if (!orgId || !Number.isFinite(audioSeconds) || audioSeconds <= 0) {
-      return NextResponse.json({ error: "orgId and audioSeconds are required." }, { status: 400 });
+    if (!orgId || !model || !Number.isFinite(audioSeconds) || audioSeconds <= 0) {
+      return NextResponse.json({ error: "orgId, model, and audioSeconds are required." }, { status: 400 });
     }
 
     await logSttUsage({
