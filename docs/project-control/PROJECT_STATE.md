@@ -713,3 +713,13 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Environment compatibility risk surfaced during install: local Node v20.20.0 does not satisfy multiple installed package engines; strongest observed minimum is Node >=22.22 (`machina`). Align local, Docker, and deployment runtimes to Node 22.22+ before treating test/runtime behavior as validated.
 - npm reports 37 audit vulnerabilities; dependency remediation is a separate reviewed task. No `npm audit fix --force` was run.
 - The owner still needs to commit the generated `@types/ws` manifest/lockfile update after reviewing the working tree. No tests/build/runtime/deployment PASS is claimed.
+
+
+
+## 2026-10-12 — OpenAI realtime voice latency diagnostic checkpoint
+
+The voice-latency workstream is being tracked separately from other feature/type-check work and is active on `fix/openai-vad-audio-diagnostics-clean` (PR #295; do not merge without owner authorization). Durable details: `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md`.
+
+Owner-provided five-turn benchmark completed after benchmark-only synthetic silent-audio keepalive and bounded finalization wait. Per-turn TTFA was 8273, 6078, 5213, 1447, 1704 ms (median 5213 ms). RAG took 7249, 5186, 4433, 527, 663 ms; STT 1.1–1.6 s, LLM-first 0.59–0.81 s, TTS-first 0.68–0.94 s. These numbers show latency remains far above the aspirational <=500 ms grounded-answer target. Welcome audio and acknowledgements must not be counted as grounded answers.
+
+Privacy-safe RAG timing instrumentation is committed to capture browser elapsed, HTTP status, Server-Timing, and numeric server timing fields without query/context/credentials. **Next evidence required:** run the updated benchmark to `tool-results/openai-rag-stage-timings.json` and inspect server stage timings before changing production RAG. No production latency fix/deployment/pass is claimed. Keep GitHub Actions manual-only and continue without waiting for CI/Vercel.
