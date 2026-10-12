@@ -228,3 +228,6 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 
 - Added GeminiProvider dimension safety and compatibility regression source (commit 712eebf8e4295bc987c65db2d1acb371af987972); tests were authored only, not run.
 - Known fixed-size Gemini models reject conflicting configured dimensions; Matryoshka dimensions remain configurable; unknown model dimensions require explicit confirmation.
+
+
+- Removed provider-level environment model fallback; Gemini chat/embedding model IDs must come from the resolver's live governance selection. Added regression source for both environment bypasses (commits a02e92d47982a3977b82d1d3071e507eefe2feab, ffff0cf29be92740c8709fb4bc389b3522a6e350). Not run.
