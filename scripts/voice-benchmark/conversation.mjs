@@ -268,6 +268,16 @@ async function main() {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const ctx = new AudioCtx();
       const destination = ctx.createMediaStreamDestination();
+      // Keep the synthetic microphone clock running between injected clips.
+      // Without a continuously-rendered silent source, the destination track
+      // can stop producing RTP after BufferSource.onended, so server VAD never
+      // observes the trailing silence needed to emit speech_stopped/commit.
+      const silenceKeepAlive = ctx.createOscillator();
+      const silenceGain = ctx.createGain();
+      silenceGain.gain.value = 0;
+      silenceKeepAlive.connect(silenceGain);
+      silenceGain.connect(destination);
+      silenceKeepAlive.start();
       state.audioContext = ctx;
       state.destination = destination;
       const track = destination.stream.getAudioTracks()[0] ?? null;
