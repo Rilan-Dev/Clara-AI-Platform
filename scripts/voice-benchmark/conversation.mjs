@@ -523,7 +523,7 @@ async function main() {
         turns: turnResults,
         observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
         dataChannelEvents,
-        microphoneDiagnostics: await page.evaluate(() => {
+        microphoneDiagnostics: await page.evaluate(async () => {
           const state = window.__claraVoiceBench;
           const pc = state?.peerConnection;
           const dc = pc?.getDataChannels?.()?.[0] ?? null;
