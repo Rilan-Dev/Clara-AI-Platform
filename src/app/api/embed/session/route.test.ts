@@ -116,7 +116,7 @@ vi.mock("@/modules/ai-governance/core/registry-db", () => ({
     displayName: "Gemini Live Preview",
     enabled: true,
     isDefault: true,
-    metadata: {},
+    metadata: { catalogSource: "vendor_live" },
   }]),
 }));
 
