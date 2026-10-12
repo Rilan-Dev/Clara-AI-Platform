@@ -13,15 +13,14 @@
  * free-text, nothing stopped the mix-up — and once saved, every retrieval for
  * that tenant silently degraded (chat models cannot embed).
  *
- * This module is the single source of truth used by:
- *   • the settings UIs      — dropdowns only offer models from the correct
- *                              catalogue, with dimension metadata shown
- *   • the settings APIs     — writes are rejected when a chat-model id lands
- *                              in an embedding field (and vice versa)
- *   • resolveAIConfig       — a legacy bad row self-heals to the provider
- *                              default instead of corrupting retrieval
- *   • scripts/validate-model-config.mjs — CI / ops audit of stored config
- *   • usage metering        — per-model price list → estimated cost per call
+ * This module supplies:
+ *   • settings validation — distinguish chat, embedding and voice model IDs
+ *   • vector compatibility — retain known embedding dimensions for Qdrant
+ *   • usage metering — estimate costs only when local pricing metadata is known
+ *   • validation scripts — reject cross-kind configuration mistakes
+ *
+ * Provider availability and selectable model lists are resolved separately
+ * through the live governance catalogue.
  */
 
 import type { AIProvider } from "./types";
