@@ -215,3 +215,9 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - Removed pinned Gemini model defaults from legacy env templates; production seed does not establish static model availability.
 - Commits: 865e657901d479e29ce1625b1869edfaa0eb04d5, d7d6a144750799ab127b92e84e2546dacb20e59b, c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3, 6bed6c178884df567e8478974d693ed033f49631, af5e16ef22bc79249fee95b3d09cc74a10e4edc2, 1d9de9d29483c3b8781194e6988d0e84a703aad9, 4869b25802fae07ff5061c2e970cc4cc4418856a.
 - Verification not run; continue targeted regression source and branch audit. Do not wait for CI/Vercel.
+
+
+## 2026-10-12 — Gemini resource-name normalization
+- Corrected model prefix normalization in the Gemini realtime session and embed session routes so vendor model names like models/model-id are normalized without malformed regex escaping.
+- Commits: 024f37a9a3599f5e036a13aea9524c60f234c6b7, 32e7908b84d386d5b0a9c4607b0128dec382a20c.
+- No verification was run. No PASS is claimed.
