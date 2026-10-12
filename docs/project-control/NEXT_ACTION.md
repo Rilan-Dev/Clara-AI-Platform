@@ -2001,3 +2001,21 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 - Runtime compatibility: install output shows Node v20.20.0 while dependencies require Node 22+, with `machina` requiring `>=22.22` and Vitest 5 requiring `^22.12.0 || ^24.0.0 || >=26.0.0`. Confirm project/runtime compatibility and align local, Docker and deployment runtimes to Node 22.22+ before relying on tests or runtime evidence.
 - npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical). Do a separate lockfile-aware audit; do not blindly run `npm audit fix --force`.
 - Continue the existing organization-owned MCP endpoint plan and focused regression work without waiting for CI/Vercel. No tests, build, deployment or live MCP handshake PASS is implied by type-check PASS.
+
+
+## NEWEST IMMEDIATE ACTION — SUBSCRIPTION AI ENTITLEMENT AUTHORITY — 2026-10-12
+
+- GitHub issue: [#296](https://github.com/Rilan-Dev/Clara-AI-Platform/issues/296).
+- Branch: `fix/subscription-ai-entitlements-authority`.
+- Implemented source changes:
+  1. Removed the stale `org_ai_settings.allowed_providers` list as a runtime authority; legacy organisation AI-settings PATCH is frozen and plan permissions must come from current server-side subscription entitlements.
+  2. Platform-default provider fallback now considers only configured, platform-capable providers that pass the current organisation governance gate.
+  3. Split subscription-plan capability/provider/model entitlement queries to avoid Cartesian join multiplication and the old `LIMIT 200` truncation.
+  4. Missing provider rows now deny access when the provider entitlement matrix is populated; legacy all-provider fallback is limited to an entirely empty matrix.
+  5. Expired/non-active subscriptions use the actual Free plan's capability flags, not the expired paid plan's `voice_enabled`.
+- Added focused regression test source in `src/modules/ai-core/resolve-provider-entitlement.test.ts` and `src/modules/ai-governance/core/entitlements-db.test.ts`.
+- **Next exact action:** pull this branch and run:
+  `npx vitest run src/modules/ai-core/resolve-provider-entitlement.test.ts src/modules/ai-governance/core/entitlements-db.test.ts`
+  then `npm run type-check`. Fix failures from current output only.
+- **Verification boundary:** tests/type-check/build/database checks/production session have NOT run. No PASS. Do not wait for or poll CI/Vercel.
+- Runtime acceptance: on a plan entitled to Sarvam, stale legacy org list must not block Sarvam; after plan downgrade/expiry, a previously published Sarvam agent must be denied by live entitlement checks.
