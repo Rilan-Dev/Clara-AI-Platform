@@ -24,7 +24,6 @@ const LIVE_MODEL_FIELD_KEYS: Record<string, {
   OPENAI_REALTIME_MODEL: { providerId: "openai", capability: "realtime_voice", kinds: ["realtime"] },
   GEMINI_REALTIME_MODEL: { providerId: "gemini", capability: "realtime_voice", kinds: ["realtime"] },
   ELEVENLABS_DEFAULT_TTS_MODEL: { providerId: "elevenlabs", capability: "voice_chat", kinds: ["tts"] },
-  ELEVENLABS_REALTIME_TTS_MODEL: { providerId: "elevenlabs", capability: "realtime_voice", kinds: ["tts"] },
 };
 
 function getConfirmSecret(): string {
