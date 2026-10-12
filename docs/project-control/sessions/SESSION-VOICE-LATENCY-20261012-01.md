@@ -80,3 +80,13 @@ Owner ran `scripts/voice-benchmark/conversation.mjs` against the production agen
 - Source changes were committed to GitHub; this assistant session did not execute the user's local script, syntax check, tests, build, or production deployment.
 - New stage-timing report is **pending**. No latency fix or <=500 ms target PASS is claimed.
 - Next evidence expected: fresh report `tool-results/openai-rag-stage-timings.json`.
+
+
+## 2026-10-12 — Voice benchmark welcome telemetry timeout
+
+- Owner ran the updated five-turn benchmark after pulling through `1a6e5086`; the script syntax check produced no visible error, but benchmark timed out after 45 seconds waiting for `browser.first_audio` welcome telemetry before it played any question clips. It wrote partial diagnostics to `tool-results/openai-rag-stage-timings.json`.
+- This failure does not establish a production outage or RAG latency; the run did not reach the question-turn measurements.
+- Corrective harness change: welcome telemetry is now optional diagnostic metadata. If it is missing, the benchmark logs a warning and continues to the five question turns; the welcome mark is represented as null/unavailable, never zero. Per-turn telemetry barriers and provider checks remain required, and failure diagnostics remain available.
+- Commits: `fb2a17b874a084e9294166ca6ad88f01830f21ee` (continue without welcome mark); `513a317b2063bb27035b581a3f3f1c4b300b2f27` (null-safe successful report serialization).
+- **Pending verification:** owner must pull latest branch, run `node --check scripts/voice-benchmark/conversation.mjs`, then rerun the same five-turn benchmark to `tool-results/openai-rag-stage-timings.json`. Share the new report. If it fails again, share the full new failure summary including `dataChannelEvents`, `observedLatencyEvents`, `microphoneDiagnostics`, `requestCounts`, `failures`, and `consoleErrors`.
+- Do not claim benchmark PASS, production latency improvement, or <=500 ms target attainment. Continue without waiting for Actions/Vercel; keep all workflows manual-only.
