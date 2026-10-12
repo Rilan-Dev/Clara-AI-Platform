@@ -1,3 +1,11 @@
+### 2026-10-12 continuation — ElevenLabs realtime fallback removal
+
+- Removed the compile-time realtime TTS model fallback from `src/modules/voice-core/model-catalog.ts`.
+- Updated `src/modules/voice-core/api/elevenlabs/realtime-init.ts` so realtime TTS/STT metering requires the resolved model ID.
+- Updated `scripts/elevenlabs-relay.mjs` to reject realtime TTS sessions without a resolved model instead of hardcoding Flash v2.5.
+- Commits: `1b5625adc219c74092ab6a51310f7b80de0b3288`, `f1c55cb2a948e5110129c48e4c38237d08eb0521`, `f3778cecf76d47aeaa31dc91b47ca0e0fde3d936`.
+- Verification not run. Next: remove remaining preview model fallback and audit all legacy Gemini selectable catalogue consumers.
+
 ### SESSION-DEV-20261012-01 / 2026-10-12
 - **Task:** Live Gemini model discovery/filtering across runtime paths and dynamic ElevenLabs realtime TTS selection.
 - **Authorization:** Explicit owner instruction in the current conversation; DEV-01 / Forge. FIX-01 owns substantial unrelated bugs; OPS-01 owns CI/CD, deployment and infrastructure.
