@@ -1,7 +1,12 @@
 /**
  * src/modules/ai-core/model-catalog.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Canonical model catalogue for the Clara AI Platform (WS-0.4).
+ * Pricing / dimension metadata and model-kind heuristics for the Clara AI Platform (WS-0.4).
+ *
+ * Availability is NOT sourced from the arrays in this file. Selectable model
+ * inventory comes from the provider's live API via ai-governance/core/live-catalog.ts.
+ * Entries below are retained only where local pricing or vector-dimension metadata
+ * is needed; a matching metadata entry does not prove that a model is currently available.
  *
  * The model console previously let operators pick a *chat* model (e.g.
  * gpt-4o-2024-08-06) as the *embedding* model. Because both fields were
@@ -22,7 +27,7 @@
 import type { AIProvider } from "./types";
 
 
-// ─── Catalogue entries ────────────────────────────────────────────────────────
+// ─── Pricing / compatibility metadata (not availability allowlists) ────────────
 
 export type ChatModelEntry = {
   id: string;
@@ -73,7 +78,7 @@ export const OPENAI_EMBEDDING_MODELS: EmbeddingModelEntry[] = [
   { id: "text-embedding-ada-002",  provider: "openai", dimension: 1536, inputUsdPerMTokens: 0.1 },
 ];
 
-// ─── Gemini ───────────────────────────────────────────────────────────────────
+// ─── Gemini pricing / dimension metadata (live inventory comes from Google) ───
 
 export const GEMINI_CHAT_MODELS: ChatModelEntry[] = [
   { id: "gemini-2.5-flash", provider: "gemini", contextTokens: 1_048_576, inputUsdPerMTokens: 0.3,  outputUsdPerMTokens: 2.5 },
