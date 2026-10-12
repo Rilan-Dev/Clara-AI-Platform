@@ -425,12 +425,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           { status: 503, headers: corsHeaders },
         );
       }
-      const liveGeminiIds = new Set(liveGeminiRealtimeModels.map((item) => item.modelId.replace(/^models\\//, "")));
+      const liveGeminiIds = new Set(liveGeminiRealtimeModels.map((item) => item.modelId.replace(/^models\//, "")));
       const requestedGeminiModel =
         resolved.realtimeModel && /gemini/i.test(resolved.realtimeModel)
-          ? resolved.realtimeModel.replace(/^models\\//, "")
-          : process.env.GEMINI_REALTIME_MODEL?.trim()?.replace(/^models\\//, "") ||
-            process.env.GEMINI_LIVE_MODEL?.trim()?.replace(/^models\\//, "") ||
+          ? resolved.realtimeModel.replace(/^models\//, "")
+          : process.env.GEMINI_REALTIME_MODEL?.trim()?.replace(/^models\//, "") ||
+            process.env.GEMINI_LIVE_MODEL?.trim()?.replace(/^models\//, "") ||
             "";
       const rankedGeminiModels = [...liveGeminiRealtimeModels].sort((a, b) => {
         const aRelease = typeof a.metadata.releaseDate === "string" ? a.metadata.releaseDate : "";
