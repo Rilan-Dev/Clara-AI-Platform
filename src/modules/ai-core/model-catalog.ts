@@ -182,6 +182,7 @@ export function looksLikeChatModel(id: string): boolean {
   if (!value) return false;
   if (CHAT_BY_ID.has(value)) return true;
   if (EMBEDDING_BY_ID.has(value)) return false;   // exact embedding match wins
+  if (EMBEDDING_MODEL_PATTERNS.some((p) => p.test(value))) return false;
   return CHAT_MODEL_PATTERNS.some((p) => p.test(value));
 }
 
