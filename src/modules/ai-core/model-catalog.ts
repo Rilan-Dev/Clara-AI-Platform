@@ -151,6 +151,7 @@ export function findEmbeddingModel(id: string): EmbeddingModelEntry | undefined 
 const CHAT_MODEL_PATTERNS: RegExp[] = [
   /^gpt-\d/,                       // gpt-4o, gpt-4-turbo, gpt-5.6-luna…
   /^gpt-realtime/,                 // gpt-realtime-2.1-mini…
+  /^gemini-/,                      // dynamically discovered Gemini chat models
   /^o[1-9](-|$)/,                  // o1, o3, o4-mini reasoning models
   /^chat-bison/,                   // legacy PaLM chat
   /^sarvam-/,                      // sarvam-105b, sarvam-105b-conversations, future releases
