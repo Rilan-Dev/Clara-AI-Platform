@@ -64,6 +64,7 @@ function upsertItems(items: CatalogItem[]): Promise<void> {
          ON CONFLICT (provider_id, capability, kind, model_id)
          DO UPDATE SET
            display_name = EXCLUDED.display_name,
+           enabled = TRUE,
            metadata = EXCLUDED.metadata,
            updated_at = now()`,
         [
