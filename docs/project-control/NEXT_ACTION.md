@@ -2048,3 +2048,12 @@ Verification: source-only. Tests, type-check, build, live vendor calls, UI, depl
 
 ## 2026-10-12 — Gemini dimension compatibility regression source
 Added src/modules/ai-core/providers/gemini.test.ts covering known fixed dimensions, rejecting incompatible overrides, Matryoshka dimensions, unknown-model fail-closed behavior, explicit unknown-model dimensions, and invalid dimensions. Commit: 712eebf8e4295bc987c65db2d1acb371af987972. Test source is not executed; verification remains pending.
+
+
+# CURRENT OWNER-AUTHORIZED NEXT ACTION — 2026-10-12 — I-098 REGISTRY INTEGRITY + GEMINI CATALOGUE
+
+DEV-01 corrected the duplicated governance registry implementation blocks while continuing the live-catalogue audit. FIX-01 handoff is recorded as I-098.
+
+1. FIX-01: inspect commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8; confirm the retained registry exports and callers are complete, then run npm run type-check and focused governance tests when local execution is available.
+2. DEV-01: continue the branch-local search for static Gemini availability bypasses and add focused regressions for live model selection / stale configuration.
+3. Do not wait/poll CI or Vercel. Source commits are not PASS evidence. Current task remains IN PROGRESS with verification pending.
