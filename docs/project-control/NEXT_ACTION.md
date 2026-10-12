@@ -2010,3 +2010,12 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 - Next server action after merging/pulling the correction: run `node --check scripts/voice-benchmark/conversation.mjs`, then rerun the same five-input benchmark and inspect `dataChannelEvents` for provider `error`, speech-stop/commit, completed transcription, and response lifecycle. Preserve local `package.json`, `package-lock.json`, `tool-results/openai-conversation.json`, and `type-check-errors.log`; do not reset or discard them.
 - If speech-stop/commit is still absent, investigate actual outbound microphone RTP/track delivery and the server VAD configuration from the observed session response before changing `create_response: false`. If transcription completes but no answer starts, then investigate `scheduleRag()`, `/api/rag/search`, and explicit `response.create` outcomes.
 - Status: syntax correction committed to the fix branch; local Node check and fresh benchmark have not yet been run against that commit. Underlying realtime timeout remains OPEN / NOT FIXED until evidence identifies the failure point.
+
+## 2026-10-12 — OpenAI realtime VAD diagnostic follow-up
+
+- Latest benchmark script syntax check passes, but the live run still times out on input 1.
+- Observed inbound sequence: `speech_started`, then nine `conversation.item.input_audio_transcription.delta` events spread across ~20 seconds; no `speech_stopped`, `input_audio_buffer.committed`, final transcription, or follow-up `response.create`.
+- RAG has not been proven to run. Keep `create_response: false` unchanged until turn-finalization evidence is available.
+- Diagnostic-only benchmark update records safe effective input turn-detection/transcription settings from `session.updated`, transcription delta lengths (not transcript text), additional VAD timeout/clear/failure event metadata, and WebRTC audio RTP counters before/after playback and on timeout.
+- Next: pull `fix/openai-vad-audio-diagnostics`, run `node --check scripts/voice-benchmark/conversation.mjs`, rerun the single benchmark with a new output path, and inspect effective session settings plus RTP counter changes. Use that evidence to distinguish audio transport/silence generation from server-VAD/session behavior before touching production runtime.
+- Status: diagnosis narrowed; root cause NOT FIXED; no syntax check or fresh benchmark run has been executed against this diagnostic branch yet.
