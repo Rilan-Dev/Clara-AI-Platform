@@ -211,3 +211,7 @@ could not be connected at all.
 
 
 - Added source-level regression fixture for a prefixed Gemini realtime model ID in the embed session route test (commit bff9ccbae2f89717a4f111ef931d8a7f6c822eff). No test execution or PASS claimed.
+
+
+- Hardened Gemini embedding dimension overrides: explicit dimensions must be positive integers <=3072; known fixed-size models reject mismatches; gemini-embedding-001 retains compatible Matryoshka dimensions; unknown models require explicit dimensions (commit 1b91683b4079736898be686e380417a064884c76).
+- Added focused GeminiProvider dimension regression source (commit 712eebf8e4295bc987c65db2d1acb371af987972). No tests/type-check/build were run.
