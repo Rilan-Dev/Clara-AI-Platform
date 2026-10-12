@@ -713,3 +713,11 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Environment compatibility risk surfaced during install: local Node v20.20.0 does not satisfy multiple installed package engines; strongest observed minimum is Node >=22.22 (`machina`). Align local, Docker, and deployment runtimes to Node 22.22+ before treating test/runtime behavior as validated.
 - npm reports 37 audit vulnerabilities; dependency remediation is a separate reviewed task. No `npm audit fix --force` was run.
 - The owner still needs to commit the generated `@types/ws` manifest/lockfile update after reviewing the working tree. No tests/build/runtime/deployment PASS is claimed.
+
+
+## 2026-10-12 — Subscription entitlement authority audit
+
+- GitHub issue #296 tracks stale legacy provider-list authority and adjacent entitlement fail-open risks.
+- Code corrections are on branch `fix/subscription-ai-entitlements-authority`; do not merge or deploy without the normal review.
+- Plan entitlements are now the intended authority for runtime provider access; org AI settings' legacy provider lists are compatibility data only.
+- Regression tests were added but not executed. Current state is unverified; no PASS.
