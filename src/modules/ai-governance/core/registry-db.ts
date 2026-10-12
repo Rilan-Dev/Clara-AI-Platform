@@ -228,14 +228,14 @@ export async function getProviderWorkspace(providerId: GovernanceProviderId): Pr
   const provider = registry.providers.find((p) => p.providerId === providerId);
   if (!provider) return null;
   const rows = await query<Row>(
-    \`SELECT * FROM platform_ai_provider_models
+    `SELECT * FROM platform_ai_provider_models
       WHERE provider_id = $1
       ORDER BY capability, kind,
-        CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\\\.[0-9]+)?$'
+        CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)?$'
           THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
-        CASE WHEN metadata->>'releaseDate' ~ '^\\\\d{4}-\\\\d{2}-\\\\d{2}'
+        CASE WHEN metadata->>'releaseDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
           THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
-        display_name ASC\`,
+        display_name ASC`,
     [providerId],
   );
   return { provider, models: rows.map(toModelRow) };
@@ -251,24 +251,24 @@ export async function listProviderModels(
   await syncLiveProviderCatalog();
   const rows = capability
     ? await query<Row>(
-        \`SELECT * FROM platform_ai_provider_models WHERE provider_id = $1 AND capability = $2
+        `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1 AND capability = $2
           ORDER BY
             kind,
-            CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\\\.[0-9]+)?$'
+            CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)?$'
               THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
-            CASE WHEN metadata->>'releaseDate' ~ '^\\\\d{4}-\\\\d{2}-\\\\d{2}'
+            CASE WHEN metadata->>'releaseDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
               THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
-            display_name ASC\`,
+            display_name ASC`,
         [providerId, capability],
       )
     : await query<Row>(
-        \`SELECT * FROM platform_ai_provider_models WHERE provider_id = $1
+        `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1
           ORDER BY capability, kind,
-            CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\\\.[0-9]+)?$'
+            CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)?$'
               THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
-            CASE WHEN metadata->>'releaseDate' ~ '^\\\\d{4}-\\\\d{2}-\\\\d{2}'
+            CASE WHEN metadata->>'releaseDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
               THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
-            display_name ASC\`,
+            display_name ASC`,
         [providerId],
       );
   return rows.map(toModelRow);
