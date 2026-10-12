@@ -1,9 +1,9 @@
 {
   "schemaVersion": 2,
   "runStatus": "failed",
-  "benchmarkError": "Error: Timed out waiting for completed assistant response for input 1 after 90000ms\n    at waitFor (file:///docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/conversation.mjs:68:9)\n    at async main (file:///docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/conversation.mjs:348:21)",
-  "startedAt": "2026-10-12T00:47:38.950Z",
-  "finishedAt": "2026-10-12T00:49:31.286Z",
+  "benchmarkError": "Error: Timed out waiting for completed assistant response for input 1 after 90000ms\n    at waitFor (file:///docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/conversation.mjs:68:9)\n    at async main (file:///docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/conversation.mjs:405:21)",
+  "startedAt": "2026-10-12T00:53:12.470Z",
+  "finishedAt": "2026-10-12T00:55:05.155Z",
   "target": "https://clara.ai.amazetechclans.com/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861",
   "expectedProvider": "openai",
   "browser": "Playwright Chromium",
@@ -30,27 +30,97 @@
     }
   },
   "session": {
-    "connectClick": 1791766064602,
+    "connectClick": 1791766400588,
     "welcomeEvent": {
       "provider": "openai",
       "model": "gpt-realtime-2.1-mini",
       "marks": {
-        "turn.start": 1791766076231,
-        "llm.start": 1791766076231,
-        "tts.start": 1791766076231,
-        "llm.first_token": 1791766077739,
-        "tts.first_audio": 1791766077848,
-        "browser.first_audio": 1791766077848,
-        "turn.complete": 1791766078056
+        "turn.start": 1791766408388,
+        "llm.start": 1791766408388,
+        "tts.start": 1791766408388,
+        "llm.first_token": 1791766411604,
+        "tts.first_audio": 1791766411730,
+        "browser.first_audio": 1791766411730,
+        "turn.complete": 1791766411886
       }
     }
   },
   "playedInputs": [
     {
-      "playbackStartedAt": 1791766080098,
-      "playbackCompletedAt": 1791766081187,
+      "playbackStartedAt": 1791766413955,
+      "playbackCompletedAt": 1791766415043,
       "durationMs": 1085.873015873016,
       "sampleRate": 44100,
+      "rtpBefore": [
+        {
+          "type": "outbound-rtp",
+          "kind": "audio",
+          "packetsSent": 0,
+          "bytesSent": 0,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": null,
+          "totalAudioEnergy": null,
+          "totalSamplesDuration": null
+        },
+        {
+          "type": "remote-inbound-rtp",
+          "kind": "audio",
+          "packetsSent": null,
+          "bytesSent": null,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": null,
+          "totalAudioEnergy": null,
+          "totalSamplesDuration": null
+        },
+        {
+          "type": "media-source",
+          "kind": "audio",
+          "packetsSent": null,
+          "bytesSent": null,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": 0,
+          "totalAudioEnergy": 0,
+          "totalSamplesDuration": 0
+        }
+      ],
+      "rtpAfter": [
+        {
+          "type": "outbound-rtp",
+          "kind": "audio",
+          "packetsSent": 54,
+          "bytesSent": 4546,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": null,
+          "totalAudioEnergy": null,
+          "totalSamplesDuration": null
+        },
+        {
+          "type": "remote-inbound-rtp",
+          "kind": "audio",
+          "packetsSent": null,
+          "bytesSent": null,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": null,
+          "totalAudioEnergy": null,
+          "totalSamplesDuration": null
+        },
+        {
+          "type": "media-source",
+          "kind": "audio",
+          "packetsSent": null,
+          "bytesSent": null,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": 0.25595873897518845,
+          "totalAudioEnergy": 0.2818594504046092,
+          "totalSamplesDuration": 1.0800000000000007
+        }
+      ],
       "channels": 1,
       "rms": 0.0936376846040888,
       "peak": 0.7436456084251404,
@@ -60,7 +130,7 @@
         "muted": false,
         "settings": {
           "channelCount": 2,
-          "deviceId": "WebAudio-b5260153-244b-45a2-a47a-c48088573eaa",
+          "deviceId": "WebAudio-a6378362-9c8e-4c8b-97da-8aecf7210c77",
           "latency": 0.01,
           "sampleRate": 44100,
           "sampleSize": 16
@@ -78,23 +148,23 @@
     {
       "provider": "openai",
       "model": "gpt-realtime-2.1-mini",
-      "sessionId": "vrs_e4a741db-3af0-4644-ba28-d73d47747e74",
+      "sessionId": "vrs_6ad518d2-9393-4602-a324-3347c830a41d",
       "generationId": null,
-      "turnId": "71482819-095a-4ea4-95a9-d39b2ea1b2ff",
+      "turnId": "4020dd13-41b4-4774-a902-be135617ecf4",
       "marks": {
-        "turn.start": 1791766076231,
-        "llm.start": 1791766076231,
-        "tts.start": 1791766076231,
-        "llm.first_token": 1791766077739,
-        "tts.first_audio": 1791766077848,
-        "browser.first_audio": 1791766077848,
-        "turn.complete": 1791766078056
+        "turn.start": 1791766408388,
+        "llm.start": 1791766408388,
+        "tts.start": 1791766408388,
+        "llm.first_token": 1791766411604,
+        "tts.first_audio": 1791766411730,
+        "browser.first_audio": 1791766411730,
+        "turn.complete": 1791766411886
       },
       "latencies": {
         "sttMs": null,
         "ragMs": null,
-        "llmMs": 1508,
-        "ttsMs": 1617,
+        "llmMs": 3216,
+        "ttsMs": 3342,
         "playbackMs": 0,
         "ttfaMs": null
       }
@@ -102,279 +172,312 @@
   ],
   "dataChannelEvents": [
     {
-      "at": 1791766070089,
+      "at": 1791766406704,
       "channelLabel": "oai-events",
       "channelState": "connecting",
       "direction": "channel",
       "type": "created"
     },
     {
-      "at": 1791766077233,
+      "at": 1791766410953,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "channel",
       "type": "open"
     },
     {
-      "at": 1791766077234,
+      "at": 1791766410953,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "outbound",
       "type": "session.update"
     },
     {
-      "at": 1791766077234,
+      "at": 1791766410953,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "outbound",
       "type": "response.create"
     },
     {
-      "at": 1791766077475,
+      "at": 1791766411210,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "session.created"
     },
     {
-      "at": 1791766077709,
+      "at": 1791766411464,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
-      "type": "session.updated"
+      "type": "session.updated",
+      "detail": {
+        "event_id": "event_EXyaBUJhw30thtAD6Ak0P",
+        "effectiveInputConfig": {
+          "turnDetectionType": "server_vad",
+          "threshold": 0.5,
+          "prefixPaddingMs": 300,
+          "silenceDurationMs": 700,
+          "createResponse": false,
+          "transcriptionModel": "gpt-realtime-whisper",
+          "transcriptionLanguage": null
+        }
+      }
     },
     {
-      "at": 1791766077709,
+      "at": 1791766411464,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.created"
     },
     {
-      "at": 1791766077728,
+      "at": 1791766411598,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_item.added"
     },
     {
-      "at": 1791766077728,
+      "at": 1791766411598,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "conversation.item.added"
     },
     {
-      "at": 1791766077738,
+      "at": 1791766411604,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.content_part.added"
     },
     {
-      "at": 1791766077738,
+      "at": 1791766411604,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766077743,
+      "at": 1791766411611,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766077821,
+      "at": 1791766411681,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766077848,
+      "at": 1791766411730,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "output_audio_buffer.started"
     },
     {
-      "at": 1791766077850,
+      "at": 1791766411731,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766077853,
+      "at": 1791766411734,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766077856,
+      "at": 1791766411737,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766077912,
+      "at": 1791766411771,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766077918,
+      "at": 1791766411779,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766077920,
+      "at": 1791766411781,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.delta"
     },
     {
-      "at": 1791766078050,
+      "at": 1791766411881,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio.done"
     },
     {
-      "at": 1791766078051,
+      "at": 1791766411881,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_audio_transcript.done"
     },
     {
-      "at": 1791766078051,
+      "at": 1791766411881,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.content_part.done"
     },
     {
-      "at": 1791766078052,
+      "at": 1791766411881,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "conversation.item.done"
     },
     {
-      "at": 1791766078054,
+      "at": 1791766411883,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.output_item.done"
     },
     {
-      "at": 1791766078056,
+      "at": 1791766411886,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "response.done",
       "detail": {
-        "event_id": "event_EXyUnNy8LAg0NBg5YVsD5",
+        "event_id": "event_EXyaBrVKs6RROhgMkRbPE",
         "responseStatus": "completed"
       }
     },
     {
-      "at": 1791766078088,
+      "at": 1791766411920,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "rate_limits.updated"
     },
     {
-      "at": 1791766080142,
+      "at": 1791766413819,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "output_audio_buffer.stopped"
     },
     {
-      "at": 1791766080394,
+      "at": 1791766414252,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
       "type": "input_audio_buffer.speech_started",
       "detail": {
-        "event_id": "event_EXyUqUuc9IJuhnY1rGmpu",
-        "item_id": "item_EXyUqQt2hEzX5j2pLeFfq",
+        "event_id": "event_EXyaEv0cbpIzLZrCx3e7L",
+        "item_id": "item_EXyaEbSUwWQ0yT13uG0AT",
         "audio_start_ms": 0
       }
     },
     {
-      "at": 1791766090567,
+      "at": 1791766415461,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
+      "type": "conversation.item.input_audio_transcription.delta",
+      "detail": {
+        "event_id": "event_EXyaFJJMqrdHKWGGkqLBC",
+        "item_id": "item_EXyaEbSUwWQ0yT13uG0AT",
+        "deltaLength": 2
+      }
     },
     {
-      "at": 1791766090574,
+      "at": 1791766415464,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
+      "type": "conversation.item.input_audio_transcription.delta",
+      "detail": {
+        "event_id": "event_EXyaF4ZDbnvrAMaNbQGO2",
+        "item_id": "item_EXyaEbSUwWQ0yT13uG0AT",
+        "deltaLength": 2
+      }
     },
     {
-      "at": 1791766090581,
+      "at": 1791766424450,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
+      "type": "conversation.item.input_audio_transcription.delta",
+      "detail": {
+        "event_id": "event_EXyaOBWnmh8xkhNVG3NMD",
+        "item_id": "item_EXyaEbSUwWQ0yT13uG0AT",
+        "deltaLength": 2
+      }
     },
     {
-      "at": 1791766095571,
+      "at": 1791766429456,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
+      "type": "conversation.item.input_audio_transcription.delta",
+      "detail": {
+        "event_id": "event_EXyaTkg6RqVGOsZKLJBV9",
+        "item_id": "item_EXyaEbSUwWQ0yT13uG0AT",
+        "deltaLength": 1
+      }
     },
     {
-      "at": 1791766100578,
+      "at": 1791766429462,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
+      "type": "conversation.item.input_audio_transcription.delta",
+      "detail": {
+        "event_id": "event_EXyaTXYzMfBjzusWlodNp",
+        "item_id": "item_EXyaEbSUwWQ0yT13uG0AT",
+        "deltaLength": 1
+      }
     },
     {
-      "at": 1791766105576,
+      "at": 1791766429469,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
+      "type": "conversation.item.input_audio_transcription.delta",
+      "detail": {
+        "event_id": "event_EXyaT0V8DJNAMCXZ7xrlb",
+        "item_id": "item_EXyaEbSUwWQ0yT13uG0AT",
+        "deltaLength": 1
+      }
     },
     {
-      "at": 1791766105581,
+      "at": 1791766429476,
       "channelLabel": "oai-events",
       "channelState": "open",
       "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
-    },
-    {
-      "at": 1791766105588,
-      "channelLabel": "oai-events",
-      "channelState": "open",
-      "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
-    },
-    {
-      "at": 1791766105597,
-      "channelLabel": "oai-events",
-      "channelState": "open",
-      "direction": "inbound",
-      "type": "conversation.item.input_audio_transcription.delta"
+      "type": "conversation.item.input_audio_transcription.delta",
+      "detail": {
+        "event_id": "event_EXyaT6IOGeVglBpoyYDjO",
+        "item_id": "item_EXyaEbSUwWQ0yT13uG0AT",
+        "deltaLength": 3
+      }
     }
   ],
   "microphoneDiagnostics": {
@@ -385,7 +488,7 @@
       "muted": false,
       "settings": {
         "channelCount": 2,
-        "deviceId": "WebAudio-b5260153-244b-45a2-a47a-c48088573eaa",
+        "deviceId": "WebAudio-a6378362-9c8e-4c8b-97da-8aecf7210c77",
         "latency": 0.01,
         "sampleRate": 44100,
         "sampleSize": 16
@@ -395,7 +498,42 @@
       "connectionState": "connected",
       "iceConnectionState": "connected",
       "iceGatheringState": "complete",
-      "signalingState": "stable"
+      "signalingState": "stable",
+      "audioRtpStats": [
+        {
+          "type": "outbound-rtp",
+          "kind": "audio",
+          "packetsSent": 54,
+          "bytesSent": 4546,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": null,
+          "totalAudioEnergy": null,
+          "totalSamplesDuration": null
+        },
+        {
+          "type": "remote-inbound-rtp",
+          "kind": "audio",
+          "packetsSent": null,
+          "bytesSent": null,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": null,
+          "totalAudioEnergy": null,
+          "totalSamplesDuration": null
+        },
+        {
+          "type": "media-source",
+          "kind": "audio",
+          "packetsSent": null,
+          "bytesSent": null,
+          "packetsReceived": null,
+          "bytesReceived": null,
+          "audioLevel": 0.25595873897518845,
+          "totalAudioEnergy": 0.2818594504046092,
+          "totalSamplesDuration": 1.0800000000000007
+        }
+      ]
     },
     "dataChannel": {
       "readyState": "open",
@@ -404,30 +542,30 @@
   },
   "requestCounts": {
     "GET https://clara.ai.amazetechclans.com/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/css/5e824c047a269598.css 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/css/b7396cd21e3dd43a.css 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/css/5e824c047a269598.css 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/webpack-559875e53d553110.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/main-app-496f8c6c04bcbb0f.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/8409-6373923c44c3aac5.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/3452-dce7a44ba1f3b1e2.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/4bd1b696-8cd12253b448cc13.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/agents/%5BagentId%5D/page-37f1a96d6775df9e.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/5460-8ae3af5d72b23aa6.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/global-error-37c1ebf8dc3873d2.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/965-62e747737a63a9b0.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/3794-178e9ce509ee27b8.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/155-6f1208cc86adce5e.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/5330-df02311a1d0bc820.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/4bd1b696-8cd12253b448cc13.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/global-error-37c1ebf8dc3873d2.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/agents/%5BagentId%5D/page-37f1a96d6775df9e.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/965-62e747737a63a9b0.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/3854-87fdb52b5d27868d.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/5330-df02311a1d0bc820.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/155-6f1208cc86adce5e.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/144d3bae-b262a7c603fc8500.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/6427-590b94859be049a7.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/951-2cd2b8f445356871.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/6427-590b94859be049a7.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/6609-d828c87ffe266439.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/9748-b1dfb415e1c3c775.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/1095-f6f6c0e38bb0e922.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/layout-b2d6a4dbf0a15249.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/9748-b1dfb415e1c3c775.js 200": 1,
-    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/error-b9083ad15b7bb42f.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/8500-63a4afbeacab3b52.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/error-b9083ad15b7bb42f.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/not-found-9931b966e9ce705a.js 200": 1,
     "GET https://clara.ai.amazetechclans.com/_vercel/insights/script.js 404": 1,
     "GET https://clara.ai.amazetechclans.com/_vercel/speed-insights/script.js 404": 1,
@@ -441,27 +579,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861",
       "resourceType": "document",
-      "startedAt": 1791766058962,
-      "startedIso": "2026-10-12T00:47:38.962Z",
+      "startedAt": 1791766392480,
+      "startedIso": "2026-10-12T00:53:12.480Z",
       "status": 200,
-      "responseHeadersAt": 1791766059298,
-      "responseHeadersMs": 336,
-      "responseFinishedAt": 1791766059317,
-      "responseTotalMs": 355,
-      "responseBodyError": null
-    },
-    {
-      "id": 3,
-      "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/css/5e824c047a269598.css",
-      "resourceType": "stylesheet",
-      "startedAt": 1791766059310,
-      "startedIso": "2026-10-12T00:47:39.310Z",
-      "status": 200,
-      "responseHeadersAt": 1791766059334,
-      "responseHeadersMs": 24,
-      "responseFinishedAt": 1791766059335,
-      "responseTotalMs": 25,
+      "responseHeadersAt": 1791766394792,
+      "responseHeadersMs": 2312,
+      "responseFinishedAt": 1791766394815,
+      "responseTotalMs": 2335,
       "responseBodyError": null
     },
     {
@@ -469,13 +593,27 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/css/b7396cd21e3dd43a.css",
       "resourceType": "stylesheet",
-      "startedAt": 1791766059309,
-      "startedIso": "2026-10-12T00:47:39.309Z",
+      "startedAt": 1791766394808,
+      "startedIso": "2026-10-12T00:53:14.808Z",
       "status": 200,
-      "responseHeadersAt": 1791766059335,
-      "responseHeadersMs": 26,
-      "responseFinishedAt": 1791766059362,
-      "responseTotalMs": 53,
+      "responseHeadersAt": 1791766394825,
+      "responseHeadersMs": 17,
+      "responseFinishedAt": 1791766394863,
+      "responseTotalMs": 55,
+      "responseBodyError": null
+    },
+    {
+      "id": 3,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/css/5e824c047a269598.css",
+      "resourceType": "stylesheet",
+      "startedAt": 1791766394808,
+      "startedIso": "2026-10-12T00:53:14.808Z",
+      "status": 200,
+      "responseHeadersAt": 1791766394827,
+      "responseHeadersMs": 19,
+      "responseFinishedAt": 1791766394827,
+      "responseTotalMs": 19,
       "responseBodyError": null
     },
     {
@@ -483,13 +621,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/webpack-559875e53d553110.js",
       "resourceType": "script",
-      "startedAt": 1791766059310,
-      "startedIso": "2026-10-12T00:47:39.310Z",
+      "startedAt": 1791766394812,
+      "startedIso": "2026-10-12T00:53:14.812Z",
       "status": 200,
-      "responseHeadersAt": 1791766059336,
-      "responseHeadersMs": 26,
-      "responseFinishedAt": 1791766059342,
-      "responseTotalMs": 32,
+      "responseHeadersAt": 1791766394831,
+      "responseHeadersMs": 19,
+      "responseFinishedAt": 1791766394832,
+      "responseTotalMs": 20,
       "responseBodyError": null
     },
     {
@@ -497,13 +635,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/main-app-496f8c6c04bcbb0f.js",
       "resourceType": "script",
-      "startedAt": 1791766059313,
-      "startedIso": "2026-10-12T00:47:39.313Z",
+      "startedAt": 1791766394812,
+      "startedIso": "2026-10-12T00:53:14.812Z",
       "status": 200,
-      "responseHeadersAt": 1791766059342,
-      "responseHeadersMs": 29,
-      "responseFinishedAt": 1791766059342,
-      "responseTotalMs": 29,
+      "responseHeadersAt": 1791766394834,
+      "responseHeadersMs": 22,
+      "responseFinishedAt": 1791766394834,
+      "responseTotalMs": 22,
       "responseBodyError": null
     },
     {
@@ -511,13 +649,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/8409-6373923c44c3aac5.js",
       "resourceType": "script",
-      "startedAt": 1791766059314,
-      "startedIso": "2026-10-12T00:47:39.314Z",
+      "startedAt": 1791766394812,
+      "startedIso": "2026-10-12T00:53:14.812Z",
       "status": 200,
-      "responseHeadersAt": 1791766059365,
-      "responseHeadersMs": 51,
-      "responseFinishedAt": 1791766059365,
-      "responseTotalMs": 51,
+      "responseHeadersAt": 1791766394870,
+      "responseHeadersMs": 58,
+      "responseFinishedAt": 1791766394871,
+      "responseTotalMs": 59,
       "responseBodyError": null
     },
     {
@@ -525,41 +663,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/3452-dce7a44ba1f3b1e2.js",
       "resourceType": "script",
-      "startedAt": 1791766059314,
-      "startedIso": "2026-10-12T00:47:39.314Z",
+      "startedAt": 1791766394813,
+      "startedIso": "2026-10-12T00:53:14.813Z",
       "status": 200,
-      "responseHeadersAt": 1791766059388,
-      "responseHeadersMs": 74,
-      "responseFinishedAt": 1791766059391,
-      "responseTotalMs": 77,
-      "responseBodyError": null
-    },
-    {
-      "id": 5,
-      "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/4bd1b696-8cd12253b448cc13.js",
-      "resourceType": "script",
-      "startedAt": 1791766059313,
-      "startedIso": "2026-10-12T00:47:39.313Z",
-      "status": 200,
-      "responseHeadersAt": 1791766059391,
-      "responseHeadersMs": 78,
-      "responseFinishedAt": 1791766059391,
-      "responseTotalMs": 78,
-      "responseBodyError": null
-    },
-    {
-      "id": 16,
-      "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/agents/%5BagentId%5D/page-37f1a96d6775df9e.js",
-      "resourceType": "script",
-      "startedAt": 1791766059315,
-      "startedIso": "2026-10-12T00:47:39.315Z",
-      "status": 200,
-      "responseHeadersAt": 1791766059391,
-      "responseHeadersMs": 76,
-      "responseFinishedAt": 1791766059392,
-      "responseTotalMs": 77,
+      "responseHeadersAt": 1791766394873,
+      "responseHeadersMs": 60,
+      "responseFinishedAt": 1791766394873,
+      "responseTotalMs": 60,
       "responseBodyError": null
     },
     {
@@ -567,41 +677,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/5460-8ae3af5d72b23aa6.js",
       "resourceType": "script",
-      "startedAt": 1791766059314,
-      "startedIso": "2026-10-12T00:47:39.314Z",
+      "startedAt": 1791766394813,
+      "startedIso": "2026-10-12T00:53:14.813Z",
       "status": 200,
-      "responseHeadersAt": 1791766059392,
-      "responseHeadersMs": 78,
-      "responseFinishedAt": 1791766059392,
-      "responseTotalMs": 78,
-      "responseBodyError": null
-    },
-    {
-      "id": 17,
-      "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/global-error-37c1ebf8dc3873d2.js",
-      "resourceType": "script",
-      "startedAt": 1791766059315,
-      "startedIso": "2026-10-12T00:47:39.315Z",
-      "status": 200,
-      "responseHeadersAt": 1791766059395,
-      "responseHeadersMs": 80,
-      "responseFinishedAt": 1791766059395,
-      "responseTotalMs": 80,
-      "responseBodyError": null
-    },
-    {
-      "id": 15,
-      "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/965-62e747737a63a9b0.js",
-      "resourceType": "script",
-      "startedAt": 1791766059315,
-      "startedIso": "2026-10-12T00:47:39.315Z",
-      "status": 200,
-      "responseHeadersAt": 1791766059395,
-      "responseHeadersMs": 80,
-      "responseFinishedAt": 1791766059396,
-      "responseTotalMs": 81,
+      "responseHeadersAt": 1791766394898,
+      "responseHeadersMs": 85,
+      "responseFinishedAt": 1791766394898,
+      "responseTotalMs": 85,
       "responseBodyError": null
     },
     {
@@ -609,41 +691,69 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/3794-178e9ce509ee27b8.js",
       "resourceType": "script",
-      "startedAt": 1791766059313,
-      "startedIso": "2026-10-12T00:47:39.313Z",
+      "startedAt": 1791766394812,
+      "startedIso": "2026-10-12T00:53:14.812Z",
       "status": 200,
-      "responseHeadersAt": 1791766059396,
-      "responseHeadersMs": 83,
-      "responseFinishedAt": 1791766059396,
-      "responseTotalMs": 83,
+      "responseHeadersAt": 1791766394898,
+      "responseHeadersMs": 86,
+      "responseFinishedAt": 1791766394899,
+      "responseTotalMs": 87,
       "responseBodyError": null
     },
     {
-      "id": 14,
+      "id": 5,
       "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/155-6f1208cc86adce5e.js",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/4bd1b696-8cd12253b448cc13.js",
       "resourceType": "script",
-      "startedAt": 1791766059314,
-      "startedIso": "2026-10-12T00:47:39.314Z",
+      "startedAt": 1791766394812,
+      "startedIso": "2026-10-12T00:53:14.812Z",
       "status": 200,
-      "responseHeadersAt": 1791766059396,
-      "responseHeadersMs": 82,
-      "responseFinishedAt": 1791766059396,
-      "responseTotalMs": 82,
+      "responseHeadersAt": 1791766394901,
+      "responseHeadersMs": 89,
+      "responseFinishedAt": 1791766394901,
+      "responseTotalMs": 89,
       "responseBodyError": null
     },
     {
-      "id": 13,
+      "id": 17,
       "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/5330-df02311a1d0bc820.js",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/global-error-37c1ebf8dc3873d2.js",
       "resourceType": "script",
-      "startedAt": 1791766059314,
-      "startedIso": "2026-10-12T00:47:39.314Z",
+      "startedAt": 1791766394813,
+      "startedIso": "2026-10-12T00:53:14.813Z",
       "status": 200,
-      "responseHeadersAt": 1791766059396,
-      "responseHeadersMs": 82,
-      "responseFinishedAt": 1791766059397,
-      "responseTotalMs": 83,
+      "responseHeadersAt": 1791766394901,
+      "responseHeadersMs": 88,
+      "responseFinishedAt": 1791766394902,
+      "responseTotalMs": 89,
+      "responseBodyError": null
+    },
+    {
+      "id": 16,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/agents/%5BagentId%5D/page-37f1a96d6775df9e.js",
+      "resourceType": "script",
+      "startedAt": 1791766394813,
+      "startedIso": "2026-10-12T00:53:14.813Z",
+      "status": 200,
+      "responseHeadersAt": 1791766394902,
+      "responseHeadersMs": 89,
+      "responseFinishedAt": 1791766394902,
+      "responseTotalMs": 89,
+      "responseBodyError": null
+    },
+    {
+      "id": 15,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/965-62e747737a63a9b0.js",
+      "resourceType": "script",
+      "startedAt": 1791766394813,
+      "startedIso": "2026-10-12T00:53:14.813Z",
+      "status": 200,
+      "responseHeadersAt": 1791766394903,
+      "responseHeadersMs": 90,
+      "responseFinishedAt": 1791766394903,
+      "responseTotalMs": 90,
       "responseBodyError": null
     },
     {
@@ -651,13 +761,41 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/3854-87fdb52b5d27868d.js",
       "resourceType": "script",
-      "startedAt": 1791766059314,
-      "startedIso": "2026-10-12T00:47:39.314Z",
+      "startedAt": 1791766394813,
+      "startedIso": "2026-10-12T00:53:14.813Z",
       "status": 200,
-      "responseHeadersAt": 1791766059397,
-      "responseHeadersMs": 83,
-      "responseFinishedAt": 1791766059397,
-      "responseTotalMs": 83,
+      "responseHeadersAt": 1791766394906,
+      "responseHeadersMs": 93,
+      "responseFinishedAt": 1791766394906,
+      "responseTotalMs": 93,
+      "responseBodyError": null
+    },
+    {
+      "id": 13,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/5330-df02311a1d0bc820.js",
+      "resourceType": "script",
+      "startedAt": 1791766394813,
+      "startedIso": "2026-10-12T00:53:14.813Z",
+      "status": 200,
+      "responseHeadersAt": 1791766395012,
+      "responseHeadersMs": 199,
+      "responseFinishedAt": 1791766395013,
+      "responseTotalMs": 200,
+      "responseBodyError": null
+    },
+    {
+      "id": 14,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/155-6f1208cc86adce5e.js",
+      "resourceType": "script",
+      "startedAt": 1791766394813,
+      "startedIso": "2026-10-12T00:53:14.813Z",
+      "status": 200,
+      "responseHeadersAt": 1791766395014,
+      "responseHeadersMs": 201,
+      "responseFinishedAt": 1791766395014,
+      "responseTotalMs": 201,
       "responseBodyError": null
     },
     {
@@ -665,27 +803,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/144d3bae-b262a7c603fc8500.js",
       "resourceType": "script",
-      "startedAt": 1791766059314,
-      "startedIso": "2026-10-12T00:47:39.314Z",
+      "startedAt": 1791766394812,
+      "startedIso": "2026-10-12T00:53:14.812Z",
       "status": 200,
-      "responseHeadersAt": 1791766059515,
-      "responseHeadersMs": 201,
-      "responseFinishedAt": 1791766059516,
-      "responseTotalMs": 202,
-      "responseBodyError": null
-    },
-    {
-      "id": 18,
-      "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/6427-590b94859be049a7.js",
-      "resourceType": "script",
-      "startedAt": 1791766059513,
-      "startedIso": "2026-10-12T00:47:39.513Z",
-      "status": 200,
-      "responseHeadersAt": 1791766059540,
-      "responseHeadersMs": 27,
-      "responseFinishedAt": 1791766059540,
-      "responseTotalMs": 27,
+      "responseHeadersAt": 1791766395043,
+      "responseHeadersMs": 231,
+      "responseFinishedAt": 1791766395043,
+      "responseTotalMs": 231,
       "responseBodyError": null
     },
     {
@@ -693,13 +817,27 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/951-2cd2b8f445356871.js",
       "resourceType": "script",
-      "startedAt": 1791766059513,
-      "startedIso": "2026-10-12T00:47:39.513Z",
+      "startedAt": 1791766395005,
+      "startedIso": "2026-10-12T00:53:15.005Z",
       "status": 200,
-      "responseHeadersAt": 1791766059682,
-      "responseHeadersMs": 169,
-      "responseFinishedAt": 1791766059683,
-      "responseTotalMs": 170,
+      "responseHeadersAt": 1791766395044,
+      "responseHeadersMs": 39,
+      "responseFinishedAt": 1791766395044,
+      "responseTotalMs": 39,
+      "responseBodyError": null
+    },
+    {
+      "id": 18,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/6427-590b94859be049a7.js",
+      "resourceType": "script",
+      "startedAt": 1791766395005,
+      "startedIso": "2026-10-12T00:53:15.005Z",
+      "status": 200,
+      "responseHeadersAt": 1791766395045,
+      "responseHeadersMs": 40,
+      "responseFinishedAt": 1791766395045,
+      "responseTotalMs": 40,
       "responseBodyError": null
     },
     {
@@ -707,41 +845,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/6609-d828c87ffe266439.js",
       "resourceType": "script",
-      "startedAt": 1791766059514,
-      "startedIso": "2026-10-12T00:47:39.514Z",
+      "startedAt": 1791766395005,
+      "startedIso": "2026-10-12T00:53:15.005Z",
       "status": 200,
-      "responseHeadersAt": 1791766059684,
-      "responseHeadersMs": 170,
-      "responseFinishedAt": 1791766059684,
-      "responseTotalMs": 170,
-      "responseBodyError": null
-    },
-    {
-      "id": 22,
-      "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/1095-f6f6c0e38bb0e922.js",
-      "resourceType": "script",
-      "startedAt": 1791766059514,
-      "startedIso": "2026-10-12T00:47:39.514Z",
-      "status": 200,
-      "responseHeadersAt": 1791766059685,
-      "responseHeadersMs": 171,
-      "responseFinishedAt": 1791766059685,
-      "responseTotalMs": 171,
-      "responseBodyError": null
-    },
-    {
-      "id": 23,
-      "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/layout-b2d6a4dbf0a15249.js",
-      "resourceType": "script",
-      "startedAt": 1791766059514,
-      "startedIso": "2026-10-12T00:47:39.514Z",
-      "status": 200,
-      "responseHeadersAt": 1791766059685,
-      "responseHeadersMs": 171,
-      "responseFinishedAt": 1791766059686,
-      "responseTotalMs": 172,
+      "responseHeadersAt": 1791766395045,
+      "responseHeadersMs": 40,
+      "responseFinishedAt": 1791766395045,
+      "responseTotalMs": 40,
       "responseBodyError": null
     },
     {
@@ -749,27 +859,41 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/9748-b1dfb415e1c3c775.js",
       "resourceType": "script",
-      "startedAt": 1791766059514,
-      "startedIso": "2026-10-12T00:47:39.514Z",
+      "startedAt": 1791766395012,
+      "startedIso": "2026-10-12T00:53:15.012Z",
       "status": 200,
-      "responseHeadersAt": 1791766059687,
-      "responseHeadersMs": 173,
-      "responseFinishedAt": 1791766059687,
-      "responseTotalMs": 173,
+      "responseHeadersAt": 1791766395046,
+      "responseHeadersMs": 34,
+      "responseFinishedAt": 1791766395046,
+      "responseTotalMs": 34,
       "responseBodyError": null
     },
     {
-      "id": 25,
+      "id": 22,
       "method": "GET",
-      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/error-b9083ad15b7bb42f.js",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/1095-f6f6c0e38bb0e922.js",
       "resourceType": "script",
-      "startedAt": 1791766059515,
-      "startedIso": "2026-10-12T00:47:39.515Z",
+      "startedAt": 1791766395012,
+      "startedIso": "2026-10-12T00:53:15.012Z",
       "status": 200,
-      "responseHeadersAt": 1791766059688,
-      "responseHeadersMs": 173,
-      "responseFinishedAt": 1791766059688,
-      "responseTotalMs": 173,
+      "responseHeadersAt": 1791766395046,
+      "responseHeadersMs": 34,
+      "responseFinishedAt": 1791766395046,
+      "responseTotalMs": 34,
+      "responseBodyError": null
+    },
+    {
+      "id": 23,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/layout-b2d6a4dbf0a15249.js",
+      "resourceType": "script",
+      "startedAt": 1791766395012,
+      "startedIso": "2026-10-12T00:53:15.012Z",
+      "status": 200,
+      "responseHeadersAt": 1791766395046,
+      "responseHeadersMs": 34,
+      "responseFinishedAt": 1791766395047,
+      "responseTotalMs": 35,
       "responseBodyError": null
     },
     {
@@ -777,13 +901,27 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/8500-63a4afbeacab3b52.js",
       "resourceType": "script",
-      "startedAt": 1791766059514,
-      "startedIso": "2026-10-12T00:47:39.514Z",
+      "startedAt": 1791766395012,
+      "startedIso": "2026-10-12T00:53:15.012Z",
       "status": 200,
-      "responseHeadersAt": 1791766059688,
-      "responseHeadersMs": 174,
-      "responseFinishedAt": 1791766059688,
-      "responseTotalMs": 174,
+      "responseHeadersAt": 1791766395051,
+      "responseHeadersMs": 39,
+      "responseFinishedAt": 1791766395051,
+      "responseTotalMs": 39,
+      "responseBodyError": null
+    },
+    {
+      "id": 25,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/error-b9083ad15b7bb42f.js",
+      "resourceType": "script",
+      "startedAt": 1791766395012,
+      "startedIso": "2026-10-12T00:53:15.012Z",
+      "status": 200,
+      "responseHeadersAt": 1791766395052,
+      "responseHeadersMs": 40,
+      "responseFinishedAt": 1791766395052,
+      "responseTotalMs": 40,
       "responseBodyError": null
     },
     {
@@ -791,13 +929,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/not-found-9931b966e9ce705a.js",
       "resourceType": "script",
-      "startedAt": 1791766059515,
-      "startedIso": "2026-10-12T00:47:39.515Z",
+      "startedAt": 1791766395012,
+      "startedIso": "2026-10-12T00:53:15.012Z",
       "status": 200,
-      "responseHeadersAt": 1791766059688,
-      "responseHeadersMs": 173,
-      "responseFinishedAt": 1791766059688,
-      "responseTotalMs": 173,
+      "responseHeadersAt": 1791766395052,
+      "responseHeadersMs": 40,
+      "responseFinishedAt": 1791766395052,
+      "responseTotalMs": 40,
       "responseBodyError": null
     },
     {
@@ -805,11 +943,11 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_vercel/insights/script.js",
       "resourceType": "script",
-      "startedAt": 1791766059757,
-      "startedIso": "2026-10-12T00:47:39.757Z",
+      "startedAt": 1791766395272,
+      "startedIso": "2026-10-12T00:53:15.272Z",
       "status": 404,
-      "responseHeadersAt": 1791766059766,
-      "responseHeadersMs": 9,
+      "responseHeadersAt": 1791766395280,
+      "responseHeadersMs": 8,
       "responseFinishedAt": null,
       "responseTotalMs": null,
       "responseBodyError": null
@@ -819,11 +957,11 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_vercel/speed-insights/script.js",
       "resourceType": "script",
-      "startedAt": 1791766059758,
-      "startedIso": "2026-10-12T00:47:39.758Z",
+      "startedAt": 1791766395272,
+      "startedIso": "2026-10-12T00:53:15.272Z",
       "status": 404,
-      "responseHeadersAt": 1791766059770,
-      "responseHeadersMs": 12,
+      "responseHeadersAt": 1791766395288,
+      "responseHeadersMs": 16,
       "responseFinishedAt": null,
       "responseTotalMs": null,
       "responseBodyError": null
@@ -833,13 +971,13 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/api/public/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861/config",
       "resourceType": "fetch",
-      "startedAt": 1791766059750,
-      "startedIso": "2026-10-12T00:47:39.750Z",
+      "startedAt": 1791766395257,
+      "startedIso": "2026-10-12T00:53:15.257Z",
       "status": 200,
-      "responseHeadersAt": 1791766064547,
-      "responseHeadersMs": 4797,
-      "responseFinishedAt": 1791766064547,
-      "responseTotalMs": 4797,
+      "responseHeadersAt": 1791766400091,
+      "responseHeadersMs": 4834,
+      "responseFinishedAt": 1791766400092,
+      "responseTotalMs": 4835,
       "responseBodyError": null
     },
     {
@@ -847,13 +985,13 @@
       "method": "POST",
       "url": "https://clara.ai.amazetechclans.com/api/embed/session",
       "resourceType": "fetch",
-      "startedAt": 1791766064738,
-      "startedIso": "2026-10-12T00:47:44.738Z",
+      "startedAt": 1791766400731,
+      "startedIso": "2026-10-12T00:53:20.731Z",
       "status": 200,
-      "responseHeadersAt": 1791766069465,
-      "responseHeadersMs": 4727,
-      "responseFinishedAt": 1791766069465,
-      "responseTotalMs": 4727,
+      "responseHeadersAt": 1791766406059,
+      "responseHeadersMs": 5328,
+      "responseFinishedAt": 1791766406060,
+      "responseTotalMs": 5329,
       "responseBodyError": null
     },
     {
@@ -861,13 +999,13 @@
       "method": "POST",
       "url": "https://clara.ai.amazetechclans.com/api/embed/session",
       "resourceType": "fetch",
-      "startedAt": 1791766069468,
-      "startedIso": "2026-10-12T00:47:49.468Z",
+      "startedAt": 1791766406060,
+      "startedIso": "2026-10-12T00:53:26.060Z",
       "status": 200,
-      "responseHeadersAt": 1791766070084,
-      "responseHeadersMs": 616,
-      "responseFinishedAt": 1791766070085,
-      "responseTotalMs": 617,
+      "responseHeadersAt": 1791766406700,
+      "responseHeadersMs": 640,
+      "responseFinishedAt": 1791766406700,
+      "responseTotalMs": 640,
       "responseBodyError": null
     },
     {
@@ -875,13 +1013,13 @@
       "method": "POST",
       "url": "https://api.openai.com/v1/realtime/calls",
       "resourceType": "fetch",
-      "startedAt": 1791766070229,
-      "startedIso": "2026-10-12T00:47:50.229Z",
+      "startedAt": 1791766406855,
+      "startedIso": "2026-10-12T00:53:26.855Z",
       "status": 201,
-      "responseHeadersAt": 1791766076221,
-      "responseHeadersMs": 5992,
-      "responseFinishedAt": 1791766076222,
-      "responseTotalMs": 5993,
+      "responseHeadersAt": 1791766408379,
+      "responseHeadersMs": 1524,
+      "responseFinishedAt": 1791766408379,
+      "responseTotalMs": 1524,
       "responseBodyError": null
     }
   ],
@@ -891,8 +1029,8 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_vercel/insights/script.js",
       "resourceType": "script",
-      "startedAt": 1791766059757,
-      "startedIso": "2026-10-12T00:47:39.757Z",
+      "startedAt": 1791766395272,
+      "startedIso": "2026-10-12T00:53:15.272Z",
       "failure": "net::ERR_ABORTED"
     },
     {
@@ -900,26 +1038,26 @@
       "method": "GET",
       "url": "https://clara.ai.amazetechclans.com/_vercel/speed-insights/script.js",
       "resourceType": "script",
-      "startedAt": 1791766059758,
-      "startedIso": "2026-10-12T00:47:39.758Z",
+      "startedAt": 1791766395272,
+      "startedIso": "2026-10-12T00:53:15.272Z",
       "failure": "net::ERR_ABORTED"
     }
   ],
   "consoleErrors": [
     {
-      "at": "2026-10-12T00:47:39.767Z",
+      "at": "2026-10-12T00:53:15.280Z",
       "text": "Failed to load resource: the server responded with a status of 404 ()"
     },
     {
-      "at": "2026-10-12T00:47:39.767Z",
+      "at": "2026-10-12T00:53:15.281Z",
       "text": "Refused to execute script from 'https://clara.ai.amazetechclans.com/_vercel/insights/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
     },
     {
-      "at": "2026-10-12T00:47:39.770Z",
+      "at": "2026-10-12T00:53:15.288Z",
       "text": "Failed to load resource: the server responded with a status of 404 ()"
     },
     {
-      "at": "2026-10-12T00:47:39.770Z",
+      "at": "2026-10-12T00:53:15.289Z",
       "text": "Refused to execute script from 'https://clara.ai.amazetechclans.com/_vercel/speed-insights/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
     }
   ],
