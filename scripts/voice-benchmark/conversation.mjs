@@ -449,8 +449,22 @@ async function main() {
       if (!providerMatch) throw new Error(`Expected provider '${args.provider}' but telemetry reported '${event.provider}'. Stop: this is not a valid provider comparison.`);
     }
 
-    // Wait for request bodies to finish before serializing total response durations.
-    await Promise.all(pendingResponseFinishes);
+    // Some browser responses are intentionally long-lived (for example, event streams)
+    // and response.finished() may never settle before the page closes. Never let those
+    // requests keep a completed five-turn benchmark alive indefinitely. Give ordinary
+    // response bodies a short flush window, then serialize unfinished timings as null.
+    const responseFlushTimeoutMs = 2000;
+    let responseFlushTimedOut = false;
+    await Promise.race([
+      Promise.allSettled(pendingResponseFinishes),
+      new Promise((resolve) => setTimeout(() => {
+        responseFlushTimedOut = true;
+        resolve();
+      }, responseFlushTimeoutMs)),
+    ]);
+    if (responseFlushTimedOut) {
+      console.log(`[conversation-bench] response-body flush window elapsed after ${responseFlushTimeoutMs}ms; continuing with any still-pending response timings unset`);
+    }
 
     // Collect timing/counts for requests that occurred while the page was live.
     const resourceTimings = await page.evaluate(() => performance.getEntriesByType("resource").map((e) => ({
