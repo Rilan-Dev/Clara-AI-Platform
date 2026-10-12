@@ -133,7 +133,7 @@ async function main() {
   // into this track on demand; the real app still uses its real session/STT/RAG/
   // model/TTS paths. No text is posted directly to a RAG endpoint.
   await page.addInitScript(() => {
-    const state = { events: [], dataChannelEvents: [], playedInputs: [], audioContext: null, destination: null, microphoneTrack: null, peerConnection: null, clickAt: null };
+    const state = { events: [], dataChannelEvents: [], playedInputs: [], audioContext: null, destination: null, microphoneTrack: null, peerConnection: null, dataChannel: null, clickAt: null };
     const recordDataChannelEvent = (channel, direction, type, detail = null) => {
       state.dataChannelEvents.push({
         at: Date.now(),
@@ -180,6 +180,7 @@ async function main() {
     const observeDataChannel = (channel) => {
       if (!channel || channel.__claraBenchObserved) return channel;
       try { Object.defineProperty(channel, "__claraBenchObserved", { value: true }); } catch {}
+      state.dataChannel = channel;
       recordDataChannelEvent(channel, "channel", "created");
       channel.addEventListener("open", () => recordDataChannelEvent(channel, "channel", "open"));
       channel.addEventListener("close", () => recordDataChannelEvent(channel, "channel", "close"));
@@ -480,8 +481,8 @@ async function main() {
               signalingState: pc.signalingState,
             } : null,
             dataChannel: state?.dataChannelEvents?.length ? {
-              lastObservedState: state.dataChannelEvents[state.dataChannelEvents.length - 1]?.channelState ?? null,
-              bufferedAmount: null,
+              readyState: dc?.readyState ?? state.dataChannelEvents[state.dataChannelEvents.length - 1]?.channelState ?? null,
+              bufferedAmount: typeof dc?.bufferedAmount === "number" ? dc.bufferedAmount : null,
             } : null,
           };
         }),
