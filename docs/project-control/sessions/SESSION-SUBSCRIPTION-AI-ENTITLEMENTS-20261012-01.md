@@ -28,3 +28,9 @@ No tests, type-check, build, DB migration, production session, CI, Vercel, or de
 
 ## Next action
 Run the two focused Vitest files, then `npm run type-check`; fix any reported failures. Then perform controlled Sarvam session checks against plans that allow and deny Sarvam. Do not expose tokens/cookies and do not wait/poll CI/Vercel.
+
+
+## Additional adjacent-path finding
+- `validateAgentAISelection` had a fail-open early return when a known provider was missing from the platform registry. It skipped plan entitlement checks. The function now keeps only the legacy platform-registry fallback while still checking the current subscription's capability/provider/model entitlements.
+- Added a regression test in `src/modules/ai-governance/core/resolver.test.ts`.
+- This correction is also unverified until focused Vitest and type-check output is available.
