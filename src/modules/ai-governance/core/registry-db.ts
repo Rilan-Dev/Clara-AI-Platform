@@ -247,12 +247,12 @@ export async function listProviderModels(
   providerId: GovernanceProviderId,
   capability?: AICapability,
 ): Promise<ProviderModelRow[]> {
-  // Do not await vendor network calls on the runtime hot path. Provider workspace
-  // reads perform an awaited refresh; runtime reads kick off a shared background
-  // refresh and consume the last successfully discovered catalogue immediately.
+  // Runtime never waits for network when a successful live catalogue is cached.
+  // On a cold start, however, wait for the first discovery if this provider /
+  // capability has no live rows, so the first session does not fail needlessly.
   void syncLiveProviderCatalog();
-  const rows = capability
-    ? await query<Row>(
+  const loadRows = () => capability
+    ? query<Row>(
         `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1 AND capability = $2
           ORDER BY
             kind,
@@ -265,7 +265,7 @@ export async function listProviderModels(
             display_name ASC`,
         [providerId, capability],
       )
-    : await query<Row>(
+    : query<Row>(
         `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1
           ORDER BY capability, kind,
             CASE WHEN jsonb_typeof(metadata->'inputUsdPerMTokens') = 'number'
@@ -277,6 +277,11 @@ export async function listProviderModels(
             display_name ASC`,
         [providerId],
       );
+  let rows = await loadRows();
+  if (!rows.some((row) => (row.metadata as Record<string, unknown> | null)?.catalogSource === "vendor_live")) {
+    await syncLiveProviderCatalog();
+    rows = await loadRows();
+  }
   return rows.map(toModelRow);
 }
 
