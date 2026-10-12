@@ -1,3 +1,14 @@
+### SESSION-DEV-20261012-01 / 2026-10-12
+- **Task:** Live Gemini model discovery/filtering across runtime paths and dynamic ElevenLabs realtime TTS selection.
+- **Authorization:** Explicit owner instruction in the current conversation; DEV-01 / Forge. FIX-01 owns substantial unrelated bugs; OPS-01 owns CI/CD, deployment and infrastructure.
+- **Started from:** `feature/ai-core-from-doable-source`; recovered current state from GitHub project-control docs and role-local records.
+- **Actions:** Extended live provider metadata; reconciled stale seeded rows after successful discovery; synchronized catalogue on model reads; ranked known unit costs/release metadata; switched Gemini realtime session and embed session to vendor-discovered realtime models; switched ElevenLabs realtime TTS resolution to vendor-discovered TTS rows; removed static model IDs from the shared option adapter and Gemini provider fallback.
+- **Files/code:** `src/modules/ai-governance/core/live-catalog.ts`, `registry-db.ts`, `resolver.ts`, `src/components/admin/ai-settings-options.ts`, `src/modules/assistant/api/geminiSession.ts`, `src/app/api/embed/session/route.ts`, `src/modules/voice-core/resolve.ts`, `src/modules/ai-core/providers/gemini.ts`, and focused test mocks.
+- **Evidence:** GitHub source commits and post-write rereads only. Tests, typecheck, build, migration, live vendor API calls, CI/Vercel, deployment and UI verification were not run.
+- **Blockers/dependencies:** Remaining static Gemini metadata/defaults and consumers require audit. Live APIs do not uniformly provide prices or release dates; vector dimensions must remain compatible with Qdrant.
+- **Lessons:** API discovery alone is insufficient unless all list consumers trigger sync and runtime paths reject seeded fallback rows when live discovery fails.
+- **Exact next action:** audit every remaining Gemini model constant/default and caller; replace selectable lists with governance catalogue data; add focused regressions and verify locally when available. Do not wait for CI/Vercel.
+
 # DEV-01 Role-Local Worklog
 
 Append-only operational history for DEV-01. This is not the source of authorization.
