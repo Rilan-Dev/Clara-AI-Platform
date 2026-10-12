@@ -201,38 +201,18 @@ describe("voice-surface model trap (V0)", () => {
   });
 });
 
-describe("Sarvam dark-launch option gating (V0)", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
+describe("live catalogue option filtering", () => {
+  it("does not expose static model availability when no live rows are supplied", () => {
+    expect(chatModelOptions()).toEqual([]);
   });
 
-  // SARVAM_ENABLED is no longer a catalogue switch (2b5c6d12): the provider
-  // registry toggle is the sole platform switch, so the env flag is ignored.
-  it("ignores the retired SARVAM_ENABLED env switch when a key is present", () => {
-    vi.stubEnv("SARVAM_ENABLED", "false");
-    vi.stubEnv("SARVAM_API_KEY", "test-key");
-    expect(chatModelOptions().some((m) => m.provider === "sarvam")).toBe(true);
-  });
-
-  it("shows only stable sarvam models when enabled without the beta flag", () => {
-    vi.stubEnv("SARVAM_ENABLED", "true");
-    vi.stubEnv("SARVAM_API_KEY", "test-key");
-    vi.stubEnv("SARVAM_BETA_MODELS_ENABLED", "false");
-    const ids = chatModelOptions("sarvam").map((m) => m.id);
-    expect(ids).toEqual(["sarvam-105b", "sarvam-105b-conversations"]);
-  });
-
-  it("shows beta models too when the beta flag is on", () => {
-    vi.stubEnv("SARVAM_ENABLED", "true");
-    vi.stubEnv("SARVAM_API_KEY", "test-key");
-    vi.stubEnv("SARVAM_BETA_MODELS_ENABLED", "true");
-    expect(chatModelOptions("sarvam")).toHaveLength(5);
-  });
-
-  it("requires the API key before the provider is offered at all", () => {
-    vi.stubEnv("SARVAM_ENABLED", "true");
-    vi.stubEnv("SARVAM_API_KEY", "");
-    expect(chatModelOptions().some((m) => m.provider === "sarvam")).toBe(false);
+  it("filters already-discovered chat rows by provider", () => {
+    const liveRows = [
+      { id: "gemini-3.7-flash", provider: "gemini" as const },
+      { id: "sarvam-105b", provider: "sarvam" as const },
+    ];
+    expect(chatModelOptions("sarvam", liveRows).map((model) => model.id)).toEqual(["sarvam-105b"]);
+    expect(chatModelOptions("gemini", liveRows).map((model) => model.id)).toEqual(["gemini-3.7-flash"]);
   });
 });
 
