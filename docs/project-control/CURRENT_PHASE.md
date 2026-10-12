@@ -1,3 +1,10 @@
+# DEV-01 UPDATE — REALTIME MODEL FALLBACK HARDENING — 2026-10-12
+
+- Removed the hardcoded ElevenLabs realtime TTS fallback from the platform-default helper. The realtime relay now fails closed when the resolved config contains no model ID; metering rejects absent model IDs rather than recording fabricated static IDs.
+- Source commits: `1b5625adc219c74092ab6a51310f7b80de0b3288`, `f1c55cb2a948e5110129c48e4c38237d08eb0521`, `f3778cecf76d47aeaa31dc91b47ca0e0fde3d936`.
+- Remaining static fallbacks include ElevenLabs preview endpoint and legacy metadata/catalogue lists. Task remains IN_PROGRESS; no tests/typecheck/build/live API/UI/deployment verification has run.
+
+---
 # DEV-01 CONTINUATION — LIVE MODEL CATALOGUE — 2026-10-12
 
 - **Status:** IN_PROGRESS — source implementation partial; verification pending.
