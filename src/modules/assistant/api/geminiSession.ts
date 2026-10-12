@@ -155,8 +155,8 @@ export async function postGeminiSession(request: NextRequest): Promise<NextRespo
         { status: 503 },
       );
     }
-    const liveIds = new Set(liveRealtimeModels.map((item) => item.modelId.replace(/^models\\//, "")));
-    const normalizedRequested = rawModel.replace(/^models\\//, "");
+    const liveIds = new Set(liveRealtimeModels.map((item) => item.modelId.replace(/^models\//, "")));
+    const normalizedRequested = rawModel.replace(/^models\//, "");
     if (!normalizedRequested || !liveIds.has(normalizedRequested)) {
       const ranked = [...liveRealtimeModels].sort((a, b) => {
         const aRelease = typeof a.metadata.releaseDate === "string" ? a.metadata.releaseDate : "";
