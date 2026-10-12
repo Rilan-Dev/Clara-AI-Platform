@@ -86,7 +86,7 @@ function toModelOptions(
   kinds: ResolvedAIModelOption["kind"][],
 ): ResolvedAIModelOption[] {
   return models
-    .filter((m) => m.enabled && kinds.includes(m.kind))
+    .filter((m) => m.enabled && m.metadata.catalogSource === "vendor_live" && kinds.includes(m.kind))
     .filter((m) => {
       const exception = entitlements.modelExceptions.find(
         (x) =>
