@@ -1,3 +1,16 @@
+### SESSION-DEV-20261012-01 — 2026-10-12
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Recover current GitHub project-control state and continue authorized live model discovery; eliminate static Gemini model availability and ElevenLabs realtime TTS model selection.
+- **Started from:** `feature/ai-core-from-doable-source`, after reading PROJECT_STATE, CURRENT_PHASE, NEXT_ACTION, shared memory, central sessions/handoffs, and DEV-01 role-local memory/worklog.
+- **Scope:** provider live catalogue, capability filtering, model ranking, Gemini realtime session paths, ElevenLabs realtime TTS resolution, and durable project-control records.
+- **Status:** ACTIVE — source commits made; remaining static catalogue/default audit and verification pending.
+- **Completed:** live catalogue sync now records Gemini capability/token metadata and known prices; successful Gemini/OpenAI discovery disables stale seeded rows for reconciled kinds; confirmed rows re-enable on upsert; listProviderModels triggers synchronization and sorts by known cost/release metadata; Gemini session/embed realtime selection reads only vendor-discovered models; ElevenLabs realtime TTS selection reads live TTS rows; Gemini provider no longer has hardcoded chat/embedding fallback IDs; focused route test mocks updated for live catalog metadata.
+- **Pending:** audit remaining Gemini static availability/default values and all callers; ensure live model selectors pass the catalogue records to shared option builders; add regressions for failed discovery and ranking; run focused tests/typecheck when available.
+- **Blockers:** no repository-local runtime/test execution available in this session; source-level review only. Vendor APIs do not uniformly expose pricing/release dates.
+- **Handoff:** none. Stay DEV-01; substantial unrelated defects go to FIX-01, infrastructure/deployment to OPS-01.
+- **Evidence:** source commits include `c84acc50538653a98a8bcdb3cb2dce3cc2b6c94c`, `00c6dd8a71197b527fab59cfec0c24cbd6d6ade5`, `66f22879253530d5faf66c6575bb2f3ac128580d`, `ad7003c8a09cab44137411ceefe5b0840140c0fc`, `87bdfbc7f06baea44c465ce1a53cb2972db3ffa8`, `2c489a24a4f81f7cd06502d53e46e2fa3d77f9bd`, `6f0cea8f4d682ae76a3fa7a8a522512b91e648bb`, `9b850ec47a42103b5e6cb4b4916d19b4f26e7dbe`.
+- **Exact next action:** follow the DEV-01 entry at the top of `docs/project-control/NEXT_ACTION.md`; do not wait for CI/Vercel.
+
 ### SESSION-DEV-20261011-01 — 2026-10-11
 - **Agent:** DEV-01 / Forge
 - **Invocation:** Implement secure Streamable HTTP MCP resolver and Chat/realtime runtime wiring through the Unified Tool Runtime.
