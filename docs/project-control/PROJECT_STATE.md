@@ -735,3 +735,6 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Commits in this continuation: 865e657901d479e29ce1625b1869edfaa0eb04d5 (release-date parsing), d7d6a144750799ab127b92e84e2546dacb20e59b (live-only embedding fallback), c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3 and 6bed6c178884df567e8478974d693ed033f49631 (legacy env examples), af5e16ef22bc79249fee95b3d09cc74a10e4edc2 (seed semantics), 1d9de9d29483c3b8781194e6988d0e84a703aad9 (unknown Gemini embedding dimensions fail closed), 4869b25802fae07ff5061c2e970cc4cc4418856a (governance availability views).
 - Static Gemini model entries remain pricing/vector compatibility metadata only. No hardcoded chat/embedding/realtime model defaults were found in the current production seed; env-specified IDs are candidates and runtime resolution validates against live rows.
 - Verification remains pending: no tests/type-check/build/live provider calls/UI/deployment were run or awaited. No PASS is claimed.
+
+
+- Follow-up regression source added at src/modules/ai-core/providers/gemini.test.ts for known/fixed dimensions, Matryoshka output dimensions, unknown models and invalid overrides (commit 712eebf8e4295bc987c65db2d1acb371af987972). Not run.
