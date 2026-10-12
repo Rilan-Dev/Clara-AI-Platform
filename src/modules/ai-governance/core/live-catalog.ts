@@ -80,14 +80,13 @@ function upsertItems(items: CatalogItem[]): Promise<void> {
 }
 
 async function disableMissing(provider: Provider, capability: Capability, kind: Kind, liveIds: Set<string>): Promise<void> {
-  if (!liveIds.size) return;
   await execute(
     `UPDATE platform_ai_provider_models
         SET enabled = FALSE, updated_at = now(),
             metadata = metadata || jsonb_build_object('catalogSource', 'vendor_live', 'stale', TRUE, 'staleAt', now())
       WHERE provider_id = $1 AND capability = $2 AND kind = $3
         AND model_id <> ALL($4::text[])
-        AND COALESCE(metadata->>'catalogSource', '') = 'vendor_live'`,
+`,
     [provider, capability, kind, [...liveIds]],
   );
 }
@@ -170,9 +169,12 @@ async function syncGemini(): Promise<void> {
     groups.get(group)!.add(item.modelId);
   }
   await upsertItems(items);
-  for (const [group, ids] of groups) {
+  // A successful Gemini catalogue response is authoritative, including
+  // empty capability groups. Disable seeded/static model rows that Google no
+  // longer advertises; a failed request never reaches this reconciliation.
+  for (const group of ["chat:chat", "chat:embedding", "realtime_voice:realtime"]) {
     const [capability, kind] = group.split(":") as [Capability, Kind];
-    await disableMissing("gemini", capability, kind, ids);
+    await disableMissing("gemini", capability, kind, groups.get(group) ?? new Set<string>());
   }
 }
 
