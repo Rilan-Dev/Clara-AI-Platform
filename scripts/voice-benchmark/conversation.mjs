@@ -133,16 +133,49 @@ async function main() {
   // into this track on demand; the real app still uses its real session/STT/RAG/
   // model/TTS paths. No text is posted directly to a RAG endpoint.
   await page.addInitScript(() => {
-    const state = { events: [], dataChannelEvents: [], playedInputs: [], audioContext: null, destination: null, microphoneTrack: null, clickAt: null };
-    const recordDataChannelEvent = (channel, direction, type) => {
+    const state = { events: [], dataChannelEvents: [], playedInputs: [], audioContext: null, destination: null, microphoneTrack: null, peerConnection: null, clickAt: null };
+    const recordDataChannelEvent = (channel, direction, type, detail = null) => {
       state.dataChannelEvents.push({
         at: Date.now(),
         channelLabel: String(channel?.label ?? "").slice(0, 80),
         channelState: channel?.readyState ?? null,
         direction,
         type: String(type ?? "unknown").slice(0, 100),
+        ...(detail ? { detail } : {}),
       });
       if (state.dataChannelEvents.length > 500) state.dataChannelEvents.shift();
+    };
+    // Keep diagnostics useful without recording user transcripts, audio, tokens,
+    // or arbitrary provider payloads. Only protocol identifiers and error metadata
+    // are retained for selected inbound events.
+    const safeEventDetail = (message) => {
+      const detail = {};
+      for (const key of ["event_id", "item_id", "previous_item_id", "call_id", "code", "param"]) {
+        if (typeof message?.[key] === "string") detail[key] = String(message[key]).slice(0, 160);
+      }
+      if (message?.error && typeof message.error === "object") {
+        const error = message.error;
+        const safeError = {};
+        for (const key of ["type", "code", "param", "message"]) {
+          if (typeof error[key] === "string") {
+            safeError[key] = String(error[key])
+              .replace(/Bearer\\s+[^\\s"'<>]+/gi, "Bearer [REDACTED]")
+              .replace(/\\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\\b/g, "[REDACTED_TOKEN]")
+              .replace(/https?:\\/\\/[^\\s"'<>]+/g, "[URL]")
+              .slice(0, 300);
+          }
+        }
+        if (Object.keys(safeError).length) detail.error = safeError;
+      }
+      if (message?.response && typeof message.response === "object") {
+        const response = message.response;
+        if (typeof response.status === "string") detail.responseStatus = response.status.slice(0, 80);
+        if (typeof response.status_details?.reason === "string") detail.responseReason = response.status_details.reason.slice(0, 120);
+      }
+      for (const key of ["audio_start_ms", "audio_end_ms"]) {
+        if (typeof message?.[key] === "number") detail[key] = message[key];
+      }
+      return Object.keys(detail).length ? detail : null;
     };
     const observeDataChannel = (channel) => {
       if (!channel || channel.__claraBenchObserved) return channel;
@@ -153,11 +186,19 @@ async function main() {
       channel.addEventListener("error", () => recordDataChannelEvent(channel, "channel", "error"));
       channel.addEventListener("message", (event) => {
         let type = "non-json-message";
+        let detail = null;
         try {
           const parsed = JSON.parse(String(event.data));
           type = typeof parsed?.type === "string" ? parsed.type : "json-without-type";
+          if (type === "error" || type === "input_audio_buffer.speech_started" ||
+              type === "input_audio_buffer.speech_stopped" ||
+              type === "input_audio_buffer.committed" ||
+              type === "conversation.item.input_audio_transcription.completed" ||
+              type === "response.done") {
+            detail = safeEventDetail(parsed);
+          }
         } catch {}
-        recordDataChannelEvent(channel, "inbound", type);
+        recordDataChannelEvent(channel, "inbound", type, detail);
       });
       const originalSend = channel.send.bind(channel);
       channel.send = (data) => {
@@ -174,6 +215,7 @@ async function main() {
     try {
       const originalCreateDataChannel = RTCPeerConnection.prototype.createDataChannel;
       RTCPeerConnection.prototype.createDataChannel = function(...args) {
+        state.peerConnection = this;
         return observeDataChannel(originalCreateDataChannel.apply(this, args));
       };
     } catch {}
@@ -419,15 +461,30 @@ async function main() {
         turns: turnResults,
         observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
         dataChannelEvents,
-        microphoneDiagnostics: await page.evaluate(() => ({
-          audioContextState: window.__claraVoiceBench?.audioContext?.state ?? null,
-          track: window.__claraVoiceBench?.microphoneTrack ? {
-            readyState: window.__claraVoiceBench.microphoneTrack.readyState,
-            enabled: window.__claraVoiceBench.microphoneTrack.enabled,
-            muted: window.__claraVoiceBench.microphoneTrack.muted,
-            settings: window.__claraVoiceBench.microphoneTrack.getSettings(),
-          } : null,
-        })),
+        microphoneDiagnostics: await page.evaluate(() => {
+          const state = window.__claraVoiceBench;
+          const pc = state?.peerConnection;
+          const dc = pc?.getDataChannels?.()?.[0] ?? null;
+          return {
+            audioContextState: state?.audioContext?.state ?? null,
+            track: state?.microphoneTrack ? {
+              readyState: state.microphoneTrack.readyState,
+              enabled: state.microphoneTrack.enabled,
+              muted: state.microphoneTrack.muted,
+              settings: state.microphoneTrack.getSettings(),
+            } : null,
+            peerConnection: pc ? {
+              connectionState: pc.connectionState,
+              iceConnectionState: pc.iceConnectionState,
+              iceGatheringState: pc.iceGatheringState,
+              signalingState: pc.signalingState,
+            } : null,
+            dataChannel: state?.dataChannelEvents?.length ? {
+              lastObservedState: state.dataChannelEvents[state.dataChannelEvents.length - 1]?.channelState ?? null,
+              bufferedAmount: null,
+            } : null,
+          };
+        }),
         requestCounts: responseRecords.reduce((counts, r) => { const k = `${r.method} ${r.url} ${r.status}`; counts[k] = (counts[k] ?? 0) + 1; return counts; }, {}),
         requestTimings: responseRecords,
         failures,
