@@ -1,3 +1,11 @@
+# DEV-01 UPDATE — ELEVENLABS PREVIEW LIVE MODEL SELECTION — 2026-10-12
+
+- `src/modules/voice-core/api/elevenlabs/voices.ts` now resolves preview TTS against live vendor-discovered `voice_chat/tts` rows. It rejects stale explicitly requested IDs and selects the cheapest known-price available model when no model is supplied.
+- Commit: `b567dd5f433e371cea94d7d4ea9fc5a1edaf3461`.
+- Current source implementation remains IN_PROGRESS; no tests/typecheck/build/live API/UI/deployment verification has run.
+- Next: audit remaining Gemini legacy model metadata/catalogue consumers and all settings/runtime model fields for static availability.
+
+---
 # DEV-01 UPDATE — REALTIME MODEL FALLBACK HARDENING — 2026-10-12
 
 - Removed the hardcoded ElevenLabs realtime TTS fallback from the platform-default helper. The realtime relay now fails closed when the resolved config contains no model ID; metering rejects absent model IDs rather than recording fabricated static IDs.
