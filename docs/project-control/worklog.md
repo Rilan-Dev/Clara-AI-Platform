@@ -1,3 +1,11 @@
+## 2026-10-12 — DEV-01 live model catalogue continuation
+
+- DEV-01/Forge continued the owner-authorized Gemini live model catalogue and ElevenLabs realtime TTS task on `feature/ai-core-from-doable-source`.
+- Committed live catalogue metadata enrichment, successful-discovery stale model reconciliation, model-read synchronization, guarded ranking by known price/release metadata, live Gemini realtime selection in authenticated and embed session routes, live ElevenLabs realtime TTS resolution, and regression fixture updates.
+- Source changes are committed; verification is pending. No tests/typecheck/build/migration/live API/CI/Vercel/deployment/browser run or PASS is claimed.
+- Remaining: remove remaining static selectable Gemini lists/defaults in the legacy core catalogue/seed paths, ensure every UI consumes live provider capability results, add focused regressions, and run local focused checks when available.
+- Related session: `docs/project-control/sessions/SESSION-DEV-20261012-01.md`. Exact next action is at the top of `docs/project-control/NEXT_ACTION.md`.
+
 ## 2026-10-09 — DEV-01 / Forge — realtime voice dispatch architect review
 
 - **Role:** DEV-01 / Forge; performed the bounded architect-review action recorded in `NEXT_ACTION.md`.
