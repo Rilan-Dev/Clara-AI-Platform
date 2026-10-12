@@ -2010,3 +2010,14 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 - Diagnostic-only benchmark update records safe effective input turn-detection/transcription settings from `session.updated`, transcription delta lengths (not transcript text), additional VAD timeout/clear/failure event metadata, and WebRTC audio RTP counters before/after playback and on timeout.
 - Next: pull `fix/openai-vad-audio-diagnostics-clean`, run `node --check scripts/voice-benchmark/conversation.mjs`, rerun the benchmark with a new output path, and inspect effective session settings plus RTP counter changes. Use that evidence to distinguish audio transport/silence generation from server-VAD/session behavior before touching production runtime.
 - Status: diagnosis narrowed; root cause NOT FIXED; no syntax check or fresh benchmark run has been executed against this diagnostic branch yet.
+
+
+## OpenAI realtime VAD diagnostic follow-up — 2026-10-12
+
+- Fresh diagnostic report: browser audio track is live/enabled/unmuted, the peer connection and data channel are connected, and input playback increased outbound audio RTP from 0 to 54 packets / 4,546 bytes. Media-source audio energy is non-zero (RMS 0.0936; peak 0.7436).
+- Effective session config confirms `server_vad`, threshold 0.5, 300 ms prefix padding, 700 ms silence duration, and `create_response: false`.
+- The trace shows `speech_started` and transcription deltas, but no `speech_stopped`, `input_audio_buffer.committed`, or completed transcription. The RAG callback therefore has not been shown to run.
+- Working hypothesis (benchmark harness, not production runtime): the synthetic `MediaStreamDestination` has no continuously-rendered source after the injected `AudioBufferSourceNode` ends. That can stop the synthetic track's audio clock/RTP and prevent the server from observing trailing silence. Evidence is suggestive, not yet confirmed.
+- Diagnostic experiment: keep a zero-gain oscillator connected to the synthetic microphone destination so audio frames continue after the injected clip. This is benchmark-only; do not change production VAD or `create_response: false`.
+- Next: run `node --check scripts/voice-benchmark/conversation.mjs`, rerun one benchmark into a NEW report path, then compare outbound RTP counters and VAD events. If `speech_stopped`/commit/transcription completion appears, investigate benchmark track continuity as the cause; only then evaluate RAG and response dispatch.
+- Status: hypothesis under test; production root cause and fix are NOT confirmed.
