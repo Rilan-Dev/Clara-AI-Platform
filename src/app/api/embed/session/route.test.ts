@@ -256,7 +256,7 @@ describe("POST /api/embed/session — voice-axis native realtime transport", () 
       sarvam: null,
       openai: null,
     } as never);
-    process.env.GEMINI_LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
+    process.env.GEMINI_LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025";
     process.env.GEMINI_LIVE_VOICE = "Aoede";
     const res = await POST(sessionRequest());
     expect(res.status).toBe(200);
