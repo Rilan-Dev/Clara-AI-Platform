@@ -43,7 +43,6 @@ import {
   getPlatformDefaultRealtimeTTSModel,
   getPlatformDefaultRealtimeSTTModel,
   getPlatformDefaultVoiceId,
-  isSupportedTTSModel,
   looksLikeElevenLabsVoiceId,
   getPlatformDefaultSarvamSttModel,
   getPlatformDefaultSarvamSpeaker,
@@ -404,17 +403,38 @@ export async function resolveVoiceConfig(
   if ((input.surface === "voice_chat" && voiceProvider === "elevenlabs") ||
       (input.surface !== "voice_chat" && realtimeProvider === "elevenlabs")) {
     const isRealtime = input.surface !== "voice_chat";
-    const ttsModel =
+    const requestedTtsModel =
       (isRealtime ? versionRealtimeTtsModel : versionVoiceChatTtsModel) ??
       (isRealtime ? agentSettings?.realtimeTtsModel : agentSettings?.voiceChatTtsModel) ??
       orgSettings?.elevenlabsTtsModel ??
       (isRealtime ? getPlatformDefaultRealtimeTTSModel() : getPlatformDefaultTTSModel());
 
-    if (!isSupportedTTSModel(ttsModel)) {
+    // Vendor /v1/models is the authority for ElevenLabs TTS model availability.
+    // Never validate realtime TTS against the old compile-time allowlist:
+    // that rejected newly released models and forced realtime to Flash v2.5.
+    const liveTtsRows = (await listProviderModels(
+      "elevenlabs",
+      isRealtime ? "realtime_voice" : "voice_chat",
+    )).filter((model) => model.enabled && model.metadata.catalogSource === "vendor_live" && model.kind === "tts");
+    if (liveTtsRows.length === 0) {
       throw new VoiceConfigResolutionError(
-        `Unsupported ElevenLabs TTS model: ${ttsModel}`,
+        "ElevenLabs has no currently discovered TTS models for this voice capability. Refresh the provider catalogue and verify the API key.",
       );
     }
+
+    const availableTtsIds = new Set(liveTtsRows.map((model) => model.modelId));
+    const rankedTtsRows = [...liveTtsRows].sort((a, b) => {
+      const aLatency = a.metadata.modelType === "low_latency" ? 0 : 1;
+      const bLatency = b.metadata.modelType === "low_latency" ? 0 : 1;
+      if (aLatency !== bLatency) return aLatency - bLatency;
+      const aRelease = typeof a.metadata.releaseDate === "string" ? a.metadata.releaseDate : "";
+      const bRelease = typeof b.metadata.releaseDate === "string" ? b.metadata.releaseDate : "";
+      if (aRelease !== bRelease) return bRelease.localeCompare(aRelease);
+      return a.displayName.localeCompare(b.displayName);
+    });
+    const ttsModel = availableTtsIds.has(requestedTtsModel)
+      ? requestedTtsModel
+      : rankedTtsRows[0]!.modelId;
 
     // Batch voice-chat uses Scribe v2; Clara realtime always uses the
     // dedicated Scribe v2 Realtime model from realtime-init.

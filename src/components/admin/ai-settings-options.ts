@@ -15,14 +15,6 @@
  */
 
 import {
-  OPENAI_CHAT_MODELS,
-  OPENAI_EMBEDDING_MODELS,
-  GEMINI_CHAT_MODELS,
-  GEMINI_EMBEDDING_MODELS,
-  visibleSarvamChatModels,
-} from "@/modules/ai-core/model-catalog";
-import {
-  ELEVENLABS_TTS_MODELS,
   SARVAM_TTS_MODELS,
   SARVAM_STT_MODELS,
   SARVAM_SPEAKERS,
@@ -41,149 +33,121 @@ export const BRAIN_PROVIDERS: { id: "openai" | "gemini" | "sarvam"; label: strin
   },
 ];
 
-// ─── Realtime / transcription / voices ───────────────────────────────────────
-// Superset of every list previously hardcoded across the two editors.
+// ─── Live model option adapters ───────────────────────────────────────────────
+// Provider model availability comes from /api/platform/ai/providers/:providerId
+// or /api/agents/:agentId/ai-options. The vendor model-list APIs do not expose
+// authoritative prices/release dates consistently, so ranking only uses those
+// metadata fields when the provider catalogue has them.
 
-export const OPENAI_REALTIME_MODELS = [
-  "gpt-realtime-2.1-mini",
-  "gpt-realtime-2.1",
-  "gpt-realtime-2025-08-28",
-  "gpt-4o-realtime-preview",
-  "gpt-4o-realtime-preview-2024-12-17",
-  "gpt-4o-realtime-preview-2024-10-01",
-  "gpt-4o-mini-realtime-preview",
-  "gpt-4o-mini-realtime-preview-2024-12-17",
-] as const;
+export type LiveAIModelOption = {
+  modelId: string;
+  displayName: string;
+  kind: string;
+  isDefault?: boolean;
+  metadata?: Record<string, unknown>;
+};
 
-export const OPENAI_TRANSCRIPTION_MODELS = [
-  "gpt-4o-mini-transcribe",
-  "gpt-4o-transcribe",
-  "whisper-1",
-] as const;
-
-export const OPENAI_REALTIME_VOICES = [
-  "alloy", "ash", "ballad", "coral", "echo", "fable", "onyx", "nova", "shimmer",
-  "verse", "marin", "cedar", "sage",
-] as const;
-
-export const GEMINI_REALTIME_MODELS = [
-  "gemini-2.5-flash-native-audio",
-  "gemini-2.5-flash-native-audio-preview-12-2025",
-  "gemini-2.0-flash-live",
-  "gemini-2.0-flash-native-audio-preview",
-  "gemini-2.0-flash-exp-native-audio",
-] as const;
-
-export const GEMINI_TRANSCRIPTION_MODELS = [
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-] as const;
-
-export const GEMINI_VOICES = [
-  "Aoede", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Zephyr",
-] as const;
-
-// ─── Dropdown option builders (with catalogue metadata) ──────────────────────
-
-export function openaiChatOptions() {
-  return OPENAI_CHAT_MODELS.map((m) => ({
-    value: m.id,
-    label: m.label ?? m.id,
-    meta: m.inputUsdPerMTokens != null ? `$${m.inputUsdPerMTokens}/M in` : undefined,
-  }));
+function sortLiveModels(models: LiveAIModelOption[]): LiveAIModelOption[] {
+  return [...models].sort((a, b) => {
+    const price = (m: LiveAIModelOption) => {
+      const values = [m.metadata?.inputUsdPerMTokens, m.metadata?.usdPer1kChars, m.metadata?.usdPerMinute];
+      const known = values.find((value) => typeof value === "number" && Number.isFinite(value));
+      return typeof known === "number" ? known : Number.POSITIVE_INFINITY;
+    };
+    const priceDiff = price(a) - price(b);
+    if (priceDiff !== 0 && Number.isFinite(priceDiff)) return priceDiff;
+    const release = (m: LiveAIModelOption) => typeof m.metadata?.releaseDate === "string" ? m.metadata.releaseDate : "";
+    const releaseDiff = release(b).localeCompare(release(a));
+    if (releaseDiff) return releaseDiff;
+    if (Boolean(a.isDefault) !== Boolean(b.isDefault)) return a.isDefault ? -1 : 1;
+    return a.displayName.localeCompare(b.displayName);
+  });
 }
 
-export function geminiChatOptions() {
-  return GEMINI_CHAT_MODELS.map((m) => ({
-    value: m.id,
-    label: m.label ?? m.id,
-    meta: m.inputUsdPerMTokens != null ? `$${m.inputUsdPerMTokens}/M in` : undefined,
-  }));
+function liveOptions(models: LiveAIModelOption[], kinds: string[]) {
+  return sortLiveModels(models.filter((model) => kinds.includes(model.kind))).map((model) => {
+    const tokenPrice = model.metadata?.inputUsdPerMTokens;
+    const charPrice = model.metadata?.usdPer1kChars;
+    const minutePrice = model.metadata?.usdPerMinute;
+    const dimension = model.metadata?.dimension;
+    const meta = typeof tokenPrice === "number" ? `$${tokenPrice}/M input`
+      : typeof charPrice === "number" ? `$${charPrice}/1k chars`
+      : typeof minutePrice === "number" ? `$${minutePrice}/min`
+      : typeof dimension === "number" ? `${dimension} dims`
+      : undefined;
+    return { value: model.modelId, label: model.displayName || model.modelId, meta };
+  });
 }
 
-export function openaiEmbeddingOptions() {
-  return OPENAI_EMBEDDING_MODELS.map((m) => ({
-    value: m.id,
-    label: m.id,
-    meta: `${m.dimension} dims`,
-  }));
+export function openaiChatOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["chat"]);
 }
 
-export function geminiEmbeddingOptions() {
-  return GEMINI_EMBEDDING_MODELS.map((m) => ({
-    value: m.id,
-    label: m.id,
-    meta: `${m.dimension} dims`,
-  }));
+export function geminiChatOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["chat"]);
 }
 
-export function realtimeOptions(provider: "openai" | "gemini" | "sarvam") {
+export function openaiEmbeddingOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["embedding"]);
+}
+
+export function geminiEmbeddingOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["embedding"]);
+}
+
+export function realtimeOptions(
+  provider: "openai" | "gemini" | "sarvam",
+  liveModels: LiveAIModelOption[] = [],
+) {
   if (provider === "sarvam") {
-    // Sarvam realtime is a composed pipeline, not a single vendor "live" model.
-    // The realtime brain selector therefore exposes the conversational/chat
-    // models that can drive the pipeline. Saaras realtime STT is selected in
-    // the dedicated Sarvam voice/STT controls.
-    return [
-      { value: "sarvam-105b-conversations", label: "Sarvam 105B Conversations (realtime voice)" },
-      { value: "sarvam-105b", label: "Sarvam 105B" },
-
-    ];
+    // Sarvam realtime is a composed pipeline, not a single vendor Live model.
+    return liveOptions(liveModels, ["chat"]);
   }
-  const ids = provider === "gemini" ? GEMINI_REALTIME_MODELS : OPENAI_REALTIME_MODELS;
-  return ids.map((id) => ({ value: id, label: id }));
+  return liveOptions(liveModels, ["realtime"]);
 }
 
-export function transcriptionOptions(provider: "openai" | "gemini" | "sarvam") {
-  if (provider === "sarvam") {
-    return ["saaras:v3", "saaras:v4"].map((id) => ({ value: id, label: id }));
-  }
-  const ids = provider === "gemini" ? GEMINI_TRANSCRIPTION_MODELS : OPENAI_TRANSCRIPTION_MODELS;
-  return ids.map((id) => ({ value: id, label: id }));
+export function transcriptionOptions(
+  provider: "openai" | "gemini" | "sarvam",
+  liveModels: LiveAIModelOption[] = [],
+) {
+  if (provider === "sarvam") return liveOptions(liveModels, ["stt", "transcription"]);
+  return liveOptions(liveModels, ["transcription", "stt"]);
 }
 
-export function sarvamRealtimeSttOptions() {
-  return ["saaras:v3-realtime", "saaras:v4"].map((id) => ({ value: id, label: id }));
+export function sarvamRealtimeSttOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["stt", "transcription"]);
 }
 
-export function sarvamRealtimeTtsOptions() {
-  return sarvamTtsOptions().filter((option) => option.value === "bulbul:v3");
+export function sarvamRealtimeTtsOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["tts"]);
 }
 
-export function voiceOptions(provider: "openai" | "gemini") {
-  const ids = provider === "gemini" ? GEMINI_VOICES : OPENAI_REALTIME_VOICES;
-  return ids.map((id) => ({ value: id, label: id }));
+export function voiceOptions(provider: "openai" | "gemini", liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["voice"]);
 }
 
-export function elevenlabsTtsOptions() {
-  return ELEVENLABS_TTS_MODELS.map((m) => ({
-    value: m.modelId,
-    label: m.name,
-    meta: `$${m.usdPer1kChars}/1k chars`,
-  }));
+export function elevenlabsTtsOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["tts"]);
 }
 
-export function elevenlabsSttOptions() {
-  return [{ value: "scribe_v2", label: "Scribe v2" }];
+export function elevenlabsSttOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["stt", "transcription"]);
 }
 
-export function elevenlabsRealtimeSttOptions() {
-  return [{ value: "scribe_v2_realtime", label: "Scribe v2 Realtime" }];
+export function elevenlabsRealtimeSttOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["stt", "transcription"]);
 }
 
-export function elevenlabsRealtimeTtsOptions() {
-  return [{ value: "eleven_flash_v2_5", label: "Eleven Flash v2.5 (low latency)" }];
+export function elevenlabsRealtimeTtsOptions(liveModels: LiveAIModelOption[] = []) {
+  return liveOptions(liveModels, ["tts"]);
 }
 
 // ─── Sarvam (voice axis — pipeline only, static catalogue by design) ────────
 
-export function sarvamChatOptions() {
-  // Dark-launch gated: renders exactly as before while SARVAM_ENABLED is off
-  // (visibleSarvamChatModels returns [] unless enabled + beta flag per model).
-  return visibleSarvamChatModels().map((m) => ({
-    value: m.id,
-    label: m.label ?? m.id,
-    meta: m.inputUsdPerMTokens != null ? `$${m.inputUsdPerMTokens}/M in` : undefined,
-  }));
+export function sarvamChatOptions(liveModels: LiveAIModelOption[] = []) {
+  // Model availability comes from the same live governance catalogue as the
+  // other providers; this helper no longer owns a static Sarvam model list.
+  return liveOptions(liveModels, ["chat"]);
 }
 
 export function sarvamTtsOptions() {

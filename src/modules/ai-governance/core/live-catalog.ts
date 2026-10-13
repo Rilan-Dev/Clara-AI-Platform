@@ -11,6 +11,8 @@
  */
 
 import { execute } from "@/lib/db";
+import { findChatModel, findEmbeddingModel } from "@/modules/ai-core/model-catalog";
+import { findTTSModel } from "@/modules/voice-core/model-catalog";
 
 type Provider = "openai" | "gemini" | "sarvam" | "elevenlabs";
 type Capability = "chat" | "voice_chat" | "realtime_voice";
@@ -64,6 +66,7 @@ function upsertItems(items: CatalogItem[]): Promise<void> {
          ON CONFLICT (provider_id, capability, kind, model_id)
          DO UPDATE SET
            display_name = EXCLUDED.display_name,
+           enabled = TRUE,
            metadata = EXCLUDED.metadata,
            updated_at = now()`,
         [
@@ -80,14 +83,13 @@ function upsertItems(items: CatalogItem[]): Promise<void> {
 }
 
 async function disableMissing(provider: Provider, capability: Capability, kind: Kind, liveIds: Set<string>): Promise<void> {
-  if (!liveIds.size) return;
   await execute(
     `UPDATE platform_ai_provider_models
         SET enabled = FALSE, updated_at = now(),
             metadata = metadata || jsonb_build_object('catalogSource', 'vendor_live', 'stale', TRUE, 'staleAt', now())
       WHERE provider_id = $1 AND capability = $2 AND kind = $3
         AND model_id <> ALL($4::text[])
-        AND COALESCE(metadata->>'catalogSource', '') = 'vendor_live'`,
+`,
     [provider, capability, kind, [...liveIds]],
   );
 }
@@ -95,7 +97,7 @@ async function disableMissing(provider: Provider, capability: Capability, kind: 
 function classifyOpenAIModel(id: string): Array<{ capability: Capability; kind: Kind }> {
   const value = id.toLowerCase();
   if (value.includes("embedding")) return [{ capability: "chat", kind: "embedding" }];
-  if (value.includes("transcribe") || value === "whisper-1") return [{ capability: "realtime_voice", kind: "transcription" }];
+  if (value.includes("transcribe") || value.includes("whisper")) return [{ capability: "realtime_voice", kind: "transcription" }];
   if (value.includes("realtime")) return [{ capability: "realtime_voice", kind: "realtime" }];
   if (/^(gpt-|o[1-9]|chatgpt-)/.test(value)) return [{ capability: "chat", kind: "chat" }];
   return [];
@@ -115,7 +117,18 @@ async function syncOpenAI(): Promise<void> {
         ...slot,
         modelId: model.id,
         displayName: model.id,
-        metadata: { ownedBy: model.owned_by ?? null },
+        metadata: {
+          ownedBy: model.owned_by ?? null,
+          ...(slot.kind === "chat" ? {
+            inputUsdPerMTokens: findChatModel(model.id)?.inputUsdPerMTokens ?? null,
+            outputUsdPerMTokens: findChatModel(model.id)?.outputUsdPerMTokens ?? null,
+            contextTokens: findChatModel(model.id)?.contextTokens ?? null,
+          } : slot.kind === "embedding" ? {
+            inputUsdPerMTokens: findEmbeddingModel(model.id)?.inputUsdPerMTokens ?? null,
+            dimension: findEmbeddingModel(model.id)?.dimension ?? null,
+          } : {}),
+          ...((model.id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: model.id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}),
+        },
       });
     }
   }
@@ -126,9 +139,11 @@ async function syncOpenAI(): Promise<void> {
     groups.get(group)!.add(item.modelId);
   }
   await upsertItems(items);
-  for (const [group, ids] of groups) {
+  // A successful /v1/models response is authoritative for each selectable
+  // OpenAI model kind, including kinds with zero currently accessible models.
+  for (const group of ["chat:chat", "chat:embedding", "realtime_voice:realtime", "realtime_voice:transcription"]) {
     const [capability, kind] = group.split(":") as [Capability, Kind];
-    await disableMissing("openai", capability, kind, ids);
+    await disableMissing("openai", capability, kind, groups.get(group) ?? new Set<string>());
   }
 }
 
@@ -143,7 +158,7 @@ async function syncGemini(): Promise<void> {
     const body = (await jsonFetch(`https://generativelanguage.googleapis.com/v1beta/models?${qs}`, {
       headers: { "x-goog-api-key": apiKey },
     })) as {
-      models?: Array<{ name?: string; displayName?: string; supportedGenerationMethods?: string[] }>;
+      models?: Array<{ name?: string; displayName?: string; description?: string; inputTokenLimit?: number; outputTokenLimit?: number; supportedGenerationMethods?: string[]; temperature?: number; topP?: number; topK?: number }>;
       nextPageToken?: string;
     };
     for (const model of body.models ?? []) {
@@ -151,13 +166,13 @@ async function syncGemini(): Promise<void> {
       if (!id) continue;
       const methods = model.supportedGenerationMethods ?? [];
       if (methods.includes("embedContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id });
+        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findEmbeddingModel(id)?.inputUsdPerMTokens ?? null, dimension: findEmbeddingModel(id)?.dimension ?? null, ...((id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}) } });
       }
       if (methods.includes("generateContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id });
+        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findChatModel(id)?.inputUsdPerMTokens ?? null, outputUsdPerMTokens: findChatModel(id)?.outputUsdPerMTokens ?? null, contextTokens: findChatModel(id)?.contextTokens ?? model.inputTokenLimit ?? null, ...((id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}) } });
       }
       if (methods.some((method) => /bidi/i.test(method))) {
-        items.push({ providerId: "gemini", capability: "realtime_voice", kind: "realtime", modelId: id, displayName: model.displayName ?? id });
+        items.push({ providerId: "gemini", capability: "realtime_voice", kind: "realtime", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
       }
     }
     pageToken = body.nextPageToken ?? "";
@@ -170,9 +185,12 @@ async function syncGemini(): Promise<void> {
     groups.get(group)!.add(item.modelId);
   }
   await upsertItems(items);
-  for (const [group, ids] of groups) {
+  // A successful Gemini catalogue response is authoritative, including
+  // empty capability groups. Disable seeded/static model rows that Google no
+  // longer advertises; a failed request never reaches this reconciliation.
+  for (const group of ["chat:chat", "chat:embedding", "realtime_voice:realtime"]) {
     const [capability, kind] = group.split(":") as [Capability, Kind];
-    await disableMissing("gemini", capability, kind, ids);
+    await disableMissing("gemini", capability, kind, groups.get(group) ?? new Set<string>());
   }
 }
 
@@ -214,13 +232,24 @@ async function syncElevenLabs(): Promise<void> {
   for (const model of models ?? []) {
     if (!model.model_id) continue;
     if (model.can_do_text_to_speech) {
-      modelItems.push({
-        providerId: "elevenlabs",
-        capability: "voice_chat",
-        kind: "tts",
-        modelId: model.model_id,
-        displayName: model.name ?? model.model_id,
-      });
+      // Vendor model discovery is shared by Voice Chat and Realtime Voice.
+      // The old realtime picker hardcoded eleven_flash_v2_5, even when the
+      // workspace advertised newer/cheaper supported TTS models.
+      for (const capability of ["voice_chat", "realtime_voice"] as const) {
+        modelItems.push({
+          providerId: "elevenlabs",
+          capability,
+          kind: "tts",
+          modelId: model.model_id,
+          displayName: model.name ?? model.model_id,
+          metadata: {
+            canDoTextToSpeech: true,
+            canDoVoiceConversion: model.can_do_voice_conversion ?? false,
+            modelType: model.model_id.toLowerCase().includes("flash") ? "low_latency" : "standard",
+            usdPer1kChars: findTTSModel(model.model_id)?.usdPer1kChars ?? null,
+          },
+        });
+      }
     }
   }
 
@@ -259,7 +288,8 @@ async function syncElevenLabs(): Promise<void> {
   }));
 
   await upsertItems([...modelItems, ...voiceItems, ...realtimeVoiceItems]);
-  await disableMissing("elevenlabs", "voice_chat", "tts", new Set(modelItems.map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "voice_chat", "tts", new Set(modelItems.filter((item) => item.capability === "voice_chat").map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "realtime_voice", "tts", new Set(modelItems.filter((item) => item.capability === "realtime_voice").map((item) => item.modelId)));
   await disableMissing("elevenlabs", "voice_chat", "voice", new Set(voiceItems.map((item) => item.modelId)));
   await disableMissing("elevenlabs", "realtime_voice", "voice", new Set(realtimeVoiceItems.map((item) => item.modelId)));
 }

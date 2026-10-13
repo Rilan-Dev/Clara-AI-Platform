@@ -1,3 +1,29 @@
+### 2026-10-12 continuation — live ElevenLabs preview selection
+
+- Updated `src/modules/voice-core/api/elevenlabs/voices.ts`: preview TTS now uses live vendor-discovered `voice_chat/tts` rows, rejects an explicitly selected stale model, and chooses the lowest known unit-cost live model when no ID is supplied.
+- Commit: `b567dd5f433e371cea94d7d4ea9fc5a1edaf3461`.
+- Static `eleven_flash_v2_5` fallback was removed from the realtime platform default, relay realtime path, and realtime usage metering. Commits: `1b5625adc219c74092ab6a51310f7b80de0b3288`, `f1c55cb2a948e5110129c48e4c38237d08eb0521`, `f3778cecf76d47aeaa31dc91b47ca0e0fde3d936`.
+- Verification has not been run. Next: audit all remaining Gemini static catalogue consumers and selectors.
+
+### 2026-10-12 continuation — ElevenLabs realtime fallback removal
+
+- Removed the compile-time realtime TTS model fallback from `src/modules/voice-core/model-catalog.ts`.
+- Updated `src/modules/voice-core/api/elevenlabs/realtime-init.ts` so realtime TTS/STT metering requires the resolved model ID.
+- Updated `scripts/elevenlabs-relay.mjs` to reject realtime TTS sessions without a resolved model instead of hardcoding Flash v2.5.
+- Commits: `1b5625adc219c74092ab6a51310f7b80de0b3288`, `f1c55cb2a948e5110129c48e4c38237d08eb0521`, `f3778cecf76d47aeaa31dc91b47ca0e0fde3d936`.
+- Verification not run. Next: remove remaining preview model fallback and audit all legacy Gemini selectable catalogue consumers.
+
+### SESSION-DEV-20261012-01 / 2026-10-12
+- **Task:** Live Gemini model discovery/filtering across runtime paths and dynamic ElevenLabs realtime TTS selection.
+- **Authorization:** Explicit owner instruction in the current conversation; DEV-01 / Forge. FIX-01 owns substantial unrelated bugs; OPS-01 owns CI/CD, deployment and infrastructure.
+- **Started from:** `feature/ai-core-from-doable-source`; recovered current state from GitHub project-control docs and role-local records.
+- **Actions:** Extended live provider metadata; reconciled stale seeded rows after successful discovery; synchronized catalogue on model reads; ranked known unit costs/release metadata; switched Gemini realtime session and embed session to vendor-discovered realtime models; switched ElevenLabs realtime TTS resolution to vendor-discovered TTS rows; removed static model IDs from the shared option adapter and Gemini provider fallback.
+- **Files/code:** `src/modules/ai-governance/core/live-catalog.ts`, `registry-db.ts`, `resolver.ts`, `src/components/admin/ai-settings-options.ts`, `src/modules/assistant/api/geminiSession.ts`, `src/app/api/embed/session/route.ts`, `src/modules/voice-core/resolve.ts`, `src/modules/ai-core/providers/gemini.ts`, and focused test mocks.
+- **Evidence:** GitHub source commits and post-write rereads only. Tests, typecheck, build, migration, live vendor API calls, CI/Vercel, deployment and UI verification were not run.
+- **Blockers/dependencies:** Remaining static Gemini metadata/defaults and consumers require audit. Live APIs do not uniformly provide prices or release dates; vector dimensions must remain compatible with Qdrant.
+- **Lessons:** API discovery alone is insufficient unless all list consumers trigger sync and runtime paths reject seeded fallback rows when live discovery fails.
+- **Exact next action:** audit every remaining Gemini model constant/default and caller; replace selectable lists with governance catalogue data; add focused regressions and verify locally when available. Do not wait for CI/Vercel.
+
 # DEV-01 Role-Local Worklog
 
 Append-only operational history for DEV-01. This is not the source of authorization.
@@ -182,3 +208,26 @@ Append-only operational history for DEV-01. This is not the source of authorizat
 - **Correction:** Removed the duplicate `buildClaraToolRuntime` export. Commit: `d755aea0de75509cabfe2ed4c76e7cae2468db2e`.
 - **Verification:** Source correction committed only. No post-fix build/typecheck/tests or production OAuth save was executed. Do not treat the old container as updated.
 - **Next:** Rebuild `clara-backend` from the feature branch. If another compiler error appears, fix that exact failure. Once build succeeds, recreate the backend and retry OAuth save with a fresh session and rotated Google client secret; never reuse the exposed credentials.
+
+
+## 2026-10-12 — Live model catalogue audit
+- Committed fixes for release-date metadata parsing, live-only embedding fallback, unknown Gemini embedding dimension safety, and governance inventory/counting based only on vendor-live rows.
+- Removed pinned Gemini model defaults from legacy env templates; production seed does not establish static model availability.
+- Commits: 865e657901d479e29ce1625b1869edfaa0eb04d5, d7d6a144750799ab127b92e84e2546dacb20e59b, c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3, 6bed6c178884df567e8478974d693ed033f49631, af5e16ef22bc79249fee95b3d09cc74a10e4edc2, 1d9de9d29483c3b8781194e6988d0e84a703aad9, 4869b25802fae07ff5061c2e970cc4cc4418856a.
+- Verification not run; continue targeted regression source and branch audit. Do not wait for CI/Vercel.
+
+
+## 2026-10-12 — Gemini resource-name normalization
+- Corrected model prefix normalization in the Gemini realtime session and embed session routes so vendor model names like models/model-id are normalized without malformed regex escaping.
+- Commits: 024f37a9a3599f5e036a13aea9524c60f234c6b7, 32e7908b84d386d5b0a9c4607b0128dec382a20c.
+- No verification was run. No PASS is claimed.
+
+
+- Added regression source for a Gemini realtime model preference containing the vendor models/ prefix (commit bff9ccbae2f89717a4f111ef931d8a7f6c822eff). Not run.
+
+
+- Added GeminiProvider dimension safety and compatibility regression source (commit 712eebf8e4295bc987c65db2d1acb371af987972); tests were authored only, not run.
+- Known fixed-size Gemini models reject conflicting configured dimensions; Matryoshka dimensions remain configurable; unknown model dimensions require explicit confirmation.
+
+
+- Removed provider-level environment model fallback; Gemini chat/embedding model IDs must come from the resolver's live governance selection. Added regression source for both environment bypasses (commits a02e92d47982a3977b82d1d3071e507eefe2feab, ffff0cf29be92740c8709fb4bc389b3522a6e350). Not run.

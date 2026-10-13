@@ -2024,3 +2024,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | Not resolved/verified yet. No post-change type-check, test, build, CI, Vercel, or deployment run. No PASS claimed. |
 | Next action | Pull the correction and rerun `npm run type-check`; use the fresh residual diagnostic list to determine the next bounded correction. |
 | Related records | EVT-FIX-20261012-01; SESSION-FIX-20261012-01; FIX-01 role-local WORKLOG.md. |
+
+
+## I-098 — Duplicated governance registry implementation blocks
+
+| Field | Value |
+|---|---|
+| Issue ID | I-098 |
+| Title | Remove duplicated and syntactically invalid tail blocks from AI governance registry |
+| Phase | DEV-01 live model catalogue audit; FIX-01 source-correctness handoff |
+| Severity | P1 |
+| Status | SOURCE CORRECTED — verification pending |
+| Date identified | 2026-10-12 |
+| Reporter / role | DEV-01 / Forge |
+| Symptom | Current branch source contained 3,344 lines in src/modules/ai-governance/core/registry-db.ts, including a dangling SQL-query tail after listProviderHealthHistory and repeated top-level listProviderModels/mutation/health function blocks. |
+| Root cause | Repeated copied implementation fragments were appended to the module; the dangling fragment is not valid TypeScript. |
+| Correction | Retained the first complete implementation (523 lines), preserving the live-catalogue filtering/counting/workspace changes and removing 2,821 duplicated/dangling lines. |
+| Correction commit | 8a79e296d24227f7e2caf97724c551d85b8eb4b8 |
+| Verification | Not run. No test, type-check, build or runtime PASS is claimed. |
+| Required FIX-01 action | Pull latest branch, inspect the diff and confirm all expected registry exports/callers remain; run npm run type-check and focused AI-governance tests when local execution is available. Do not wait for CI/Vercel. |
+| Prevention | Before editing large registry modules, count top-level exports and inspect the full file tail; a successful API write is not syntax verification. |
