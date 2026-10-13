@@ -11,6 +11,7 @@ import {
 } from "../scripts/elevenlabs-relay.mjs";
 import { handleGeminiRealtimeConnection } from "../scripts/gemini-relay.mjs";
 import { attachElevenLabsSpeechEngine } from "../scripts/elevenlabs-speech-engine.mjs";
+import { resolveRealtimeChannel } from "../scripts/realtime-channels.mjs";
 
 const server = http.createServer((_req, res) => {
   res.statusCode = 404;
@@ -19,57 +20,37 @@ const server = http.createServer((_req, res) => {
 
 const wss = new WebSocketServer({ noServer: true });
 
+// ONE routing table with the standalone relay (scripts/start.mjs): both
+// front doors resolve channels through scripts/realtime-channels.mjs so the
+// Vercel function and the docker deployment can never drift apart again.
+const CHANNEL_HANDLERS = new Map([
+  ["embed", handleVoiceConnection],
+  ["twilio", handleTwilioStream],
+  ["vonage", handleVonageStream],
+  ["sarvam", handleSarvamRealtimeConnection],
+  ["sarvam-tts", handleSarvamTtsRealtimeConnection],
+  ["elevenlabs-stt", handleElevenLabsRealtimeStt],
+  ["elevenlabs-tts", handleElevenLabsRealtimeTts],
+  ["gemini", handleGeminiRealtimeConnection],
+]);
+
 function handlerFor(pathname, searchParams) {
   // Vercel WebSocket Functions expose the exact function pathname
-  // (/api/voice-realtime). The legacy rewrite targets below remain supported
-  // for long-running Node deployments, while Vercel uses a channel query.
-  if (pathname === "/api/voice-realtime") {
-    switch (searchParams?.get("channel")) {
-      case "embed":
-        return handleVoiceConnection;
-      case "twilio":
-        return handleTwilioStream;
-      case "vonage":
-        return handleVonageStream;
-      case "sarvam":
-        return handleSarvamRealtimeConnection;
-      case "sarvam-tts":
-        return handleSarvamTtsRealtimeConnection;
-      case "elevenlabs-stt":
-        return handleElevenLabsRealtimeStt;
-      case "elevenlabs-tts":
-        return handleElevenLabsRealtimeTts;
-      case "gemini":
-        return handleGeminiRealtimeConnection;
-      default:
-        return null;
-    }
-  }
-  switch (pathname) {
-    case "/api/voice-realtime/embed":
-      return handleVoiceConnection;
-    case "/api/voice-realtime/twilio":
-      return handleTwilioStream;
-    case "/api/voice-realtime/vonage":
-      return handleVonageStream;
-    case "/api/voice-realtime/sarvam":
-      return handleSarvamRealtimeConnection;
-    case "/api/voice-realtime/sarvam-tts":
-      return handleSarvamTtsRealtimeConnection;
-    case "/api/voice-realtime/elevenlabs-stt":
-      return handleElevenLabsRealtimeStt;
-    case "/api/voice-realtime/elevenlabs-tts":
-      return handleElevenLabsRealtimeTts;
-    case "/api/voice-realtime/gemini":
-      return handleGeminiRealtimeConnection;
-    default:
-      return null;
-  }
+  // (/api/voice-realtime) with the channel as a query parameter; the legacy
+  // rewrite style /api/voice-realtime/<channel> remains supported. The
+  // resolver is shared with scripts/start.mjs (realtime-channels.mjs).
+  const target = resolveRealtimeChannel(pathname, searchParams);
+  return target.kind === "channel"
+    ? CHANNEL_HANDLERS.get(target.channel) ?? null
+    : null;
 }
 
 wss.on("connection", (ws, req) => {
   const parsed = new URL(req.url ?? "/", "http://vercel");
-  const handler = handlerFor(parsed.pathname, parsed.searchParams);
+  const target = resolveRealtimeChannel(parsed.pathname, parsed.searchParams);
+  const handler = target.kind === "channel"
+    ? CHANNEL_HANDLERS.get(target.channel) ?? null
+    : null;
 
   if (!handler) {
     ws.close(1008, "Unsupported realtime endpoint");

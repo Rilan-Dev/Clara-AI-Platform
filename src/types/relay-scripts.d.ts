@@ -4,6 +4,28 @@
  * ambient declarations give the test imports strict types.
  */
 
+declare module "*/scripts/realtime-channels.mjs" {
+  /** Canonical channel ids shared by the Vercel function and the standalone relay. */
+  export const REALTIME_CHANNELS: readonly string[];
+
+  export type RealtimeChannelTarget =
+    | { kind: "channel"; channel: string }
+    | { kind: "speech-engine" }
+    | { kind: "unknown" }
+    | { kind: "none" };
+
+  /**
+   * Canonicalize a realtime upgrade request to its channel. Both
+   * /api/voice-realtime?channel=… and /api/voice-realtime/<channel> resolve;
+   * non-front-door paths return { kind: "none" } so the caller falls through
+   * to its legacy path table.
+   */
+  export function resolveRealtimeChannel(
+    pathname: string,
+    searchParams?: URLSearchParams | null,
+  ): RealtimeChannelTarget;
+}
+
 declare module "*/scripts/sarvam-relay.mjs" {
   export function handleSarvamRealtimeConnection(
     browserWs: unknown,
