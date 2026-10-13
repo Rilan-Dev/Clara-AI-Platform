@@ -106,6 +106,20 @@ vi.mock("@/modules/voice-core/api/gemini/realtime-auth", () => ({
   mintGeminiRealtimeToken: vi.fn(() => "gemini-hmac-token"),
 }));
 
+vi.mock("@/modules/ai-governance/core/registry-db", () => ({
+  listProviderModels: vi.fn(async () => [{
+    id: "live-gemini-realtime",
+    providerId: "gemini",
+    capability: "realtime_voice",
+    kind: "realtime",
+    modelId: "gemini-2.5-flash-native-audio-preview-12-2025",
+    displayName: "Gemini Live Preview",
+    enabled: true,
+    isDefault: true,
+    metadata: { catalogSource: "vendor_live" },
+  }]),
+}));
+
 vi.mock("@/modules/voice-core/resolve", () => {
   const resolveVoiceConfig = vi.fn(async () => ({
     voiceProvider: "sarvam",
@@ -242,7 +256,7 @@ describe("POST /api/embed/session — voice-axis native realtime transport", () 
       sarvam: null,
       openai: null,
     } as never);
-    process.env.GEMINI_LIVE_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
+    process.env.GEMINI_LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025";
     process.env.GEMINI_LIVE_VOICE = "Aoede";
     const res = await POST(sessionRequest());
     expect(res.status).toBe(200);

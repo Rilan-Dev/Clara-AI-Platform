@@ -15,7 +15,7 @@ import {
 
 describe("model catalogue classification", () => {
   it("recognises known chat models", () => {
-    for (const id of ["gpt-4o", "gpt-4o-2024-08-06", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-4o-mini", "gemini-2.5-flash"]) {
+    for (const id of ["gpt-4o", "gpt-4o-2024-08-06", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-4o-mini", "gemini-2.5-flash", "gemini-3.7-flash"]) {
       expect(looksLikeChatModel(id), id).toBe(true);
     }
   });
@@ -29,7 +29,9 @@ describe("model catalogue classification", () => {
   it("classifies unknown future models by pattern", () => {
     expect(looksLikeChatModel("gpt-5.7-nova")).toBe(true);      // future chat model
     expect(looksLikeChatModel("gpt-6")).toBe(true);
+    expect(looksLikeChatModel("gemini-3.7-flash")).toBe(true);
     expect(looksLikeEmbeddingModel("text-embedding-4-small")).toBe(true); // future embedding model
+    expect(looksLikeEmbeddingModel("gemini-embedding-002")).toBe(true);
   });
 
   it("never classifies a chat model as an embedding model and vice versa", () => {
@@ -37,6 +39,7 @@ describe("model catalogue classification", () => {
     expect(looksLikeEmbeddingModel("gpt-4o-2024-08-06")).toBe(false);
     expect(looksLikeChatModel("text-embedding-3-small")).toBe(false);
     expect(looksLikeChatModel("gemini-embedding-001")).toBe(false);
+    expect(looksLikeChatModel("gemini-embedding-002")).toBe(false);
   });
 
   it("treats blank input as neither", () => {
@@ -198,38 +201,18 @@ describe("voice-surface model trap (V0)", () => {
   });
 });
 
-describe("Sarvam dark-launch option gating (V0)", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
+describe("live catalogue option filtering", () => {
+  it("does not expose static model availability when no live rows are supplied", () => {
+    expect(chatModelOptions()).toEqual([]);
   });
 
-  // SARVAM_ENABLED is no longer a catalogue switch (2b5c6d12): the provider
-  // registry toggle is the sole platform switch, so the env flag is ignored.
-  it("ignores the retired SARVAM_ENABLED env switch when a key is present", () => {
-    vi.stubEnv("SARVAM_ENABLED", "false");
-    vi.stubEnv("SARVAM_API_KEY", "test-key");
-    expect(chatModelOptions().some((m) => m.provider === "sarvam")).toBe(true);
-  });
-
-  it("shows only stable sarvam models when enabled without the beta flag", () => {
-    vi.stubEnv("SARVAM_ENABLED", "true");
-    vi.stubEnv("SARVAM_API_KEY", "test-key");
-    vi.stubEnv("SARVAM_BETA_MODELS_ENABLED", "false");
-    const ids = chatModelOptions("sarvam").map((m) => m.id);
-    expect(ids).toEqual(["sarvam-105b", "sarvam-105b-conversations"]);
-  });
-
-  it("shows beta models too when the beta flag is on", () => {
-    vi.stubEnv("SARVAM_ENABLED", "true");
-    vi.stubEnv("SARVAM_API_KEY", "test-key");
-    vi.stubEnv("SARVAM_BETA_MODELS_ENABLED", "true");
-    expect(chatModelOptions("sarvam")).toHaveLength(5);
-  });
-
-  it("requires the API key before the provider is offered at all", () => {
-    vi.stubEnv("SARVAM_ENABLED", "true");
-    vi.stubEnv("SARVAM_API_KEY", "");
-    expect(chatModelOptions().some((m) => m.provider === "sarvam")).toBe(false);
+  it("filters already-discovered chat rows by provider", () => {
+    const liveRows = [
+      { id: "gemini-3.7-flash", provider: "gemini" as const },
+      { id: "sarvam-105b", provider: "sarvam" as const },
+    ];
+    expect(chatModelOptions("sarvam", liveRows).map((model) => model.id)).toEqual(["sarvam-105b"]);
+    expect(chatModelOptions("gemini", liveRows).map((model) => model.id)).toEqual(["gemini-3.7-flash"]);
   });
 });
 

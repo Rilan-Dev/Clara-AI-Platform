@@ -146,6 +146,21 @@ vi.mock("@/modules/ai-governance/core/resolver", () => ({
 }));
 vi.mock("@/modules/ai-governance/core/registry-db", () => ({
   getPlatformAIRegistry: vi.fn(async () => ({ defaults: [] })),
+  listProviderModels: vi.fn(async (providerId: string, capability?: string) => {
+    if (providerId !== "elevenlabs") return [];
+    const requestedCapability = capability ?? "realtime_voice";
+    return [{
+      id: "elevenlabs-live-tts",
+      providerId: "elevenlabs",
+      capability: requestedCapability,
+      kind: "tts",
+      modelId: "eleven_flash_v2_5",
+      displayName: "Eleven Flash v2.5",
+      enabled: true,
+      isDefault: true,
+      metadata: { catalogSource: "vendor_live", modelType: "low_latency" },
+    }];
+  }),
 }));
 vi.mock("./model-catalog", () => ({
   getPlatformDefaultSTTModel: () => "scribe_v2",

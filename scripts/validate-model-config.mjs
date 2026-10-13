@@ -31,10 +31,6 @@ const OPENAI_CHAT = [
   "gpt-4-turbo", "gpt-4-turbo-preview", "gpt-4-0125-preview",
   "gpt-3.5-turbo", "gpt-3.5-turbo-0125",
 ];
-const GEMINI_CHAT = [
-  "gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-2.0-pro",
-  "gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-8b",
-];
 const SARVAM_CHAT = [
   "sarvam-105b", "sarvam-105b-conversations",
   "gemma4", "deepseekv4-flash", "glm5.3",
@@ -42,14 +38,11 @@ const SARVAM_CHAT = [
 const OPENAI_EMBEDDING = [
   "text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002",
 ];
-const GEMINI_EMBEDDING = [
-  "gemini-embedding-001", "text-embedding-004", "embedding-001",
-];
 
-const CHAT_IDS = new Set([...OPENAI_CHAT, ...GEMINI_CHAT, ...SARVAM_CHAT].map((s) => s.toLowerCase()));
-const EMBEDDING_IDS = new Set([...OPENAI_EMBEDDING, ...GEMINI_EMBEDDING].map((s) => s.toLowerCase()));
+const CHAT_IDS = new Set([...OPENAI_CHAT, ...SARVAM_CHAT].map((s) => s.toLowerCase()));
+const EMBEDDING_IDS = new Set([...OPENAI_EMBEDDING].map((s) => s.toLowerCase()));
 
-const CHAT_PATTERNS = [/^gpt-\d/, /^gpt-realtime/, /^o[1-9](-|$)/, /^chat-bison/, /^sarvam-/];
+const CHAT_PATTERNS = [/^gpt-\d/, /^gpt-realtime/, /^gemini-/, /^o[1-9](-|$)/, /^chat-bison/, /^sarvam-/];
 const EMBEDDING_PATTERNS = [/embedding/, /^embed-?gecko/];
 // Voice-surface model ids (Sarvam Bulbul/Saaras) — invalid in ANY brain field.
 const VOICE_PATTERNS = [/^bulbul:/, /^saaras:/];
@@ -59,6 +52,7 @@ function looksLikeChatModel(id) {
   if (!v) return false;
   if (CHAT_IDS.has(v)) return true;
   if (EMBEDDING_IDS.has(v)) return false;
+  if (EMBEDDING_PATTERNS.some((p) => p.test(v))) return false;
   return CHAT_PATTERNS.some((p) => p.test(v));
 }
 

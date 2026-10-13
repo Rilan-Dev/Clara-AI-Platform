@@ -415,7 +415,7 @@ export async function resolveVoiceConfig(
     const liveTtsRows = (await listProviderModels(
       "elevenlabs",
       isRealtime ? "realtime_voice" : "voice_chat",
-    )).filter((model) => model.enabled && model.kind === "tts");
+    )).filter((model) => model.enabled && model.metadata.catalogSource === "vendor_live" && model.kind === "tts");
     if (liveTtsRows.length === 0) {
       throw new VoiceConfigResolutionError(
         "ElevenLabs has no currently discovered TTS models for this voice capability. Refresh the provider catalogue and verify the API key.",

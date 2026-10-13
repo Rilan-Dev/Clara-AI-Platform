@@ -97,7 +97,7 @@ async function disableMissing(provider: Provider, capability: Capability, kind: 
 function classifyOpenAIModel(id: string): Array<{ capability: Capability; kind: Kind }> {
   const value = id.toLowerCase();
   if (value.includes("embedding")) return [{ capability: "chat", kind: "embedding" }];
-  if (value.includes("transcribe") || value === "whisper-1") return [{ capability: "realtime_voice", kind: "transcription" }];
+  if (value.includes("transcribe") || value.includes("whisper")) return [{ capability: "realtime_voice", kind: "transcription" }];
   if (value.includes("realtime")) return [{ capability: "realtime_voice", kind: "realtime" }];
   if (/^(gpt-|o[1-9]|chatgpt-)/.test(value)) return [{ capability: "chat", kind: "chat" }];
   return [];
@@ -127,7 +127,7 @@ async function syncOpenAI(): Promise<void> {
             inputUsdPerMTokens: findEmbeddingModel(model.id)?.inputUsdPerMTokens ?? null,
             dimension: findEmbeddingModel(model.id)?.dimension ?? null,
           } : {}),
-          ...((model.id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: model.id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}),
+          ...((model.id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: model.id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}),
         },
       });
     }
@@ -139,9 +139,11 @@ async function syncOpenAI(): Promise<void> {
     groups.get(group)!.add(item.modelId);
   }
   await upsertItems(items);
-  for (const [group, ids] of groups) {
+  // A successful /v1/models response is authoritative for each selectable
+  // OpenAI model kind, including kinds with zero currently accessible models.
+  for (const group of ["chat:chat", "chat:embedding", "realtime_voice:realtime", "realtime_voice:transcription"]) {
     const [capability, kind] = group.split(":") as [Capability, Kind];
-    await disableMissing("openai", capability, kind, ids);
+    await disableMissing("openai", capability, kind, groups.get(group) ?? new Set<string>());
   }
 }
 
@@ -164,10 +166,10 @@ async function syncGemini(): Promise<void> {
       if (!id) continue;
       const methods = model.supportedGenerationMethods ?? [];
       if (methods.includes("embedContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findEmbeddingModel(id)?.inputUsdPerMTokens ?? null, dimension: findEmbeddingModel(id)?.dimension ?? null, ...((id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}) } });
+        items.push({ providerId: "gemini", capability: "chat", kind: "embedding", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findEmbeddingModel(id)?.inputUsdPerMTokens ?? null, dimension: findEmbeddingModel(id)?.dimension ?? null, ...((id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}) } });
       }
       if (methods.includes("generateContent")) {
-        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findChatModel(id)?.inputUsdPerMTokens ?? null, outputUsdPerMTokens: findChatModel(id)?.outputUsdPerMTokens ?? null, contextTokens: findChatModel(id)?.contextTokens ?? model.inputTokenLimit ?? null, ...((id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\\d{2}-\\d{2}-\\d{2})/)?.[1] } : {}) } });
+        items.push({ providerId: "gemini", capability: "chat", kind: "chat", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null, inputUsdPerMTokens: findChatModel(id)?.inputUsdPerMTokens ?? null, outputUsdPerMTokens: findChatModel(id)?.outputUsdPerMTokens ?? null, contextTokens: findChatModel(id)?.contextTokens ?? model.inputTokenLimit ?? null, ...((id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1]) ? { releaseDate: id.match(/(20\d{2}-\d{2}-\d{2})/)?.[1] } : {}) } });
       }
       if (methods.some((method) => /bidi/i.test(method))) {
         items.push({ providerId: "gemini", capability: "realtime_voice", kind: "realtime", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });

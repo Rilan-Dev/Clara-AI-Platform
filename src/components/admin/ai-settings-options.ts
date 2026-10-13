@@ -14,7 +14,6 @@
  * the provider marketing copy shown on the option cards.
  */
 
-import { visibleSarvamChatModels } from "@/modules/ai-core/model-catalog";
 import {
   SARVAM_TTS_MODELS,
   SARVAM_STT_MODELS,
@@ -67,10 +66,14 @@ function sortLiveModels(models: LiveAIModelOption[]): LiveAIModelOption[] {
 
 function liveOptions(models: LiveAIModelOption[], kinds: string[]) {
   return sortLiveModels(models.filter((model) => kinds.includes(model.kind))).map((model) => {
-    const price = model.metadata?.inputUsdPerMTokens;
+    const tokenPrice = model.metadata?.inputUsdPerMTokens;
+    const charPrice = model.metadata?.usdPer1kChars;
+    const minutePrice = model.metadata?.usdPerMinute;
     const dimension = model.metadata?.dimension;
-    const meta = typeof price === "number" ? \`$\${price}/M input\`
-      : typeof dimension === "number" ? \`\${dimension} dims\`
+    const meta = typeof tokenPrice === "number" ? `$${tokenPrice}/M input`
+      : typeof charPrice === "number" ? `$${charPrice}/1k chars`
+      : typeof minutePrice === "number" ? `$${minutePrice}/min`
+      : typeof dimension === "number" ? `${dimension} dims`
       : undefined;
     return { value: model.modelId, label: model.displayName || model.modelId, meta };
   });
@@ -141,14 +144,10 @@ export function elevenlabsRealtimeTtsOptions(liveModels: LiveAIModelOption[] = [
 
 // ─── Sarvam (voice axis — pipeline only, static catalogue by design) ────────
 
-export function sarvamChatOptions() {
-  // Dark-launch gated: renders exactly as before while SARVAM_ENABLED is off
-  // (visibleSarvamChatModels returns [] unless enabled + beta flag per model).
-  return visibleSarvamChatModels().map((m) => ({
-    value: m.id,
-    label: m.label ?? m.id,
-    meta: m.inputUsdPerMTokens != null ? `$${m.inputUsdPerMTokens}/M in` : undefined,
-  }));
+export function sarvamChatOptions(liveModels: LiveAIModelOption[] = []) {
+  // Model availability comes from the same live governance catalogue as the
+  // other providers; this helper no longer owns a static Sarvam model list.
+  return liveOptions(liveModels, ["chat"]);
 }
 
 export function sarvamTtsOptions() {

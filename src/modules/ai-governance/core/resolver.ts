@@ -21,7 +21,7 @@
  */
 
 import { query } from "@/lib/db";
-import { getPlatformAIRegistry } from "./registry-db";
+import { getPlatformAIRegistry, syncLiveProviderCatalog } from "./registry-db";
 import { resolvePlanAIEntitlements } from "./entitlements-db";
 import { listProviderModels } from "./registry-db";
 import type {
@@ -86,7 +86,7 @@ function toModelOptions(
   kinds: ResolvedAIModelOption["kind"][],
 ): ResolvedAIModelOption[] {
   return models
-    .filter((m) => m.enabled && kinds.includes(m.kind))
+    .filter((m) => m.enabled && m.metadata.catalogSource === "vendor_live" && kinds.includes(m.kind))
     .filter((m) => {
       const exception = entitlements.modelExceptions.find(
         (x) =>
@@ -102,6 +102,7 @@ function toModelOptions(
       displayName: m.displayName,
       kind: m.kind,
       isDefault: m.isDefault,
+      metadata: m.metadata,
     }));
 }
 
@@ -113,6 +114,9 @@ function toModelOptions(
 export async function resolveAvailableAIOptions(
   input: ResolveAvailableAIOptionsInput,
 ): Promise<ResolveAvailableAIOptionsResult> {
+  // Settings selectors can afford an awaited refresh; runtime resolution uses
+  // the last successful catalogue and never waits on four vendor APIs.
+  await syncLiveProviderCatalog();
   const capability = input.capability;
 
   // Fan out the three independent lookups concurrently: the registry (an
