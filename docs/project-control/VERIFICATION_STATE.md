@@ -1920,3 +1920,23 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - npm emitted `EBADENGINE` warnings under Node v20.20.0. Several dependencies require Node 22+, including `machina >=22.22`, `vitest@5` `^22.12.0 || ^24.0.0 || >=26.0.0`, and `pdfjs-dist >=22.13.0 || >=24`. Type-check success does not negate these runtime engine mismatches. Confirm Node 22.22+ compatibility and align local/container/deployment versions.
 - npm audit summary: 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); no remediation command was run. Review separately; do not force-upgrade blindly.
 - `@types/ws` installation modified local dependency metadata; owner must inspect `git status --short` and commit the intended `package.json` and `package-lock.json` changes. No reset/cleanup of other local files.
+
+
+
+## 2026-10-12 — Realtime voice latency baseline and pending stage timing
+
+- Owner-provided benchmark evidence: five turns completed and benchmark process exited after a bounded response-flush fix. Per-turn TTFA: 8273, 6078, 5213, 1447, 1704 ms; median 5213 ms; fastest 1447 ms.
+- The benchmark-only silent audio keepalive resolved the prior synthetic-input/VAD progression stall in the reported run. This is not a production VAD fix.
+- RAG stage instrumentation source is committed, but the new output report with numeric server stage timings has not yet been supplied. Need `tool-results/openai-rag-stage-timings.json` to compare browser elapsed with `metadataMs`, `admissionMs`, `configMs`, `translationMs`, `retrievalMs`, `graphMs`, and `totalMs`.
+- Script syntax check and fresh diagnostic run after the instrumentation commit have not been observed in this session. No tests/build/deployment or production latency improvement is claimed.
+- Target <=500 ms is aspirational and currently not met. Separate grounded-answer TTFA from welcome/acknowledgement audio. Next action and exact command: `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md`.
+
+
+## 2026-10-12 — Voice benchmark welcome telemetry timeout
+
+- Owner ran the updated five-turn benchmark after pulling through `1a6e5086`; the script syntax check produced no visible error, but benchmark timed out after 45 seconds waiting for `browser.first_audio` welcome telemetry before it played any question clips. It wrote partial diagnostics to `tool-results/openai-rag-stage-timings.json`.
+- This failure does not establish a production outage or RAG latency; the run did not reach the question-turn measurements.
+- Corrective harness change: welcome telemetry is now optional diagnostic metadata. If it is missing, the benchmark logs a warning and continues to the five question turns; the welcome mark is represented as null/unavailable, never zero. Per-turn telemetry barriers and provider checks remain required, and failure diagnostics remain available.
+- Commits: `fb2a17b874a084e9294166ca6ad88f01830f21ee` (continue without welcome mark); `513a317b2063bb27035b581a3f3f1c4b300b2f27` (null-safe successful report serialization).
+- **Pending verification:** owner must pull latest branch, run `node --check scripts/voice-benchmark/conversation.mjs`, then rerun the same five-turn benchmark to `tool-results/openai-rag-stage-timings.json`. Share the new report. If it fails again, share the full new failure summary including `dataChannelEvents`, `observedLatencyEvents`, `microphoneDiagnostics`, `requestCounts`, `failures`, and `consoleErrors`.
+- Do not claim benchmark PASS, production latency improvement, or <=500 ms target attainment. Continue without waiting for Actions/Vercel; keep all workflows manual-only.
