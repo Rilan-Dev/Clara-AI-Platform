@@ -214,7 +214,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // catalogue for the exact capability. Empty values still mean "inherit".
     const liveModelField = LIVE_MODEL_FIELD_KEYS[body.key];
     if (liveModelField && typeof body.value === "string" && body.value.trim()) {
-      const requestedModelId = body.value.trim().replace(/^models\\//, "");
+      const requestedModelId = body.value.trim().replace(/^models\//, "");
       const liveRows = await listProviderModels(liveModelField.providerId, liveModelField.capability);
       const available = liveRows.some((row) =>
         row.enabled &&
