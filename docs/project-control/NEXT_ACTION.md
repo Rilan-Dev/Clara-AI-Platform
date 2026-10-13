@@ -1,3 +1,29 @@
+## DEV-01 CONTINUATION — LIVE MODEL SELECTION FOR ELEVENLABS PREVIEW — 2026-10-12
+
+- ElevenLabs voice preview now obtains TTS models from the vendor-refreshed governance catalogue, rejects an explicitly selected model that is no longer available, and defaults to the lowest known unit-cost live model (unknown costs sort after known costs; release date breaks ties).
+- **Exact next action:** audit remaining consumers of `GEMINI_CHAT_MODELS` / `GEMINI_EMBEDDING_MODELS` and all model fields in PlatformEnvPanel, OrgAIConfigEditor, agent editor, embed and phone/realtime paths. Static price/dimension metadata may remain for metering and Qdrant compatibility, but must not be treated as current availability. Replace any remaining selectable static arrays/default IDs with live governance rows and capability filters. Add regressions, then run focused tests/typecheck if local execution is available. Do not wait for CI/Vercel; no PASS until evidence exists.
+
+---
+## DEV-01 CONTINUATION — REMOVE REMAINING ELEVENLABS REALTIME MODEL FALLBACKS — 2026-10-12
+
+- Removed the static realtime TTS fallback from `getPlatformDefaultRealtimeTTSModel()`; it now returns only an explicitly configured supported model or empty, allowing the voice resolver to select from the live catalogue.
+- The ElevenLabs realtime relay now rejects a missing resolved model instead of silently pinning `eleven_flash_v2_5`. Realtime usage metering requires the actual model ID and no longer fabricates static TTS/STT model IDs.
+- **Exact next action:** inspect and remove the remaining static fallback in ElevenLabs voice-preview requests and the remaining legacy Gemini chat/embedding catalogue consumers. Keep static pricing/vector-dimension metadata only where technically required; it must not determine model availability. Confirm every AI settings surface gets vendor-discovered model rows and uses capability filtering plus cost/release ordering.
+- Regression tests/typecheck/build/live vendor calls have not been run. No PASS. Do not wait for CI/Vercel.
+
+---
+## NEWEST DEV-01 PRODUCT ACTION — DYNAMIC GEMINI + ELEVENLABS REALTIME CATALOGUE — 2026-10-12
+
+This is an independent DEV-01 product task and does not supersede the parallel FIX-01 type-check correction action below.
+
+- Source changes are committed for live Gemini realtime selection, live ElevenLabs realtime TTS selection, shared live-model option adapters, live sync on catalogue reads, stale seeded model reconciliation, and guarded cost/release sorting.
+- **Exact next action:** inspect `src/modules/ai-core/model-catalog.ts`, `src/modules/ai-core/resolve.ts`, `src/lib/db/seed/production.ts`, model settings UI consumers and any Gemini model defaults. Replace selectable static model arrays with live governance catalogue data; retain pricing/dimension metadata only where required for metering and Qdrant compatibility, clearly separated from availability. Ensure current selections are validated against live provider capability, and unknown price/release metadata is not fabricated.
+- Add focused regression coverage for Gemini chat/embedding/realtime capability filtering, provider-discovery failure, stale seeded model exclusion, ElevenLabs realtime TTS availability, and cost/release sorting.
+- **Verification boundary:** no tests/typecheck/build/migration/live API/CI/Vercel/deployment/browser verification has been run. No PASS. Do not poll CI/Vercel.
+- **Role boundary:** route substantial independent bugs to FIX-01; CI/CD, deployment, database-operation or infrastructure failures to OPS-01. DEV-01 continues product implementation.
+
+---
+
 ## NEWEST IMMEDIATE ACTION — FIX-01 FIVE-ERROR FOLLOW-UP — 2026-10-12
 
 - Owner's latest compiler evidence: 5 errors in 4 files.
@@ -2066,3 +2092,37 @@ Authoritative detailed session: `docs/project-control/sessions/SESSION-VOICE-LAT
 - Commits: `fb2a17b874a084e9294166ca6ad88f01830f21ee` (continue without welcome mark); `513a317b2063bb27035b581a3f3f1c4b300b2f27` (null-safe successful report serialization).
 - **Pending verification:** owner must pull latest branch, run `node --check scripts/voice-benchmark/conversation.mjs`, then rerun the same five-turn benchmark to `tool-results/openai-rag-stage-timings.json`. Share the new report. If it fails again, share the full new failure summary including `dataChannelEvents`, `observedLatencyEvents`, `microphoneDiagnostics`, `requestCounts`, `failures`, and `consoleErrors`.
 - Do not claim benchmark PASS, production latency improvement, or <=500 ms target attainment. Continue without waiting for Actions/Vercel; keep all workflows manual-only.
+
+
+# CURRENT OWNER-AUTHORIZED NEXT ACTION — 2026-10-12 — GEMINI CATALOGUE CONSUMERS
+
+The active bounded task is the owner-requested audit of remaining Gemini catalogue consumers and environment/seed defaults. Availability comes only from enabled governance rows marked vendor_live; environment IDs are preferences validated against those rows.
+
+Completed source changes in this continuation:
+- Corrected live model release-date parsing.
+- Runtime embedding fallback now uses only live-discovered embedding rows and respects the organisation allow-list.
+- Gemini embedding dimension resolution fails closed for unknown dimensions instead of assuming 768.
+- Governance model counts, default summaries and provider workspace inventory exclude seed-only rows.
+- Legacy env examples no longer pin Gemini chat/embedding/realtime IDs; production seed does not set static model IDs.
+- Corrected malformed models/ prefix normalization in Gemini session and embed-session routes.
+
+Next action: add/refine focused regressions for stale model IDs, unknown embedding dimensions, model-prefix normalization and vendor-live-only availability; then continue the branch-local search for remaining bypasses. Do not wait/poll CI or Vercel. Route substantial unrelated correctness/security defects to FIX-01 and deployment/infra-only work to OPS-01.
+
+Verification: source-only. Tests, type-check, build, live vendor calls, UI, deployment and production runtime have not been run. No PASS is claimed.
+
+
+## 2026-10-12 — Gemini dimension compatibility regression source
+Added src/modules/ai-core/providers/gemini.test.ts covering known fixed dimensions, rejecting incompatible overrides, Matryoshka dimensions, unknown-model fail-closed behavior, explicit unknown-model dimensions, and invalid dimensions. Commit: 712eebf8e4295bc987c65db2d1acb371af987972. Test source is not executed; verification remains pending.
+
+
+# CURRENT OWNER-AUTHORIZED NEXT ACTION — 2026-10-12 — I-098 REGISTRY INTEGRITY + GEMINI CATALOGUE
+
+DEV-01 corrected the duplicated governance registry implementation blocks while continuing the live-catalogue audit. FIX-01 handoff is recorded as I-098.
+
+1. FIX-01: inspect commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8; confirm the retained registry exports and callers are complete, then run npm run type-check and focused governance tests when local execution is available.
+2. DEV-01: continue the branch-local search for static Gemini availability bypasses and add focused regressions for live model selection / stale configuration.
+3. Do not wait/poll CI or Vercel. Source commits are not PASS evidence. Current task remains IN PROGRESS with verification pending.
+
+
+## 2026-10-12 — Gemini provider env fallback removed
+The Gemini provider no longer reads GEMINI_CHAT_MODEL or GEMINI_EMBEDDING_MODEL directly when the resolved config is blank; both IDs must be supplied by the governance-resolved runtime config. Regression source verifies env variables cannot bypass catalogue validation. Commits: a02e92d47982a3977b82d1d3071e507eefe2feab and ffff0cf29be92740c8709fb4bc389b3522a6e350. Tests are authored only, not run. Continue the branch-local audit; I-098 remains verification pending with FIX-01.

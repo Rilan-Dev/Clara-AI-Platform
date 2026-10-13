@@ -59,6 +59,20 @@ vi.mock("@/modules/ai-core/resolve", () => ({
   })),
 }));
 
+vi.mock("@/modules/ai-governance/core/registry-db", () => ({
+  listProviderModels: vi.fn(async () => [{
+    id: "gemini-realtime-live",
+    providerId: "gemini",
+    capability: "realtime_voice",
+    kind: "realtime",
+    modelId: "gemini-2.5-flash-native-audio-preview-12-2025",
+    displayName: "Gemini Live Preview",
+    enabled: true,
+    isDefault: true,
+    metadata: { catalogSource: "vendor_live" },
+  }]),
+}));
+
 vi.mock("@/modules/knowledge-bases/core/config-builder", () => ({
   buildSystemPrompt: vi.fn(() => "LOCKED GEMINI SYSTEM PROMPT"),
 }));

@@ -1,3 +1,30 @@
+# DEV-01 UPDATE — ELEVENLABS PREVIEW LIVE MODEL SELECTION — 2026-10-12
+
+- `src/modules/voice-core/api/elevenlabs/voices.ts` now resolves preview TTS against live vendor-discovered `voice_chat/tts` rows. It rejects stale explicitly requested IDs and selects the cheapest known-price available model when no model is supplied.
+- Commit: `b567dd5f433e371cea94d7d4ea9fc5a1edaf3461`.
+- Current source implementation remains IN_PROGRESS; no tests/typecheck/build/live API/UI/deployment verification has run.
+- Next: audit remaining Gemini legacy model metadata/catalogue consumers and all settings/runtime model fields for static availability.
+
+---
+# DEV-01 UPDATE — REALTIME MODEL FALLBACK HARDENING — 2026-10-12
+
+- Removed the hardcoded ElevenLabs realtime TTS fallback from the platform-default helper. The realtime relay now fails closed when the resolved config contains no model ID; metering rejects absent model IDs rather than recording fabricated static IDs.
+- Source commits: `1b5625adc219c74092ab6a51310f7b80de0b3288`, `f1c55cb2a948e5110129c48e4c38237d08eb0521`, `f3778cecf76d47aeaa31dc91b47ca0e0fde3d936`.
+- Remaining static fallbacks include ElevenLabs preview endpoint and legacy metadata/catalogue lists. Task remains IN_PROGRESS; no tests/typecheck/build/live API/UI/deployment verification has run.
+
+---
+# DEV-01 CONTINUATION — LIVE MODEL CATALOGUE — 2026-10-12
+
+- **Status:** IN_PROGRESS — source implementation partial; verification pending.
+- **Authorization:** user explicitly directed DEV-01 / Forge to recover current branch state and continue the next authorized product work; scope is Gemini live discovery/filtering and ElevenLabs realtime model discovery.
+- **Implemented:** vendor live catalogue now feeds Gemini realtime runtime selection and ElevenLabs realtime TTS selection; seeded Gemini/OpenAI model rows are reconciled after successful live discovery; model catalogue reads synchronize vendor data; known cost/release metadata is used for ranking.
+- **Not complete:** static Gemini chat/embedding pricing/dimension metadata and bootstrap values remain in the legacy core catalogue/seed/migration layers. These must be separated from availability and reviewed against every consumer before the task can be marked complete.
+- **Verification:** no tests, typecheck, build, migration, live API calls, CI/Vercel, deployment or UI walkthrough run. No PASS.
+- **Exact next:** inspect remaining Gemini model constants and consumers; migrate all selectable lists and defaults to the governance live catalogue without breaking embedding dimensions/Qdrant compatibility. Keep the existing FIX-01 and OPS-01 role boundaries.
+- **Relevant session:** `docs/project-control/sessions/SESSION-DEV-20261012-01.md`.
+
+---
+
 ## ARCHITECTURE CORRECTION — ORGANIZATION-OWNED EXTERNAL MCP — 2026-10-11
 
 - User requirement clarified: organizations must be able to register their own compatible external MCP servers (e.g. n8n, Graphify, Camofox, enterprise MCP) without platform-admin pre-registration.
@@ -603,3 +630,7 @@ STOP: no I-4 Tool Runtime bridge, I-5 provider pilot, MCP expansion, production 
 ## 2026-10-09 — Integration discovery hardening / dispatch remains active
 
 [architect-verified] Connected integration discovery requires user and agent identity and scopes candidates by active connection, platform enablement, organisation grant, agent grant/ownership, and plan allowlist. Execution remains in Unified Tool Runtime and the existing runner. Commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`. Next: wire provider chat and realtime voice call sites to the shared runtime without changing Clara/Qdrant RAG behavior. Secure OAuth configuration remains pending. External verification is deferred.
+
+
+## 2026-10-12 — DEV-01 model availability continuation
+Current bounded task: audit remaining Gemini catalogue consumers and environment/seed defaults. Source fixes make governance availability summaries vendor-live-only, prevent stale allow-list IDs from becoming embedding fallbacks, and fail closed for unknown Gemini embedding dimensions. Static Gemini lists remain metadata only. Verification is pending; no PASS is claimed. Continue source audit and targeted regressions without polling CI/Vercel.

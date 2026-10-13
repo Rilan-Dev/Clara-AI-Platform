@@ -1,28 +1,32 @@
 /**
  * src/modules/ai-core/model-catalog.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * Canonical model catalogue for the Clara AI Platform (WS-0.4).
+ * Pricing / dimension metadata and model-kind heuristics for the Clara AI Platform (WS-0.4).
+ *
+ * Availability is NOT sourced from the arrays in this file. Selectable model
+ * inventory comes from the provider's live API via ai-governance/core/live-catalog.ts.
+ * Entries below are retained only where local pricing or vector-dimension metadata
+ * is needed; a matching metadata entry does not prove that a model is currently available.
  *
  * The model console previously let operators pick a *chat* model (e.g.
  * gpt-4o-2024-08-06) as the *embedding* model. Because both fields were
  * free-text, nothing stopped the mix-up — and once saved, every retrieval for
  * that tenant silently degraded (chat models cannot embed).
  *
- * This module is the single source of truth used by:
- *   • the settings UIs      — dropdowns only offer models from the correct
- *                              catalogue, with dimension metadata shown
- *   • the settings APIs     — writes are rejected when a chat-model id lands
- *                              in an embedding field (and vice versa)
- *   • resolveAIConfig       — a legacy bad row self-heals to the provider
- *                              default instead of corrupting retrieval
- *   • scripts/validate-model-config.mjs — CI / ops audit of stored config
- *   • usage metering        — per-model price list → estimated cost per call
+ * This module supplies:
+ *   • settings validation — distinguish chat, embedding and voice model IDs
+ *   • vector compatibility — retain known embedding dimensions for Qdrant
+ *   • usage metering — estimate costs only when local pricing metadata is known
+ *   • validation scripts — reject cross-kind configuration mistakes
+ *
+ * Provider availability and selectable model lists are resolved separately
+ * through the live governance catalogue.
  */
 
 import type { AIProvider } from "./types";
-import { isSarvamEnabled } from "@/modules/voice-core/model-catalog";
 
-// ─── Catalogue entries ────────────────────────────────────────────────────────
+
+// ─── Pricing / compatibility metadata (not availability allowlists) ────────────
 
 export type ChatModelEntry = {
   id: string;
@@ -73,7 +77,7 @@ export const OPENAI_EMBEDDING_MODELS: EmbeddingModelEntry[] = [
   { id: "text-embedding-ada-002",  provider: "openai", dimension: 1536, inputUsdPerMTokens: 0.1 },
 ];
 
-// ─── Gemini ───────────────────────────────────────────────────────────────────
+// ─── Gemini pricing / dimension metadata (live inventory comes from Google) ───
 
 export const GEMINI_CHAT_MODELS: ChatModelEntry[] = [
   { id: "gemini-2.5-flash", provider: "gemini", contextTokens: 1_048_576, inputUsdPerMTokens: 0.3,  outputUsdPerMTokens: 2.5 },
@@ -151,6 +155,7 @@ export function findEmbeddingModel(id: string): EmbeddingModelEntry | undefined 
 const CHAT_MODEL_PATTERNS: RegExp[] = [
   /^gpt-\d/,                       // gpt-4o, gpt-4-turbo, gpt-5.6-luna…
   /^gpt-realtime/,                 // gpt-realtime-2.1-mini…
+  /^gemini-/,                      // dynamically discovered Gemini chat models
   /^o[1-9](-|$)/,                  // o1, o3, o4-mini reasoning models
   /^chat-bison/,                   // legacy PaLM chat
   /^sarvam-/,                      // sarvam-105b, sarvam-105b-conversations, future releases
@@ -182,6 +187,7 @@ export function looksLikeChatModel(id: string): boolean {
   if (!value) return false;
   if (CHAT_BY_ID.has(value)) return true;
   if (EMBEDDING_BY_ID.has(value)) return false;   // exact embedding match wins
+  if (EMBEDDING_MODEL_PATTERNS.some((p) => p.test(value))) return false;
   return CHAT_MODEL_PATTERNS.some((p) => p.test(value));
 }
 
@@ -330,23 +336,16 @@ export function estimateEmbeddingCostUsdMicros(
 
 // ─── Dropdown option lists (UI helpers) ───────────────────────────────────────
 
-// Dark-launch gate: Sarvam entries join the option lists ONLY when the
-// provider kill switch is on (SARVAM_ENABLED + key present) — with the kill
-// switch off, every dropdown renders exactly as before V0. Beta entries
-// additionally require SARVAM_BETA_MODELS_ENABLED.
-export function visibleSarvamChatModels(): ChatModelEntry[] {
-  if (!isSarvamEnabled()) return [];
-  return isSarvamBetaModelsEnabled()
-    ? SARVAM_CHAT_MODELS
-    : SARVAM_CHAT_MODELS.filter((m) => !m.beta);
+/**
+ * Selectable option lists must be supplied by the live governance catalogue.
+ * These helpers only format/filter rows already returned by provider discovery;
+ * the compile-time arrays above remain pricing/dimension metadata, not proof of
+ * current availability.
+ */
+export function chatModelOptions(provider?: AIProvider, liveModels: ChatModelEntry[] = []): ChatModelEntry[] {
+  return provider ? liveModels.filter((model) => model.provider === provider) : [...liveModels];
 }
 
-export function chatModelOptions(provider?: AIProvider): ChatModelEntry[] {
-  const all = [...OPENAI_CHAT_MODELS, ...GEMINI_CHAT_MODELS, ...visibleSarvamChatModels()];
-  return provider ? all.filter((m) => m.provider === provider) : all;
-}
-
-export function embeddingModelOptions(provider?: AIProvider): EmbeddingModelEntry[] {
-  const all = [...OPENAI_EMBEDDING_MODELS, ...GEMINI_EMBEDDING_MODELS];
-  return provider ? all.filter((m) => m.provider === provider) : all;
+export function embeddingModelOptions(provider?: AIProvider, liveModels: EmbeddingModelEntry[] = []): EmbeddingModelEntry[] {
+  return provider ? liveModels.filter((model) => model.provider === provider) : [...liveModels];
 }

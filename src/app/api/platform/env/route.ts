@@ -6,6 +6,7 @@ import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { invalidateOpenAICatalogCache } from "@/modules/assistant/api/openai-catalog-cache";
 import { resetEmailTransportCache } from "@/lib/email";
 import { validateModelField } from "@/modules/ai-core/model-catalog";
+import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
 
 // WS-0.4: model keys that must hold a model id from the correct catalogue.
 const MODEL_FIELD_KEYS: Record<string, { field: "chat" | "embedding"; provider: "openai" | "gemini" }> = {
@@ -13,6 +14,16 @@ const MODEL_FIELD_KEYS: Record<string, { field: "chat" | "embedding"; provider: 
   OPENAI_EMBEDDING_MODEL:   { field: "embedding", provider: "openai" },
   GEMINI_CHAT_MODEL:        { field: "chat",      provider: "gemini" },
   GEMINI_EMBEDDING_MODEL:   { field: "embedding", provider: "gemini" },
+};
+
+const LIVE_MODEL_FIELD_KEYS: Record<string, {
+  providerId: "openai" | "gemini" | "elevenlabs";
+  capability: "chat" | "voice_chat" | "realtime_voice";
+  kinds: string[];
+}> = {
+  OPENAI_REALTIME_MODEL: { providerId: "openai", capability: "realtime_voice", kinds: ["realtime"] },
+  GEMINI_REALTIME_MODEL: { providerId: "gemini", capability: "realtime_voice", kinds: ["realtime"] },
+  ELEVENLABS_DEFAULT_TTS_MODEL: { providerId: "elevenlabs", capability: "voice_chat", kinds: ["tts"] },
 };
 
 function getConfirmSecret(): string {
@@ -194,6 +205,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       if (!validation.ok) {
         return NextResponse.json(
           { error: "invalid_model_selection", code: validation.code, key: body.key, message: validation.message },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Model IDs in realtime/TTS settings must exist in the vendor-refreshed
+    // catalogue for the exact capability. Empty values still mean "inherit".
+    const liveModelField = LIVE_MODEL_FIELD_KEYS[body.key];
+    if (liveModelField && typeof body.value === "string" && body.value.trim()) {
+      const liveRows = await listProviderModels(liveModelField.providerId, liveModelField.capability);
+      const available = liveRows.some((row) =>
+        row.enabled &&
+        row.metadata.catalogSource === "vendor_live" &&
+        liveModelField.kinds.includes(row.kind) &&
+        row.modelId === body.value.trim().replace(/^models\\//, ""),
+      );
+      if (!available) {
+        return NextResponse.json(
+          {
+            error: "invalid_model_selection",
+            code: "MODEL_NOT_IN_LIVE_CATALOG",
+            key: body.key,
+            message: "Choose a model currently advertised by the configured provider for this capability.",
+          },
           { status: 400 },
         );
       }

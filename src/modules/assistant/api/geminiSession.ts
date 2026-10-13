@@ -9,6 +9,7 @@ import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { AIConfigResolutionError, resolveAIConfig } from "@/modules/ai-core/resolve";
 import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtime-auth";
+import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
 
 // ─── Gemini Live session configuration ────────────────────────────────────────
 //
@@ -35,7 +36,6 @@ import { mintGeminiRealtimeToken } from "@/modules/voice-core/api/gemini/realtim
 //   4. resolveAIConfig — provider must be gemini for this KB
 //   5. only then is the relay token minted
 
-const DEFAULT_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 const DEFAULT_VOICE = "Aoede";
 
 // Audio sample rates — fixed by Gemini Live API requirements.
@@ -57,7 +57,7 @@ export async function postGeminiSession(request: NextRequest): Promise<NextRespo
       customer: Array.isArray(body?.languages) ? body.languages : undefined,
     });
 
-    let rawModel = process.env.GEMINI_LIVE_MODEL ?? DEFAULT_MODEL;
+    let rawModel = process.env.GEMINI_LIVE_MODEL?.trim() || process.env.GEMINI_REALTIME_MODEL?.trim() || "";
     let voice = process.env.GEMINI_LIVE_VOICE ?? DEFAULT_VOICE;
     let instructions: string | null = null;
     let orgId: string | null = null;
@@ -142,6 +142,31 @@ export async function postGeminiSession(request: NextRequest): Promise<NextRespo
         );
         return NextResponse.json(rl.body, { status: rl.status, headers: rl.headers });
       }
+    }
+
+    // The authenticated live provider catalogue is authoritative. A stale env,
+    // agent, or org model must not be sent to Gemini just because it was once
+    // present in a compile-time list.
+    const liveRealtimeModels = (await listProviderModels("gemini", "realtime_voice"))
+      .filter((item) => item.enabled && item.metadata.catalogSource === "vendor_live" && item.kind === "realtime");
+    if (liveRealtimeModels.length === 0) {
+      return NextResponse.json(
+        { error: "No Gemini realtime models are currently advertised for this API key. Refresh provider discovery and verify the Gemini credential." },
+        { status: 503 },
+      );
+    }
+    const liveIds = new Set(liveRealtimeModels.map((item) => item.modelId.replace(/^models\//, "")));
+    const normalizedRequested = rawModel.replace(/^models\//, "");
+    if (!normalizedRequested || !liveIds.has(normalizedRequested)) {
+      const ranked = [...liveRealtimeModels].sort((a, b) => {
+        const aRelease = typeof a.metadata.releaseDate === "string" ? a.metadata.releaseDate : "";
+        const bRelease = typeof b.metadata.releaseDate === "string" ? b.metadata.releaseDate : "";
+        if (aRelease !== bRelease) return bRelease.localeCompare(aRelease);
+        return a.modelId.localeCompare(b.modelId);
+      });
+      rawModel = ranked.find((item) => item.isDefault)?.modelId ?? ranked[0]!.modelId;
+    } else {
+      rawModel = normalizedRequested;
     }
 
     // Model name — normalise to include "models/" prefix if absent.

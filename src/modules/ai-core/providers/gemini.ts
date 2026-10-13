@@ -1,9 +1,6 @@
 import { GoogleGenAI, type Content } from "@google/genai";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
-
-const DEFAULT_CHAT_MODEL = process.env.GEMINI_CHAT_MODEL ?? "gemini-2.0-flash";
-const DEFAULT_EMBEDDING_MODEL =
-  process.env.GEMINI_EMBEDDING_MODEL ?? "text-embedding-004";
+import { embeddingDimensionFor } from "../model-catalog";
 
 export class GeminiProvider implements LLMProvider {
   private config: ProviderConfig;
@@ -22,11 +19,19 @@ export class GeminiProvider implements LLMProvider {
   }
 
   private getChatModelName(): string {
-    return this.config.chatModel ?? DEFAULT_CHAT_MODEL;
+    const model = this.config.chatModel?.trim();
+    if (!model) {
+      throw new Error("No Gemini chat model is configured. Discover available models with the Gemini API and select an enabled chat model in AI settings.");
+    }
+    return model;
   }
 
   private getEmbeddingModelName(): string {
-    return this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const model = this.config.embeddingModel?.trim();
+    if (!model) {
+      throw new Error("No Gemini embedding model is configured. Discover available models with the Gemini API and select an enabled embedding model in AI settings.");
+    }
+    return model;
   }
 
   async *chatStream(
@@ -151,19 +156,39 @@ export class GeminiProvider implements LLMProvider {
 
   getModelName(type: "chat" | "embedding"): string {
     if (type === "chat") {
-      return this.config.chatModel ?? DEFAULT_CHAT_MODEL;
+      return this.getChatModelName();
     }
-    return this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    return this.getEmbeddingModelName();
   }
 
   getEmbeddingDimension(): number {
-    if (this.config.embeddingDimension) return this.config.embeddingDimension;
-    const envDim = process.env.GEMINI_EMBEDDING_DIMENSION;
-    if (envDim) return Number(envDim);
-
     const model = this.getEmbeddingModelName();
-    if (model.includes("gemini-embedding-001")) return 3072;
-    return 768;
+    const configured = this.config.embeddingDimension;
+    const envDim = process.env.GEMINI_EMBEDDING_DIMENSION?.trim();
+    const requestedDimension = configured ?? (envDim ? Number(envDim) : null);
+
+    if (requestedDimension != null) {
+      if (!Number.isInteger(requestedDimension) || requestedDimension <= 0 || requestedDimension > 3072) {
+        throw new Error("GEMINI_EMBEDDING_DIMENSION must be a positive integer no greater than 3072.");
+      }
+      // gemini-embedding-001 is Matryoshka and can emit a smaller vector on
+      // request. Other known Gemini embedding models have fixed dimensions.
+      if (model.includes("gemini-embedding-001")) return requestedDimension;
+      const knownDimension = embeddingDimensionFor(model);
+      if (knownDimension != null && requestedDimension !== knownDimension) {
+        throw new Error(
+          `Configured embedding dimension ${requestedDimension} does not match the fixed output dimension ${knownDimension} for Gemini model "${model}". Re-index with a compatible model/dimension before switching.`,
+        );
+      }
+      // Unknown models require an explicit, operator-confirmed dimension.
+      return requestedDimension;
+    }
+
+    const knownDimension = embeddingDimensionFor(model);
+    if (knownDimension != null) return knownDimension;
+    throw new Error(
+      `Unknown output dimension for Gemini embedding model "${model}". Set GEMINI_EMBEDDING_DIMENSION only after confirming the vendor output dimension and compatibility with the existing Qdrant collection.`,
+    );
   }
 
   /**
