@@ -182,7 +182,7 @@ export function ttsStreamInputUrl(cfg) {
   const base = String(cfg.baseUrl || "https://api.elevenlabs.io").replace(/\/+$/, "");
   const voiceId = encodeURIComponent(cfg.tts?.voiceId || "");
   const params = new URLSearchParams({
-    model_id: cfg.tts?.model || "eleven_flash_v2_5",
+    model_id: cfg.tts?.model || "",
     output_format: "pcm_16000",
     inactivity_timeout: "180",
   });
@@ -398,7 +398,12 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
     return;
   }
 
-  const model = cfg.tts.model || "eleven_flash_v2_5";
+  const model = typeof cfg.tts.model === "string" ? cfg.tts.model.trim() : "";
+  if (!model) {
+    send(browserWs, { type: "error", message: "No live-discovered ElevenLabs TTS model is configured. Refresh AI provider models and select a supported realtime model.", fatal: true });
+    browserWs.close(1008, "No realtime TTS model configured");
+    return;
+  }
   let closed = false;
   let generationId = null;
   let upstream = null;

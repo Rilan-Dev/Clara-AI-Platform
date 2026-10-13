@@ -68,3 +68,38 @@ When the parser registry is imported at server startup, a static `pdf-parse` run
 - **Remedy:** Shared dialog primitive correction committed as `8beed2bd32c117a3e7f8594c3d17d068471a5fd8`; DB code left unchanged because its readiness guard is already present.
 - **Prevention:** Confirm runtime commit and migration result before diagnosing repeated missing relations. Fix shared primitives and test narrow viewports/long content before page-specific styling.
 - **Verification:** Source inspection and commit only; no test/build/browser/database/runtime PASS claimed.
+
+### 2026-10-12 — Stripe SDK ambient declaration shadowing
+
+- **Symptom:** Stripe APIs and fields appeared missing from TypeScript across multiple billing routes, even though `stripe@23.0.0` was installed directly.
+- **Root cause:** `src/types/payments.d.ts` declared a partial ambient `"stripe"` module and replaced the package's official type surface.
+- **Remedy:** Remove only the Stripe ambient module declaration; preserve the separate Razorpay declaration. Commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Failed approach to avoid:** Do not downgrade or reinstall the SDK before checking for ambient module declarations. `npm ls`/ `npm explain` showed no duplicate Stripe dependency.
+- **Prevention:** Never use partial `declare module` definitions to model an installed third-party SDK. Use official types or a project-owned adapter.
+- **Verification boundary:** Type-check after the source correction remains pending. Other non-Stripe errors in the supplied 44-error report are separate API-compatibility/type-contract issues and must be triaged from the next compiler output.
+
+### 2026-10-12 — Type-check follow-up
+- Owner's fresh run verified the Stripe shadowing correction reduced diagnostics from 44/19 files to 33/15.
+- Compatibility changes are source-only and unverified by a post-change compiler run. Wait for fresh output before claiming diagnostics resolved.
+- Installed APIs: Stripe SDK v23 type literal is 2026-09-30.endive; DayPicker v10 uses month_caption / button_previous / button_next and Chevron; react-resizable-panels v4 uses Group / Panel / Separator; Recharts v3 content payload is injected at runtime; ReactMarkdown v10 styling belongs on a wrapper.
+- Keep Redis options structurally inferred rather than widening to ioredis v6 RedisOptions for BullMQ v6.
+- Missing ws declarations should be resolved with official @types/ws and lockfile, not an incomplete ambient declaration.
+
+### 2026-10-12 — five residual errors
+- Latest owner compiler output: 5 errors in 4 files.
+- DayPicker v10 has no nav_button class key; use supported button_previous/button_next keys.
+- For files in runtime/__tests__, sibling runtime modules must be referenced via ../; adjust vi.mock paths as well as dynamic imports.
+- Redis connection helper must preserve URL-in-REDIS_HOST compatibility and literal false for enableReadyCheck to satisfy the structural BullMQ options type.
+- ws needs official @types/ws with package-manager-generated lockfile; avoid incomplete ambient shims.
+- Fixes committed but not yet checked by a subsequent local type-check.
+
+### 2026-10-12 — type-check reduced to two diagnostics
+- Owner rerun after the previous batch reports only `classNames.table` in the DayPicker v10 calendar and missing official declarations for installed `ws`.
+- Calendar follow-up commit: `829ae96818a84a39110b65517917d9280c57684b`; replaced remaining legacy class-name keys with v10 names. Still needs a fresh type-check.
+- Resolve `ws` with `npm install --save-dev @types/ws` and commit the package-manager-generated lockfile. Do not add a partial ambient `declare module 'ws'`.
+
+### 2026-10-12 — type-check passes; Node runtime warning
+- Owner's latest `npm run type-check` exited successfully with no diagnostics after `@types/ws` installation.
+- Owner's npm output shows Node v20.20.0 while several dependencies require Node 22+, including `machina` >=22.22 and Vitest 5 requiring >=22.12. Type-check passing does not validate tests/runtime on unsupported Node. Align local/Docker/deployment runtime to Node 22.22+ after checking deployment configuration.
+- npm audit reported 37 vulnerabilities; avoid blind `npm audit fix --force`. Handle dependency audit separately with lockfile-aware review.
+- The local npm install's manifest/lockfile changes still need owner review and commit; preserve unrelated working-tree changes.

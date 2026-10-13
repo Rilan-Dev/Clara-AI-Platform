@@ -1,3 +1,13 @@
+### DEV-01 / 2026-10-12 — live model catalogue authority
+- **Date/session:** 2026-10-12 / SESSION-DEV-20261012-01
+- **Agent:** DEV-01 / Forge
+- **Issue/symptom:** Gemini and ElevenLabs realtime model selectors could continue using hardcoded model IDs even though vendor model-discovery infrastructure existed.
+- **Root cause:** Static option arrays/default fallbacks were separate from the governance database catalogue; only the admin workspace consistently triggered sync, and runtime validation trusted compile-time allowlists.
+- **Failed approach:** Updating only the provider discovery endpoint does not make older settings builders or runtime fallbacks dynamic. A model list endpoint does not guarantee price or release-date metadata.
+- **Remedy:** Trigger live sync from catalogue reads; reconcile seeded rows only after successful vendor discovery; require `catalogSource=vendor_live` for runtime choices; route Gemini realtime and ElevenLabs realtime TTS through live capability/kind rows.
+- **Prevention:** Treat live provider model inventory as availability authority. Keep pricing and vector-dimension metadata separate from availability; never invent pricing/release dates; fail closed for realtime models when discovery is unavailable.
+- **Related record:** SESSION-DEV-20261012-01; commits `c84acc50538653a98a8bcdb3cb2dce3cc2b6c94c`, `66f22879253530d5faf66c6575bb2f3ac128580d`, `6f0cea8f4d682ae76a3fa7a8a522512b91e648bb`, `9b850ec47a42103b5e6cb4b4916d19b4f26e7dbe`.
+
 # APCP Shared Agent Memory
 
 This is the shared, durable memory layer for all APCP agents. It is a memory/lessons record, not an authorization source.
@@ -185,3 +195,38 @@ Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/ap
 - **Prevention:** Distinguish local missing configuration (4xx) from a remote MCP endpoint/handshake failure (502). Never infer upstream health from a missing-credential response.
 - **Security:** If an operator pastes a session/bearer cookie into a diagnostic, advise revocation/rotation and never echo it into project records.
 - **Verification:** Source committed; test authored but not executed. Production behavior is not verified. The request without `bearerToken` still cannot perform a handshake; configure a stored credential or supply a temporary token in the request.
+
+### FIX-01 / Sentinel — 2026-10-12 — Stripe ambient type shadowing
+
+- **Date/session:** 2026-10-12 / SESSION-FIX-20261012-01
+- **Agent:** FIX-01 / Sentinel
+- **Issue/symptom:** TypeScript reported missing Stripe SDK methods and fields across checkout, payment health, webhooks, and subscription activation despite the project depending directly on `stripe@23.0.0`.
+- **Root cause:** `src/types/payments.d.ts` declared an ambient module named `"stripe"` containing a hand-written, incomplete replacement surface. It shadowed the installed SDK declarations, omitting APIs such as balance retrieval, Checkout Session retrieval/status, webhook endpoint listing, prices, and current Invoice/Subscription item fields.
+- **Failed approach:** The installed dependency tree did not show duplicate Stripe versions; treating this as a stale install or broadly downgrading dependencies would not fix the declaration that masks the official API.
+- **Remedy:** Removed only the ambient `declare module "stripe"` block from `src/types/payments.d.ts`; preserved the independent Razorpay declaration. Source commit: `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Prevention:** Do not recreate third-party SDK modules with partial ambient declarations. Use the installed package's own types; if a local compatibility abstraction is required, define it under a project-owned module rather than replacing the package module.
+- **Evidence/verification:** Owner-provided `npm run type-check` output; source inspection of `src/types/payments.d.ts`; dependency inspection showed `stripe@23.0.0` directly installed. Post-change type-check has not been run; this is not a PASS.
+- **Related record:** I-097; EVT-FIX-20261012-01; `src/types/payments.d.ts`.
+
+### FIX-01 / Type-check follow-up / 2026-10-12
+- Removing incomplete ambient declare module stripe eliminated the Stripe missing-member cluster; owner rerun moved from 44 errors / 19 files to 33 / 15.
+- Follow-up compatibility fixes are committed across Stripe API version, DayPicker v10, Recharts v3, react-resizable-panels v4, ioredis/BullMQ option typing, PDF metadata, ReactMarkdown v10, test import resolution, and queue generics.
+- Source-only edits pending fresh local type-check. Do not record PASS until owner supplies post-change compiler output.
+- Do not create a partial ambient ws declaration; add official @types/ws with a package-manager-generated lockfile update.
+
+### FIX-01 / 5-error follow-up / 2026-10-12
+- Owner's latest compiler run reports 5 errors in 4 files. Root causes include DayPicker v10 nav_button removal, incorrect relative paths from a nested __tests__ directory, Redis option literal widening and an accidentally omitted legacyHost declaration/URL branch.
+- Fixes committed: 9827502f158ac26b2241e7cc5fabe7c5be6c291e; 4957ddc8c2ee00fb47d8e8785752b9569c340484; 6b79a63482911019c4ebc333901200f555f3614a.
+- ws still needs official @types/ws. No @types/ws entry exists in current lockfile; don't fabricate lock metadata or hide missing types with a partial ambient declaration.
+- Await a fresh type-check before marking resolved.
+
+### FIX-01 / type-check follow-up / 2026-10-12 — two diagnostics
+- Owner's latest local compiler output after pulling the previous fix batch reports two errors: obsolete DayPicker `classNames.table`, and missing type declarations for `ws`.
+- Calendar class-name migration committed as `829ae96818a84a39110b65517917d9280c57684b`; it has not yet been checked by a subsequent local run.
+- Remaining dependency task: install official `@types/ws` with npm and commit the generated `package.json` and `package-lock.json` updates. Never mask the missing types with an `any` ambient declaration or fabricate lock metadata.
+
+### FIX-01 / type-check PASS and runtime compatibility follow-up / 2026-10-12
+- Owner-provided terminal output confirms `npm run type-check` exited successfully after adding `@types/ws` via npm.
+- `npm install` warned that current Node v20.20.0 is below multiple package engines; observed strictest requirement is `machina >=22.22`, with Vitest 5 requiring Node 22.12+ and other packages requiring Node 22+. Treat Node 22.22+ as the candidate supported baseline, and align local, Docker, and deployment runtimes before relying on tests/runtime evidence.
+- npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); no audit fix was run. Do not use `npm audit fix --force` without reviewing breaking updates.
+- @types/ws was installed locally, but manifest/lockfile commit is not yet confirmed. Next: owner checks `git status --short`, commits only intended dependency changes, and continue the existing organization-owned MCP plan. No tests/build/runtime/CI/deployment PASS is implied by type-check PASS.

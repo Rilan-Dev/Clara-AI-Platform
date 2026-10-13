@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const storeCtor = vi.fn();
 const connectionsCtor = vi.fn();
 
-vi.mock("./store.js", () => ({
+vi.mock("../store", () => ({
   PostgresStore: class {
     constructor(...args: unknown[]) {
       storeCtor(...args);
@@ -11,7 +11,7 @@ vi.mock("./store.js", () => ({
   },
 }));
 
-vi.mock("./connections-manager.js", () => ({
+vi.mock("../connections-manager", () => ({
   DoableConnectionsManager: class {
     constructor(...args: unknown[]) {
       connectionsCtor(...args);
@@ -19,13 +19,13 @@ vi.mock("./connections-manager.js", () => ({
   },
 }));
 
-vi.mock("./files-service.js", () => ({
+vi.mock("../files-service", () => ({
   DoableFilesService: class {},
 }));
 
 describe("buildActionContext scope propagation", () => {
   it("passes the explicit agent scope to store and connections manager", async () => {
-    const { buildActionContext } = await import("./context-builder.js");
+    const { buildActionContext } = await import("../context-builder");
 
     buildActionContext({
       auth: undefined,

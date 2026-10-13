@@ -1887,3 +1887,36 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
   - ESLint could not run: typescript-eslint rejects the locally installed TS 7.0.2 (fails identically on untouched files — pre-existing environment limitation, recorded, not introduced).
   - Environment note: the worktree `node_modules` was pruned after the last session (`vite`, `@tailwindcss/postcss` missing); `@tailwindcss/postcss@4.3.3` reinstalled per package.json; test runs used the identical-version (2.1.9) parent vitest binary with `--root` pointed at the worktree.
 - NOT verified (external): deployed-runtime behaviour at clara.ai.amazetechclans.com, live Google consent round-trip, proxy header configuration, deployment/CI/Vercel. No runtime PASS claimed.
+
+## 2026-10-12 — FIX-01 Stripe type declaration root-cause correction
+
+- Owner-provided `npm run type-check` reported 44 errors in 19 files. Dependency inspection showed direct `stripe@23.0.0` with no duplicate version in the reported dependency tree.
+- Root cause for the Stripe API missing-member cluster: `src/types/payments.d.ts` declared a partial ambient `"stripe"` module and shadowed official package types.
+- Removed the Stripe ambient module declaration while preserving the independent Razorpay declaration. Commit: `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Not run / not claimed:** post-correction `npm run type-check`, Vitest, lint, build, Docker, CI, Vercel, deployment, Stripe API calls, or billing runtime verification.
+- **Still pending:** rerun type-check against the corrected commit. Remaining non-Stripe diagnostics in the original report must be reassessed independently; no claim is made that the full type-check is clean.
+
+## FIX-01 Type-check residual corrections — 2026-10-12
+- Baseline evidence: owner-provided local type-check after 39a9138d9da694a65ee4d8350f8d9e18274ce398 reported 33 errors across 15 files, versus 44 errors across 19 files before Stripe declaration correction.
+- Source corrections: 79f904b35ef038a98c7146e660952e70b25dbed9; 274b1a6fe9d654915853b7deee65ac70811b1e1a; 75837afdf485a4643a8f1f163540e2892f2f769e; 2eaad784a7a316b0650df7125effcada5fcb48cd; a02791f50417c99c9f15d2efdab4b03e8cb5bc2a; 13fdbe2cfc9eb528b440bc95689ec2f2a122747e; 0627901f74d1c7bbe6190b9cf84723327b992071; c0aeaca45bc187b9fb6961efe6f467990cb81fdc; 81b694bab4ceba005cb9d080cf35273a98b6f1a0; 876eef106d01a44d527462c6212427ae3259af86; fd3cd96b3f3d1f7190958e0214e4a422e02dde46.
+- Verification status: no post-edit type-check, focused tests, build, CI, Vercel, deployment, or live service checks. No PASS. @types/ws remains unresolved pending package-manager-backed dependency/lockfile update.
+- Required next evidence: new local npm run type-check output from latest branch.
+
+## FIX-01 residual type-check correction — 2026-10-12
+- Latest owner evidence before this batch: 5 errors in 4 files.
+- Corrective commits: 9827502f158ac26b2241e7cc5fabe7c5be6c291e (DayPicker v10 class names); 4957ddc8c2ee00fb47d8e8785752b9569c340484 (test import and sibling mock paths); 6b79a63482911019c4ebc333901200f555f3614a (Redis option literal and legacy URL branch).
+- Post-correction type-check and tests have not been run. No PASS. ws remains unresolved pending official @types/ws plus generated lockfile update.
+- Next evidence required: owner runs npm run type-check after pulling latest branch.
+
+## FIX-01 residual type-check correction — 2026-10-12 (latest owner evidence)
+- Owner reran `npm run type-check` after pulling the previous changes. Compiler output narrowed from five diagnostics to **two errors in two files**: `src/components/ui/calendar.tsx` (`classNames.table` is not a DayPicker v10 class name) and `src/modules/phone/core/call-handler.ts` (missing declaration for installed `ws`).
+- Calendar source correction committed: `829ae96818a84a39110b65517917d9280c57684b`; maps remaining legacy class-name keys to DayPicker v10 names. Post-edit compiler result is pending.
+- `@types/ws` remains to be installed via npm with the generated lockfile committed. No ambient shim was added.
+- No post-latest-edit type-check, tests, build, CI, Vercel, deployment, or runtime PASS is claimed. Next evidence: run npm install --save-dev @types/ws, commit manifest/lockfile, then rerun npm run type-check.
+
+## FIX-01 — type-check PASS; runtime compatibility remains open — 2026-10-12
+- Owner-provided latest terminal output shows `npm run type-check` completed successfully with no TypeScript diagnostics after `npm install --save-dev @types/ws`.
+- This is a **type-check PASS only**. Vitest, lint, build, Docker, runtime, migrations, CI, Vercel, deployment and live integrations have not been shown to pass by this evidence.
+- npm emitted `EBADENGINE` warnings under Node v20.20.0. Several dependencies require Node 22+, including `machina >=22.22`, `vitest@5` `^22.12.0 || ^24.0.0 || >=26.0.0`, and `pdfjs-dist >=22.13.0 || >=24`. Type-check success does not negate these runtime engine mismatches. Confirm Node 22.22+ compatibility and align local/container/deployment versions.
+- npm audit summary: 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); no remediation command was run. Review separately; do not force-upgrade blindly.
+- `@types/ws` installation modified local dependency metadata; owner must inspect `git status --short` and commit the intended `package.json` and `package-lock.json` changes. No reset/cleanup of other local files.

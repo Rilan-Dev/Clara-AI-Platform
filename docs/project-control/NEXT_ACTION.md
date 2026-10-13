@@ -1,3 +1,54 @@
+## DEV-01 CONTINUATION — LIVE MODEL SELECTION FOR ELEVENLABS PREVIEW — 2026-10-12
+
+- ElevenLabs voice preview now obtains TTS models from the vendor-refreshed governance catalogue, rejects an explicitly selected model that is no longer available, and defaults to the lowest known unit-cost live model (unknown costs sort after known costs; release date breaks ties).
+- **Exact next action:** audit remaining consumers of `GEMINI_CHAT_MODELS` / `GEMINI_EMBEDDING_MODELS` and all model fields in PlatformEnvPanel, OrgAIConfigEditor, agent editor, embed and phone/realtime paths. Static price/dimension metadata may remain for metering and Qdrant compatibility, but must not be treated as current availability. Replace any remaining selectable static arrays/default IDs with live governance rows and capability filters. Add regressions, then run focused tests/typecheck if local execution is available. Do not wait for CI/Vercel; no PASS until evidence exists.
+
+---
+## DEV-01 CONTINUATION — REMOVE REMAINING ELEVENLABS REALTIME MODEL FALLBACKS — 2026-10-12
+
+- Removed the static realtime TTS fallback from `getPlatformDefaultRealtimeTTSModel()`; it now returns only an explicitly configured supported model or empty, allowing the voice resolver to select from the live catalogue.
+- The ElevenLabs realtime relay now rejects a missing resolved model instead of silently pinning `eleven_flash_v2_5`. Realtime usage metering requires the actual model ID and no longer fabricates static TTS/STT model IDs.
+- **Exact next action:** inspect and remove the remaining static fallback in ElevenLabs voice-preview requests and the remaining legacy Gemini chat/embedding catalogue consumers. Keep static pricing/vector-dimension metadata only where technically required; it must not determine model availability. Confirm every AI settings surface gets vendor-discovered model rows and uses capability filtering plus cost/release ordering.
+- Regression tests/typecheck/build/live vendor calls have not been run. No PASS. Do not wait for CI/Vercel.
+
+---
+## NEWEST DEV-01 PRODUCT ACTION — DYNAMIC GEMINI + ELEVENLABS REALTIME CATALOGUE — 2026-10-12
+
+This is an independent DEV-01 product task and does not supersede the parallel FIX-01 type-check correction action below.
+
+- Source changes are committed for live Gemini realtime selection, live ElevenLabs realtime TTS selection, shared live-model option adapters, live sync on catalogue reads, stale seeded model reconciliation, and guarded cost/release sorting.
+- **Exact next action:** inspect `src/modules/ai-core/model-catalog.ts`, `src/modules/ai-core/resolve.ts`, `src/lib/db/seed/production.ts`, model settings UI consumers and any Gemini model defaults. Replace selectable static model arrays with live governance catalogue data; retain pricing/dimension metadata only where required for metering and Qdrant compatibility, clearly separated from availability. Ensure current selections are validated against live provider capability, and unknown price/release metadata is not fabricated.
+- Add focused regression coverage for Gemini chat/embedding/realtime capability filtering, provider-discovery failure, stale seeded model exclusion, ElevenLabs realtime TTS availability, and cost/release sorting.
+- **Verification boundary:** no tests/typecheck/build/migration/live API/CI/Vercel/deployment/browser verification has been run. No PASS. Do not poll CI/Vercel.
+- **Role boundary:** route substantial independent bugs to FIX-01; CI/CD, deployment, database-operation or infrastructure failures to OPS-01. DEV-01 continues product implementation.
+
+---
+
+## NEWEST IMMEDIATE ACTION — FIX-01 FIVE-ERROR FOLLOW-UP — 2026-10-12
+
+- Owner's latest compiler evidence: 5 errors in 4 files.
+- Fixes committed: DayPicker navigation class names (9827502f158ac26b2241e7cc5fabe7c5be6c291e); context-builder test's parent-directory import and mock paths (4957ddc8c2ee00fb47d8e8785752b9569c340484); Redis literal option typing and restored REDIS_HOST URL handling (6b79a63482911019c4ebc333901200f555f3614a).
+- Remaining known item: ws has no declarations; package-lock has no @types/ws entry. Add @types/ws through npm with generated lockfile when package-manager execution is available; don't handcraft lock entries or add an any-only ambient shim.
+- Next: git pull origin feature/ai-core-from-doable-source then npm run type-check. Send fresh output. No post-correction compiler/tests/build run; no PASS. Do not wait for CI/Vercel.
+
+
+## NEWEST IMMEDIATE ACTION — FIX-01 TYPE-CHECK RESIDUALS — 2026-10-12
+
+- Owner's fresh type-check after Stripe declaration correction dropped from 44 errors / 19 files to 33 errors / 15 files.
+- FIX-01 has since committed targeted compatibility corrections for Stripe API version, DayPicker v10, react-resizable-panels v4, Recharts v3, ioredis/BullMQ option typing, pdf-parse v2 metadata, ReactMarkdown v10, test import resolution, and BullMQ queue generic typing.
+- Exact next action: git pull origin feature/ai-core-from-doable-source then npm run type-check. Send fresh compiler output; do not reuse the old 33-error list as current evidence.
+- src/modules/phone/core/call-handler.ts still needs official @types/ws with a package-manager-generated lockfile update. Do not paper over it with an incomplete ambient declaration.
+- No post-edit type-check/tests/build/CI/Vercel/deployment has run. No PASS is claimed. Do not wait for CI/Vercel; route infrastructure/deployment faults to OPS-01.
+
+
+## NEWEST IMMEDIATE ACTION — FIX-01 TYPE-CHECK ROOT CAUSE — 2026-10-12
+
+- Owner-provided `npm run type-check` reported 44 errors in 19 files. FIX-01 traced the Stripe missing-member cluster to an incomplete ambient `declare module "stripe"` in `src/types/payments.d.ts`, which shadowed official `stripe@23.0.0` types.
+- Removed only that Stripe declaration; the independent Razorpay declaration remains. Correction commit: `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- Control evidence is recorded in I-097, EVT-FIX-20261012-01, SESSION-FIX-20261012-01, shared AGENT_MEMORY, and FIX-01 role-local MEMORY/WORKLOG.
+- **Exact next action:** `git pull origin feature/ai-core-from-doable-source`, then `npm run type-check`. Report the new compiler output. Do not assume the other original diagnostics are fixed; triage only the residual set.
+- No post-correction type-check/tests/build/CI/Vercel/deployment were run. No PASS is claimed. Do not wait for CI/Vercel; route genuine infrastructure/deployment defects to OPS-01.
+
 ## NEWEST IMMEDIATE ACTION — FIXED DUPLICATE EXPORT; REBUILD REQUIRED — 2026-10-11
 
 - Owner-provided Docker build failed because `src/modules/ai-platform-core/index.ts` exported `buildClaraToolRuntime` twice.
@@ -2012,3 +2063,50 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 3. Configure governance (`/settings/mcp/governance`) and per-plan MCP entitlements (Subscriptions → Plans).
 4. Enable `ENABLE_MCP` only after the migration is applied, governance is configured, a controlled live handshake passes against a known-good HTTPS MCP server, and the focused suites are green on the deployed revision.
 5. Live-verify one organisation end to end: wizard → tool approval → agent grant → chat invocation → metering → audit entries.
+
+## FIX-01 next action — type-check residuals (2026-10-12)
+1. Pull latest `feature/ai-core-from-doable-source`; calendar class-name correction `829ae96818a84a39110b65517917d9280c57684b` migrates the remaining legacy class keys to DayPicker v10 keys. It is not yet type-checked.
+2. From the repository root run `npm install --save-dev @types/ws` and commit the resulting `package.json` and `package-lock.json` changes. Do not manually edit lock metadata or add an untyped ambient `ws` declaration.
+3. Run `npm run type-check`; share the fresh output and continue fixing only new diagnostics. Do not wait for CI/Vercel; no PASS is recorded until the local type-check evidence supports it.
+
+## LATEST FIX-01 RESULT — TYPE-CHECK PASSES; NODE ENGINE MISMATCH — 2026-10-12
+
+- Owner pulled latest branch, installed official `@types/ws` with npm, and `npm run type-check` exited successfully with no diagnostics. This is a type-check PASS only.
+- Immediate owner action: run `git status --short`; inspect and commit the intended `package.json` and `package-lock.json` changes from the install. Preserve any unrelated local files/changes.
+- Runtime compatibility: install output shows Node v20.20.0 while dependencies require Node 22+, with `machina` requiring `>=22.22` and Vitest 5 requiring `^22.12.0 || ^24.0.0 || >=26.0.0`. Confirm project/runtime compatibility and align local, Docker and deployment runtimes to Node 22.22+ before relying on tests or runtime evidence.
+- npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical). Do a separate lockfile-aware audit; do not blindly run `npm audit fix --force`.
+- Continue the existing organization-owned MCP endpoint plan and focused regression work without waiting for CI/Vercel. No tests, build, deployment or live MCP handshake PASS is implied by type-check PASS.
+
+
+# CURRENT OWNER-AUTHORIZED NEXT ACTION — 2026-10-12 — GEMINI CATALOGUE CONSUMERS
+
+The active bounded task is the owner-requested audit of remaining Gemini catalogue consumers and environment/seed defaults. Availability comes only from enabled governance rows marked vendor_live; environment IDs are preferences validated against those rows.
+
+Completed source changes in this continuation:
+- Corrected live model release-date parsing.
+- Runtime embedding fallback now uses only live-discovered embedding rows and respects the organisation allow-list.
+- Gemini embedding dimension resolution fails closed for unknown dimensions instead of assuming 768.
+- Governance model counts, default summaries and provider workspace inventory exclude seed-only rows.
+- Legacy env examples no longer pin Gemini chat/embedding/realtime IDs; production seed does not set static model IDs.
+- Corrected malformed models/ prefix normalization in Gemini session and embed-session routes.
+
+Next action: add/refine focused regressions for stale model IDs, unknown embedding dimensions, model-prefix normalization and vendor-live-only availability; then continue the branch-local search for remaining bypasses. Do not wait/poll CI or Vercel. Route substantial unrelated correctness/security defects to FIX-01 and deployment/infra-only work to OPS-01.
+
+Verification: source-only. Tests, type-check, build, live vendor calls, UI, deployment and production runtime have not been run. No PASS is claimed.
+
+
+## 2026-10-12 — Gemini dimension compatibility regression source
+Added src/modules/ai-core/providers/gemini.test.ts covering known fixed dimensions, rejecting incompatible overrides, Matryoshka dimensions, unknown-model fail-closed behavior, explicit unknown-model dimensions, and invalid dimensions. Commit: 712eebf8e4295bc987c65db2d1acb371af987972. Test source is not executed; verification remains pending.
+
+
+# CURRENT OWNER-AUTHORIZED NEXT ACTION — 2026-10-12 — I-098 REGISTRY INTEGRITY + GEMINI CATALOGUE
+
+DEV-01 corrected the duplicated governance registry implementation blocks while continuing the live-catalogue audit. FIX-01 handoff is recorded as I-098.
+
+1. FIX-01: inspect commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8; confirm the retained registry exports and callers are complete, then run npm run type-check and focused governance tests when local execution is available.
+2. DEV-01: continue the branch-local search for static Gemini availability bypasses and add focused regressions for live model selection / stale configuration.
+3. Do not wait/poll CI or Vercel. Source commits are not PASS evidence. Current task remains IN PROGRESS with verification pending.
+
+
+## 2026-10-12 — Gemini provider env fallback removed
+The Gemini provider no longer reads GEMINI_CHAT_MODEL or GEMINI_EMBEDDING_MODEL directly when the resolved config is blank; both IDs must be supplied by the governance-resolved runtime config. Regression source verifies env variables cannot bypass catalogue validation. Commits: a02e92d47982a3977b82d1d3071e507eefe2feab and ffff0cf29be92740c8709fb4bc389b3522a6e350. Tests are authored only, not run. Continue the branch-local audit; I-098 remains verification pending with FIX-01.

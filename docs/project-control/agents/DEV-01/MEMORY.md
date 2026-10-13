@@ -1,3 +1,10 @@
+## 2026-10-12 — live provider catalogue
+- Dynamic discovery is only authoritative when the runtime filters to `metadata.catalogSource === "vendor_live"`; seeded rows should not silently satisfy realtime selection after vendor discovery fails.
+- Re-enable a model on upsert when the vendor advertises it again; stale-row reconciliation should happen only after a successful API response.
+- Vendor model-list APIs often omit pricing and actual release dates. Use known pricing metadata only where available, sort unknown prices after known prices, and never infer a release date from a refresh timestamp.
+- ElevenLabs `/v1/models` must be mapped into both `voice_chat/tts` and `realtime_voice/tts` if the same model supports both. Voice IDs remain a separate catalogue kind.
+- Gemini chat/embedding lists must be sourced from `supportedGenerationMethods`; preserve embedding dimensions/Qdrant compatibility as separate metadata, not as a claim of current model availability.
+
 # DEV-01 Role-Local Memory
 
 This is durable memory for DEV-01. It supplements, but never overrides, shared APCP memory or repository authority.
@@ -113,3 +120,11 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 
 - **Date/session:** 2026-10-11 / SESSION-DEV-20261011-01 cache clarification
 - **Lesson:** A tiny cache can remove repeated `tools/list` round trips during one request if it is bound to the exact immutable execution-context identity and credential fingerprint, contains only remote metadata, and does not cache authorization. Recheck DB permissions on every resolution and bypass the cache for invocation/schema validation. Do not turn this into a cross-request cache without explicit invalidation for policy and remote schema changes.
+
+
+## 2026-10-12 — Model catalogue lessons
+- A configured environment model ID is only a preference, never proof of availability. Runtime selectors must validate against enabled metadata.catalogSource === vendor_live rows.
+- Never recover from a bad embedding selection by taking the first raw organisation allow-list string; intersect allow-list values with live rows of kind embedding.
+- Do not assume 768 dimensions for an unknown Gemini embedding model. Use a confirmed compatibility dimension or explicit operator configuration; otherwise fail closed to protect Qdrant collections.
+- Registry counts and workspace inventories must not present migration seed rows as vendor-available models.
+- Do not wait/poll CI/Vercel; source commits do not constitute test/runtime PASS.

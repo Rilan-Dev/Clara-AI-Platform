@@ -393,3 +393,20 @@ The public contact page now uses shrink-safe layout wrappers, bounded card width
 - **Remedy:** Missing platform bearer credential now returns HTTP 400. Added a route regression asserting error code/status and no upstream probe. Commits: `426e06fde3da96ee60b155ecafcf3b6c59825105`, `9e63b8bffcacf391557ad281303294a6e5352d18`.
 - **Verification:** Regression source authored, not executed; no live MCP handshake or deployed behavior verified.
 - **Prevention:** Keep local config failures in 4xx responses and upstream endpoint/handshake failures in 502 responses. Do not include user-provided auth cookies in durable logs.
+
+## EVT-FIX-20261012-01 — 2026-10-12
+
+- **Agent/session:** FIX-01 / SESSION-FIX-20261012-01
+- **Type:** CORRECTION
+- **Summary:** Root-cause trace of the supplied 44-error type-check report found a partial ambient `declare module "stripe"` in `src/types/payments.d.ts` shadowing the installed Stripe SDK types. Removed that block while preserving the separate Razorpay declaration.
+- **Impact:** Local application type-check source blocker; Stripe-related missing-member diagnostics should be reassessed against official SDK types after the user reruns type-check.
+- **Owner:** FIX-01
+- **Suggested next action:** Pull commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`, rerun `npm run type-check`, and triage only the residual compiler errors. Do not downgrade dependencies or suppress type errors.
+- **Related records:** I-097; SESSION-FIX-20261012-01; `src/types/payments.d.ts`.
+
+### EVT-FIX-20261012-02 — FIX-01 continues type-check correction
+- Date: 2026-10-12.
+- Owner reran npm run type-check after Stripe ambient declaration removal; diagnostics fell from 44 errors / 19 files to 33 / 15 files.
+- FIX-01 committed compatibility corrections for Stripe API version, DayPicker v10, Recharts v3, react-resizable-panels v4, ioredis/BullMQ option typing, pdf-parse v2 metadata, ReactMarkdown v10, test import resolution, and lazy queue typing.
+- Evidence status: source commits only; no post-change compiler output yet. Not PASS.
+- Next: pull latest branch and rerun type-check; triage only fresh residual diagnostics.

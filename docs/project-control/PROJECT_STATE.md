@@ -1,3 +1,28 @@
+# LIVE MODEL DISCOVERY — GEMINI + ELEVENLABS REALTIME — 2026-10-12
+
+- **Agent/session:** DEV-01 / Forge — SESSION-DEV-20261012-01.
+- **Branch:** `feature/ai-core-from-doable-source`.
+- **Scope:** continue owner-authorized model discovery/filtering work without waiting for CI/Vercel. Gemini realtime models and ElevenLabs realtime TTS must be sourced from the provider live catalogue, not hardcoded selectable model lists.
+- **Source changes committed:** live catalogue now enriches Gemini/OpenAI/ElevenLabs model rows with known pricing/release metadata; successful Gemini/OpenAI discovery reconciles stale seeded rows; confirmed live rows are re-enabled on upsert; model list reads trigger live sync and rank by known unit price then release metadata; provider option builders accept live model rows; Gemini realtime session and public embed session validate against vendor-discovered realtime models; Gemini provider no longer silently falls back to hardcoded chat/embedding model IDs; ElevenLabs realtime TTS uses live TTS rows.
+- **Key commits:** `c84acc50538653a98a8bcdb3cb2dce3cc2b6c94c`, `45923e33361da9f360d42fce7c93a1129aeac0e1`, `00c6dd8a71197b527fab59cfec0c24cbd6d6ade5`, `07eb032b366386886ca01a47d48f5701dcdb491b`, `66f22879253530d5faf66c6575bb2f3ac128580d`, `ad7003c8a09cab44137411ceefe5b0840140c0fc`, `87bdfbc7f06baea44c465ce1a53cb2972db3ffa8`, `bdb9b3b54d32551fc67b9d2f9c374f4b172cbae0`, `2c489a24a4f81f7cd06502d53e46e2fa3d77f9bd`, `4496851781f13426a8db363764cabf8c8a85ccf2`, `6f0cea8f4d682ae76a3fa7a8a522512b91e648bb`, `9b850ec47a42103b5e6cb4b4916d19b4f26e7dbe`.
+- **Verification boundary:** source commits/rereads only. Tests, type-check, lint/build, migration execution, live provider calls, CI/Vercel, deployment, and browser verification have not been run. No PASS claimed.
+- **Remaining:** inspect and remove remaining static Gemini availability/default lists outside the two realtime routes (including legacy core option helpers, bootstrap/seed defaults, and any consumers not routed through governance); validate dynamic selectors in all admin/org/agent surfaces; add/fix focused regressions for empty/failed discovery and model sorting. Vendor list endpoints do not always expose authoritative prices/release dates; preserve honest unknown-price ordering and do not fabricate dates.
+- **Exact next action:** continue DEV-01 from `docs/project-control/NEXT_ACTION.md`; inspect the remaining Gemini model catalog and all callers, then replace any remaining selectable static lists with the governance live catalogue. Do not wait for CI/Vercel.
+- **Parallel known work:** FIX-01 I-097 type-check residuals remain active; follow the latest FIX-01 NEXT_ACTION separately. Do not assume those diagnostics are fixed.
+- **Security:** API keys remain server-side. When provider discovery fails, realtime runtime selection fails closed instead of using a seeded static model.
+
+---
+
+# FIX-01 TYPE-CHECK ROOT-CAUSE CORRECTION — 2026-10-12
+
+- Branch: `feature/ai-core-from-doable-source`.
+- Source correction: `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964` removes the incomplete ambient Stripe module declaration from `src/types/payments.d.ts` while preserving the Razorpay declaration.
+- Confirmed root cause for the Stripe missing-member diagnostic cluster: the ambient module shadowed the installed Stripe SDK's official types.
+- Issue I-097 remains IN PROGRESS until a fresh local type-check confirms which diagnostics remain.
+- **Verification boundary:** No post-change type-check, tests, build, Docker, CI/Vercel, deployment, or live Stripe/billing verification was run. No PASS claimed.
+- **Recovery:** `git pull origin feature/ai-core-from-doable-source`; `npm run type-check`.
+- Unrelated user working-tree files, including untracked Doable-source extraction files and `tool-results/`, were not modified by this remote source correction.
+
 # MCP RUNTIME IMPLEMENTATION UPDATE — 2026-10-11
 
 - DEV-01 added `src/modules/ai-platform-core/mcp-streamable-http-resolver.ts` behind the existing `McpToolResolver` interface and connected source-level tool advertisement/dispatch in authenticated Chat and OpenAI realtime voice through the Unified Tool Runtime.
@@ -693,3 +718,40 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - 91 new focused tests pass locally (`vitest`); the full suite result 1334 passed / 50 failed matches the pre-change branch baseline exactly (stash-diff verified, zero new failures). No CI/Vercel/deployment/live handshake was run or awaited; no runtime PASS is claimed.
 - `ENABLE_MCP` remains OFF. Evidence required before enabling: migration applied on the deployed revision, governance + plan entitlements configured via admin UI, controlled live handshake, focused suites green there.
 - Exact next action: follow `docs/project-control/NEXT_ACTION.md` (2026-10-12 section); do not wait for external gates.
+
+## FIX-01 type-check follow-up — 2026-10-12
+- Owner's post-pull compiler run verified the Stripe ambient declaration fix removed the Stripe missing-member cluster, reducing diagnostics from 44/19 files to 33/15 files.
+- FIX-01 committed narrow compatibility changes for the next known diagnostics. These edits are not yet type-checked locally.
+- Verification remains pending; do not call this phase PASS. Next action is a fresh local type-check after pulling latest branch. Keep development moving without waiting for CI/Vercel.
+
+## FIX-01 follow-up — 2026-10-12
+- Latest owner compiler run found 5 residual errors in 4 files.
+- Three targeted corrections are now committed: DayPicker v10 navigation class names, relative imports/mocks in context-builder test, and Redis options/legacy URL handling.
+- No post-correction type-check has been supplied. The ws declaration dependency remains outstanding. Do not claim PASS.
+
+## FIX-01 type-check follow-up — 2026-10-12
+- Latest owner-provided local type-check output reports two remaining errors after the prior batch: one obsolete DayPicker v10 class key and missing `ws` declarations.
+- Calendar class-name correction is committed at `829ae96818a84a39110b65517917d9280c57684b`, source-only pending fresh type-check.
+- The remaining package dependency fix is `@types/ws`, installed with npm so the lockfile is generated correctly. No PASS is claimed until the next local compiler output.
+
+## FIX-01 — type-check result — 2026-10-12
+- Current owner-provided evidence: `npm run type-check` passes with zero diagnostics after adding official `@types/ws`.
+- Environment compatibility risk surfaced during install: local Node v20.20.0 does not satisfy multiple installed package engines; strongest observed minimum is Node >=22.22 (`machina`). Align local, Docker, and deployment runtimes to Node 22.22+ before treating test/runtime behavior as validated.
+- npm reports 37 audit vulnerabilities; dependency remediation is a separate reviewed task. No `npm audit fix --force` was run.
+- The owner still needs to commit the generated `@types/ws` manifest/lockfile update after reviewing the working tree. No tests/build/runtime/deployment PASS is claimed.
+
+
+## DEV-01 — Live Gemini catalogue audit — 2026-10-12
+- Current bounded work: replace static availability decisions with live governance catalogue, including environment/seed defaults and embedding dimension safety.
+- Commits in this continuation: 865e657901d479e29ce1625b1869edfaa0eb04d5 (release-date parsing), d7d6a144750799ab127b92e84e2546dacb20e59b (live-only embedding fallback), c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3 and 6bed6c178884df567e8478974d693ed033f49631 (legacy env examples), af5e16ef22bc79249fee95b3d09cc74a10e4edc2 (seed semantics), 1d9de9d29483c3b8781194e6988d0e84a703aad9 (unknown Gemini embedding dimensions fail closed), 4869b25802fae07ff5061c2e970cc4cc4418856a (governance availability views).
+- Static Gemini model entries remain pricing/vector compatibility metadata only. No hardcoded chat/embedding/realtime model defaults were found in the current production seed; env-specified IDs are candidates and runtime resolution validates against live rows.
+- Verification remains pending: no tests/type-check/build/live provider calls/UI/deployment were run or awaited. No PASS is claimed.
+
+
+- Follow-up regression source added at src/modules/ai-core/providers/gemini.test.ts for known/fixed dimensions, Matryoshka output dimensions, unknown models and invalid overrides (commit 712eebf8e4295bc987c65db2d1acb371af987972). Not run.
+
+
+- During the catalogue audit, DEV-01 found duplicated top-level exports and a dangling SQL fragment in registry-db.ts; removed the duplicated tail in commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8. Issue I-098 is recorded and handed to FIX-01 for independent diff/export review and local type-check/focused governance tests. No verification PASS is claimed.
+
+
+- Removed direct GEMINI_CHAT_MODEL/GEMINI_EMBEDDING_MODEL fallbacks from GeminiProvider so environment IDs cannot bypass governance resolution; added regression source proving this boundary (commits a02e92d47982a3977b82d1d3071e507eefe2feab, ffff0cf29be92740c8709fb4bc389b3522a6e350). Tests not run.

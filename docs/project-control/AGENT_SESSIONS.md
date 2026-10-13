@@ -1,3 +1,16 @@
+### SESSION-DEV-20261012-01 — 2026-10-12
+- **Agent:** DEV-01 / Forge
+- **Invocation:** Recover current GitHub project-control state and continue authorized live model discovery; eliminate static Gemini model availability and ElevenLabs realtime TTS model selection.
+- **Started from:** `feature/ai-core-from-doable-source`, after reading PROJECT_STATE, CURRENT_PHASE, NEXT_ACTION, shared memory, central sessions/handoffs, and DEV-01 role-local memory/worklog.
+- **Scope:** provider live catalogue, capability filtering, model ranking, Gemini realtime session paths, ElevenLabs realtime TTS resolution, and durable project-control records.
+- **Status:** ACTIVE — source commits made; remaining static catalogue/default audit and verification pending.
+- **Completed:** live catalogue sync now records Gemini capability/token metadata and known prices; successful Gemini/OpenAI discovery disables stale seeded rows for reconciled kinds; confirmed rows re-enable on upsert; listProviderModels triggers synchronization and sorts by known cost/release metadata; Gemini session/embed realtime selection reads only vendor-discovered models; ElevenLabs realtime TTS selection reads live TTS rows; Gemini provider no longer has hardcoded chat/embedding fallback IDs; focused route test mocks updated for live catalog metadata.
+- **Pending:** audit remaining Gemini static availability/default values and all callers; ensure live model selectors pass the catalogue records to shared option builders; add regressions for failed discovery and ranking; run focused tests/typecheck when available.
+- **Blockers:** no repository-local runtime/test execution available in this session; source-level review only. Vendor APIs do not uniformly expose pricing/release dates.
+- **Handoff:** none. Stay DEV-01; substantial unrelated defects go to FIX-01, infrastructure/deployment to OPS-01.
+- **Evidence:** source commits include `c84acc50538653a98a8bcdb3cb2dce3cc2b6c94c`, `00c6dd8a71197b527fab59cfec0c24cbd6d6ade5`, `66f22879253530d5faf66c6575bb2f3ac128580d`, `ad7003c8a09cab44137411ceefe5b0840140c0fc`, `87bdfbc7f06baea44c465ce1a53cb2972db3ffa8`, `2c489a24a4f81f7cd06502d53e46e2fa3d77f9bd`, `6f0cea8f4d682ae76a3fa7a8a522512b91e648bb`, `9b850ec47a42103b5e6cb4b4916d19b4f26e7dbe`.
+- **Exact next action:** follow the DEV-01 entry at the top of `docs/project-control/NEXT_ACTION.md`; do not wait for CI/Vercel.
+
 ### SESSION-DEV-20261011-01 — 2026-10-11
 - **Agent:** DEV-01 / Forge
 - **Invocation:** Implement secure Streamable HTTP MCP resolver and Chat/realtime runtime wiring through the Unified Tool Runtime.
@@ -376,3 +389,22 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - **Verification:** Source/test authored only; no Vitest, typecheck, build, deployment, or live handshake run. No PASS claimed.
 - **Security:** Advised revocation/rotation of the session cookie exposed in the user-supplied curl.
 - **Next:** Enter/save a valid bearer credential or send a temporary `bearerToken`; then diagnose any actual probe failure independently.
+
+### SESSION-FIX-20261012-01 — 2026-10-12
+- **Agent:** FIX-01 / Sentinel
+- **Invocation:** Recover repository/control state and root-cause the owner-provided TypeScript diagnostics; apply smallest authorized correction and record the incident.
+- **Started from:** `feature/ai-core-from-doable-source` at `59831ec646a1ed21caa8c80af863d129d3ebe034`.
+- **Scope:** Diagnose the reported type-check errors, starting with the shared Stripe type surface; no unrelated feature, dependency, deployment, or infrastructure work.
+- **Status:** HANDOFF — first root cause corrected; follow-up compiler evidence pending.
+- **Completed:** Removed the incomplete ambient Stripe module declaration from `src/types/payments.d.ts`; retained Razorpay's separate declaration. Commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Pending:** Re-run local type-check after pulling the correction; determine whether Stripe diagnostics clear and triage residual ioredis/BullMQ, UI library, PDF metadata, test import, and `ws` type errors independently.
+- **Blockers:** No executable repository checkout is available to this agent; post-change type-check evidence must come from the user's local repository.
+- **Handoff:** EVT-FIX-20261012-01.
+- **Next action:** `git pull origin feature/ai-core-from-doable-source` then `npm run type-check`; share only the new residual diagnostics. Do not wait for CI/Vercel.
+
+### SESSION-FIX-20261012-02 — Type-check residual correction
+- Role: FIX-01 / Sentinel. Date: 2026-10-12.
+- Status: HANDOFF — source corrections committed; post-change local type-check pending.
+- Baseline: owner reported 33 errors in 15 files after the Stripe shadowing correction, down from 44 errors in 19 files.
+- Changes: narrow dependency API/type compatibility fixes. Official @types/ws remains pending because no package-manager-generated dependency/lock update was available in this pass.
+- Next: owner pulls latest branch and supplies fresh npm run type-check output. No CI/Vercel wait.

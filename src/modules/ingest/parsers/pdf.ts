@@ -107,7 +107,7 @@ export class PDFParser implements DocumentParser {
 
         try {
           const info = await parser.getInfo();
-          infoData = info.infoData as Record<string, unknown> | undefined;
+          infoData = info.info as Record<string, unknown> | undefined;
           pageCount = info.total;
         } catch {
           // Metadata is optional; text extraction should still succeed.

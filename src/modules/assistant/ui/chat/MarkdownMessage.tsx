@@ -165,14 +165,14 @@ export function MarkdownMessage({ content, variant }: MarkdownMessageProps) {
             <AIChartBlock chart={segment.chart} />
           </React.Suspense>
         ) : (
-          <ReactMarkdown
-            key={`markdown-${index}`}
-            className={"text-sm"}
-            remarkPlugins={[remarkGfm]}
-            components={renderers}
-          >
-            {segment.content}
-          </ReactMarkdown>
+          <div key={`markdown-${index}`} className="text-sm">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={renderers}
+            >
+              {segment.content}
+            </ReactMarkdown>
+          </div>
         )
       )}
     </div>

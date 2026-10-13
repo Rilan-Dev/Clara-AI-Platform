@@ -1,4 +1,5 @@
 import { isElevenLabsEnabled } from "@/modules/voice-core/server-provider-availability";
+import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
 /**
  * src/modules/voice-core/api/elevenlabs/voices.ts
  * ─────────────────────────────────────────────────────────────────────────────
@@ -177,7 +178,7 @@ export async function postElevenLabsVoicePreview(request: NextRequest): Promise<
     const voiceId = typeof body.voiceId === "string" ? body.voiceId.trim() : "";
     const text = typeof body.text === "string" ? body.text.trim().slice(0, TTS_PREVIEW_MAX_CHARS) : "";
     const orgId = typeof body.orgId === "string" ? body.orgId.trim() : null;
-    const modelId = typeof body.modelId === "string" && body.modelId.trim() ? body.modelId.trim() : "eleven_flash_v2_5";
+    const requestedModelId = typeof body.modelId === "string" ? body.modelId.trim() : "";
 
     if (!voiceId || !text) {
       return NextResponse.json({ error: "voiceId and text are required." }, { status: 400 });
@@ -189,6 +190,28 @@ export async function postElevenLabsVoicePreview(request: NextRequest): Promise<
         { status: 503 },
       );
     }
+
+    const liveTtsModels = (await listProviderModels("elevenlabs", "voice_chat"))
+      .filter((model) => model.enabled && model.metadata.catalogSource === "vendor_live" && model.kind === "tts");
+    if (liveTtsModels.length === 0) {
+      return NextResponse.json(
+        { error: "No live-discovered ElevenLabs TTS models are available. Refresh provider discovery and verify the API key." },
+        { status: 503 },
+      );
+    }
+    const rankedTtsModels = [...liveTtsModels].sort((a, b) => {
+      const price = (model: typeof liveTtsModels[number]) =>
+        typeof model.metadata.usdPer1kChars === "number" ? model.metadata.usdPer1kChars : Number.POSITIVE_INFINITY;
+      const priceDiff = price(a) - price(b);
+      if (Number.isFinite(priceDiff) && priceDiff !== 0) return priceDiff;
+      const aRelease = typeof a.metadata.releaseDate === "string" ? a.metadata.releaseDate : "";
+      const bRelease = typeof b.metadata.releaseDate === "string" ? b.metadata.releaseDate : "";
+      return bRelease.localeCompare(aRelease) || a.displayName.localeCompare(b.displayName);
+    });
+    if (requestedModelId && !liveTtsModels.some((model) => model.modelId === requestedModelId)) {
+      return NextResponse.json({ error: "The selected ElevenLabs TTS model is not currently available in the live provider catalogue." }, { status: 400 });
+    }
+    const modelId = requestedModelId || rankedTtsModels[0]!.modelId;
 
     // Voice ids are opaque strings validated against the DB catalog first
     // (SSRF/no-injection discipline — plan §11.4).

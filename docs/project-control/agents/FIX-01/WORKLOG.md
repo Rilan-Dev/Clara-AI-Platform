@@ -357,3 +357,63 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - **Evidence:** User-supplied request payload/response and source inspection of test route and admin MCP screen.
 - **Verification:** Test authored only; not run. No deployed route or actual MCP endpoint handshake verified. User-provided platform session cookie appeared in the diagnostic; advised revocation/invalidation and replacement.
 - **Next action:** Save a valid platform bearer token in Edit, or supply a temporary token in the test request; retest the endpoint. If the response then remains 502, inspect the returned probe error as a separate upstream/transport/auth issue. Route deployment/runtime verification to OPS-01.
+
+### SESSION-FIX-20261012-01 / 2026-10-12
+- **Task:** Trace the 44-error type-check report to root cause and apply the smallest authorized source correction.
+- **Authorization:** Explicit owner instruction in this invocation: act as FIX-01 / Sentinel; recover repository/agent state; trace root cause; make the smallest authorized correction; add regression protection where appropriate; record evidence and next action; route infrastructure-only defects to OPS-01 and do not wait for DEV-01.
+- **Started from:** `feature/ai-core-from-doable-source`, observed branch head `59831ec646a1ed21caa8c80af863d129d3ebe034`.
+- **Actions:** Recovered shared memory, central agent events/sessions/handoffs/backlog, current phase/next action, verification state, issue register, and FIX-01 role-local memory/worklog. Confirmed installed top-level versions and no duplicate Stripe dependency. Traced the Stripe cluster to a partial ambient `declare module "stripe"` in `src/types/payments.d.ts`, which shadowed official SDK declarations. Removed only that Stripe block; kept the Razorpay declaration intact.
+- **Files/code:** `src/types/payments.d.ts`.
+- **Evidence:** User-provided type-check log; `npm ls` and `npm explain stripe` output; source inspection. Correction commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`.
+- **Regression protection:** TypeScript's normal compilation now consumes the official installed Stripe SDK declarations; no redundant runtime test was added for a declaration-only correction.
+- **Failed approaches:** No dependency downgrade/reinstall or broad cleanup was performed. No untracked user files were touched. Do not treat the source edit as proof that all 44 diagnostics are resolved.
+- **Verification:** No post-change `npm run type-check`, tests, build, CI, Vercel, or deployment was run. No PASS claimed.
+- **Blockers/dependencies:** Need the next local compiler output to establish the exact residual diagnostics after removal of the shadow declaration. The ioredis/BullMQ, UI package API, PDF metadata, test import, and `ws` declaration errors may remain as independent causes.
+- **Lesson:** When many real SDK methods disappear at once, inspect ambient declarations before changing dependency versions or individual call sites.
+- **Next action:** Pull the new feature-branch commit and rerun `npm run type-check`; use the new error set to scope the next smallest correction. Continue without waiting for CI/Vercel. Route only true environment/deployment failures to OPS-01.
+
+### SESSION-FIX-20261012-02 / 2026-10-12
+- Task: Continue FIX-01 type-check incident after owner reran compiler following removal of incomplete Stripe ambient module.
+- Authorization: Explicit owner request to trace root cause, make smallest corrective changes, add regression protection where appropriate, record evidence and next action, avoid unrelated scope.
+- Started from: Owner pulled 39a9138d9da694a65ee4d8350f8d9e18274ce398 and reported type-check improved from 44 errors / 19 files to 33 / 15.
+- Root cause confirmed: Removing the incomplete Stripe declaration eliminated the Stripe missing-member cluster. One remaining Stripe diagnostic was independent: src/lib/stripe.ts used API version 2025-02-24.acacia while installed Stripe SDK v23 types require 2026-09-30.endive.
+- Source corrections committed: Stripe API version 79f904b35ef038a98c7146e660952e70b25dbed9; DayPicker v10 274b1a6fe9d654915853b7deee65ac70811b1e1a; resizable v4 exports 75837afdf485a4643a8f1f163540e2892f2f769e; inferred Redis options 2eaad784a7a316b0650df7125effcada5fcb48cd and stale annotation removal 81b694bab4ceba005cb9d080cf35273a98b6f1a0; pdf-parse v2 metadata a02791f50417c99c9f15d2efdab4b03e8cb5bc2a; context-builder test import 13fdbe2cfc9eb528b440bc95689ec2f2a122747e; ReactMarkdown wrapper 0627901f74d1c7bbe6190b9cf84723327b992071; Recharts v3 formatter callbacks c0aeaca45bc187b9fb6961efe6f467990cb81fdc; BullMQ v6 generics/non-null queue returns 876eef106d01a44d527462c6212427ae3259af86; Recharts content payload types fd3cd96b3f3d1f7190958e0214e4a422e02dde46.
+- Remaining known diagnostic: ws has no declarations in this install; use official @types/ws package rather than another partial ambient declaration.
+- Evidence boundary: owner-provided pre-change compiler output only. No post-edit type-check, tests, build, CI, Vercel, deployment, or live service check has run. No PASS.
+- Prevention: Avoid partial ambient declarations for third-party SDKs; align API-version literals with pinned SDK types; keep ioredis options structurally inferred for BullMQ v6; don't assume edits type-check without fresh compiler evidence.
+- Next action: Owner pulls latest feature/ai-core-from-doable-source and reruns npm run type-check; fix only fresh residual diagnostics. Route actual environment/deployment faults to OPS-01. Do not wait for CI/Vercel.
+
+### SESSION-FIX-20261012-03 — residual type-check correction
+- Owner supplied fresh compiler evidence after pulling prior changes: 5 errors in 4 files remain (calendar nav_button; context-builder test import; missing ws declarations; Redis option literal and undefined legacyHost).
+- Root causes: DayPicker v10 no longer exposes nav_button; test is under runtime/__tests__ and must import/mock siblings via ../; Redis helper accidentally lost legacyHost URL branch during prior correction, and false widened to boolean in inferred options.
+- Corrections committed: calendar class names 9827502f158ac26b2241e7cc5fabe7c5be6c291e; context-builder test relative imports/mocks 4957ddc8c2ee00fb47d8e8785752b9569c340484; Redis URL compatibility and literal option 6b79a63482911019c4ebc333901200f555f3614a.
+- ws declaration remains. package-lock does not currently contain @types/ws; do not hand-edit lock metadata or add an any-only ambient shim. Add official @types/ws through npm and commit the generated lockfile when package-manager execution is available.
+- Verification: no post-correction type-check/tests run. No PASS. Next: owner pulls latest and reruns npm run type-check; share fresh output. Do not wait for CI/Vercel.
+
+### SESSION-FIX-20261012-04 — follow-up type-check (owner evidence)
+- Owner reran `npm run type-check` after pulling the previous correction batch. Diagnostics are now **2 errors in 2 files**: DayPicker v10 `classNames.table` is unsupported in `src/components/ui/calendar.tsx`; `src/modules/phone/core/call-handler.ts` cannot resolve declarations for installed `ws`.
+- Root causes: calendar still had legacy DayPicker v8/v9 class-name keys beyond the already corrected navigation keys; `ws@8.22.0` is installed without official `@types/ws` in the root manifest/lockfile.
+- Calendar correction committed: `829ae96818a84a39110b65517917d9280c57684b`, replacing legacy table/head/row/day-state keys with DayPicker v10 keys (`month_grid`, `weekdays`, `weekday`, `week`, `day_button`, `selected`, `today`, `outside`, `disabled`, `range_middle`, `range_end`, `hidden`). This source edit has not yet been type-checked.
+- Dependency fix still required: run `npm install --save-dev @types/ws` in the checked-out repo and commit both `package.json` and the generated `package-lock.json`; do not handcraft lock entries or add an `any`-only ambient shim.
+- Verification: owner evidence verifies earlier batch reduced the errors to two. Latest calendar change is unverified. No tests/build/CI/Vercel/deployment PASS is claimed.
+- Next: pull latest, run `npm install --save-dev @types/ws`, commit generated manifest+lockfile, rerun `npm run type-check`, and share any fresh diagnostics. Continue without waiting for CI/Vercel.
+
+### SESSION-FIX-20261012-05 — type-check PASS / Node engine mismatch
+- Owner pulled latest branch, ran `npm install --save-dev @types/ws`, and reran `npm run type-check`; command exited successfully with no diagnostics. This verifies the current TypeScript check passes in the owner's local checkout.
+- npm installed one package; because this install was run locally, the resulting `package.json` / `package-lock.json` changes still need to be checked with `git status` and committed by the owner. Do not overwrite or reset unrelated local changes.
+- Environment warning surfaced: Node `v20.20.0` is below engine requirements of multiple installed packages, including `@qdrant/js-client-rest`, Supabase JS packages, `openai`, `pdfjs-dist`, `vitest`, and `machina` (which requires `>=22.22`). This did not prevent type-check, but tests/dev/runtime behavior under Node 20 are not thereby verified. Recommended project runtime is Node `22.22+`, aligned across local shell, Docker image, and deployment runtime after checking deployment compatibility.
+- npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); do not run `npm audit fix --force` blindly because it can introduce breaking dependency changes. Track a separate dependency/security review.
+- Verification boundary: TypeScript type-check PASS based on owner-provided terminal output only. No tests, build, runtime, CI, Vercel or deployment PASS implied.
+- Next: owner checks `git status --short` and commits only the intended package manifest/lockfile change for `@types/ws`; align runtime to supported Node 22.22+ before treating test execution as trustworthy; continue planned MCP organization-owned endpoint implementation and focused tests without waiting for CI/Vercel.
+
+
+### SESSION-FIX-20261012-03 / 2026-10-12
+- **Task:** Review a major AI governance registry source-integrity defect discovered during the live model catalogue audit.
+- **Authorization:** Bounded source-correctness handoff from DEV-01; issue I-098.
+- **Started from:** feature/ai-core-from-doable-source; source correction commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8.
+- **Actions:** DEV-01 found a 3,344-line registry module containing duplicated top-level exports and a dangling SQL fragment after the first complete health-history function. The source was reduced to the first complete 523-line implementation, preserving the current live-catalogue filters/counts/workspace query. FIX-01 must independently review completeness and run local checks when available.
+- **Files/code:** src/modules/ai-governance/core/registry-db.ts; docs/project-control/ISSUES.md (I-098).
+- **Evidence:** Export-name audit before correction showed repeated listProviderModels (6 definitions) and repeated mutation/health exports (12 definitions each); after correction each expected export appears once and file length is 523 lines. This is source inspection only.
+- **Blockers/dependencies:** No post-correction type-check/test/build evidence.
+- **Lesson:** API write success and a historical type-check result do not prove current branch syntax integrity; audit top-level export uniqueness and file tail before claiming a phase is clean.
+- **Next action:** Pull latest branch, review I-098 diff, run npm run type-check and focused AI-governance tests when local execution is available. Do not wait/poll CI or Vercel; no PASS until local evidence exists.

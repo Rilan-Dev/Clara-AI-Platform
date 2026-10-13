@@ -22,6 +22,7 @@ const registryState = {
 
 vi.mock("@/modules/ai-governance/core/registry-db", () => ({
   getPlatformAIRegistry: vi.fn(async () => registryState),
+  syncLiveProviderCatalog: vi.fn(async () => {}),
   listProviderModels: vi.fn(async (providerId: string, capability?: string) => {
     const provider = registryState.providers.find((p) => p.providerId === providerId) as
       | { providerId: string; models?: Array<Record<string, unknown>> }
@@ -73,11 +74,11 @@ function setProviders(providers: PlatformAIProvider[], defaults: Array<{ capabil
     ...p,
     capabilities: p.capabilities,
     models: [
-      { providerId: p.providerId, capability: "chat", kind: "chat", modelId: "m-chat-1", displayName: "Chat Model", enabled: true, isDefault: true },
-      { providerId: p.providerId, capability: "chat", kind: "embedding", modelId: "m-embed-1", displayName: "Embedding", enabled: true, isDefault: false },
-      { providerId: p.providerId, capability: "realtime_voice", kind: "realtime", modelId: "m-rt-1", displayName: "Realtime Model", enabled: true, isDefault: true },
-      { providerId: p.providerId, capability: "realtime_voice", kind: "voice", modelId: "voice-a", displayName: "Voice A", enabled: true, isDefault: false },
-      { providerId: p.providerId, capability: "realtime_voice", kind: "voice", modelId: "voice-disabled", displayName: "Disabled voice", enabled: false, isDefault: false },
+      { providerId: p.providerId, capability: "chat", kind: "chat", modelId: "m-chat-1", displayName: "Chat Model", enabled: true, isDefault: true, metadata: { catalogSource: "vendor_live" } },
+      { providerId: p.providerId, capability: "chat", kind: "embedding", modelId: "m-embed-1", displayName: "Embedding", enabled: true, isDefault: false, metadata: { catalogSource: "vendor_live" } },
+      { providerId: p.providerId, capability: "realtime_voice", kind: "realtime", modelId: "m-rt-1", displayName: "Realtime Model", enabled: true, isDefault: true, metadata: { catalogSource: "vendor_live" } },
+      { providerId: p.providerId, capability: "realtime_voice", kind: "voice", modelId: "voice-a", displayName: "Voice A", enabled: true, isDefault: false, metadata: { catalogSource: "vendor_live" } },
+      { providerId: p.providerId, capability: "realtime_voice", kind: "voice", modelId: "voice-disabled", displayName: "Disabled voice", enabled: false, isDefault: false, metadata: { catalogSource: "vendor_live" } },
     ],
   }));
   (registryState as Record<string, unknown>).defaults = defaults;

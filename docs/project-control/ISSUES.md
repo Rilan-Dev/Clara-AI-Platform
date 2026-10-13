@@ -1,3 +1,23 @@
+## I-097 — Type-check compatibility corrections after Stripe declaration fix
+
+| Field | Value |
+|---|---|
+| Issue ID | I-097 |
+| Title | Resolve TypeScript errors caused by shadowed SDK types and dependency API drift |
+| Phase | FIX-01 corrective maintenance |
+| Severity | P2 |
+| Status | IN PROGRESS — fresh compiler evidence required |
+| Date identified | 2026-10-12 |
+| Reporter / role | Owner-provided compiler output / FIX-01 Sentinel |
+| Initial symptom | 44 TypeScript errors in 19 files. Removing the incomplete ambient Stripe declaration reduced the owner's next run to 33 errors in 15 files. |
+| Root causes confirmed | An incomplete declare module stripe shadowed official Stripe types; separate remaining errors reflect API/type drift across Stripe SDK v23, DayPicker v10, Recharts v3, react-resizable-panels v4, ioredis/BullMQ v6, pdf-parse v2, ReactMarkdown v10, a test import, and absent ws declarations. |
+| Corrections committed | Stripe shadowing fix 34aca73cd5ad2fc5c67396d1d35f24dcf38d7964; Stripe API version 79f904b35ef038a98c7146e660952e70b25dbed9; DayPicker 274b1a6fe9d654915853b7deee65ac70811b1e1a; resizable 75837afdf485a4643a8f1f163540e2892f2f769e; Redis option typing 2eaad784a7a316b0650df7125effcada5fcb48cd and be6fe066628433e5d78021824d322a2351bef579; PDF metadata a02791f50417c99c9f15d2efdab4b03e8cb5bc2a; test import 13fdbe2cfc9eb528b440bc95689ec2f2a122747e; ReactMarkdown wrapper 0627901f74d1c7bbe6190b9cf84723327b992071; Recharts tooltip formatter c0aeaca45bc187b9fb6961efe6f467990cb81fdc and content typing fd3cd96b3f3d1f7190958e0214e4a422e02dde46; queue generics 876eef106d01a44d527462c6212427ae3259af86. |
+| Verification | Owner has not yet rerun npm run type-check after these follow-up edits. No PASS. |
+| Failed approach / prevention | Do not add partial ambient declarations for official third-party SDKs. Keep package API versions aligned with installed types; use official @types/ws plus package-manager-generated lockfile rather than a handwritten ambient shim. |
+| Next action | Pull latest feature/ai-core-from-doable-source and rerun npm run type-check. Reassess only current diagnostics. |
+| Related records | EVT-FIX-20261012-02; SESSION-FIX-20261012-02; FIX-01 MEMORY.md and WORKLOG.md. |
+
+
 ## I-089 — I-3 redirect failures duplicated HTTP trace entries
 
 | Field | Value |
@@ -2003,3 +2023,45 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Regression protection | `src/lib/public-origin.test.ts` (34 tests: hostname classification, origin matching incl. forwarded headers and bind-host tolerance, public-origin priorities) and 4 new cases in `src/app/api/integrations/oauth/callback/route.test.ts`: connection completes behind a Host-rewriting proxy and returns to the registered origin; completes with NEXT_PUBLIC_APP_URL configured; fails closed on a genuinely different public origin without exchanging the code; agent-screen return behind a proxy. |
 | Verification | Focused suites executed on the reconciled tree: 4 files / 47 tests PASS (public-origin 34, integrations callback 9, integrations start 2, WhatsApp callback 2); email-verification suite 23/23 PASS (resolvePublicOrigin consumer regression). `tsc --noEmit -p tsconfig.typecheck.json`: 43 errors before AND after the change (byte-identical pre-existing set; zero new). ESLint could not execute — typescript-eslint rejects the locally installed TS 7.0.2 on untouched files identically (pre-existing environment limitation, recorded, not introduced). No live provider consent or deployed-runtime PASS claimed. |
 | Related records | VERIFICATION_STATE.md (2026-10-12 hotfix addendum); SESSION-DEV-20261012-02. |
+
+## I-097 — Type-check failures from shadowed Stripe SDK declarations
+
+| Field | Value |
+|---|---|
+| Issue ID | I-097 |
+| Title | Partial ambient Stripe declaration masks the installed SDK API |
+| Phase | TypeScript compatibility / application source |
+| Severity | P1 — type-check blocked |
+| Status | IN PROGRESS — first root cause corrected; post-change compiler evidence pending |
+| Date identified | 2026-10-12 |
+| Reporter / role | Owner-provided compiler output; FIX-01 / Sentinel |
+| Symptom | TypeScript reported missing `Stripe.balance`, `checkout.sessions.retrieve`, Invoice fields, `Stripe.SubscriptionItem`, Checkout Session payment/status fields, `webhookEndpoints`, and `prices` across payment routes and billing helpers. |
+| Root cause | `src/types/payments.d.ts` defined an incomplete ambient module named `"stripe"`, shadowing the installed `stripe@23.0.0` package's official declarations. The dependency was directly installed and no duplicate version was found in the supplied `npm ls` output. |
+| Correction | Removed only the Stripe ambient module declaration and retained the separate Razorpay declaration. Commit `34aca73cd5ad2fc5c67396d1d35f24dcf38d7964`. |
+| Failed approaches | Reinstalling/downgrading the SDK or patching every missing member individually would not address the declaration shadowing. No dependency changes, broad cleanup, or type suppressions were made. |
+| Scope boundary | This correction addresses the shared cause of the Stripe member/type diagnostics only. The supplied report also contains independent BullMQ/ioredis, React UI library API, PDF metadata, test import, and `ws` declaration diagnostics; do not assume they are resolved. |
+| Regression protection | Normal TypeScript compilation now reads official Stripe SDK declarations. No separate runtime test is appropriate for this declaration-only correction. |
+| Evidence | Owner-provided `npm run type-check` output and dependency inspection; source inspection of `src/types/payments.d.ts`. |
+| Verification | Not resolved/verified yet. No post-change type-check, test, build, CI, Vercel, or deployment run. No PASS claimed. |
+| Next action | Pull the correction and rerun `npm run type-check`; use the fresh residual diagnostic list to determine the next bounded correction. |
+| Related records | EVT-FIX-20261012-01; SESSION-FIX-20261012-01; FIX-01 role-local WORKLOG.md. |
+
+
+## I-098 — Duplicated governance registry implementation blocks
+
+| Field | Value |
+|---|---|
+| Issue ID | I-098 |
+| Title | Remove duplicated and syntactically invalid tail blocks from AI governance registry |
+| Phase | DEV-01 live model catalogue audit; FIX-01 source-correctness handoff |
+| Severity | P1 |
+| Status | SOURCE CORRECTED — verification pending |
+| Date identified | 2026-10-12 |
+| Reporter / role | DEV-01 / Forge |
+| Symptom | Current branch source contained 3,344 lines in src/modules/ai-governance/core/registry-db.ts, including a dangling SQL-query tail after listProviderHealthHistory and repeated top-level listProviderModels/mutation/health function blocks. |
+| Root cause | Repeated copied implementation fragments were appended to the module; the dangling fragment is not valid TypeScript. |
+| Correction | Retained the first complete implementation (523 lines), preserving the live-catalogue filtering/counting/workspace changes and removing 2,821 duplicated/dangling lines. |
+| Correction commit | 8a79e296d24227f7e2caf97724c551d85b8eb4b8 |
+| Verification | Not run. No test, type-check, build or runtime PASS is claimed. |
+| Required FIX-01 action | Pull latest branch, inspect the diff and confirm all expected registry exports/callers remain; run npm run type-check and focused AI-governance tests when local execution is available. Do not wait for CI/Vercel. |
+| Prevention | Before editing large registry modules, count top-level exports and inspect the full file tail; a successful API write is not syntax verification. |

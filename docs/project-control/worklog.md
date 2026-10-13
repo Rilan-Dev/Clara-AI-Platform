@@ -1,3 +1,11 @@
+## 2026-10-12 — DEV-01 live model catalogue continuation
+
+- DEV-01/Forge continued the owner-authorized Gemini live model catalogue and ElevenLabs realtime TTS task on `feature/ai-core-from-doable-source`.
+- Committed live catalogue metadata enrichment, successful-discovery stale model reconciliation, model-read synchronization, guarded ranking by known price/release metadata, live Gemini realtime selection in authenticated and embed session routes, live ElevenLabs realtime TTS resolution, and regression fixture updates.
+- Source changes are committed; verification is pending. No tests/typecheck/build/migration/live API/CI/Vercel/deployment/browser run or PASS is claimed.
+- Remaining: remove remaining static selectable Gemini lists/defaults in the legacy core catalogue/seed paths, ensure every UI consumes live provider capability results, add focused regressions, and run local focused checks when available.
+- Related session: `docs/project-control/sessions/SESSION-DEV-20261012-01.md`. Exact next action is at the top of `docs/project-control/NEXT_ACTION.md`.
+
 ## 2026-10-09 — DEV-01 / Forge — realtime voice dispatch architect review
 
 - **Role:** DEV-01 / Forge; performed the bounded architect-review action recorded in `NEXT_ACTION.md`.
@@ -186,3 +194,27 @@ could not be connected at all.
   pre-existing 78-error baseline; integrations suites unchanged vs HEAD.
   Live verification: full OAuth discovery against the production n8n instance
   (401 probe + RFC 8414 metadata + DCR endpoint) and Notion's hosted MCP.
+
+
+## 2026-10-12 — DEV-01 Gemini live catalogue and defaults audit
+- Fixed model release-date extraction in src/modules/ai-governance/core/live-catalog.ts (commit 865e657901d479e29ce1625b1869edfaa0eb04d5).
+- Corrected embedding recovery in src/modules/ai-core/resolve.ts: fallback candidates must be enabled vendor-live embedding rows and must respect the organisation allow-list (commit d7d6a144750799ab127b92e84e2546dacb20e59b).
+- Removed static Gemini model IDs from legacy .env.example.v2 and .env.example.v3; clarified that env IDs are preferences only. Production seed has no static model ID defaults and now documents this contract (commits c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3, 6bed6c178884df567e8478974d693ed033f49631, af5e16ef22bc79249fee95b3d09cc74a10e4edc2).
+- GeminiProvider.getEmbeddingDimension() now uses known dimension metadata or explicit configuration and throws for unknown dimensions rather than guessing 768 (commit 1d9de9d29483c3b8781194e6988d0e84a703aad9).
+- Governance registry counts, default-model summaries, and provider workspace model inventory exclude seed-only rows (commit 4869b25802fae07ff5061c2e970cc4cc4418856a).
+- No tests, type-check, build, live provider API, UI or deployment verification was run. No PASS is claimed. Next: targeted regressions and remaining consumer audit.
+
+
+## 2026-10-12 — Gemini model ID normalization follow-up
+- Current branch audit found malformed escaping in model-prefix normalization in src/modules/assistant/api/geminiSession.ts and src/app/api/embed/session/route.ts. Corrected these to strip a literal models/ prefix properly (commits 024f37a9a3599f5e036a13aea9524c60f234c6b7 and 32e7908b84d386d5b0a9c4607b0128dec382a20c).
+- This is source-only; no test/type-check/build/live vendor/deployment verification was run. No PASS is claimed.
+
+
+- Added source-level regression fixture for a prefixed Gemini realtime model ID in the embed session route test (commit bff9ccbae2f89717a4f111ef931d8a7f6c822eff). No test execution or PASS claimed.
+
+
+- Hardened Gemini embedding dimension overrides: explicit dimensions must be positive integers <=3072; known fixed-size models reject mismatches; gemini-embedding-001 retains compatible Matryoshka dimensions; unknown models require explicit dimensions (commit 1b91683b4079736898be686e380417a064884c76).
+- Added focused GeminiProvider dimension regression source (commit 712eebf8e4295bc987c65db2d1acb371af987972). No tests/type-check/build were run.
+
+
+- GeminiProvider now requires chat/embedding model IDs in the resolved config and does not independently fall back to GEMINI_CHAT_MODEL or GEMINI_EMBEDDING_MODEL. Added regression source ensuring environment preferences cannot bypass live governance resolution. Commits a02e92d47982a3977b82d1d3071e507eefe2feab, ffff0cf29be92740c8709fb4bc389b3522a6e350. No tests/type-check/build were run.
