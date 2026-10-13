@@ -1,3 +1,13 @@
+### DEV-01 / 2026-10-12 — live model catalogue authority
+- **Date/session:** 2026-10-12 / SESSION-DEV-20261012-01
+- **Agent:** DEV-01 / Forge
+- **Issue/symptom:** Gemini and ElevenLabs realtime model selectors could continue using hardcoded model IDs even though vendor model-discovery infrastructure existed.
+- **Root cause:** Static option arrays/default fallbacks were separate from the governance database catalogue; only the admin workspace consistently triggered sync, and runtime validation trusted compile-time allowlists.
+- **Failed approach:** Updating only the provider discovery endpoint does not make older settings builders or runtime fallbacks dynamic. A model list endpoint does not guarantee price or release-date metadata.
+- **Remedy:** Trigger live sync from catalogue reads; reconcile seeded rows only after successful vendor discovery; require `catalogSource=vendor_live` for runtime choices; route Gemini realtime and ElevenLabs realtime TTS through live capability/kind rows.
+- **Prevention:** Treat live provider model inventory as availability authority. Keep pricing and vector-dimension metadata separate from availability; never invent pricing/release dates; fail closed for realtime models when discovery is unavailable.
+- **Related record:** SESSION-DEV-20261012-01; commits `c84acc50538653a98a8bcdb3cb2dce3cc2b6c94c`, `66f22879253530d5faf66c6575bb2f3ac128580d`, `6f0cea8f4d682ae76a3fa7a8a522512b91e648bb`, `9b850ec47a42103b5e6cb4b4916d19b4f26e7dbe`.
+
 # APCP Shared Agent Memory
 
 This is the shared, durable memory layer for all APCP agents. It is a memory/lessons record, not an authorization source.

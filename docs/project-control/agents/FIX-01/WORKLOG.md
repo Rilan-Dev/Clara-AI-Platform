@@ -405,3 +405,15 @@ Append-only operational history for FIX-01. This is not the source of authorizat
 - npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); do not run `npm audit fix --force` blindly because it can introduce breaking dependency changes. Track a separate dependency/security review.
 - Verification boundary: TypeScript type-check PASS based on owner-provided terminal output only. No tests, build, runtime, CI, Vercel or deployment PASS implied.
 - Next: owner checks `git status --short` and commits only the intended package manifest/lockfile change for `@types/ws`; align runtime to supported Node 22.22+ before treating test execution as trustworthy; continue planned MCP organization-owned endpoint implementation and focused tests without waiting for CI/Vercel.
+
+
+### SESSION-FIX-20261012-03 / 2026-10-12
+- **Task:** Review a major AI governance registry source-integrity defect discovered during the live model catalogue audit.
+- **Authorization:** Bounded source-correctness handoff from DEV-01; issue I-098.
+- **Started from:** feature/ai-core-from-doable-source; source correction commit 8a79e296d24227f7e2caf97724c551d85b8eb4b8.
+- **Actions:** DEV-01 found a 3,344-line registry module containing duplicated top-level exports and a dangling SQL fragment after the first complete health-history function. The source was reduced to the first complete 523-line implementation, preserving the current live-catalogue filters/counts/workspace query. FIX-01 must independently review completeness and run local checks when available.
+- **Files/code:** src/modules/ai-governance/core/registry-db.ts; docs/project-control/ISSUES.md (I-098).
+- **Evidence:** Export-name audit before correction showed repeated listProviderModels (6 definitions) and repeated mutation/health exports (12 definitions each); after correction each expected export appears once and file length is 523 lines. This is source inspection only.
+- **Blockers/dependencies:** No post-correction type-check/test/build evidence.
+- **Lesson:** API write success and a historical type-check result do not prove current branch syntax integrity; audit top-level export uniqueness and file tail before claiming a phase is clean.
+- **Next action:** Pull latest branch, review I-098 diff, run npm run type-check and focused AI-governance tests when local execution is available. Do not wait/poll CI or Vercel; no PASS until local evidence exists.

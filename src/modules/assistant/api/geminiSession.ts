@@ -148,7 +148,7 @@ export async function postGeminiSession(request: NextRequest): Promise<NextRespo
     // agent, or org model must not be sent to Gemini just because it was once
     // present in a compile-time list.
     const liveRealtimeModels = (await listProviderModels("gemini", "realtime_voice"))
-      .filter((item) => item.enabled && item.kind === "realtime");
+      .filter((item) => item.enabled && item.metadata.catalogSource === "vendor_live" && item.kind === "realtime");
     if (liveRealtimeModels.length === 0) {
       return NextResponse.json(
         { error: "No Gemini realtime models are currently advertised for this API key. Refresh provider discovery and verify the Gemini credential." },

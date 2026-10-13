@@ -116,13 +116,15 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
         `SELECT provider_id, capability, count(*)::int AS model_count
            FROM platform_ai_provider_models
           WHERE enabled
+            AND metadata->>'catalogSource' = 'vendor_live'
           GROUP BY provider_id, capability`,
       ),
       query<Row>("SELECT capability, provider_id, model_id FROM platform_ai_defaults"),
       query<Row>(
         `SELECT provider_id, capability, kind, model_id
            FROM platform_ai_provider_models
-          WHERE enabled AND is_default`,
+          WHERE enabled AND is_default
+            AND metadata->>'catalogSource' = 'vendor_live'`,
       ),
       query<Row>(
         `SELECT provider_id, model_id, updated_at
@@ -230,10 +232,13 @@ export async function getProviderWorkspace(providerId: GovernanceProviderId): Pr
   const rows = await query<Row>(
     `SELECT * FROM platform_ai_provider_models
       WHERE provider_id = $1
+        AND metadata->>'catalogSource' = 'vendor_live'
       ORDER BY capability, kind,
-        CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)?$'
-        THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
-        CASE WHEN metadata->>'releaseDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+        CASE WHEN jsonb_typeof(metadata->'inputUsdPerMTokens') = 'number'
+          THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
+        CASE WHEN jsonb_typeof(metadata->'usdPer1kChars') = 'number'
+          THEN (metadata->>'usdPer1kChars')::numeric END ASC NULLS LAST,
+        CASE WHEN metadata->>'releaseDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
           THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
         display_name ASC`,
     [providerId],
@@ -245,32 +250,41 @@ export async function listProviderModels(
   providerId: GovernanceProviderId,
   capability?: AICapability,
 ): Promise<ProviderModelRow[]> {
-  // Every consumer (admin, organisation picker, and runtime resolver) reads
-  // the same vendor-refreshed catalogue. Previously only the admin workspace
-  // triggered synchronization, leaving runtime selectors on seeded models.
-  await syncLiveProviderCatalog();
-  const rows = capability
-    ? await query<Row>(
+  // Runtime never waits for network when a successful live catalogue is cached.
+  // On a cold start, however, wait for the first discovery if this provider /
+  // capability has no live rows, so the first session does not fail needlessly.
+  void syncLiveProviderCatalog();
+  const loadRows = () => capability
+    ? query<Row>(
         `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1 AND capability = $2
           ORDER BY
             kind,
-            CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)?$'
+            CASE WHEN jsonb_typeof(metadata->'inputUsdPerMTokens') = 'number'
               THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
-            CASE WHEN metadata->>'releaseDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+            CASE WHEN jsonb_typeof(metadata->'usdPer1kChars') = 'number'
+              THEN (metadata->>'usdPer1kChars')::numeric END ASC NULLS LAST,
+            CASE WHEN metadata->>'releaseDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
               THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
             display_name ASC`,
         [providerId, capability],
       )
-    : await query<Row>(
+    : query<Row>(
         `SELECT * FROM platform_ai_provider_models WHERE provider_id = $1
           ORDER BY capability, kind,
-            CASE WHEN metadata->>'inputUsdPerMTokens' ~ '^[0-9]+(\\.[0-9]+)?$'
+            CASE WHEN jsonb_typeof(metadata->'inputUsdPerMTokens') = 'number'
               THEN (metadata->>'inputUsdPerMTokens')::numeric END ASC NULLS LAST,
-            CASE WHEN metadata->>'releaseDate' ~ '^\\d{4}-\\d{2}-\\d{2}'
+            CASE WHEN jsonb_typeof(metadata->'usdPer1kChars') = 'number'
+              THEN (metadata->>'usdPer1kChars')::numeric END ASC NULLS LAST,
+            CASE WHEN metadata->>'releaseDate' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
               THEN (metadata->>'releaseDate')::date END DESC NULLS LAST,
             display_name ASC`,
         [providerId],
       );
+  let rows = await loadRows();
+  if (!rows.some((row) => (row.metadata as Record<string, unknown> | null)?.catalogSource === "vendor_live")) {
+    await syncLiveProviderCatalog();
+    rows = await loadRows();
+  }
   return rows.map(toModelRow);
 }
 
@@ -506,4 +520,3 @@ export async function listProviderHealthHistory(
   );
   return rows.map((r) => toHealthRecord(r)!).filter(Boolean);
 }
-

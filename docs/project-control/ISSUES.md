@@ -2047,3 +2047,23 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | Source and test review only. Tests, type-check, build, database migration, production runtime, CI and Vercel have NOT been run. No PASS claimed. |
 | Related finding | Voice resolver already documents and ignores stale `allowedVoiceProviders`; AI brain resolver now follows the same provider-authority principle. |
 | Next action | Pull this branch, run the two focused Vitest files and type-check; correct any failures. Then test Sarvam session on a Pro plan and confirm Starter/Free denial using current entitlement rows. |
+
+
+## I-098 — Duplicated governance registry implementation blocks
+
+| Field | Value |
+|---|---|
+| Issue ID | I-098 |
+| Title | Remove duplicated and syntactically invalid tail blocks from AI governance registry |
+| Phase | DEV-01 live model catalogue audit; FIX-01 source-correctness handoff |
+| Severity | P1 |
+| Status | SOURCE CORRECTED — verification pending |
+| Date identified | 2026-10-12 |
+| Reporter / role | DEV-01 / Forge |
+| Symptom | Current branch source contained 3,344 lines in src/modules/ai-governance/core/registry-db.ts, including a dangling SQL-query tail after listProviderHealthHistory and repeated top-level listProviderModels/mutation/health function blocks. |
+| Root cause | Repeated copied implementation fragments were appended to the module; the dangling fragment is not valid TypeScript. |
+| Correction | Retained the first complete implementation (523 lines), preserving the live-catalogue filtering/counting/workspace changes and removing 2,821 duplicated/dangling lines. |
+| Correction commit | 8a79e296d24227f7e2caf97724c551d85b8eb4b8 |
+| Verification | Not run. No test, type-check, build or runtime PASS is claimed. |
+| Required FIX-01 action | Pull latest branch, inspect the diff and confirm all expected registry exports/callers remain; run npm run type-check and focused AI-governance tests when local execution is available. Do not wait for CI/Vercel. |
+| Prevention | Before editing large registry modules, count top-level exports and inspect the full file tail; a successful API write is not syntax verification. |

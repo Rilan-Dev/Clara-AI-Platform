@@ -126,6 +126,8 @@ export interface ResolvedAIModelOption {
   displayName: string;
   kind: AIModelKind;
   isDefault: boolean;
+  /** Safe vendor catalogue metadata used for pricing/dimension hints and ranking. */
+  metadata?: Record<string, unknown>;
 }
 
 export interface ResolvedAIProviderOption {
