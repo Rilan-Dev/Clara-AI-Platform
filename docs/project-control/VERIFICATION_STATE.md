@@ -1922,6 +1922,20 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - `@types/ws` installation modified local dependency metadata; owner must inspect `git status --short` and commit the intended `package.json` and `package-lock.json` changes. No reset/cleanup of other local files.
 
 
+## Subscription AI entitlement authority — 2026-10-12
+
+- Source review confirmed the stale organisation provider-list rejection and the subscription entitlement query's joined-matrix truncation risk.
+- Corrections and two focused regression test files have been committed to branch `fix/subscription-ai-entitlements-authority`.
+- **Not run:** focused Vitest, type-check, lint, build, database migration, production Sarvam session, downgrade/expiry runtime test, CI, Vercel or deployment.
+- Status: IMPLEMENTED / UNVERIFIED. No PASS or production-fix claim.
+- Required evidence: focused test output, type-check output, and one controlled Pro→Starter/Free entitlement check with no secrets/tokens in logs.
+
+
+### I-098 follow-up — missing registry row
+
+- Fixed a second fail-open path: known providers absent from the platform registry no longer return success before subscription checks.
+- Added regression coverage to `src/modules/ai-governance/core/resolver.test.ts`.
+- Not run; remains IMPLEMENTED / UNVERIFIED until the focused tests and type-check are executed.
 
 ## 2026-10-12 — Realtime voice latency baseline and pending stage timing
 

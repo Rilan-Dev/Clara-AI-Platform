@@ -2152,6 +2152,32 @@ Authoritative detailed session: `docs/project-control/sessions/SESSION-VOICE-LAT
 - Status: syntax correction committed to the fix branch; local Node check and fresh benchmark have not yet been run against that commit. Underlying realtime timeout remains OPEN / NOT FIXED until evidence identifies the failure point.
 
 
+## NEWEST IMMEDIATE ACTION — SUBSCRIPTION AI ENTITLEMENT AUTHORITY — 2026-10-12
+
+- GitHub issue: [#296](https://github.com/Rilan-Dev/Clara-AI-Platform/issues/296).
+- Branch: `fix/subscription-ai-entitlements-authority`.
+- Implemented source changes:
+  1. Removed the stale `org_ai_settings.allowed_providers` list as a runtime authority; legacy organisation AI-settings PATCH is frozen and plan permissions must come from current server-side subscription entitlements.
+  2. Platform-default provider fallback now considers only configured, platform-capable providers that pass the current organisation governance gate.
+  3. Split subscription-plan capability/provider/model entitlement queries to avoid Cartesian join multiplication and the old `LIMIT 200` truncation.
+  4. Missing provider rows now deny access when the provider entitlement matrix is populated; legacy all-provider fallback is limited to an entirely empty matrix.
+  5. Expired/non-active subscriptions use the actual Free plan's capability flags, not the expired paid plan's `voice_enabled`.
+- Added focused regression test source in `src/modules/ai-core/resolve-provider-entitlement.test.ts` and `src/modules/ai-governance/core/entitlements-db.test.ts`.
+- **Next exact action:** pull this branch and run:
+  `npx vitest run src/modules/ai-core/resolve-provider-entitlement.test.ts src/modules/ai-governance/core/entitlements-db.test.ts`
+  then `npm run type-check`. Fix failures from current output only.
+- **Verification boundary:** tests/type-check/build/database checks/production session have NOT run. No PASS. Do not wait for or poll CI/Vercel.
+- Runtime acceptance: on a plan entitled to Sarvam, stale legacy org list must not block Sarvam; after plan downgrade/expiry, a previously published Sarvam agent must be denied by live entitlement checks.
+
+
+### I-098 follow-up — missing provider registry row
+
+- Additional fail-open found during adjacent-path audit: `validateAgentAISelection` returned early for known providers missing from `platform_ai_providers`, skipping subscription entitlement checks. This could affect chat and voice paths when the registry is partially seeded.
+- Fixed on `fix/subscription-ai-entitlements-authority`: known-provider registry fallback now skips only the platform registry check; it still evaluates current plan capability/provider/model entitlements.
+- Added regression in `src/modules/ai-governance/core/resolver.test.ts` for Sarvam missing from the registry but denied by Starter entitlement.
+- This follow-up is also unverified; run the governance resolver test alongside the two focused tests listed above. Do not wait for CI/Vercel.
+
+
 # CURRENT OWNER-AUTHORIZED NEXT ACTION — 2026-10-12 — GEMINI CATALOGUE CONSUMERS
 
 The active bounded task is the owner-requested audit of remaining Gemini catalogue consumers and environment/seed defaults. Availability comes only from enabled governance rows marked vendor_live; environment IDs are preferences validated against those rows.

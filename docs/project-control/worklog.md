@@ -196,6 +196,19 @@ could not be connected at all.
   (401 probe + RFC 8414 metadata + DCR endpoint) and Notion's hosted MCP.
 
 
+## 2026-10-12 — AI subscription entitlement audit / I-098
+
+- Created GitHub issue #296 and branch `fix/subscription-ai-entitlements-authority`.
+- Confirmed stale `allowedProviders` check in `src/modules/ai-core/resolve.ts` could conflict with the shared plan-governance resolver. Voice resolver already explicitly ignores stale `allowedVoiceProviders`.
+- Reworked platform-default fallback to choose configured chat providers only when live governance says the organisation is entitled.
+- Refactored `src/modules/ai-governance/core/entitlements-db.ts` to query subscription, capability, provider, and model matrices separately; removed joined query's 200-row truncation; fail closed for missing provider rows when the entitlement matrix is populated; use Free plan metadata for expired/non-active subscriptions.
+- Added tests for stale provider list vs governance, live Starter provider restrictions, expired Pro fallback, partial provider matrix and legacy empty-matrix compatibility.
+- Not verified: no Vitest, type-check, build, DB, runtime, CI or Vercel run. Next: pull branch and run the exact commands in NEXT_ACTION.md.
+
+
+- Additional audit finding: `validateAgentAISelection` previously returned `ok: true` immediately for known providers absent from the registry, bypassing subscription entitlement checks. Changed it to retain legacy registry compatibility only while still enforcing current plan capability/provider/model restrictions. Added regression coverage for Sarvam absent from registry but denied by Starter. Not verified by execution.
+
+
 ## 2026-10-12 — DEV-01 Gemini live catalogue and defaults audit
 - Fixed model release-date extraction in src/modules/ai-governance/core/live-catalog.ts (commit 865e657901d479e29ce1625b1869edfaa0eb04d5).
 - Corrected embedding recovery in src/modules/ai-core/resolve.ts: fallback candidates must be enabled vendor-live embedding rows and must respect the organisation allow-list (commit d7d6a144750799ab127b92e84e2546dacb20e59b).

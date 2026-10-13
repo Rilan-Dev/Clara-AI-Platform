@@ -2047,6 +2047,29 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Related records | EVT-FIX-20261012-01; SESSION-FIX-20261012-01; FIX-01 role-local WORKLOG.md. |
 
 
+## I-098 — Subscription entitlement authority and stale provider allow-lists
+
+| Field | Value |
+|---|---|
+| Issue ID | I-098 |
+| Title | Ensure current subscription entitlements are authoritative for AI provider access |
+| Phase | Subscription / AI governance correctness |
+| Severity | P1 security/correctness |
+| Status | FIX IMPLEMENTED IN BRANCH — focused tests not yet executed |
+| Date identified | 2026-10-12 |
+| Reporter / role | Owner report + architect source audit |
+| Evidence | GitHub issue #296: https://github.com/Rilan-Dev/Clara-AI-Platform/issues/296 |
+| Confirmed defect A | `src/modules/ai-core/resolve.ts` rejected providers against legacy `org_ai_settings.allowed_providers` before the shared live subscription governance gate. The org AI-settings PATCH is frozen (410), so stale rows could block Sarvam even when the platform and current plan permit it. |
+| Confirmed defect B | `resolvePlanAIEntitlements` used a joined capability/provider/model query with `LIMIT 200`; joined matrices can multiply rows and truncate entitlement data. Missing provider rows were treated as allowed. |
+| Confirmed defect C | When an expired/non-active paid subscription fell back to Free entitlement rows, the fallback metadata reused the old paid plan's `voice_enabled` value, which could incorrectly restore voice capability if Free capability rows were absent. |
+| Confirmed defect D | `validateAgentAISelection` returned early with `ok: true` when a known provider had no registry row, skipping subscription entitlement checks. A missing/partial registry could therefore bypass plan restrictions on chat or voice surfaces. |
+| Correction | Runtime provider access now relies on platform governance/current plan entitlements rather than the legacy org provider list. Platform-default fallback considers configured providers that pass the live governance gate. Entitlement matrices are loaded independently without the cross-product limit; missing provider rows deny access once the matrix is active. Expired/non-active subscriptions resolve using actual Free-plan metadata. Missing registry rows preserve legacy platform fallback only; live plan/capability/model entitlements are still enforced. |
+| Regression coverage added | `src/modules/ai-core/resolve-provider-entitlement.test.ts`; `src/modules/ai-governance/core/entitlements-db.test.ts` |
+| Verification | Source and test review only. Tests, type-check, build, database migration, production runtime, CI and Vercel have NOT been run. No PASS claimed. |
+| Related finding | Voice resolver already documents and ignores stale `allowedVoiceProviders`; AI brain resolver now follows the same provider-authority principle. |
+| Next action | Pull this branch, run the two focused Vitest files and type-check; correct any failures. Then test Sarvam session on a Pro plan and confirm Starter/Free denial using current entitlement rows. |
+
+
 ## I-098 — Duplicated governance registry implementation blocks
 
 | Field | Value |
