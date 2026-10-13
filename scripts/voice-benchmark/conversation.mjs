@@ -444,6 +444,26 @@ async function main() {
     // barrier and provider check. Never fabricate a zero or count the greeting as an answer.
     try {
       welcomeEvent = await waitFor(async () => {
+        // Fail at the session bootstrap boundary instead of wasting the welcome
+        // timeout plus a full per-turn timeout when the server rejects the
+        // session (for example, a provider entitlement/configuration HTTP 400).
+        const rejectedBootstrap = responseRecords.find((record) =>
+          record.status >= 400 &&
+          ["/api/embed/session", "/api/voice/sarvam/session", "/api/voice/elevenlabs/session",
+            "/api/voice/elevenlabs/speech-engine/session", "/api/voice/gemini/realtime"].includes(
+            new URL(record.url, args.url).pathname,
+          )
+        );
+        if (rejectedBootstrap) {
+          await Promise.allSettled(pendingResponseFinishes);
+          const body = rejectedBootstrap.responseBodyPreview
+            ? `: ${rejectedBootstrap.responseBodyPreview}`
+            : "";
+          throw new Error(
+            `Session bootstrap rejected: ${rejectedBootstrap.method} ${rejectedBootstrap.url} returned HTTP ${rejectedBootstrap.status}${body}`,
+          );
+        }
+
         const events = await page.evaluate(() => window.__claraVoiceBench?.events ?? []);
         const candidates = events.filter((e) => typeof e.marks?.["browser.first_audio"] === "number");
         return candidates[0] ?? null;
