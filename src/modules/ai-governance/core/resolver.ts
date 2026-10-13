@@ -21,7 +21,8 @@
  */
 
 import { query } from "@/lib/db";
-import { getPlatformAIRegistry, syncLiveProviderCatalog } from "./registry-db";
+import { getPlatformAIRegistry } from "./registry-db";
+import { syncLiveProviderCatalog } from "./live-catalog";
 import { resolvePlanAIEntitlements } from "./entitlements-db";
 import { listProviderModels } from "./registry-db";
 import type {
