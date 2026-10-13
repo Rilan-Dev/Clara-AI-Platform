@@ -2015,6 +2015,55 @@ Decision and phased acceptance criteria: `docs/plans/mcp-organization-owned-endp
 
 The architecture note is committed in `docs/plans/mcp-organization-owned-endpoints.md` (commit `a8e5ba9439a80290f8a8a4622c368ac25457a161`). This is documentation/plan progress only; tenant-owned endpoint implementation and verification remain pending.
 
+---
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-12 — ORGANIZATION-OWNED MCP IMPLEMENTED AT SOURCE LEVEL
+
+[owner-authorized] The complete organization-owned MCP product has been implemented at source level per the 2026-10-12 execution directive. See `docs/plans/mcp-organization-owned-endpoints.md` for the full record.
+
+## Implemented at source
+- Migration `069_mcp_organization_owned_endpoints.sql` (additive): plan MCP entitlements, global governance singleton, org-owned connections/tools/grants, usage metering, overrides, audit trails.
+- Centralized entitlement module `src/modules/mcp/` (resolver, validation, client, metering, audit, service) — plan ∩ global policy ∩ subscription ∩ overrides, fail closed.
+- Platform admin: `/settings/mcp` governance screen + `/api/platform/mcp-settings` (typed confirmations, emergency disablement); plan editor MCP configuration (validated, audited, `DISABLE-PLAN-MCP` confirmation); per-org override panel in the billing drawer + `/api/platform/orgs/[orgId]/mcp-override`.
+- Org APIs: overview, connections CRUD + probe/create with live handshake + discovery, test, rediscover, tool approval, credential rotation, activity, agent grants.
+- Org UI: Integrations hub (search/filter/sort cards, real counts, quota stats), 5-step Add-MCP-server wizard, connection detail (Overview/Tools/Agent access/Activity/Settings), billing MCP usage card. Catalog connect flow preserved inside the collapsed Platform-integrations section.
+- Agent editor: `/orgs/:id/agents/:agentId/mcp` tools screen; runtime `mcp_availability`/`mcp_tool` on the Unified Tool Runtime, advertised to chat + realtime only while `ENABLE_MCP` is on; every invocation re-authorized and metered.
+- 91 focused tests, all passing. Full suite 1334 passed / 50 failed — the 50 failures are the pre-change branch baseline (verified via stash diff). Typecheck clean for all new/changed files.
+
+## Exact next implementation
+1. Deploy the branch and apply migration `069` (the migration is purely additive; no destructive change).
+2. Configure global MCP governance (`/settings/mcp`) and per-plan MCP entitlements (Subscriptions → Plans) — both are admin-UI driven, no code or manual DB edits required.
+3. Enable `ENABLE_MCP` only after: migration applied, governance configured, a controlled live handshake against a known-good HTTPS MCP server, and the focused suites green on the deployed revision.
+4. Live-verify one organization end to end: wizard → tool approval → agent grant → chat invocation → metering/usage counts → audit entries.
+5. Continue without waiting for CI/Vercel; route defects to FIX-01 and infrastructure-only work to OPS-01 per the standing rules.
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-12 — PR #291 RECONCILED WITH THE LATEST TARGET BRANCH
+
+[owner-authorized] The organization-owned MCP implementation (PR #291, head `7b5274d0`) has been reconciled with the evolved target branch `feature/ai-core-from-doable-source` (`bb51d091`) onto the PR head branch so it can be reviewed conflict-free.
+
+## Reconciliation decisions (supersede stale claims in the 2026-10-12 source-level entry above)
+- Migration renumbered `069_mcp_organization_owned_endpoints.sql` → `073_mcp_organization_owned_endpoints.sql` (the target already ships 069–072 for the platform-catalog model; duplicate numbers hard-fail the migration runner). RLS + anon/authenticated revokes now match the 069 catalog conventions.
+- The org-owned table family (`org_mcp_*`) is intentionally separate from the catalog family (`platform_mcp_*` / `organisation_mcp_*`) per `docs/plans/mcp-organization-owned-endpoints.md` on both branches: the optional platform catalog and tenant-owned endpoints are distinct concerns; both flows keep working.
+- Runtime unified on the target's request-scoped architecture: the PR's global `mcp_availability`/`mcp_tool` meta-tool registration was removed; org-owned tools are advertised as REAL tools through `buildMcpToolRuntime` + the new `OrgMcpToolResolver` adapter (`src/modules/mcp/runtime-resolver.ts`) and a composite resolver, sharing one Unified Tool Runtime authorization/metering path with the platform catalog for chat and realtime.
+- `/settings/mcp` keeps the target's MCP Servers (catalog registry) screen; the governance screen moved to `/settings/mcp/governance` (nav entry "MCP governance", group Platform).
+- The organisation-level Integrations hub is restored at `/orgs/:id/integrations` (the target's redirect-to-agents placeholder is obsolete now that the screen carries the org-owned MCP surface); the agent-level consolidated integrations screen from the target is preserved unchanged; the agent MCP screen now renders both the platform-catalog section and the organisation-owned section.
+- Agent integrations API route and screen keep the target's richer versions (per-status connection counts, revocation-preserving visibility) — a superset of the PR's changes.
+
+## Verification status
+- Focused MCP suites, type-check and lint re-run on the reconciled tree; see the session record for exact counts. Full-suite baseline comparison against the pre-reconciliation commit is recorded there too.
+- Unchanged blockers: live DB migration application, deployment/CI/Vercel, live MCP handshake, live chat/voice execution. `ENABLE_MCP` stays OFF until the documented evidence list is satisfied on a deployed revision.
+
+## Exact next implementation
+1. Review and merge PR #291 (head branch `feat/mcp-org-owned-directive`).
+2. Deploy and apply migration `073` (additive only).
+3. Configure governance (`/settings/mcp/governance`) and per-plan MCP entitlements (Subscriptions → Plans).
+4. Enable `ENABLE_MCP` only after the migration is applied, governance is configured, a controlled live handshake passes against a known-good HTTPS MCP server, and the focused suites are green on the deployed revision.
+5. Live-verify one organisation end to end: wizard → tool approval → agent grant → chat invocation → metering → audit entries.
+
 ## FIX-01 next action — type-check residuals (2026-10-12)
 1. Pull latest `feature/ai-core-from-doable-source`; calendar class-name correction `829ae96818a84a39110b65517917d9280c57684b` migrates the remaining legacy class keys to DayPicker v10 keys. It is not yet type-checked.
 2. From the repository root run `npm install --save-dev @types/ws` and commit the resulting `package.json` and `package-lock.json` changes. Do not manually edit lock metadata or add an untyped ambient `ws` declaration.

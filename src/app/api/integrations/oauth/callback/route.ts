@@ -3,6 +3,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query, withTransaction } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
+import { isPrivateOrLocalHostname, oauthRequestOriginMatches, resolvePublicOrigin } from "@/lib/public-origin";
 import { getIntegration } from "@/modules/integrations/registry";
 import { hashOAuthState } from "@/modules/integrations/oauth-state";
 
@@ -39,6 +40,29 @@ function integrationReturnUrl(
   return url;
 }
 
+/**
+ * The browser must return to the origin the connection was started from. The
+ * state-bound redirect URI is authoritative: it is the platform-registered
+ * callback origin the provider just redirected the browser to (the admin
+ * configures it once, auto-detected from the browser origin). req.nextUrl.origin
+ * is NOT used here — behind reverse proxies that rewrite Host (nginx's default
+ * `proxy_set_header Host $proxy_host`) it surfaces the bind address
+ * (e.g. https://0.0.0.0:3000), which no browser can reach, turning every
+ * OAuth outcome — success and error alike — into "This site can't be reached".
+ * Fall back to the request-derived public origin only when the state row has
+ * no usable (non-private) origin.
+ */
+function oauthReturnOrigin(redirectUri: string, request: NextRequest): string {
+  try {
+    const origin = new URL(redirectUri).origin;
+    if (!isPrivateOrLocalHostname(new URL(origin).hostname)) return origin;
+  } catch {
+    // Corrupt state row — fall through to the request-derived origin so the
+    // user still lands on a reachable page.
+  }
+  return resolvePublicOrigin(request);
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const state = request.nextUrl.searchParams.get("state") ?? "";
   if (!state || state.length > 512) {
@@ -66,22 +90,40 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Invalid, expired, or already-used OAuth state." }, { status: 400 });
     }
 
+    // Every outcome — success or error — must send the browser back to the
+    // origin the flow was started on (the state-bound redirect URI's origin).
+    const returnOrigin = oauthReturnOrigin(oauthState.redirect_uri, request);
+
     const definition = getIntegration(oauthState.integration_id);
     if (!definition || definition.authType !== "oauth2" || !definition.oauth2Config) {
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
 
-    const expectedRedirect = new URL(oauthState.redirect_uri);
-    const actualCallback = request.nextUrl;
-    if (expectedRedirect.origin !== actualCallback.origin || expectedRedirect.pathname !== actualCallback.pathname) {
+    // The callback must land on the path the state was bound to, on the
+    // deployment's public origin. The provider already guarantees the browser
+    // was redirected to the exact registered redirect URI; a request whose
+    // visible host is a private/bind address (reverse-proxy hop) cannot be
+    // origin-verified and is tolerated, while a genuinely different public
+    // origin still fails closed.
+    let expectedRedirect: URL | null = null;
+    try {
+      expectedRedirect = new URL(oauthState.redirect_uri);
+    } catch {
+      expectedRedirect = null;
+    }
+    if (
+      !expectedRedirect ||
+      expectedRedirect.pathname !== request.nextUrl.pathname ||
+      !oauthRequestOriginMatches(expectedRedirect.origin, request)
+    ) {
       console.warn("[integration OAuth callback] callback origin/path did not match state-bound redirect URI");
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
 
     const providerError = request.nextUrl.searchParams.get("error");
     const code = request.nextUrl.searchParams.get("code");
     if (providerError || !code || code.length > 4096) {
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, providerError ? "cancelled" : "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, providerError ? "cancelled" : "error", oauthState.integration_id, oauthState.agent_id));
     }
 
     const app = (await query<{
@@ -95,12 +137,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       [ENCRYPTION_KEY, oauthState.integration_id],
     ))[0];
     if (!app || app.redirect_uri !== oauthState.redirect_uri) {
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
 
     const tokenUrl = new URL(definition.oauth2Config.tokenUrl);
     if (tokenUrl.protocol !== "https:") {
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
 
     const tokenBody = new URLSearchParams({
@@ -120,7 +162,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
     if (definition.oauth2Config.pkce) {
       if (!oauthState.code_verifier) {
-        return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+        return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
       }
       tokenBody.set("code_verifier", oauthState.code_verifier);
     }
@@ -135,7 +177,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         signal: AbortSignal.timeout(12_000),
       });
     } catch {
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
     if (!tokenResponse.ok) {
       // Do not log provider response bodies: some providers echo sensitive values.
@@ -143,7 +185,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         integrationId: oauthState.integration_id,
         status: tokenResponse.status,
       });
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
 
     let tokenData: Record<string, unknown>;
@@ -152,12 +194,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid token payload");
       tokenData = parsed as Record<string, unknown>;
     } catch {
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
 
     const accessToken = typeof tokenData.access_token === "string" ? tokenData.access_token : "";
     if (!accessToken) {
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
     const expiresIn = typeof tokenData.expires_in === "number" && Number.isFinite(tokenData.expires_in) && tokenData.expires_in > 0
       ? Math.min(Math.floor(tokenData.expires_in), 31_536_000)
@@ -191,7 +233,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const planStillAllows = Array.isArray(platform[0]?.allowed_plans) &&
       (platform[0].allowed_plans.includes(limits.plan_id) || platform[0].allowed_plans.includes("*"));
     if (!enabled[0]?.enabled || !platform[0]?.enabled || !planStillAllows) {
-      return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
+      return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "error", oauthState.integration_id, oauthState.agent_id));
     }
 
     await withTransaction(async (client) => {
@@ -220,7 +262,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     });
 
-    return NextResponse.redirect(integrationReturnUrl(request.nextUrl.origin, oauthState.org_id, "connected", oauthState.integration_id, oauthState.agent_id));
+    return NextResponse.redirect(integrationReturnUrl(returnOrigin, oauthState.org_id, "connected", oauthState.integration_id, oauthState.agent_id));
   } catch (error) {
     if (error instanceof NextResponse) return error;
     console.error("[integration OAuth callback] processing failed", error);

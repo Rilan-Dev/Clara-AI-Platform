@@ -3,6 +3,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { resolvePublicOrigin } from "@/lib/public-origin";
 import { createOAuthState } from "@/modules/integrations/oauth-state";
 import {
   buildMcpAuthorizationUrl,
@@ -64,7 +65,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "This MCP server is not configured for OAuth sign-in. Set its authentication mode to OAuth first.", code: "MCP_NOT_OAUTH_MODE" }, { status: 409 });
     }
 
-    const redirectUri = new URL(MCP_OAUTH_CALLBACK_PATH, req.nextUrl.origin).toString();
+    // Build the redirect URI from the deployment's PUBLIC origin (NEXT_PUBLIC_APP_URL
+    // → x-forwarded-host/proto → Host), never req.nextUrl.origin: behind reverse
+    // proxies that rewrite Host (nginx's default `proxy_set_header Host
+    // $proxy_host`) nextUrl surfaces the bind address (e.g. https://0.0.0.0:3000),
+    // which no browser can reach and no provider has registered — the admin's
+    // browser would be redirected into an unreachable URL after consent.
+    const redirectUri = new URL(MCP_OAUTH_CALLBACK_PATH, resolvePublicOrigin(req)).toString();
     if (process.env.NODE_ENV === "production" && !redirectUri.startsWith("https://")) {
       return NextResponse.json({ error: "The platform must be served over HTTPS in production to complete OAuth sign-in." }, { status: 409 });
     }

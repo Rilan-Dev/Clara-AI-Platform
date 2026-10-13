@@ -45,8 +45,12 @@ function createRuntime() {
 
 describe("MCP tool bridge", () => {
   it("creates deterministic bounded tool names", () => {
-    expect(mcpToolName("demo", "lookup")).toHaveLength(64);
-    expect(mcpToolName("demo", "a".repeat(200))).toHaveLength(64);
+    // Short identities stay short; the bound is an upper limit of 63
+    // (55-char base slice + '_' + ≤7-char collision hash: a uint32 in
+    // base-36 can never exceed 7 digits).
+    expect(mcpToolName("demo", "lookup").length).toBeLessThanOrEqual(63);
+    expect(mcpToolName("demo", "a".repeat(200))).toHaveLength(63);
+    expect(mcpToolName("demo", "lookup")).toBe(mcpToolName("demo", "lookup"));
     expect(mcpToolName("a-b", "lookup")).not.toBe(
       mcpToolName("a_b", "lookup"),
     );
@@ -570,11 +574,33 @@ describe("MCP tool bridge", () => {
     expect(receivedName).toBe("lookup");
   });
 
-  it("binds immutable resolution identity when the caller mutates its context object", async () => {
+  it("fails closed when the execution context is not a provenance-verified frozen instance", () => {
+    // Execution contexts are created by createExecutionContext and frozen;
+    // a plain mutable clone must never be accepted as a resolution context,
+    // because post-registration identity drift would be unbounded.
     const mutableContext = {
       ...context,
     };
+    const resolver: McpToolResolver = {
+      async resolve() {
+        return descriptor;
+      },
+      async invoke() {
+        return { ok: true };
+      },
+    };
 
+    expect(() =>
+      buildMcpToolDefinition(
+        descriptor,
+        policy,
+        resolver,
+        mutableContext as unknown as Parameters<typeof buildMcpToolDefinition>[3],
+      ),
+    ).toThrow();
+  });
+
+  it("binds immutable resolution identity when the caller mutates its context object", async () => {
     const resolver: McpToolResolver = {
       async resolve() {
         return descriptor;
@@ -588,17 +614,21 @@ describe("MCP tool bridge", () => {
       descriptor,
       policy,
       resolver,
-      mutableContext,
+      context,
     );
     const runtime = createRuntime();
     runtime.registerTool(tool);
 
-    mutableContext.userId = "user-2";
+    // The context is frozen: a caller cannot rewrite tenant identity after
+    // registration, and execution still binds to the original context.
+    expect(() => {
+      (context as { userId?: string }).userId = "user-2";
+    }).toThrow();
 
     const result = await runtime.invoke(tool.name, { id: "abc" }, context);
     expect(result).toMatchObject({
-      ok: false,
-      error: { code: "TENANT_SCOPE_VIOLATION" },
+      ok: true,
+      data: { ok: true },
     });
   });
 

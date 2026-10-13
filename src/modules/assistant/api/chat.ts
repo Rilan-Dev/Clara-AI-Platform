@@ -17,6 +17,10 @@ import {
   runBoundedAgenticLoop,
 } from "@/modules/ai-platform-core";
 import {
+  createCompositeMcpResolver,
+  resolveOrgOwnedMcpCapabilities,
+} from "@/modules/mcp/runtime-resolver";
+import {
   embedQuery,
   searchSimilarDocuments,
   getDocumentById,
@@ -77,9 +81,16 @@ const INTEGRATION_CHAT_TOOLS: readonly ChatToolDefinition[] = [
   },
 ];
 
-async function resolveChatMcpCapabilities(context: ReturnType<typeof createExecutionContext>) {
+type ChatMcpCapabilities = {
+  requests: Array<{ serverId: string; toolName: string; context: ReturnType<typeof createExecutionContext> }>;
+  policy: { allowedServers: string[]; allowedToolPairs: Array<{ serverId: string; toolName: string }> };
+  tools: ChatToolDefinition[];
+  resolver: typeof streamableHttpMcpToolResolver;
+};
+
+async function resolveChatMcpCapabilities(context: ReturnType<typeof createExecutionContext>): Promise<ChatMcpCapabilities> {
   if (!isMcpEnabled() || context.surface !== "chat" || !context.userId || !context.agentId) {
-    return { requests: [], policy: { allowedServers: [], allowedToolPairs: [] }, tools: [] as ChatToolDefinition[] };
+    return { requests: [], policy: { allowedServers: [], allowedToolPairs: [] }, tools: [], resolver: streamableHttpMcpToolResolver };
   }
   const rows = await dbQuery<{ server_id: string; tool_name: string }>(
     `SELECT DISTINCT s.id AS server_id, t.tool_name
@@ -95,16 +106,12 @@ async function resolveChatMcpCapabilities(context: ReturnType<typeof createExecu
     [context.tenantId, context.agentId, context.kbId],
   );
   const requests = rows.map((row) => ({ serverId: row.server_id, toolName: row.tool_name, context }));
-  const policy = {
-    allowedServers: [...new Set(rows.map((row) => row.server_id))],
-    allowedToolPairs: rows.map((row) => ({ serverId: row.server_id, toolName: row.tool_name })),
-  };
   const resolved = await Promise.all(requests.map(async (request) => ({
     request,
     descriptor: await streamableHttpMcpToolResolver.resolve(request),
   })));
   const usable = resolved.filter((item) => item.descriptor !== null);
-  return {
+  const platformCapabilities: ChatMcpCapabilities = {
     requests: usable.map((item) => item.request),
     policy: {
       allowedServers: [...new Set(usable.map((item) => item.request.serverId))],
@@ -115,6 +122,37 @@ async function resolveChatMcpCapabilities(context: ReturnType<typeof createExecu
       description: descriptor!.description.slice(0, 1000),
       parameters: descriptor!.inputSchemaJson ?? { type: "object", properties: {}, additionalProperties: false },
     } as ChatToolDefinition)),
+    resolver: streamableHttpMcpToolResolver,
+  };
+
+  // Organization-owned MCP connections ride the same request-scoped runtime:
+  // entitlement-gated discovery through the OrgMcpToolResolver adapter, then
+  // one composite resolver so a single Unified Tool Runtime serves both the
+  // optional platform catalog and tenant-owned custom endpoints.
+  const orgOwned = await resolveOrgOwnedMcpCapabilities(context);
+  if (orgOwned.requests.length === 0) {
+    return platformCapabilities;
+  }
+  const orgServerIds = new Set(orgOwned.allowedServers);
+  return {
+    requests: [...platformCapabilities.requests, ...orgOwned.requests],
+    policy: {
+      allowedServers: [...platformCapabilities.policy.allowedServers, ...orgOwned.allowedServers],
+      allowedToolPairs: [...platformCapabilities.policy.allowedToolPairs, ...orgOwned.allowedToolPairs],
+    },
+    tools: [
+      ...platformCapabilities.tools,
+      ...orgOwned.tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      } as ChatToolDefinition)),
+    ],
+    resolver: createCompositeMcpResolver({
+      platform: streamableHttpMcpToolResolver,
+      orgOwned: orgOwned.resolver,
+      orgOwnedServerIds: orgServerIds,
+    }),
   };
 }
 
@@ -563,10 +601,10 @@ async function postChatKb(
             // and build a request-scoped Unified Tool Runtime so no capability
             // closure can accidentally retain another chat session's identity.
             const mcp = authCtx?.user.isSuperAdmin
-              ? { requests: [], policy: { allowedServers: [], allowedToolPairs: [] }, tools: [] as ChatToolDefinition[] }
+              ? { requests: [], policy: { allowedServers: [], allowedToolPairs: [] }, tools: [] as ChatToolDefinition[], resolver: streamableHttpMcpToolResolver }
               : await resolveChatMcpCapabilities(executionContext);
             const mcpRuntime = mcp.requests.length > 0
-              ? await buildMcpToolRuntime(executionContext, mcp.requests, mcp.policy, streamableHttpMcpToolResolver, buildClaraToolRuntime())
+              ? await buildMcpToolRuntime(executionContext, mcp.requests, mcp.policy, mcp.resolver, buildClaraToolRuntime())
               : null;
             const loopResult = await runBoundedAgenticLoop(
               provider as ToolCallingLLMProvider,

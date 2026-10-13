@@ -708,6 +708,17 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 
 [architect-verified] Connected integration discovery now requires user and agent identity and filters candidates by active scoped connection, platform enablement, organisation and agent grants, and organisation plan allowlist before registration. Execution remains in Unified Tool Runtime and the existing runner. Commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`. Chat/realtime dispatch and secure OAuth app configuration remain incomplete. No tests or live provider integrations were run; CI/Vercel/Gates remain deferred.
 
+---
+
+# CURRENT PROJECT STATE — 2026-10-12 — ORGANIZATION-OWNED MCP + PLAN ENTITLEMENTS IMPLEMENTED
+
+- Branch: `feature/ai-core-from-doable-source`.
+- The 2026-10-12 owner directive (organization-owned MCP product, platform-admin-configurable plan entitlements, subscription validation, usage enforcement, global governance, agent permissions, chat/realtime runtime integration, security controls, regression tests) is implemented at source level. Full record: `docs/plans/mcp-organization-owned-endpoints.md`.
+- Migration `069_mcp_organization_owned_endpoints.sql` is additive and authored; it has NOT been applied to any live database from this environment.
+- 91 new focused tests pass locally (`vitest`); the full suite result 1334 passed / 50 failed matches the pre-change branch baseline exactly (stash-diff verified, zero new failures). No CI/Vercel/deployment/live handshake was run or awaited; no runtime PASS is claimed.
+- `ENABLE_MCP` remains OFF. Evidence required before enabling: migration applied on the deployed revision, governance + plan entitlements configured via admin UI, controlled live handshake, focused suites green there.
+- Exact next action: follow `docs/project-control/NEXT_ACTION.md` (2026-10-12 section); do not wait for external gates.
+
 ## FIX-01 type-check follow-up — 2026-10-12
 - Owner's post-pull compiler run verified the Stripe ambient declaration fix removed the Stripe missing-member cluster, reducing diagnostics from 44/19 files to 33/15 files.
 - FIX-01 committed narrow compatibility changes for the next known diagnostics. These edits are not yet type-checked locally.
