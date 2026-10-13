@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AgentMcpToolsSection } from "./agent-mcp-tools-screen";
 import { useParams } from "next/navigation";
 import {
   AlertCircle, Cable, CheckCircle2, ChevronRight, CircleSlash, Copy, Globe,
@@ -569,8 +570,9 @@ export default function AgentMcpScreen() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">MCP tools</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Model Context Protocol servers approved by the platform. Connect a server with your organisation&apos;s
-            credentials, then grant its tools to this agent. Open a server for its full status and tool list.
+            Model Context Protocol tools for this agent. The platform catalog lists servers approved by the
+            platform administrator — connect one with your organisation&apos;s credentials, then grant its tools
+            below. Your own MCP servers appear in the organisation-owned section underneath.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -622,6 +624,10 @@ export default function AgentMcpScreen() {
       <div className="space-y-3">{servers.map(serverRow)}</div>
 
       {detailModal()}
+
+      <div className="mt-4 border-t border-border pt-8">
+        <AgentMcpToolsSection />
+      </div>
     </div>
   );
 }

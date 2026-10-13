@@ -2003,6 +2003,27 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | Source trace only; no DB/Stripe API query, tests, typecheck, or runtime correction. No PASS claimed. |
 | Related records | EVT-FIX-20261011-01; BACKLOG-OPS-20261011-STRIPE-ORPHAN-ORG; SESSION-FIX-20261011-01. |
 
+## I-20261012-OAUTH-PROXY-RETURN — OAuth callbacks redirected to the bind host behind Host-rewriting proxies
+
+| Field | Value |
+|---|---|
+| Issue ID | I-20261012-OAUTH-PROXY-RETURN |
+| Title | OAuth callback return URLs and origin checks used req.nextUrl.origin, which surfaces https://0.0.0.0:3000 behind Host-rewriting reverse proxies |
+| Phase | Integrations / WhatsApp / platform MCP OAuth |
+| Severity | P1 — every OAuth2 integration connect flow unusable on the proxied production deployment |
+| Status | FIXED on `feat/mcp-org-owned-directive` (pending merge/deploy to the target branch) |
+| Date identified | 2026-10-12 |
+| Reporter / role | Platform owner — live report |
+| Symptom | Org user clicks Connect on the Gmail integration (agent Integrations screen) at `https://clara.ai.amazetechclans.com`; after Google consent the browser lands on `https://0.0.0.0:3000/orgs/<org>/agents/<agent>/integrations?oauth=error&integrationId=gmail` → ERR_ADDRESS_INVALID. The flow both fails the binding check and returns to an unreachable URL. |
+| Confirmed immediate cause | The reverse proxy in front of the app forwards `x-forwarded-proto: https` but rewrites `Host` to the upstream bind address (nginx default `proxy_set_header Host $proxy_host`). `request.nextUrl.origin` therefore resolves to `https://0.0.0.0:3000`. `src/app/api/integrations/oauth/callback/route.ts` built every post-OAuth redirect from that origin and compared it against the state-bound redirect URI (`https://clara.ai.amazetechclans.com/api/integrations/oauth/callback`) — the comparison failed closed (oauth=error) and the error redirect itself pointed at the bind address. Same pattern in the WhatsApp callback check, the platform MCP callback, and the MCP OAuth start redirect_uri. |
+| Underlying cause | The admin-configured OAuth redirect URI (auto-detected from the browser origin) is correct; the server-side view of the request origin is the only thing that is wrong. Callback code trusted `req.nextUrl.origin` instead of the state-bound redirect URI / `resolvePublicOrigin()` (NEXT_PUBLIC_APP_URL → x-forwarded-host/proto → Host), despite `src/lib/public-origin.ts` and the explore-link route already establishing the corrected pattern. |
+| Correction | (1) `public-origin.ts` gains `isPrivateOrLocalHostname()` (loopback, unspecified/0.0.0.0/::, RFC1918, link-local, IPv6 ULA, IPv4-mapped forms) and `oauthRequestOriginMatches()` (compares the state-bound origin against the request's public origin; a private/bind request host is an unverifiable proxy hop and is tolerated; a genuinely different public origin still fails closed). (2) The integrations OAuth callback derives every return URL from the state-bound redirect URI's origin (`oauthReturnOrigin`), falling back to `resolvePublicOrigin(request)`; the binding check keeps strict pathname equality plus the origin rule above. (3) The WhatsApp callback uses the same origin rule. (4) The platform MCP OAuth start builds its redirect_uri from `resolvePublicOrigin(req)`; the MCP callback derives its return origin from the state-bound redirect URI when it is a usable public origin. |
+| Correction scope | `src/lib/public-origin.ts`, `src/app/api/integrations/oauth/callback/route.ts`, `src/app/api/whatsapp/oauth/callback/route.ts`, `src/app/api/platform/mcp-servers/oauth/start/route.ts`, `src/app/api/platform/mcp-servers/oauth/callback/route.ts` |
+| Explicit non-scope | No change to `resolvePublicOrigin()` priority order (existing email/payment consumers unaffected), no change to state consumption, PKCE, token exchange, grant revalidation, credential encryption, or embed/CORS self-origin logic. No proxy-side configuration change (recommended separately: forward `Host`/`X-Forwarded-Host`). |
+| Regression protection | `src/lib/public-origin.test.ts` (34 tests: hostname classification, origin matching incl. forwarded headers and bind-host tolerance, public-origin priorities) and 4 new cases in `src/app/api/integrations/oauth/callback/route.test.ts`: connection completes behind a Host-rewriting proxy and returns to the registered origin; completes with NEXT_PUBLIC_APP_URL configured; fails closed on a genuinely different public origin without exchanging the code; agent-screen return behind a proxy. |
+| Verification | Focused suites executed on the reconciled tree: 4 files / 47 tests PASS (public-origin 34, integrations callback 9, integrations start 2, WhatsApp callback 2); email-verification suite 23/23 PASS (resolvePublicOrigin consumer regression). `tsc --noEmit -p tsconfig.typecheck.json`: 43 errors before AND after the change (byte-identical pre-existing set; zero new). ESLint could not execute — typescript-eslint rejects the locally installed TS 7.0.2 on untouched files identically (pre-existing environment limitation, recorded, not introduced). No live provider consent or deployed-runtime PASS claimed. |
+| Related records | VERIFICATION_STATE.md (2026-10-12 hotfix addendum); SESSION-DEV-20261012-02. |
+
 ## I-097 — Type-check failures from shadowed Stripe SDK declarations
 
 | Field | Value |

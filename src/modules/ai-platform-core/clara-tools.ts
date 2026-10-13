@@ -343,6 +343,11 @@ export function buildClaraToolRuntime(overrides?: {
   runtime.registerTool(buildRagSearchTool());
   runtime.registerTool(buildIntegrationAvailabilityTool());
   runtime.registerTool(buildIntegrationActionTool());
+  // Organization-owned MCP tools are NOT statically registered: they are
+  // advertised per request through buildMcpToolRuntime with the
+  // OrgMcpToolResolver adapter (src/modules/mcp/runtime-resolver.ts), so the
+  // same Unified Tool Runtime enforces one authorization and metering path
+  // for both the platform catalog and tenant-owned custom endpoints.
   return runtime;
 }
 

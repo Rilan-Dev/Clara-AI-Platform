@@ -1847,6 +1847,47 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - Gmail OAuth save remains unverified. The earlier `normalizeScopes is not a function` trace is from that old image; the prior source export fix is present in the branch, but cannot take effect until a successful rebuild/recreate and fresh retest.
 - No tests, typecheck, post-fix build, deployment, or runtime PASS is claimed.
 
+---
+
+---
+
+## 2026-10-12 — Organization-owned MCP verification record
+
+[owner-authorized] Local executable verification performed in the development environment:
+
+- `npx vitest run src/modules/mcp src/app/api/orgs/[orgId]/mcp src/app/api/platform/mcp-settings src/modules/ai-platform-core/integrations/org-mcp-tools.test.ts` → 91/91 PASS (entitlements validation + resolution, metering, MCP client transport, org/platform APIs, runtime reauthorization, governance confirmation guards).
+- `npx vitest run` (full suite) → 1334 passed / 50 failed. The 50 failures are byte-identical to the pre-change baseline (verified by stashing tracked changes and diffing failing-test lists; only timing jitter differed). The single interim regression introduced during development (org-integrations responsive-layout contract) was fixed within the session.
+- `npx tsc -p tsconfig.typecheck.json --noEmit` → all new and modified files clean; remaining diagnostics are pre-existing (optional deps absent locally: @vercel/queue, amqplib, @elevenlabs/client, @vercel/analytics, pdf-parse types; and pre-existing errors in untouched files).
+- NOT verified (external): live database migration application, deployment, CI/Vercel, any real MCP server handshake over the network, live Chat/realtime voice tool execution. No runtime PASS is claimed for those.
+- `ENABLE_MCP` stays OFF until the evidence list in `docs/plans/mcp-organization-owned-endpoints.md` §9 is satisfied on a deployed revision.
+
+---
+
+## 2026-10-12 — PR #291 reconciliation verification record
+
+[owner-authorized] The PR head branch was reconciled with the latest target `feature/ai-core-from-doable-source` (`bb51d091`); migration renumbered to 073; runtime unified on the request-scoped Unified Tool Runtime path via `OrgMcpToolResolver`; agent MCP screen unified (platform catalog + organisation-owned sections); governance screen moved to `/settings/mcp/governance`; org Integrations hub restored.
+
+- Executed on the reconciled tree (2026-10-12, local, commands in SESSION-DEV-20261012-01):
+  - Focused MCP suite (modules/mcp + resolver/bridge/oauth tests + org/platform MCP API routes + realtime-tool tests) → **218/218 PASS** (14 files).
+  - Full suite → **1469 passed / 28 failed / 2 skipped**.
+  - Full suite on the pristine target baseline `bb51d091` (same machine/command) → **1364 passed / 32 failed / 2 skipped**.
+  - Failure-set diff: **zero failures introduced by the reconciliation**; 4 baseline-only failures were fixed during reconciliation (pre-existing test drift in `mcp-tool-bridge.test.ts` and a mock gap in `realtime-tool.test.ts`); the remaining 28 are byte-identical pre-existing baseline failures (missing optional dependencies and unrelated legacy files).
+  - `npx tsc -p tsconfig.typecheck.json --noEmit` → no errors in any reconciliation-touched file (remaining diagnostics are pre-existing missing-optional-dep issues in untouched files, present on the baseline too).
+  - `npx eslint` on every changed file → 0 errors, 1 pre-existing warning (verified on the baseline).
+- NOT verified (external, unchanged): live database migration application (073), deployment/CI/Vercel, live MCP handshake over the network, live Chat/realtime voice tool execution, provider OAuth consent flows. No runtime PASS is claimed for those.
+- `ENABLE_MCP` stays OFF until the evidence list in `docs/plans/mcp-organization-owned-endpoints.md` §9 is satisfied on a deployed revision.
+
+### 2026-10-12 — OAuth proxy-return hotfix (SESSION-DEV-20261012-02)
+
+- Live report: Gmail OAuth connect at `https://clara.ai.amazetechclans.com` redirected to `https://0.0.0.0:3000/orgs/<org>/agents/<agent>/integrations?oauth=error&integrationId=gmail` (ERR_ADDRESS_INVALID). Root cause and correction recorded as `I-20261012-OAUTH-PROXY-RETURN` in ISSUES.md.
+- Executed on `feat/mcp-org-owned-directive` after the reconciliation commit `a889cfb2`:
+  - Focused OAuth suites → **47/47 PASS** across 4 files (`public-origin.test.ts` 34 new unit tests; integrations callback 9 incl. 4 new regression cases; integrations start 2; WhatsApp callback 2).
+  - `email-verification.test.ts` (resolvePublicOrigin consumer) → **23/23 PASS**.
+  - `tsc --noEmit -p tsconfig.typecheck.json` → 43 errors on the pristine tree AND 43 with the hotfix (byte-identical pre-existing set; zero new).
+  - ESLint could not run: typescript-eslint rejects the locally installed TS 7.0.2 (fails identically on untouched files — pre-existing environment limitation, recorded, not introduced).
+  - Environment note: the worktree `node_modules` was pruned after the last session (`vite`, `@tailwindcss/postcss` missing); `@tailwindcss/postcss@4.3.3` reinstalled per package.json; test runs used the identical-version (2.1.9) parent vitest binary with `--root` pointed at the worktree.
+- NOT verified (external): deployed-runtime behaviour at clara.ai.amazetechclans.com, live Google consent round-trip, proxy header configuration, deployment/CI/Vercel. No runtime PASS claimed.
+
 ## 2026-10-12 — FIX-01 Stripe type declaration root-cause correction
 
 - Owner-provided `npm run type-check` reported 44 errors in 19 files. Dependency inspection showed direct `stripe@23.0.0` with no duplicate version in the reported dependency tree.
@@ -1895,3 +1936,21 @@ Actual Doable source was inspected at `services/api/src/integrations/oauth2.ts`,
 - Fixed a second fail-open path: known providers absent from the platform registry no longer return success before subscription checks.
 - Added regression coverage to `src/modules/ai-governance/core/resolver.test.ts`.
 - Not run; remains IMPLEMENTED / UNVERIFIED until the focused tests and type-check are executed.
+
+## 2026-10-12 — Realtime voice latency baseline and pending stage timing
+
+- Owner-provided benchmark evidence: five turns completed and benchmark process exited after a bounded response-flush fix. Per-turn TTFA: 8273, 6078, 5213, 1447, 1704 ms; median 5213 ms; fastest 1447 ms.
+- The benchmark-only silent audio keepalive resolved the prior synthetic-input/VAD progression stall in the reported run. This is not a production VAD fix.
+- RAG stage instrumentation source is committed, but the new output report with numeric server stage timings has not yet been supplied. Need `tool-results/openai-rag-stage-timings.json` to compare browser elapsed with `metadataMs`, `admissionMs`, `configMs`, `translationMs`, `retrievalMs`, `graphMs`, and `totalMs`.
+- Script syntax check and fresh diagnostic run after the instrumentation commit have not been observed in this session. No tests/build/deployment or production latency improvement is claimed.
+- Target <=500 ms is aspirational and currently not met. Separate grounded-answer TTFA from welcome/acknowledgement audio. Next action and exact command: `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md`.
+
+
+## 2026-10-12 — Voice benchmark welcome telemetry timeout
+
+- Owner ran the updated five-turn benchmark after pulling through `1a6e5086`; the script syntax check produced no visible error, but benchmark timed out after 45 seconds waiting for `browser.first_audio` welcome telemetry before it played any question clips. It wrote partial diagnostics to `tool-results/openai-rag-stage-timings.json`.
+- This failure does not establish a production outage or RAG latency; the run did not reach the question-turn measurements.
+- Corrective harness change: welcome telemetry is now optional diagnostic metadata. If it is missing, the benchmark logs a warning and continues to the five question turns; the welcome mark is represented as null/unavailable, never zero. Per-turn telemetry barriers and provider checks remain required, and failure diagnostics remain available.
+- Commits: `fb2a17b874a084e9294166ca6ad88f01830f21ee` (continue without welcome mark); `513a317b2063bb27035b581a3f3f1c4b300b2f27` (null-safe successful report serialization).
+- **Pending verification:** owner must pull latest branch, run `node --check scripts/voice-benchmark/conversation.mjs`, then rerun the same five-turn benchmark to `tool-results/openai-rag-stage-timings.json`. Share the new report. If it fails again, share the full new failure summary including `dataChannelEvents`, `observedLatencyEvents`, `microphoneDiagnostics`, `requestCounts`, `failures`, and `consoleErrors`.
+- Do not claim benchmark PASS, production latency improvement, or <=500 ms target attainment. Continue without waiting for Actions/Vercel; keep all workflows manual-only.

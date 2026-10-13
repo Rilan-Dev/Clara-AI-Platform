@@ -19,3 +19,16 @@ When a session ends, the agent records exact completion, pending work, blockers,
 The user does not need to carry project context between chats. For a fresh session, the preferred copy/paste instructions are in `docs/project-control/HOW_TO_USE_AGENTS.md`. The invoked agent must recover the project from GitHub and durable project-control records rather than requiring the previous conversation.
 
 The user may invoke DEV-01, FIX-01, OPS-01, or WORK-01 while another agent is active. The new session must work independently, avoid conflicting edits, route dependencies, and continue any independent valid work without repeated waiting/polling.
+
+
+
+## Voice latency workstream — fresh-chat recovery (2026-10-12)
+
+If a new or temporary ChatGPT conversation needs to resume the OpenAI realtime voice-latency task, read `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md` first, then the latest `docs/project-control/NEXT_ACTION.md` voice-latency section and relevant verification state.
+
+- Repository: `Rilan-Dev/Clara-AI-Platform`; branch: `fix/openai-vad-audio-diagnostics-clean`; PR #295 is not approved for merge by this note.
+- User goal: optimize real grounded-answer TTFA, preserve Clara/Qdrant RAG and tenant/security/quota invariants, do not fake success with acknowledgements, do not wait/poll CI or Vercel, and keep all GitHub Actions workflows manual-only.
+- Baseline five-turn TTFA median 5213 ms, fastest 1447 ms; first three turns showed 4.4–7.2 s RAG latency. Stage-level timing report remains pending.
+- Immediate continuation: pull branch, syntax-check the benchmark script, run the exact five-turn benchmark from the session record to `tool-results/openai-rag-stage-timings.json`, inspect timing fields, and optimize only the measured dominant stage. Ask the owner to deploy/rebuild only if a production runtime change is made.
+- Do not say the target is met or a production fix deployed; neither has been verified.
+- Copy/paste prompt for a fresh chat: “Continue the OpenAI realtime voice-latency workstream from GitHub. Read `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md`, `docs/project-control/NEXT_ACTION.md`, and `docs/project-control/VERIFICATION_STATE.md` on branch `fix/openai-vad-audio-diagnostics-clean`. Recover current repository truth first, then continue the exact next action without waiting for GitHub Actions/Vercel. Preserve all existing functionality, grounding, tenant isolation, quota checks, and no-duplicate-response behavior. Do not claim unobserved verification.”

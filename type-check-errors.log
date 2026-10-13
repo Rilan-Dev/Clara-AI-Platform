@@ -1,0 +1,115 @@
+
+> ai-knowledge-app@0.1.0 type-check
+> tsc --noEmit -p tsconfig.typecheck.json
+
+src/app/api/platform/payments/test/route.ts(40,20): error TS2339: Property 'balance' does not exist on type 'Stripe'.
+src/app/api/platform/services-status/route.ts(218,35): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type '{ port?: number | undefined; host?: string | undefined; keyPrefix?: string | undefined; showFriendlyErrorStack?: boolean | undefined; name?: string | undefined; role?: "master" | "slave" | undefined; ... 50 more ...; maxRetriesPerRequest: null; }' is not assignable to type 'ConnectionOptions'.
+      Type '{ port?: number | undefined; host?: string | undefined; keyPrefix?: string | undefined; showFriendlyErrorStack?: boolean | undefined; name?: string | undefined; role?: "master" | "slave" | undefined; ... 50 more ...; maxRetriesPerRequest: null; }' is not assignable to type 'RedisOptions'.
+        Types of property 'retryStrategy' are incompatible.
+          Type 'RetryStrategy' is not assignable to type '((times: number) => void | number | null) | undefined'.
+            Type 'null' is not assignable to type '((times: number) => void | number | null) | undefined'.
+src/app/api/subscriptions/checkout/verify/route.ts(47,52): error TS2339: Property 'retrieve' does not exist on type '{ create(params: Record<string, unknown>): Promise<Session>; }'.
+src/app/api/webhooks/stripe/route.ts(80,34): error TS2339: Property 'number' does not exist on type 'Invoice'.
+src/app/api/webhooks/stripe/route.ts(81,25): error TS2339: Property 'hosted_invoice_url' does not exist on type 'Invoice'.
+src/components/ui/calendar.tsx(18,9): error TS2353: Object literal may only specify known properties, and 'caption' does not exist in type 'Partial<ClassNames>'.
+src/components/ui/calendar.tsx(45,9): error TS2353: Object literal may only specify known properties, and 'IconLeft' does not exist in type 'Partial<CustomComponents>'.
+src/components/ui/chart.tsx(106,7): error TS2339: Property 'payload' does not exist on type 'Omit<Omit<Props<ValueType, NameType>, PropertiesReadFromContext> & { active?: boolean | undefined; allowEscapeViewBox?: AllowInDimension | undefined; ... 24 more ...; wrapperStyle?: CSSProperties | undefined; } & ClassAttributes<...> & HTMLAttributes<...> & { ...; }, "ref">'.
+src/components/ui/chart.tsx(111,7): error TS2339: Property 'label' does not exist on type 'Omit<Omit<Props<ValueType, NameType>, PropertiesReadFromContext> & { active?: boolean | undefined; allowEscapeViewBox?: AllowInDimension | undefined; ... 24 more ...; wrapperStyle?: CSSProperties | undefined; } & ClassAttributes<...> & HTMLAttributes<...> & { ...; }, "ref">'.
+src/components/ui/chart.tsx(234,41): error TS2344: Type '"payload" | "verticalAlign"' does not satisfy the constraint '"align" | "children" | "content" | "dangerouslySetInnerHTML" | "formatter" | "height" | "iconSize" | "iconType" | "inactiveColor" | "itemSorter" | "labelStyle" | "layout" | ... 168 more ... | keyof AriaAttributes'.
+  Type '"payload"' is not assignable to type '"align" | "children" | "content" | "dangerouslySetInnerHTML" | "formatter" | "height" | "iconSize" | "iconType" | "inactiveColor" | "itemSorter" | "labelStyle" | "layout" | ... 168 more ... | keyof AriaAttributes'.
+src/components/ui/chart.tsx(241,17): error TS2339: Property 'length' does not exist on type '{}'.
+src/components/ui/chart.tsx(250,16): error TS2339: Property 'map' does not exist on type '{}'.
+src/components/ui/chart.tsx(250,21): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/ui/resizable.tsx(6,102): error TS2339: Property 'PanelGroup' does not exist on type 'typeof import("/docker/Clara-AI-Platform/clara-backend/node_modules/react-resizable-panels/dist/react-resizable-panels")'.
+src/components/ui/resizable.tsx(7,23): error TS2339: Property 'PanelGroup' does not exist on type 'typeof import("/docker/Clara-AI-Platform/clara-backend/node_modules/react-resizable-panels/dist/react-resizable-panels")'.
+src/components/ui/resizable.tsx(19,51): error TS2339: Property 'PanelResizeHandle' does not exist on type 'typeof import("/docker/Clara-AI-Platform/clara-backend/node_modules/react-resizable-panels/dist/react-resizable-panels")'.
+src/components/ui/resizable.tsx(22,23): error TS2339: Property 'PanelResizeHandle' does not exist on type 'typeof import("/docker/Clara-AI-Platform/clara-backend/node_modules/react-resizable-panels/dist/react-resizable-panels")'.
+src/components/ui/resizable.tsx(34,24): error TS2339: Property 'PanelResizeHandle' does not exist on type 'typeof import("/docker/Clara-AI-Platform/clara-backend/node_modules/react-resizable-panels/dist/react-resizable-panels")'.
+src/features/admin/screens/analytics-screen.tsx(394,56): error TS2322: Type '(iso: string) => string' is not assignable to type '((label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode) & ((label: ReactNode, payload: TooltipPayload) => ReactNode)'.
+  Type '(iso: string) => string' is not assignable to type '(label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode'.
+    Types of parameters 'iso' and 'label' are incompatible.
+      Type 'ReactNode' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/features/admin/screens/analytics-screen.tsx(452,58): error TS2322: Type '(h: number) => string' is not assignable to type '((label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode) & ((label: ReactNode, payload: TooltipPayload) => ReactNode)'.
+  Type '(h: number) => string' is not assignable to type '(label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode'.
+    Types of parameters 'h' and 'label' are incompatible.
+      Type 'ReactNode' is not assignable to type 'number'.
+        Type 'undefined' is not assignable to type 'number'.
+src/features/admin/screens/analytics-screen.tsx(548,126): error TS2322: Type '(iso: string) => string' is not assignable to type '((label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode) & ((label: ReactNode, payload: TooltipPayload) => ReactNode)'.
+  Type '(iso: string) => string' is not assignable to type '(label: ReactNode, payload: readonly Payload<ValueType, NameType>[]) => ReactNode'.
+    Types of parameters 'iso' and 'label' are incompatible.
+      Type 'ReactNode' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/lib/stripe-activation.ts(33,31): error TS2724: 'Stripe' has no exported member named 'SubscriptionItem'. Did you mean 'Subscription'?
+src/lib/stripe-activation.ts(160,24): error TS2339: Property 'status' does not exist on type 'Session'.
+src/lib/stripe-activation.ts(161,14): error TS2339: Property 'payment_status' does not exist on type 'Session'.
+src/lib/stripe-activation.ts(161,51): error TS2339: Property 'payment_status' does not exist on type 'Session'.
+src/modules/assistant/ui/chat/AIChartBlock.tsx(154,51): error TS2741: Property 'payload' is missing in type '{}' but required in type 'Omit<ClassAttributes<HTMLDivElement> & HTMLAttributes<HTMLDivElement> & Pick<Props, "payload" | "verticalAlign"> & { ...; }, "ref">'.
+src/modules/assistant/ui/chat/MarkdownMessage.tsx(170,13): error TS2322: Type '{ key: string; className: string; remarkPlugins: ((options?: Options | null | undefined) => undefined)[]; components: Components; children: string; }' is not assignable to type 'IntrinsicAttributes & Readonly<Options>'.
+  Property 'className' does not exist on type 'IntrinsicAttributes & Readonly<Options>'.
+src/modules/billing/core/health.ts(49,18): error TS2339: Property 'balance' does not exist on type 'Stripe'.
+src/modules/billing/core/health.ts(50,43): error TS2339: Property 'webhookEndpoints' does not exist on type 'Stripe'.
+src/modules/billing/core/health.ts(51,67): error TS7006: Parameter 'endpoint' implicitly has an 'any' type.
+src/modules/billing/core/health.ts(64,36): error TS2339: Property 'prices' does not exist on type 'Stripe'.
+src/modules/ingest/parsers/pdf.ts(110,27): error TS2339: Property 'infoData' does not exist on type 'InfoResult'.
+src/modules/integrations/runtime/__tests__/context-builder.test.ts(28,49): error TS2307: Cannot find module './context-builder.js' or its corresponding type declarations.
+src/modules/phone/core/call-handler.ts(25,23): error TS7016: Could not find a declaration file for module 'ws'. '/docker/Clara-AI-Platform/clara-backend/node_modules/ws/wrapper.mjs' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/ws` if it exists or add a new declaration (.d.ts) file containing `declare module 'ws';`
+src/modules/queue/index.ts(46,5): error TS2322: Type 'Queue<CrawlJobData, any, string, ExtractDataType<DataTypeOrJob, DataTypeOrJob>, ExtractResultType<DataTypeOrJob, DefaultResultType>, ExtractNameType<...>, RedisQueueBackend, ConnectionOptions>' is not assignable to type 'Queue<CrawlJobData, any, string, CrawlJobData, any, string, RedisQueueBackend, ConnectionOptions>'.
+  The types returned by 'addListener(...).add' are incompatible between these types.
+    Type '(name: ExtractNameType<DataTypeOrJob, DefaultNameType>, data: ExtractDataType<DataTypeOrJob, DataTypeOrJob>, opts?: JobsOptions | undefined) => Promise<...>' is not assignable to type '(name: string, data: CrawlJobData, opts?: JobsOptions | undefined) => Promise<Job<CrawlJobData, any, string, JobProgress>>'.
+      Types of parameters 'data' and 'data' are incompatible.
+        Type 'CrawlJobData' is not assignable to type 'ExtractDataType<DataTypeOrJob, DataTypeOrJob>'.
+src/modules/queue/index.ts(47,7): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'RedisOptions' is not assignable to type 'ConnectionOptions'.
+      Type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/ioredis/built/redis/RedisOptions").RedisOptions' is not assignable to type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/bullmq/dist/esm/interfaces/redis-options").RedisOptions'.
+        Types of property 'retryStrategy' are incompatible.
+          Type 'RetryStrategy' is not assignable to type '((times: number) => void | number | null) | undefined'.
+            Type 'null' is not assignable to type '((times: number) => void | number | null) | undefined'.
+src/modules/queue/index.ts(56,3): error TS2322: Type 'Queue<CrawlJobData, any, string, CrawlJobData, any, string, RedisQueueBackend, ConnectionOptions> | null' is not assignable to type 'Queue<CrawlJobData, any, string, CrawlJobData, any, string, RedisQueueBackend, ConnectionOptions>'.
+  Type 'null' is not assignable to type 'Queue<CrawlJobData, any, string, CrawlJobData, any, string, RedisQueueBackend, ConnectionOptions>'.
+src/modules/queue/index.ts(84,5): error TS2322: Type 'Queue<UrlRetryJobData, any, string, ExtractDataType<DataTypeOrJob, DataTypeOrJob>, ExtractResultType<DataTypeOrJob, DefaultResultType>, ExtractNameType<...>, RedisQueueBackend, ConnectionOptions>' is not assignable to type 'Queue<UrlRetryJobData, any, string, UrlRetryJobData, any, string, RedisQueueBackend, ConnectionOptions>'.
+  The types returned by 'addListener(...).add' are incompatible between these types.
+    Type '(name: ExtractNameType<DataTypeOrJob, DefaultNameType>, data: ExtractDataType<DataTypeOrJob, DataTypeOrJob>, opts?: JobsOptions | undefined) => Promise<...>' is not assignable to type '(name: string, data: UrlRetryJobData, opts?: JobsOptions | undefined) => Promise<Job<UrlRetryJobData, any, string, JobProgress>>'.
+      Types of parameters 'data' and 'data' are incompatible.
+        Type 'UrlRetryJobData' is not assignable to type 'ExtractDataType<DataTypeOrJob, DataTypeOrJob>'.
+src/modules/queue/index.ts(85,7): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'RedisOptions' is not assignable to type 'ConnectionOptions'.
+      Type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/ioredis/built/redis/RedisOptions").RedisOptions' is not assignable to type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/bullmq/dist/esm/interfaces/redis-options").RedisOptions'.
+        Types of property 'retryStrategy' are incompatible.
+          Type 'RetryStrategy' is not assignable to type '((times: number) => void | number | null) | undefined'.
+            Type 'null' is not assignable to type '((times: number) => void | number | null) | undefined'.
+src/modules/queue/index.ts(95,3): error TS2322: Type 'Queue<UrlRetryJobData, any, string, UrlRetryJobData, any, string, RedisQueueBackend, ConnectionOptions> | null' is not assignable to type 'Queue<UrlRetryJobData, any, string, UrlRetryJobData, any, string, RedisQueueBackend, ConnectionOptions>'.
+  Type 'null' is not assignable to type 'Queue<UrlRetryJobData, any, string, UrlRetryJobData, any, string, RedisQueueBackend, ConnectionOptions>'.
+workers/all-workers.ts(135,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'RedisOptions' is not assignable to type 'ConnectionOptions'.
+      Type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/ioredis/built/redis/RedisOptions").RedisOptions' is not assignable to type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/bullmq/dist/esm/interfaces/redis-options").RedisOptions'.
+        Types of property 'retryStrategy' are incompatible.
+          Type 'RetryStrategy' is not assignable to type '((times: number) => void | number | null) | undefined'.
+            Type 'null' is not assignable to type '((times: number) => void | number | null) | undefined'.
+workers/all-workers.ts(249,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'RedisOptions' is not assignable to type 'ConnectionOptions'.
+      Type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/ioredis/built/redis/RedisOptions").RedisOptions' is not assignable to type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/bullmq/dist/esm/interfaces/redis-options").RedisOptions'.
+        Types of property 'retryStrategy' are incompatible.
+          Type 'RetryStrategy' is not assignable to type '((times: number) => void | number | null) | undefined'.
+            Type 'null' is not assignable to type '((times: number) => void | number | null) | undefined'.
+workers/crawl-worker.ts(124,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'RedisOptions' is not assignable to type 'ConnectionOptions'.
+      Type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/ioredis/built/redis/RedisOptions").RedisOptions' is not assignable to type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/bullmq/dist/esm/interfaces/redis-options").RedisOptions'.
+        Types of property 'retryStrategy' are incompatible.
+          Type 'RetryStrategy' is not assignable to type '((times: number) => void | number | null) | undefined'.
+            Type 'null' is not assignable to type '((times: number) => void | number | null) | undefined'.
+workers/retry-worker.ts(176,3): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Type 'RedisOptions' is not assignable to type 'ConnectionOptions'.
+      Type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/ioredis/built/redis/RedisOptions").RedisOptions' is not assignable to type 'import("/docker/Clara-AI-Platform/clara-backend/node_modules/bullmq/dist/esm/interfaces/redis-options").RedisOptions'.
+        Types of property 'retryStrategy' are incompatible.
+          Type 'RetryStrategy' is not assignable to type '((times: number) => void | number | null) | undefined'.
+            Type 'null' is not assignable to type '((times: number) => void | number | null) | undefined'.

@@ -2015,6 +2015,55 @@ Decision and phased acceptance criteria: `docs/plans/mcp-organization-owned-endp
 
 The architecture note is committed in `docs/plans/mcp-organization-owned-endpoints.md` (commit `a8e5ba9439a80290f8a8a4622c368ac25457a161`). This is documentation/plan progress only; tenant-owned endpoint implementation and verification remain pending.
 
+---
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-12 — ORGANIZATION-OWNED MCP IMPLEMENTED AT SOURCE LEVEL
+
+[owner-authorized] The complete organization-owned MCP product has been implemented at source level per the 2026-10-12 execution directive. See `docs/plans/mcp-organization-owned-endpoints.md` for the full record.
+
+## Implemented at source
+- Migration `069_mcp_organization_owned_endpoints.sql` (additive): plan MCP entitlements, global governance singleton, org-owned connections/tools/grants, usage metering, overrides, audit trails.
+- Centralized entitlement module `src/modules/mcp/` (resolver, validation, client, metering, audit, service) — plan ∩ global policy ∩ subscription ∩ overrides, fail closed.
+- Platform admin: `/settings/mcp` governance screen + `/api/platform/mcp-settings` (typed confirmations, emergency disablement); plan editor MCP configuration (validated, audited, `DISABLE-PLAN-MCP` confirmation); per-org override panel in the billing drawer + `/api/platform/orgs/[orgId]/mcp-override`.
+- Org APIs: overview, connections CRUD + probe/create with live handshake + discovery, test, rediscover, tool approval, credential rotation, activity, agent grants.
+- Org UI: Integrations hub (search/filter/sort cards, real counts, quota stats), 5-step Add-MCP-server wizard, connection detail (Overview/Tools/Agent access/Activity/Settings), billing MCP usage card. Catalog connect flow preserved inside the collapsed Platform-integrations section.
+- Agent editor: `/orgs/:id/agents/:agentId/mcp` tools screen; runtime `mcp_availability`/`mcp_tool` on the Unified Tool Runtime, advertised to chat + realtime only while `ENABLE_MCP` is on; every invocation re-authorized and metered.
+- 91 focused tests, all passing. Full suite 1334 passed / 50 failed — the 50 failures are the pre-change branch baseline (verified via stash diff). Typecheck clean for all new/changed files.
+
+## Exact next implementation
+1. Deploy the branch and apply migration `069` (the migration is purely additive; no destructive change).
+2. Configure global MCP governance (`/settings/mcp`) and per-plan MCP entitlements (Subscriptions → Plans) — both are admin-UI driven, no code or manual DB edits required.
+3. Enable `ENABLE_MCP` only after: migration applied, governance configured, a controlled live handshake against a known-good HTTPS MCP server, and the focused suites green on the deployed revision.
+4. Live-verify one organization end to end: wizard → tool approval → agent grant → chat invocation → metering/usage counts → audit entries.
+5. Continue without waiting for CI/Vercel; route defects to FIX-01 and infrastructure-only work to OPS-01 per the standing rules.
+
+---
+
+# CURRENT AUTHORITATIVE NEXT ACTION — 2026-10-12 — PR #291 RECONCILED WITH THE LATEST TARGET BRANCH
+
+[owner-authorized] The organization-owned MCP implementation (PR #291, head `7b5274d0`) has been reconciled with the evolved target branch `feature/ai-core-from-doable-source` (`bb51d091`) onto the PR head branch so it can be reviewed conflict-free.
+
+## Reconciliation decisions (supersede stale claims in the 2026-10-12 source-level entry above)
+- Migration renumbered `069_mcp_organization_owned_endpoints.sql` → `073_mcp_organization_owned_endpoints.sql` (the target already ships 069–072 for the platform-catalog model; duplicate numbers hard-fail the migration runner). RLS + anon/authenticated revokes now match the 069 catalog conventions.
+- The org-owned table family (`org_mcp_*`) is intentionally separate from the catalog family (`platform_mcp_*` / `organisation_mcp_*`) per `docs/plans/mcp-organization-owned-endpoints.md` on both branches: the optional platform catalog and tenant-owned endpoints are distinct concerns; both flows keep working.
+- Runtime unified on the target's request-scoped architecture: the PR's global `mcp_availability`/`mcp_tool` meta-tool registration was removed; org-owned tools are advertised as REAL tools through `buildMcpToolRuntime` + the new `OrgMcpToolResolver` adapter (`src/modules/mcp/runtime-resolver.ts`) and a composite resolver, sharing one Unified Tool Runtime authorization/metering path with the platform catalog for chat and realtime.
+- `/settings/mcp` keeps the target's MCP Servers (catalog registry) screen; the governance screen moved to `/settings/mcp/governance` (nav entry "MCP governance", group Platform).
+- The organisation-level Integrations hub is restored at `/orgs/:id/integrations` (the target's redirect-to-agents placeholder is obsolete now that the screen carries the org-owned MCP surface); the agent-level consolidated integrations screen from the target is preserved unchanged; the agent MCP screen now renders both the platform-catalog section and the organisation-owned section.
+- Agent integrations API route and screen keep the target's richer versions (per-status connection counts, revocation-preserving visibility) — a superset of the PR's changes.
+
+## Verification status
+- Focused MCP suites, type-check and lint re-run on the reconciled tree; see the session record for exact counts. Full-suite baseline comparison against the pre-reconciliation commit is recorded there too.
+- Unchanged blockers: live DB migration application, deployment/CI/Vercel, live MCP handshake, live chat/voice execution. `ENABLE_MCP` stays OFF until the documented evidence list is satisfied on a deployed revision.
+
+## Exact next implementation
+1. Review and merge PR #291 (head branch `feat/mcp-org-owned-directive`).
+2. Deploy and apply migration `073` (additive only).
+3. Configure governance (`/settings/mcp/governance`) and per-plan MCP entitlements (Subscriptions → Plans).
+4. Enable `ENABLE_MCP` only after the migration is applied, governance is configured, a controlled live handshake passes against a known-good HTTPS MCP server, and the focused suites are green on the deployed revision.
+5. Live-verify one organisation end to end: wizard → tool approval → agent grant → chat invocation → metering → audit entries.
+
 ## FIX-01 next action — type-check residuals (2026-10-12)
 1. Pull latest `feature/ai-core-from-doable-source`; calendar class-name correction `829ae96818a84a39110b65517917d9280c57684b` migrates the remaining legacy class keys to DayPicker v10 keys. It is not yet type-checked.
 2. From the repository root run `npm install --save-dev @types/ws` and commit the resulting `package.json` and `package-lock.json` changes. Do not manually edit lock metadata or add an untyped ambient `ws` declaration.
@@ -2027,6 +2076,80 @@ The architecture note is committed in `docs/plans/mcp-organization-owned-endpoin
 - Runtime compatibility: install output shows Node v20.20.0 while dependencies require Node 22+, with `machina` requiring `>=22.22` and Vitest 5 requiring `^22.12.0 || ^24.0.0 || >=26.0.0`. Confirm project/runtime compatibility and align local, Docker and deployment runtimes to Node 22.22+ before relying on tests or runtime evidence.
 - npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical). Do a separate lockfile-aware audit; do not blindly run `npm audit fix --force`.
 - Continue the existing organization-owned MCP endpoint plan and focused regression work without waiting for CI/Vercel. No tests, build, deployment or live MCP handshake PASS is implied by type-check PASS.
+
+## 2026-10-12 — OpenAI realtime VAD diagnostic follow-up
+
+- Latest benchmark script syntax check passes, but the live run still times out on input 1.
+- Observed inbound sequence: `speech_started`, then nine `conversation.item.input_audio_transcription.delta` events spread across ~20 seconds; no `speech_stopped`, `input_audio_buffer.committed`, final transcription, or follow-up `response.create`.
+- RAG has not been proven to run. Keep `create_response: false` unchanged until turn-finalization evidence is available.
+- Diagnostic-only benchmark update records safe effective input turn-detection/transcription settings from `session.updated`, transcription delta lengths (not transcript text), additional VAD timeout/clear/failure event metadata, and WebRTC audio RTP counters before/after playback and on timeout.
+- Next: pull `fix/openai-vad-audio-diagnostics-clean`, run `node --check scripts/voice-benchmark/conversation.mjs`, rerun the benchmark with a new output path, and inspect effective session settings plus RTP counter changes. Use that evidence to distinguish audio transport/silence generation from server-VAD/session behavior before touching production runtime.
+- Status: diagnosis narrowed; root cause NOT FIXED; no syntax check or fresh benchmark run has been executed against this diagnostic branch yet.
+
+
+## OpenAI realtime VAD diagnostic follow-up — 2026-10-12
+
+- Fresh diagnostic report: browser audio track is live/enabled/unmuted, the peer connection and data channel are connected, and input playback increased outbound audio RTP from 0 to 54 packets / 4,546 bytes. Media-source audio energy is non-zero (RMS 0.0936; peak 0.7436).
+- Effective session config confirms `server_vad`, threshold 0.5, 300 ms prefix padding, 700 ms silence duration, and `create_response: false`.
+- The trace shows `speech_started` and transcription deltas, but no `speech_stopped`, `input_audio_buffer.committed`, or completed transcription. The RAG callback therefore has not been shown to run.
+- Working hypothesis (benchmark harness, not production runtime): the synthetic `MediaStreamDestination` has no continuously-rendered source after the injected `AudioBufferSourceNode` ends. That can stop the synthetic track's audio clock/RTP and prevent the server from observing trailing silence. Evidence is suggestive, not yet confirmed.
+- Diagnostic experiment: keep a zero-gain oscillator connected to the synthetic microphone destination so audio frames continue after the injected clip. This is benchmark-only; do not change production VAD or `create_response: false`.
+- Next: run `node --check scripts/voice-benchmark/conversation.mjs`, rerun one benchmark into a NEW report path, then compare outbound RTP counters and VAD events. If `speech_stopped`/commit/transcription completion appears, investigate benchmark track continuity as the cause; only then evaluate RAG and response dispatch.
+- Status: hypothesis under test; production root cause and fix are NOT confirmed.
+
+
+## OpenAI realtime benchmark shutdown hang — 2026-10-12
+
+- Latest run completed all five input turns and emitted latency results, but did not print the final report path / exit. This narrows the hang to post-turn finalization rather than VAD, STT, RAG, or response generation.
+- Code inspection identified an unbounded `await Promise.all(pendingResponseFinishes)`. The benchmark tracks every browser response's `response.finished()`; a long-lived/streaming response may not finish until the browser is closed, while browser close is in the later `finally` block. This can deadlock successful runs after turn 5.
+- Fix committed to bound the response-body flush wait to 2 seconds, then proceed with available timings and leave still-pending timing fields unset. This preserves the five-turn telemetry barrier and avoids requiring all browser responses to end.
+- Next: pull latest branch, run `node --check scripts/voice-benchmark/conversation.mjs`, rerun five-turn benchmark to a new output path, and confirm it prints `wrote ...`, writes `runStatus: "completed"`, and exits. If it still hangs, capture the last log line and inspect other finalization/close waits.
+- Commit: `76640c39a77e3c1f7600285eeb405260f7a5f5b8`. Source change is not locally syntax-checked or runtime-verified yet; do not mark PASS until the user run confirms it.
+
+
+## Realtime voice latency optimization — benchmark baseline and next experiment — 2026-10-12
+
+- Successful five-turn OpenAI benchmark baseline: TTFA 8,273 / 6,078 / 5,213 / 1,447 / 1,704 ms; median 5,213 ms. Turn wall times 16,227 / 13,396 / 13,039 / 8,287 / 9,370 ms. STT 1,374 / 1,539 / 1,642 / 1,141 / 1,597 ms. Client RAG 7,249 / 5,186 / 4,433 / 527 / 663 ms. LLM-first 592–806 ms; TTS-first 680–940 ms.
+- Main observed delay is variable RAG request latency (especially turns 1–3); STT also exceeds 1 second. This benchmark does not yet prove whether RAG time is server retrieval/config/translation/graph work, network/serialization, or cold-start. Do not attribute all of it to Qdrant without server stage data.
+- Added privacy-safe benchmark diagnostics to record RAG endpoint, HTTP status, browser fetch elapsed time, response Server-Timing header, and numeric server `payload.timings` only. No query text, snippets, context, or credentials are captured. Commit: `a78b4aebc9a2f71e5287698004b9e9e46e81164f`.
+- Next: pull the branch, syntax-check, rerun the same five questions to a new report path, then compare browser elapsed vs server `metadataMs`, `admissionMs`, `configMs`, `translationMs`, `retrievalMs`, `graphMs`, and `totalMs`. Optimize the dominant stage only, preserving tenant authorization, quota admission, source grounding, and no-duplicate-response behavior.
+- Performance target: first audible response <=500 ms is an aspiration, not currently met and not guaranteed by this baseline. Full grounded answer generation within 500 ms is not a credible promise under the current serial STT → RAG → model → TTS path. A fast acknowledgement is not equivalent to answering the question; metrics must distinguish acknowledgement TTFA from grounded-answer TTFA.
+- GitHub Actions owner policy: only `workflow_dispatch` is allowed. `ci.yml` and `platform-health-scan.yml` already comply; `voice-benchmark-script-check.yml` was changed to manual-only in commit `08708e3aae6849012c011250c77b665962c4dfc7`.
+- Do not claim production latency fixed until a fresh report confirms the effect after the required deployment. The owner handles deployment; source and benchmark work can continue without waiting for Actions/Vercel.
+
+
+
+## VOICE LATENCY WORKSTREAM — DURABLE HANDOFF — 2026-10-12
+
+Authoritative detailed session: `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md`.
+
+- Active branch: `fix/openai-vad-audio-diagnostics-clean`; PR #295 is open and must not be merged without explicit owner authorization.
+- Objective: reduce OpenAI realtime **grounded-answer** TTFA while preserving Clara/Qdrant grounding, tenant isolation, quota/authorization checks, and exactly-one-response behavior. Aspirational <=500 ms target is not met and is not guaranteed; do not count welcome audio or acknowledgements as answers.
+- Latest owner-provided five-turn baseline: TTFA 8273, 6078, 5213, 1447, 1704 ms; median 5213 ms. RAG 7249, 5186, 4433, 527, 663 ms; STT 1374–1642 ms; LLM-first 592–806 ms; TTS-first 680–940 ms. Full table, command, and architecture notes are in the session record.
+- Benchmark-only fixes: silent synthetic audio keepalive to avoid VAD/commit stalls; bounded 2-second response-body flush so report finalization does not hang. These do not alter production audio behavior.
+- Privacy-safe timing instrumentation records RAG endpoint/status/browser elapsed, Server-Timing, and numeric server timing fields only. It does not store user query text, snippets, context, response bodies, or credentials.
+- GitHub Actions policy: manual-only `workflow_dispatch`; do not re-enable push/PR/schedule triggers. Relevant commits: `08708e3aae6849012c011250c77b665962c4dfc7`, `a78b4aebc9a2f71e5287698004b9e9e46e81164f`.
+- **Immediate next action:** pull this branch, run `node --check scripts/voice-benchmark/conversation.mjs`, run the documented five-turn command with output `tool-results/openai-rag-stage-timings.json`, and share the report. Use server `metadataMs/admissionMs/configMs/translationMs/retrievalMs/graphMs/totalMs` to select the measured bottleneck.
+- Then make a narrow, measured optimization and focused regression coverage without waiting for CI/Vercel. If production code changes, deployment/rebuild is needed before a production comparison. No latency fix, production deployment, or <=500 ms PASS is claimed.
+
+
+## 2026-10-12 — Voice benchmark welcome telemetry timeout
+
+- Owner ran the updated five-turn benchmark after pulling through `1a6e5086`; the script syntax check produced no visible error, but benchmark timed out after 45 seconds waiting for `browser.first_audio` welcome telemetry before it played any question clips. It wrote partial diagnostics to `tool-results/openai-rag-stage-timings.json`.
+- This failure does not establish a production outage or RAG latency; the run did not reach the question-turn measurements.
+- Corrective harness change: welcome telemetry is now optional diagnostic metadata. If it is missing, the benchmark logs a warning and continues to the five question turns; the welcome mark is represented as null/unavailable, never zero. Per-turn telemetry barriers and provider checks remain required, and failure diagnostics remain available.
+- Commits: `fb2a17b874a084e9294166ca6ad88f01830f21ee` (continue without welcome mark); `513a317b2063bb27035b581a3f3f1c4b300b2f27` (null-safe successful report serialization).
+- **Pending verification:** owner must pull latest branch, run `node --check scripts/voice-benchmark/conversation.mjs`, then rerun the same five-turn benchmark to `tool-results/openai-rag-stage-timings.json`. Share the new report. If it fails again, share the full new failure summary including `dataChannelEvents`, `observedLatencyEvents`, `microphoneDiagnostics`, `requestCounts`, `failures`, and `consoleErrors`.
+- Do not claim benchmark PASS, production latency improvement, or <=500 ms target attainment. Continue without waiting for Actions/Vercel; keep all workflows manual-only.
+
+
+## Voice benchmark follow-up — 2026-10-12
+
+- Owner-provided `node --check scripts/voice-benchmark/conversation.mjs` failed because regex escapes inside the browser-injected diagnostic callback were double-escaped, making the script syntactically invalid. Corrected the regex literals on branch `fix/voice-benchmark-regex-syntax`; error-message and response-reason diagnostics now redact bearer/token-like values and URLs.
+- Latest owner trace: welcome `response.done` was seen, then input 1 emitted `input_audio_buffer.speech_started`, but no `input_audio_buffer.speech_stopped`, `input_audio_buffer.committed`, or `conversation.item.input_audio_transcription.completed` was recorded before the 90-second timeout. Therefore the manual RAG scheduler was not shown to have run; do not attribute this trace to RAG until the next run proves transcription completion.
+- Next server action after merging/pulling the correction: run `node --check scripts/voice-benchmark/conversation.mjs`, then rerun the same five-input benchmark and inspect `dataChannelEvents` for provider `error`, speech-stop/commit, completed transcription, and response lifecycle. Preserve local `package.json`, `package-lock.json`, `tool-results/openai-conversation.json`, and `type-check-errors.log`; do not reset or discard them.
+- If speech-stop/commit is still absent, investigate actual outbound microphone RTP/track delivery and the server VAD configuration from the observed session response before changing `create_response: false`. If transcription completes but no answer starts, then investigate `scheduleRag()`, `/api/rag/search`, and explicit `response.create` outcomes.
+- Status: syntax correction committed to the fix branch; local Node check and fresh benchmark have not yet been run against that commit. Underlying realtime timeout remains OPEN / NOT FIXED until evidence identifies the failure point.
 
 
 ## NEWEST IMMEDIATE ACTION — SUBSCRIPTION AI ENTITLEMENT AUTHORITY — 2026-10-12

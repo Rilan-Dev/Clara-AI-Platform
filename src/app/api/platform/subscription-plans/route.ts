@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { pool, query } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { validateMcpEntitlements, recordPlatformMcpAudit } from "@/modules/mcp";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ type PlanInput = {
   features?: string[];
   enabled?: boolean;
   action?: "enable" | "disable";
+  /** MCP plan entitlements — validated centrally before any write. */
+  mcpEntitlements?: unknown;
 };
 
 async function requirePlatformAdmin(req: NextRequest) {
@@ -60,6 +63,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
              COALESCE(pv.analytics_level, sp.analytics_level) AS analytics_level,
              COALESCE(pv.priority_support, sp.priority_support) AS priority_support,
              COALESCE(pv.features, sp.features) AS features,
+             sp.mcp_entitlements AS mcp_entitlements,
              pv.id AS published_version_id, pv.version AS published_version,
              (SELECT v.id FROM subscription_plan_versions v WHERE v.plan_id = sp.id AND v.status = 'draft' ORDER BY v.version DESC LIMIT 1) AS draft_version_id,
              (SELECT v.version FROM subscription_plan_versions v WHERE v.plan_id = sp.id AND v.status = 'draft' ORDER BY v.version DESC LIMIT 1) AS draft_version,
@@ -92,6 +96,54 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     ))[0];
     if (!base) return NextResponse.json({ error: "Plan not found" }, { status: 404 });
 
+    // MCP entitlements: validate centrally; fall back to the plan's current
+    // value when the editor did not send an MCP section.
+    let mcpEntitlementsJson: string | null;
+    if (body.mcpEntitlements !== undefined) {
+      const validated = validateMcpEntitlements(body.mcpEntitlements);
+      if (!validated.ok) {
+        return NextResponse.json(
+          { error: "Invalid MCP entitlements", issues: validated.errors },
+          { status: 400 },
+        );
+      }
+      mcpEntitlementsJson = JSON.stringify(validated.value);
+      // Restrictive/high-impact MCP changes on a plan require confirmation.
+      const current = base.mcp_entitlements as Record<string, unknown> | null;
+      if (current?.enabled === true && !validated.value.enabled) {
+        const confirmation =
+          typeof (body as Record<string, unknown>).mcpConfirmation === "string"
+            ? String((body as Record<string, unknown>).mcpConfirmation).trim().toUpperCase()
+            : "";
+        if (confirmation !== "DISABLE-PLAN-MCP") {
+          return NextResponse.json(
+            {
+              error:
+                "Disabling MCP for a plan blocks new operations for its subscribers. Type DISABLE-PLAN-MCP to confirm.",
+              code: "CONFIRMATION_REQUIRED",
+            },
+            { status: 400 },
+          );
+        }
+      }
+      await recordPlatformMcpAudit({
+        actorUserId: auth.user.id,
+        action: "plan.mcp_entitlements_updated",
+        entityType: "subscription_plan",
+        entityId: body.planId,
+        details: {
+          draftVersion: true,
+          before: current ?? null,
+          after: validated.value,
+        },
+      });
+    } else {
+      mcpEntitlementsJson =
+        base.mcp_entitlements != null
+          ? JSON.stringify(base.mcp_entitlements)
+          : null;
+    }
+
     const nextVersion = (await query<{ version: number }>(
       "SELECT COALESCE(MAX(version), 0) + 1 AS version FROM subscription_plan_versions WHERE plan_id = $1",
       [body.planId],
@@ -102,8 +154,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         (plan_id, version, name, description, price_usd, max_kbs, max_docs_per_kb,
          max_req_day, max_storage_mb, max_integrations, max_tts_chars_day, max_stt_audio_sec_day, max_translation_chars_day,
          voice_enabled, api_access, custom_branding, sso_enabled, analytics_level, priority_support,
-         features, status, created_by, multilingual_embeddings)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'draft',$21,$22)
+         features, status, created_by, multilingual_embeddings, mcp_entitlements)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,'draft',$21,$22,$23::jsonb)
       RETURNING *
     `, [
       body.planId, nextVersion,
@@ -121,7 +173,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       body.prioritySupport ?? base.priority_support, JSON.stringify(body.features ?? base.features ?? []),
       auth.user.id,
       body.multilingualEmbeddings ?? null,
+      mcpEntitlementsJson,
     ]))[0];
+
+    // Keep the live plan row's MCP entitlements aligned with the draft so the
+    // entitlement resolver (which reads the live row, matching
+    // max_integrations behavior) reflects the newest admin intent. The
+    // published-version value remains the auditable snapshot.
+    if (mcpEntitlementsJson != null) {
+      await query(
+        `UPDATE subscription_plans SET mcp_entitlements = $1::jsonb WHERE id = $2`,
+        [mcpEntitlementsJson, body.planId],
+      );
+    }
 
     return NextResponse.json({ version }, { status: 201 });
   } catch (err) {

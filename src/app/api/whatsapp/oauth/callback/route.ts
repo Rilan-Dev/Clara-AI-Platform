@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
+import { oauthRequestOriginMatches } from "@/lib/public-origin";
 import { requireAgentPermission, requireAuth } from "@/modules/auth/core/rbac";
 
 export const dynamic = "force-dynamic";
@@ -58,9 +59,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
     const oauthState = consumed[0];
     if (!oauthState) return NextResponse.json({ error: "Invalid, expired, or already-used WhatsApp OAuth state." }, { status: 400 });
+    // Return URL origin comes from the state-bound redirect URI (the registered
+    // public callback origin) — never req.nextUrl.origin, which behind
+    // Host-rewriting reverse proxies surfaces the bind address
+    // (e.g. https://0.0.0.0:3000) that no browser can reach.
     const origin = new URL(oauthState.redirect_uri).origin;
     const callback = new URL(oauthState.redirect_uri);
-    if (callback.origin !== req.nextUrl.origin || callback.pathname !== req.nextUrl.pathname) {
+    // The provider already redirected the browser to the exact registered
+    // redirect URI; verify the path strictly and the origin against the
+    // deployment's public origin, tolerating private/bind request hosts as
+    // unverifiable reverse-proxy hops. A genuinely different public origin
+    // still fails closed.
+    if (callback.pathname !== req.nextUrl.pathname || !oauthRequestOriginMatches(callback.origin, req)) {
       return returnUrl(origin, oauthState.org_id, oauthState.agent_id, "error");
     }
     if (req.nextUrl.searchParams.has("error") || !code || code.length > 4096) {

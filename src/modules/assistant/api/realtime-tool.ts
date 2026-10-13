@@ -11,7 +11,9 @@ import {
   streamableHttpMcpToolResolver,
   isAgentLoopEnabled,
   isProviderToolCallingEnabled,
+  type McpToolResolver,
 } from "@/modules/ai-platform-core";
+import { OrgMcpToolResolver } from "@/modules/mcp/runtime-resolver";
 
 const ALLOWED_REALTIME_INTEGRATION_TOOLS = new Set([
   "integration_availability",
@@ -91,6 +93,9 @@ export async function postRealtimeTool(request: NextRequest): Promise<NextRespon
     // The model/client supplies only the public tool alias. Resolve it back to
     // an exact tenant-owned server/tool pair from current grants, then build a
     // one-tool runtime whose resolver rechecks every grant before execution.
+    // Both grant families are matched: the optional platform catalog
+    // (platform_mcp_servers) and organization-owned connections
+    // (org_mcp_connections); an alias must resolve to exactly one pair.
     const grants = await dbQuery<{ server_id: string; tool_name: string }>(
       `SELECT DISTINCT s.id AS server_id, t.tool_name
          FROM platform_mcp_servers s
@@ -104,7 +109,28 @@ export async function postRealtimeTool(request: NextRequest): Promise<NextRespon
         LIMIT 128`,
       [access.orgId, agentId, kbId],
     );
-    const matches = grants.filter((row) => mcpToolName(row.server_id, row.tool_name) === toolName);
+    let matches = grants.filter((row) => mcpToolName(row.server_id, row.tool_name) === toolName);
+    let resolver: McpToolResolver = streamableHttpMcpToolResolver;
+    if (matches.length === 0) {
+      const orgGrants = await dbQuery<{ connection_id: string; tool_name: string }>(
+        `SELECT c.id AS connection_id, t.tool_name
+           FROM org_mcp_agent_grants g
+           JOIN org_mcp_tools t ON t.id = g.tool_id
+           JOIN org_mcp_connections c ON c.id = t.connection_id
+           JOIN agents a ON a.id = g.agent_id AND a.org_id = g.org_id
+           JOIN knowledge_bases kb ON kb.agent_id = a.id AND kb.id = $3
+          WHERE g.org_id = $1 AND g.agent_id = $2 AND g.enabled = TRUE
+            AND t.approved = TRUE AND t.status = 'approved'
+            AND c.status = 'active'
+          ORDER BY c.id, t.tool_name
+          LIMIT 128`,
+        [access.orgId, agentId, kbId],
+      );
+      matches = orgGrants.filter(
+        (row) => mcpToolName(row.connection_id, row.tool_name) === toolName,
+      ).map((row) => ({ server_id: row.connection_id, tool_name: row.tool_name }));
+      if (matches.length > 0) resolver = new OrgMcpToolResolver();
+    }
     if (matches.length !== 1) return NextResponse.json({ error: "MCP tool is not currently granted to this agent." }, { status: 403 });
     const grant = matches[0]!;
     const requestForTool = { serverId: grant.server_id, toolName: grant.tool_name, context };
@@ -112,7 +138,7 @@ export async function postRealtimeTool(request: NextRequest): Promise<NextRespon
       context,
       [requestForTool],
       { allowedServers: [grant.server_id], allowedToolPairs: [{ serverId: grant.server_id, toolName: grant.tool_name }] },
-      streamableHttpMcpToolResolver,
+      resolver,
     );
     if (!runtime) return NextResponse.json({ error: "MCP tool is unavailable or no longer authorized." }, { status: 404 });
     const outcome = await runtime.invoke(toolName, input, context);
