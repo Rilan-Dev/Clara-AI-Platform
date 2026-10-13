@@ -113,7 +113,22 @@ async function main() {
     const r = requests.get(request);
     if (!r) return;
     const doneAt = Date.now();
-    const record = { ...r, status: response.status(), responseHeadersAt: doneAt, responseHeadersMs: doneAt - r.startedAt, responseFinishedAt: null, responseTotalMs: null, responseBodyError: null };
+    const responseUrl = new URL(response.url());
+    const isSessionBootstrap = responseUrl.pathname === "/api/embed/session" ||
+      responseUrl.pathname === "/api/voice/sarvam/session" ||
+      responseUrl.pathname === "/api/voice/elevenlabs/session" ||
+      responseUrl.pathname === "/api/voice/elevenlabs/speech-engine/session" ||
+      responseUrl.pathname === "/api/voice/gemini/realtime";
+    const record = {
+      ...r,
+      status: response.status(),
+      responseHeadersAt: doneAt,
+      responseHeadersMs: doneAt - r.startedAt,
+      responseFinishedAt: null,
+      responseTotalMs: null,
+      responseBodyError: null,
+      ...(isSessionBootstrap && response.status() >= 400 ? { responseBodyPreview: null } : {}),
+    };
     responseRecords.push(record);
     pendingResponseFinishes.push(response.finished().then((error) => {
       record.responseFinishedAt = Date.now();
@@ -124,6 +139,16 @@ async function main() {
       record.responseTotalMs = record.responseFinishedAt - r.startedAt;
       record.responseBodyError = safeDiagnosticText(error).slice(0, 300);
     }));
+    // A rejected session bootstrap is the earliest useful failure boundary.
+    // Capture only a short, redacted error preview for these endpoints; never
+    // persist successful payloads, credentials, transcripts, or provider data.
+    if (isSessionBootstrap && response.status() >= 400) {
+      pendingResponseFinishes.push(response.text().then((body) => {
+        record.responseBodyPreview = safeDiagnosticText(body).slice(0, 800);
+      }).catch((error) => {
+        record.responseBodyPreview = `[response body unavailable: ${safeDiagnosticText(error).slice(0, 200)}]`;
+      }));
+    }
   });
   page.on("console", (msg) => {
     if (msg.type() === "error") consoleErrors.push({ at: nowIso(), text: safeDiagnosticText(msg.text()) });
