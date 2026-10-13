@@ -24,6 +24,12 @@ const ACTIONS: Record<string, { actionLabel: string; actionHref: string }> = {
 };
 
 function actionFor(key: string) {
+  // Every AI incident family (ai-provider:*, ai-embedding*, ai-catalog:*)
+  // routes to the AI Platform workspace where the credential / default that
+  // caused the incident is actually editable.
+  if (key === "ai-embedding-config" || key === "ai-embedding-dimension" || key.startsWith("ai-embedding") || key.startsWith("ai-provider:") || key.startsWith("ai-catalog:")) {
+    return { actionLabel: "Open AI settings", actionHref: "/settings/ai" };
+  }
   return ACTIONS[key] ?? { actionLabel: "Open system status", actionHref: "/system-status" };
 }
 

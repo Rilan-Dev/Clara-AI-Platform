@@ -12,6 +12,7 @@ import {
 } from "@/modules/agent-versioning/core/db";
 import { validateAgentAISelection } from "@/modules/ai-governance/core/resolver";
 import { getPlatformAIRegistry, listProviderModels } from "@/modules/ai-governance/core/registry-db";
+import { recordRuntimeIncident } from "@/modules/platform-health/core/incidents";
 import type { AssistantConfig } from "@/modules/knowledge-bases/core/models";
 import type { AgentVersionConfig } from "@/modules/agent-versioning/core/types";
 import type {
@@ -376,6 +377,44 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const liveEmbeddingRows = liveRows(embeddingRows, "embedding");
   const liveRealtimeRows = liveRows(realtimeRows, "realtime");
   const liveTranscriptionRows = liveRows(transcriptionRows, "transcription");
+
+  // ── Embedding bootstrap fallback ─────────────────────────────────────────
+  // The live catalogue philosophy (live-catalog.ts) is "bootstrap rows remain
+  // a safe fallback when a provider is unreachable" — but the vendor_live
+  // filter alone made every seeded/disabled discovery failure fatal: with an
+  // invalid OpenAI key, discovery 401s, no vendor_live rows exist, and every
+  // KB chat dies with "No embedding model is configured for this tenant".
+  // When the embedding provider has NO vendor-live rows but the migration/
+  // admin-curated bootstrap rows are enabled, resolve against those instead
+  // and record a degraded-mode incident so the operator knows discovery is
+  // failing while embeddings keep working (or fail with a REAL provider error
+  // if the credential is broken, which the runtime incident hook captures).
+  let effectiveEmbeddingRows = liveEmbeddingRows;
+  let embeddingCatalogDegraded = false;
+  if (liveEmbeddingRows.length === 0) {
+    const bootstrapEmbeddingRows = embeddingRows.filter(
+      (row) => row.enabled && row.kind === "embedding" && !looksLikeChatModel(row.modelId),
+    );
+    if (bootstrapEmbeddingRows.length > 0) {
+      effectiveEmbeddingRows = bootstrapEmbeddingRows;
+      embeddingCatalogDegraded = true;
+      console.warn(
+        `[ai-config] embedding provider "${embeddingProvider}" has no vendor-live models — ` +
+          `falling back to ${bootstrapEmbeddingRows.length} bootstrap catalogue row(s). ` +
+          `Live discovery is failing (bad credential or unreachable vendor); verify the provider in Settings → AI Platform.`,
+      );
+      void recordRuntimeIncident({
+        key: `ai-embedding-catalog:${embeddingProvider}`,
+        serviceName: `${embeddingProvider} embedding catalogue`,
+        healthy: false,
+        severity: "warning",
+        message:
+          `No vendor-live embedding models discovered for ${embeddingProvider} — resolution is running on bootstrap catalogue rows. ` +
+          `Run "Test connection" for this provider (Settings → AI Platform → Providers) and check the credential.`,
+      }).catch(() => undefined);
+    }
+  }
+
   const defaultFrom = (rows: typeof chatRows, configuredId?: string | null) =>
     (configuredId && rows.some((row) => row.modelId === configuredId) ? configuredId : null) ??
     rows.find((row) => row.isDefault)?.modelId ??
@@ -386,7 +425,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     chatDefault?.providerId === provider ? chatDefault.modelId : null,
   );
   const defaultEmbedding = defaultFrom(
-    liveEmbeddingRows,
+    effectiveEmbeddingRows,
     registry.embeddingDefault?.providerId === embeddingProvider ? registry.embeddingDefault.modelId : null,
   );
   const realtimeDefault = registry.defaults.find((item) => item.capability === "realtime_voice");
@@ -433,7 +472,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     return defaultId;
   };
   const chatModel = chooseLiveModel(chatCandidate, liveChatRows, getAllowedValues(orgSettings?.allowedChatModels, provider));
-  let embeddingModel = chooseLiveModel(embeddingCandidate, liveEmbeddingRows, getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider));
+  let embeddingModel = chooseLiveModel(embeddingCandidate, effectiveEmbeddingRows, getAllowedValues(orgSettings?.allowedEmbeddingModels, embeddingProvider));
   const realtimeModel = chooseLiveModel(realtimeCandidate, liveRealtimeRows, getAllowedValues(orgSettings?.allowedRealtimeModels, provider));
   const transcriptionModel = chooseLiveModel(transcriptionCandidate, liveTranscriptionRows, null);
 
@@ -448,7 +487,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     // for the embedding capability may be selected, and the org allow-list
     // still applies when one is configured.
     const fallback =
-      liveEmbeddingRows.find(
+      effectiveEmbeddingRows.find(
         (row) => (!allowedEmbeddingIds || allowedEmbeddingIds.includes(row.modelId)) &&
           !looksLikeChatModel(row.modelId),
       )?.modelId ?? null;
@@ -612,7 +651,23 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     throw new AIConfigResolutionError("No chat model is configured for this tenant.");
   }
   if (input.surface === "rag-embedding" && !embeddingModel) {
-    throw new AIConfigResolutionError("No embedding model is configured for this tenant.");
+    const defaultNote = registry.embeddingDefault
+      ? `platform embedding default: ${registry.embeddingDefault.providerId}/${registry.embeddingDefault.modelId}`
+      : "no platform embedding default is set";
+    const catalogNote = embeddingCatalogDegraded
+      ? `bootstrap fallback found no usable row for "${embeddingProvider}"`
+      : `no vendor-live embedding models discovered for "${embeddingProvider}" (discovery failed or credential rejected)`;
+    const message =
+      `No embedding model is configured for this tenant (embedding provider: ${embeddingProvider}; ${defaultNote}; ${catalogNote}). ` +
+      `Fix the provider credential and set the platform embedding default in Settings → AI Platform, then retry.`;
+    void recordRuntimeIncident({
+      key: "ai-embedding-config",
+      serviceName: "Embedding configuration",
+      healthy: false,
+      severity: "critical",
+      message,
+    }).catch(() => undefined);
+    throw new AIConfigResolutionError(message);
   }
   if (
     (input.surface === "realtime" || input.surface === "embed") &&

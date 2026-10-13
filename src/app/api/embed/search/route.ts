@@ -21,6 +21,10 @@ import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db"
 import { admitQueryEvent } from "@/lib/quota-admission";
 import { query as dbQuery } from "@/lib/db";
 import { resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
+import {
+  noteEmbeddingRequestSucceeded,
+  recordEmbeddingRuntimeFailure,
+} from "@/modules/platform-health/core/incidents";
 import { resolveSearchEmbedding } from "@/modules/knowledge-bases/core/embedding-index";
 import { scoreThresholdFor } from "@/modules/ai-core/multilingual-embeddings";
 import type { ProviderConfig } from "@/modules/ai-core/types";
@@ -170,13 +174,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         scoreThreshold: scoreThresholdFor(providerConfig.provider, providerConfig.embeddingModel, 0.25),
       });
     } catch (searchErr) {
-      // Retrieval failed (e.g. embedding provider unreachable). Two duties:
+      // Retrieval failed (e.g. embedding provider unreachable). Three duties:
       // 1. Finalise the already-admitted query event so the audit trail never
       //    keeps orphaned `pending` rows (mirrors the chat route's pattern).
-      // 2. Return a friendly message — raw provider/edge errors (which can
+      // 2. Record a runtime platform-health incident so the admin banner /
+      //    email fires without anyone watching the container logs.
+      // 3. Return a friendly message — raw provider/edge errors (which can
       //    reference regions, keys or upstream internals) must not leak to
       //    public embed visitors.
       console.error("[embed/search] retrieval failed", searchErr);
+      void recordEmbeddingRuntimeFailure(searchErr, { surface: "public embed search" });
       void finalizeQueryEvent(searchAdmission.admitted ? searchAdmission.eventId : null, {
         answerText: "",
         sourceCount: 0,
@@ -188,6 +195,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { status: 502, headers: corsHeaders },
       );
     }
+
+    // Successful retrieval proves the embedding pipeline is alive — clear any
+    // runtime-failing embedding incident (rate-limited no-op when healthy).
+    void noteEmbeddingRequestSucceeded();
 
     // Voice / phone queries are part of the audit trail (no LLM answer is
     // generated here — the voice provider composes the spoken response).
@@ -212,6 +223,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ context, sources, kbId }, { headers: corsHeaders });
   } catch (err) {
     console.error("[embed/search]:", err);
+    void recordEmbeddingRuntimeFailure(err, { surface: "public embed search" });
     return NextResponse.json(
       { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
       { status: 500, headers: corsHeaders },

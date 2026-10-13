@@ -22,7 +22,8 @@ export type AIModelKind =
   | "transcription"
   | "tts"
   | "stt"
-  | "voice";
+  | "voice"
+  | "sts";
 
 export type GovernanceProviderId = "openai" | "gemini" | "sarvam" | "elevenlabs";
 

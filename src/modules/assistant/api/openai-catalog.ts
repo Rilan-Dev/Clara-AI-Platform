@@ -63,6 +63,21 @@ export async function fetchOpenAIModelCatalog(apiKey: string): Promise<OpenAICat
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
+    // A rejected credential here also blocks the governance live-catalogue
+    // discovery, which is what later starves embedding resolution. Record a
+    // runtime incident so the platform admin is notified instead of only a
+    // container log line.
+    const { recordRuntimeIncident } = await import("@/modules/platform-health/core/incidents");
+    void recordRuntimeIncident({
+      key: "ai-catalog:openai",
+      serviceName: "openai model catalogue",
+      healthy: false,
+      severity: "critical",
+      message:
+        `OpenAI model discovery failed (HTTP ${response.status}): ${text.slice(0, 300)}. ` +
+        `Model pickers fall back to the last known catalogue and embedding resolution may fail for OpenAI. ` +
+        `Fix the OPENAI_API_KEY in Settings → AI Platform → Providers.`,
+    }).catch(() => undefined);
     throw new Error(`OpenAI model discovery failed (${response.status}): ${text.slice(0, 500)}`);
   }
 

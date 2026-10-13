@@ -33,6 +33,10 @@ import {
 } from "@/modules/assistant/core/config";
 import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
 import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
+import {
+  noteEmbeddingRequestSucceeded,
+  recordEmbeddingRuntimeFailure,
+} from "@/modules/platform-health/core/incidents";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder";
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
@@ -466,8 +470,14 @@ async function postChatKb(
       answerText: "", status: "error",
       latencyMs: Date.now() - t0,
     });
+    // Capture the provider/embedding failure as a platform incident so the
+    // admin banner + email notification fire without anyone watching the logs.
+    void recordEmbeddingRuntimeFailure(groundingSettled.error, { surface: "KB chat retrieval" });
     throw new ChatRetrievalError(groundingSettled.error);
   }
+  // A successful grounding proves the embedding pipeline is alive — clear any
+  // runtime-failing embedding incident (rate-limited, no-op when healthy).
+  void noteEmbeddingRequestSucceeded();
   const grounding = groundingSettled.value;
   // A KB with no indexed content yet (503) is a no-evidence turn, not an error.
   const groundedResult = grounding.ok ? grounding.result : null;
@@ -777,6 +787,7 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
     const embedding = await embedQuery(query).catch((embedErr) => {
       // Provider failure during the Mode-B retrieval — same typed wrap so the
       // outer handler returns the friendly 502 (never the raw provider text).
+      void recordEmbeddingRuntimeFailure(embedErr, { surface: "Mode-B chat retrieval" });
       throw new ChatRetrievalError(embedErr);
     });
     const retrieved = await searchSimilarDocuments(
@@ -784,6 +795,8 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
       embedding,
       4
     );
+    // The query embedding round trip succeeded — clear runtime incidents.
+    void noteEmbeddingRequestSucceeded();
     console.log(
       `[chat] retrieval done hits=${retrieved.length} docId=${documentRecord.id}`
     );
@@ -987,8 +1000,11 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     if (error instanceof ChatRetrievalError) {
       // Retrieval/embedding provider failure — friendly 502, raw cause only
-      // in the server log (mirrors /api/embed/search error hygiene).
+      // in the server log (mirrors /api/embed/search error hygiene). The
+      // incident recorder is already called at the typed throw sites; this
+      // catch is the safety net for anything that slipped through unclassified.
       console.error("[chat] retrieval failed:", error.cause ?? error.message);
+      void recordEmbeddingRuntimeFailure(error.cause ?? error, { surface: "chat retrieval" });
       return NextResponse.json(
         { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
         { status: 502 },

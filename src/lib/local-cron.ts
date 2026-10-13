@@ -17,6 +17,7 @@
  */
 
 import vercelConfig from "../../vercel.json";
+import { randomUUID } from "node:crypto";
 
 export type CronJob = { path: string; schedule: string };
 
@@ -89,17 +90,25 @@ export function startLocalCron(): void {
     console.info("[local-cron] disabled via LOCAL_CRON_ENABLED=false");
     return;
   }
-  const secret = process.env.CRON_SECRET?.trim();
-  const jobs = configuredCronJobs();
+  let secret = process.env.CRON_SECRET?.trim();
   if (!secret) {
-    console.warn(
-      `[local-cron] CRON_SECRET is not set — ${jobs.length} scheduled job(s) from vercel.json will not run ` +
-        `(${jobs.map((j) => j.path).join(", ")}). Set CRON_SECRET in .env.`,
+    // Self-hosted deployments (Docker compose / VPS `npm start`) were silently
+    // losing EVERY scheduled job — platform health checks, onboarding
+    // reminders, WhatsApp health — because the admin never set CRON_SECRET.
+    // The cron routes only need the header to MATCH; they never disclose the
+    // value. Generate an internal session secret so the schedule actually
+    // runs, and tell the operator how to keep it stable across restarts.
+    // External callers cannot guess it, so the routes stay protected.
+    secret = randomUUID().replace(/-/g, "");
+    process.env.CRON_SECRET = secret;
+    console.info(
+      "[local-cron] CRON_SECRET was not set — generated an internal session secret so scheduled jobs still run. " +
+        "Set CRON_SECRET in .env to keep it stable across restarts.",
     );
-    return;
   }
   started = true;
 
+  const jobs = configuredCronJobs();
   const port = process.env.PORT || "3000";
   const base = `http://127.0.0.1:${port}`;
   const running = new Set<string>();

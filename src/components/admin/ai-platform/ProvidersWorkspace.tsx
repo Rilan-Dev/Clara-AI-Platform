@@ -73,7 +73,7 @@ const CAPABILITIES: AICapability[] = ["chat", "voice_chat", "realtime_voice"];
 const APPLICABLE_MODEL_KINDS: Record<AICapability, string[]> = {
   chat: ["chat", "embedding"],
   voice_chat: ["tts", "stt", "transcription"],
-  realtime_voice: ["realtime", "stt", "tts", "transcription"],
+  realtime_voice: ["realtime", "stt", "tts", "transcription", "sts"],
 };
 
 const KIND_LABELS: Record<string, string> = {
@@ -84,6 +84,7 @@ const KIND_LABELS: Record<string, string> = {
   tts: "Text-to-speech",
   stt: "Speech-to-text",
   voice: "Voice",
+  sts: "Speech-to-speech realtime",
 };
 
 export function ProvidersWorkspace() {

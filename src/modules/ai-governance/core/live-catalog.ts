@@ -13,10 +13,11 @@
 import { execute } from "@/lib/db";
 import { findChatModel, findEmbeddingModel } from "@/modules/ai-core/model-catalog";
 import { findTTSModel } from "@/modules/voice-core/model-catalog";
+import { recordRuntimeIncident } from "@/modules/platform-health/core/incidents";
 
 type Provider = "openai" | "gemini" | "sarvam" | "elevenlabs";
 type Capability = "chat" | "voice_chat" | "realtime_voice";
-type Kind = "chat" | "embedding" | "realtime" | "transcription" | "tts" | "stt" | "voice";
+type Kind = "chat" | "embedding" | "realtime" | "transcription" | "tts" | "stt" | "voice" | "sts";
 
 type CatalogItem = {
   providerId: Provider;
@@ -80,6 +81,16 @@ function upsertItems(items: CatalogItem[]): Promise<void> {
       );
     }
   })();
+}
+
+/** Pin the platform default model for a (provider, capability, kind) slot. */
+async function setLiveDefault(provider: Provider, capability: Capability, kind: Kind, modelId: string): Promise<void> {
+  await execute(
+    `UPDATE platform_ai_provider_models
+        SET is_default = (model_id = $4), updated_at = now()
+      WHERE provider_id = $1 AND capability = $2 AND kind = $3`,
+    [provider, capability, kind, modelId],
+  );
 }
 
 async function disableMissing(provider: Provider, capability: Capability, kind: Kind, liveIds: Set<string>): Promise<void> {
@@ -194,27 +205,188 @@ async function syncGemini(): Promise<void> {
   }
 }
 
+// ── Sarvam curated catalogue ────────────────────────────────────────────────
+// Sarvam's public API does not expose a discoverable catalogue for the realtime
+// voice-agent stack (Saaras realtime STT, Bulbul streaming TTS, speaker voices)
+// or for the voice-chat stack. Without these rows the Realtime Voice half-canvas
+// shows "Models 0 / Voices 0" and the resolver can never resolve a Sarvam
+// realtime model — the exact regression reported on the platform. The lists
+// below mirror Sarvam's documented offerings and are refreshed on every sync
+// so they stay vendor-live rows (shared by admin UI and runtime resolver).
+
+const SARVAM_REALTIME_LLM_MODELS: Array<{ id: string; name: string; default: boolean }> = [
+  { id: "sarvam-105b-conversations", name: "Sarvam 105B Conversations (32K)", default: true },
+  { id: "sarvam-105b", name: "Sarvam 105B (128K)", default: false },
+];
+
+const SARVAM_REALTIME_STT_MODELS: Array<{ id: string; name: string; default: boolean }> = [
+  { id: "saaras:v3-realtime", name: "Saaras v3 Realtime (live STT)", default: true },
+  { id: "saaras:v4", name: "Saaras v4", default: false },
+];
+
+const SARVAM_TTS_MODELS: Array<{ id: string; name: string; default: boolean }> = [
+  { id: "bulbul:v3", name: "Bulbul v3 (streaming)", default: true },
+  { id: "bulbul:v2", name: "Bulbul v2", default: false },
+];
+
+const SARVAM_BATCH_STT_MODELS: Array<{ id: string; name: string; default: boolean }> = [
+  { id: "saaras:v3", name: "Saaras v3 (batch STT)", default: true },
+  { id: "saaras:v4", name: "Saaras v4", default: false },
+];
+
+const SARVAM_VOICES = [
+  "shubh", "aditya", "ritu", "priya", "neha", "rahul", "pooja", "rohan",
+  "simran", "kavya", "amit", "dev", "ishita", "shreya", "ratan", "varun",
+  "manan", "sumit", "roopa", "kabir", "aayan", "ashutosh", "advait", "anand",
+  "tanya", "tarun", "sunny", "mani", "gokul", "vijay",
+];
+
 async function syncSarvam(): Promise<void> {
   const apiKey = key("SARVAM_API_KEY");
   if (!apiKey) return;
-  const body = (await jsonFetch("https://api.sarvam.ai/v2/models", {
-    headers: { "api-subscription-key": apiKey, Authorization: `Bearer ${apiKey}` },
-  })) as { data?: Array<{ id?: string; owned_by?: string }> };
-  const items: CatalogItem[] = [];
-  for (const model of body.data ?? []) {
-    if (!model.id) continue;
-    items.push({
-      providerId: "sarvam",
-      capability: "chat",
-      kind: "chat",
-      modelId: model.id,
-      displayName: model.id,
-      metadata: { ownedBy: model.owned_by ?? null },
-    });
+
+  // Chat models: try the vendor discovery endpoints. Sarvam has shipped both
+  // /v1/models and /v2/models depending on release; try v2 then v1 and keep
+  // the first that answers. A failed discovery keeps the curated minimum.
+  const base = (key("SARVAM_BASE_URL") || "https://api.sarvam.ai").replace(/\/+$/, "");
+  let discoveredChatIds: string[] = [];
+  for (const modelsPath of ["/v2/models", "/v1/models"]) {
+    try {
+      const body = (await jsonFetch(`${base}${modelsPath}`, {
+        headers: { "api-subscription-key": apiKey, Authorization: `Bearer ${apiKey}` },
+      })) as { data?: Array<{ id?: string; owned_by?: string }> };
+      discoveredChatIds = (body.data ?? []).map((m) => m.id ?? "").filter(Boolean);
+      if (discoveredChatIds.length > 0) break;
+    } catch {
+      // try the next endpoint / fall through to the curated minimum
+    }
   }
-  await upsertItems(items);
-  await disableMissing("sarvam", "chat", "chat", new Set(items.map((item) => item.modelId)));
+
+  const chatItems: CatalogItem[] = [
+    ...SARVAM_REALTIME_LLM_MODELS.map((m) => ({
+      providerId: "sarvam" as const,
+      capability: "chat" as const,
+      kind: "chat" as const,
+      modelId: m.id,
+      displayName: m.name,
+      metadata: { source: "curated" },
+    })),
+    ...discoveredChatIds
+      .filter((id) => !SARVAM_REALTIME_LLM_MODELS.some((m) => m.id === id))
+      .map((id) => ({
+        providerId: "sarvam" as const,
+        capability: "chat" as const,
+        kind: "chat" as const,
+        modelId: id,
+        displayName: id,
+        metadata: { source: "vendor_api" },
+      })),
+  ];
+
+  const realtimeItems: CatalogItem[] = [
+    ...SARVAM_REALTIME_LLM_MODELS.map((m) => ({
+      providerId: "sarvam" as const,
+      capability: "realtime_voice" as const,
+      kind: "realtime" as const,
+      modelId: m.id,
+      displayName: m.name,
+      metadata: { source: "curated" },
+    })),
+    ...SARVAM_REALTIME_STT_MODELS.map((m) => ({
+      providerId: "sarvam" as const,
+      capability: "realtime_voice" as const,
+      kind: "stt" as const,
+      modelId: m.id,
+      displayName: m.name,
+      metadata: { source: "curated", realtime: true },
+    })),
+    ...SARVAM_TTS_MODELS.map((m) => ({
+      providerId: "sarvam" as const,
+      capability: "realtime_voice" as const,
+      kind: "tts" as const,
+      modelId: m.id,
+      displayName: m.name,
+      metadata: { source: "curated", streaming: true },
+    })),
+  ];
+
+  const voiceChatItems: CatalogItem[] = [
+    ...SARVAM_TTS_MODELS.map((m) => ({
+      providerId: "sarvam" as const,
+      capability: "voice_chat" as const,
+      kind: "tts" as const,
+      modelId: m.id,
+      displayName: m.name,
+      metadata: { source: "curated" },
+    })),
+    ...SARVAM_BATCH_STT_MODELS.map((m) => ({
+      providerId: "sarvam" as const,
+      capability: "voice_chat" as const,
+      kind: "stt" as const,
+      modelId: m.id,
+      displayName: m.name,
+      metadata: { source: "curated" },
+    })),
+  ];
+
+  // The same speaker voices serve turn-based Voice Chat and Realtime Voice.
+  const voiceItems: CatalogItem[] = SARVAM_VOICES.map((voiceId) => ({
+    providerId: "sarvam" as const,
+    capability: "voice_chat" as const,
+    kind: "voice" as const,
+    modelId: voiceId,
+    displayName: voiceId.charAt(0).toUpperCase() + voiceId.slice(1),
+    metadata: { source: "curated" },
+  }));
+  const realtimeVoiceItems = voiceItems.map((item) => ({ ...item, capability: "realtime_voice" as const }));
+
+  await upsertItems([...chatItems, ...realtimeItems, ...voiceChatItems, ...voiceItems, ...realtimeVoiceItems]);
+
+  // Reconciliation: a model disappears only when the curated list no longer
+  // contains it AND vendor discovery succeeded without it.
+  const authoritativeChatIds = new Set([
+    ...SARVAM_REALTIME_LLM_MODELS.map((m) => m.id),
+    ...discoveredChatIds,
+  ]);
+  await disableMissing("sarvam", "chat", "chat", authoritativeChatIds);
+  await disableMissing("sarvam", "realtime_voice", "realtime", new Set(SARVAM_REALTIME_LLM_MODELS.map((m) => m.id)));
+  await disableMissing("sarvam", "realtime_voice", "stt", new Set(SARVAM_REALTIME_STT_MODELS.map((m) => m.id)));
+  await disableMissing("sarvam", "realtime_voice", "tts", new Set(SARVAM_TTS_MODELS.map((m) => m.id)));
+  await disableMissing("sarvam", "voice_chat", "tts", new Set(SARVAM_TTS_MODELS.map((m) => m.id)));
+  await disableMissing("sarvam", "voice_chat", "stt", new Set(SARVAM_BATCH_STT_MODELS.map((m) => m.id)));
+  await disableMissing("sarvam", "voice_chat", "voice", new Set(SARVAM_VOICES));
+  await disableMissing("sarvam", "realtime_voice", "voice", new Set(SARVAM_VOICES));
+
+  await setLiveDefault("sarvam", "chat", "chat", "sarvam-105b-conversations");
+  await setLiveDefault("sarvam", "realtime_voice", "realtime", "sarvam-105b-conversations");
+  await setLiveDefault("sarvam", "realtime_voice", "stt", "saaras:v3-realtime");
+  await setLiveDefault("sarvam", "realtime_voice", "tts", "bulbul:v3");
+  await setLiveDefault("sarvam", "voice_chat", "tts", "bulbul:v3");
+  await setLiveDefault("sarvam", "voice_chat", "stt", "saaras:v3");
+  await setLiveDefault("sarvam", "voice_chat", "voice", "shubh");
+  await setLiveDefault("sarvam", "realtime_voice", "voice", "shubh");
 }
+
+// ── ElevenLabs curated STT / STS catalogue ──────────────────────────────────
+// /v1/models only advertises TTS models. The realtime voice-agent stack also
+// uses Scribe (STT) and the conversational speech-to-speech (STS) models that
+// power ElevenLabs Conversational AI. Without these rows the Realtime Voice
+// half-canvas shows ONLY TTS models — the platform admin cannot see or select
+// the STT/STS half of the pipeline. Keep the curated list aligned with the
+// vendor's published Scribe / Conversational offerings.
+
+const ELEVENLABS_REALTIME_STT_MODELS: Array<{ id: string; name: string; default: boolean }> = [
+  { id: "scribe_v2_realtime", name: "Scribe v2 Realtime (live STT)", default: true },
+];
+
+const ELEVENLABS_BATCH_STT_MODELS: Array<{ id: string; name: string; default: boolean }> = [
+  { id: "scribe_v1", name: "Scribe v1", default: true },
+  { id: "scribe_v1_eu", name: "Scribe v1 (EU)", default: false },
+  { id: "scribe_v2", name: "Scribe v2", default: false },
+  { id: "scribe_v2_eu", name: "Scribe v2 (EU)", default: false },
+];
+
+const ELEVENLABS_STS_FALLBACK_MODEL_IDS = ["eleven_v3_conversational"];
 
 async function syncElevenLabs(): Promise<void> {
   const apiKey = key("ELEVENLABS_API_KEY");
@@ -229,9 +401,13 @@ async function syncElevenLabs(): Promise<void> {
     can_do_voice_conversion?: boolean;
   }>;
   const modelItems: CatalogItem[] = [];
+  const stsItems: CatalogItem[] = [];
+  const ttsModelIds = new Set<string>();
+  const stsModelIds = new Set<string>(ELEVENLABS_STS_FALLBACK_MODEL_IDS);
   for (const model of models ?? []) {
     if (!model.model_id) continue;
     if (model.can_do_text_to_speech) {
+      ttsModelIds.add(model.model_id);
       // Vendor model discovery is shared by Voice Chat and Realtime Voice.
       // The old realtime picker hardcoded eleven_flash_v2_5, even when the
       // workspace advertised newer/cheaper supported TTS models.
@@ -250,7 +426,64 @@ async function syncElevenLabs(): Promise<void> {
           },
         });
       }
+      // Conversational models are ElevenLabs' speech-to-speech realtime
+      // offering (Conversational AI / Speech Engine sessions): audio in,
+      // low-latency speech out with turn taking. Catalogue them under the
+      // dedicated 'sts' kind so the Realtime Voice half-canvas lists them
+      // separately from plain TTS.
+      if (model.model_id.toLowerCase().includes("conversational")) {
+        stsModelIds.add(model.model_id);
+        stsItems.push({
+          providerId: "elevenlabs",
+          capability: "realtime_voice",
+          kind: "sts",
+          modelId: model.model_id,
+          displayName: model.name ?? model.model_id,
+          metadata: {
+            speechToSpeech: true,
+            canDoTextToSpeech: true,
+            canDoVoiceConversion: model.can_do_voice_conversion ?? false,
+            modelType: model.model_id.toLowerCase().includes("flash") ? "low_latency" : "standard",
+            usdPer1kChars: findTTSModel(model.model_id)?.usdPer1kChars ?? null,
+          },
+        });
+      }
     }
+  }
+
+  // Curated STT rows — the vendor models endpoint does not list Scribe.
+  const sttItems: CatalogItem[] = [
+    ...ELEVENLABS_REALTIME_STT_MODELS.map((m) => ({
+      providerId: "elevenlabs" as const,
+      capability: "realtime_voice" as const,
+      kind: "stt" as const,
+      modelId: m.id,
+      displayName: m.name,
+      metadata: { source: "curated", realtime: true },
+    })),
+    ...ELEVENLABS_BATCH_STT_MODELS.map((m) => ({
+      providerId: "elevenlabs" as const,
+      capability: "voice_chat" as const,
+      kind: "stt" as const,
+      modelId: m.id,
+      displayName: m.name,
+      metadata: { source: "curated", batch: true },
+    })),
+  ];
+
+  // Curated STS fallback — guarantees the STS section exists even when the
+  // vendor list omits conversational variants for this workspace.
+  for (const id of ELEVENLABS_STS_FALLBACK_MODEL_IDS) {
+    if (stsModelIds.has(id)) continue;
+    stsModelIds.add(id);
+    stsItems.push({
+      providerId: "elevenlabs",
+      capability: "realtime_voice",
+      kind: "sts",
+      modelId: id,
+      displayName: "Eleven v3 Conversational",
+      metadata: { speechToSpeech: true, source: "curated" },
+    });
   }
 
   const voiceItems: CatalogItem[] = [];
@@ -287,16 +520,59 @@ async function syncElevenLabs(): Promise<void> {
     capability: "realtime_voice" as const,
   }));
 
-  await upsertItems([...modelItems, ...voiceItems, ...realtimeVoiceItems]);
+  await upsertItems([...modelItems, ...sttItems, ...stsItems, ...voiceItems, ...realtimeVoiceItems]);
   await disableMissing("elevenlabs", "voice_chat", "tts", new Set(modelItems.filter((item) => item.capability === "voice_chat").map((item) => item.modelId)));
   await disableMissing("elevenlabs", "realtime_voice", "tts", new Set(modelItems.filter((item) => item.capability === "realtime_voice").map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "realtime_voice", "stt", new Set(ELEVENLABS_REALTIME_STT_MODELS.map((m) => m.id)));
+  await disableMissing("elevenlabs", "voice_chat", "stt", new Set(ELEVENLABS_BATCH_STT_MODELS.map((m) => m.id)));
+  await disableMissing("elevenlabs", "realtime_voice", "sts", new Set(stsModelIds));
   await disableMissing("elevenlabs", "voice_chat", "voice", new Set(voiceItems.map((item) => item.modelId)));
   await disableMissing("elevenlabs", "realtime_voice", "voice", new Set(realtimeVoiceItems.map((item) => item.modelId)));
+
+  await setLiveDefault("elevenlabs", "realtime_voice", "stt", "scribe_v2_realtime");
+  await setLiveDefault("elevenlabs", "voice_chat", "stt", "scribe_v1");
+  await setLiveDefault("elevenlabs", "realtime_voice", "sts", "eleven_v3_conversational");
 }
 
 async function runSync(): Promise<void> {
-  // A single failed provider must not prevent the others from refreshing.
-  await Promise.allSettled([syncOpenAI(), syncGemini(), syncSarvam(), syncElevenLabs()]);
+  // A single failed provider must not prevent the others from refreshing —
+  // and a failed discovery must never stay silent: an unreachable vendor or
+  // rejected credential leaves the platform without vendor-live model rows,
+  // which surfaces later as "No embedding model is configured for this
+  // tenant". Record a runtime incident per failed provider so the admin
+  // banner and email notification fire at the true point of failure.
+  const tasks: Array<{ provider: Provider; run: () => Promise<void> }> = [
+    { provider: "openai", run: syncOpenAI },
+    { provider: "gemini", run: syncGemini },
+    { provider: "sarvam", run: syncSarvam },
+    { provider: "elevenlabs", run: syncElevenLabs },
+  ];
+  await Promise.all(
+    tasks.map(async ({ provider, run }) => {
+      try {
+        await run();
+        await recordRuntimeIncident({
+          key: `ai-catalog:${provider}`,
+          serviceName: `${provider} model catalogue`,
+          healthy: true,
+          severity: "warning",
+          message: "Vendor model catalogue sync succeeded.",
+        });
+      } catch (error) {
+        console.warn(`[ai-governance] live catalogue sync failed for ${provider}:`, error);
+        await recordRuntimeIncident({
+          key: `ai-catalog:${provider}`,
+          serviceName: `${provider} model catalogue`,
+          healthy: false,
+          severity: "critical",
+          message:
+            `Live model catalogue discovery failed for ${provider}: ${(error instanceof Error ? error.message : String(error)).slice(0, 300)}. ` +
+            `Model lists stay on their last known state; a rejected credential (401) also blocks embedding resolution for this provider. ` +
+            `Verify the credential in Settings → AI Platform → Providers.`,
+        });
+      }
+    }),
+  );
 }
 
 export async function syncLiveProviderCatalog(): Promise<void> {

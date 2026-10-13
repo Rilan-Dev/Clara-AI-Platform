@@ -47,7 +47,7 @@ function parseCapability(value: string | null): AICapability | null {
 }
 
 function parseModelKind(value: unknown): AIModelKind | null {
-  const kinds: AIModelKind[] = ["chat", "embedding", "realtime", "transcription", "tts", "stt", "voice"];
+  const kinds: AIModelKind[] = ["chat", "embedding", "realtime", "transcription", "tts", "stt", "voice", "sts"];
   return typeof value === "string" && kinds.includes(value as AIModelKind) ? (value as AIModelKind) : null;
 }
 
