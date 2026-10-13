@@ -27,29 +27,62 @@ http.createServer = (...args) => {
   const wssElevenLabsStt = new WebSocketServer({ noServer: true });
   const wssElevenLabsTts = new WebSocketServer({ noServer: true });
 
-    server.on("upgrade", (req, socket, head) => {
-      try {
-        const { pathname } = new URL(req.url, "http://x");
-        if (pathname === "/api/embed/voice") {
-          wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
-        } else if (pathname === "/api/phone/twilio/stream") {
-          wssTwilio.handleUpgrade(req, socket, head, ws => wssTwilio.emit("connection", ws, req));
-        } else if (pathname === "/api/phone/vonage/stream") {
-          wssVonage.handleUpgrade(req, socket, head, ws => wssVonage.emit("connection", ws, req));
-        } else if (pathname === "/api/voice/sarvam/realtime") {
-          wssSarvam.handleUpgrade(req, socket, head, ws => wssSarvam.emit("connection", ws, req));
-        } else if (pathname === "/api/voice/sarvam/tts-realtime") {
-          wssSarvamTts.handleUpgrade(req, socket, head, ws => wssSarvamTts.emit("connection", ws, req));
-        } else if (pathname === "/api/voice/elevenlabs/realtime") {
-          wssElevenLabsStt.handleUpgrade(req, socket, head, ws => wssElevenLabsStt.emit("connection", ws, req));
-        } else if (pathname === "/api/voice/elevenlabs/tts-realtime") {
-          wssElevenLabsTts.handleUpgrade(req, socket, head, ws => wssElevenLabsTts.emit("connection", ws, req));
-        } else {
-          socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
-          socket.destroy();
-        }
-      } catch { socket.destroy(); }
-    });
+  // ── Relay-owned upgrade routing (fixes the realtime 1006 kill) ──────────
+  // Next.js's start-server ALSO registers an 'upgrade' listener on this same
+  // server. Its router-server resolves every upgrade against the filesystem:
+  // when a route.ts exists at a relay WS path (we shipped one at
+  // /api/voice/sarvam/realtime + tts-realtime), resolveRoutes returns
+  // matchedOutput → the handler calls socket.end() — a TCP FIN with NO
+  // WebSocket close frame — milliseconds AFTER our relay already completed
+  // the 101 handshake and sent {"type":"status","value":"connecting"}.
+  // The browser then sees close code 1006, reconnects, and loops forever.
+  //
+  // In a production standalone build Next's upgrade listener has no job we
+  // need (HMR is dev-only; assetPrefix proxying is unused), so we claim the
+  // 'upgrade' event EXCLUSIVELY: our listener below routes every relay path,
+  // and any foreign 'upgrade' listener registered later (Next's) is refused.
+  const claraUpgradeListener = (req, socket, head) => {
+    try {
+      const { pathname } = new URL(req.url, "http://x");
+      if (pathname === "/api/embed/voice") {
+        wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, req));
+      } else if (pathname === "/api/phone/twilio/stream") {
+        wssTwilio.handleUpgrade(req, socket, head, ws => wssTwilio.emit("connection", ws, req));
+      } else if (pathname === "/api/phone/vonage/stream") {
+        wssVonage.handleUpgrade(req, socket, head, ws => wssVonage.emit("connection", ws, req));
+      } else if (pathname === "/api/voice/sarvam/realtime") {
+        wssSarvam.handleUpgrade(req, socket, head, ws => wssSarvam.emit("connection", ws, req));
+      } else if (pathname === "/api/voice/sarvam/tts-realtime") {
+        wssSarvamTts.handleUpgrade(req, socket, head, ws => wssSarvamTts.emit("connection", ws, req));
+      } else if (pathname === "/api/voice/elevenlabs/realtime") {
+        wssElevenLabsStt.handleUpgrade(req, socket, head, ws => wssElevenLabsStt.emit("connection", ws, req));
+      } else if (pathname === "/api/voice/elevenlabs/tts-realtime") {
+        wssElevenLabsTts.handleUpgrade(req, socket, head, ws => wssElevenLabsTts.emit("connection", ws, req));
+      } else {
+        socket.write("HTTP/1.1 404 Not Found\r\n\r\n");
+        socket.destroy();
+      }
+    } catch { socket.destroy(); }
+  };
+
+  const rawOn          = server.on.bind(server);
+  const rawAddListener = server.addListener.bind(server);
+  const rawOnce        = server.once.bind(server);
+  const guardUpgradeRegistration = (register) => (event, listener, ...rest) => {
+    if (event === "upgrade" && listener !== claraUpgradeListener) {
+      console.warn(
+        "[clara-relay] refused foreign 'upgrade' listener " +
+        `(relay owns WS routing; Next would socket.end() relay tunnels)`,
+      );
+      return server; // swallow — the registrant never knows
+    }
+    return register(event, listener, ...rest);
+  };
+  server.on          = guardUpgradeRegistration(rawOn);
+  server.addListener = guardUpgradeRegistration(rawAddListener);
+  server.once        = guardUpgradeRegistration(rawOnce);
+
+  rawOn("upgrade", claraUpgradeListener);
 
   server.once("listening", () => {
     const addr = server.address();
