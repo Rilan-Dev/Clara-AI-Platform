@@ -2003,6 +2003,27 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | Source trace only; no DB/Stripe API query, tests, typecheck, or runtime correction. No PASS claimed. |
 | Related records | EVT-FIX-20261011-01; BACKLOG-OPS-20261011-STRIPE-ORPHAN-ORG; SESSION-FIX-20261011-01. |
 
+## I-20261012-OAUTH-PROXY-RETURN — OAuth callbacks redirected to the bind host behind Host-rewriting proxies
+
+| Field | Value |
+|---|---|
+| Issue ID | I-20261012-OAUTH-PROXY-RETURN |
+| Title | OAuth callback return URLs and origin checks used req.nextUrl.origin, which surfaces https://0.0.0.0:3000 behind Host-rewriting reverse proxies |
+| Phase | Integrations / WhatsApp / platform MCP OAuth |
+| Severity | P1 — every OAuth2 integration connect flow unusable on the proxied production deployment |
+| Status | FIXED on `feat/mcp-org-owned-directive` (pending merge/deploy to the target branch) |
+| Date identified | 2026-10-12 |
+| Reporter / role | Platform owner — live report |
+| Symptom | Org user clicks Connect on the Gmail integration (agent Integrations screen) at `https://clara.ai.amazetechclans.com`; after Google consent the browser lands on `https://0.0.0.0:3000/orgs/<org>/agents/<agent>/integrations?oauth=error&integrationId=gmail` → ERR_ADDRESS_INVALID. The flow both fails the binding check and returns to an unreachable URL. |
+| Confirmed immediate cause | The reverse proxy in front of the app forwards `x-forwarded-proto: https` but rewrites `Host` to the upstream bind address (nginx default `proxy_set_header Host $proxy_host`). `request.nextUrl.origin` therefore resolves to `https://0.0.0.0:3000`. `src/app/api/integrations/oauth/callback/route.ts` built every post-OAuth redirect from that origin and compared it against the state-bound redirect URI (`https://clara.ai.amazetechclans.com/api/integrations/oauth/callback`) — the comparison failed closed (oauth=error) and the error redirect itself pointed at the bind address. Same pattern in the WhatsApp callback check, the platform MCP callback, and the MCP OAuth start redirect_uri. |
+| Underlying cause | The admin-configured OAuth redirect URI (auto-detected from the browser origin) is correct; the server-side view of the request origin is the only thing that is wrong. Callback code trusted `req.nextUrl.origin` instead of the state-bound redirect URI / `resolvePublicOrigin()` (NEXT_PUBLIC_APP_URL → x-forwarded-host/proto → Host), despite `src/lib/public-origin.ts` and the explore-link route already establishing the corrected pattern. |
+| Correction | (1) `public-origin.ts` gains `isPrivateOrLocalHostname()` (loopback, unspecified/0.0.0.0/::, RFC1918, link-local, IPv6 ULA, IPv4-mapped forms) and `oauthRequestOriginMatches()` (compares the state-bound origin against the request's public origin; a private/bind request host is an unverifiable proxy hop and is tolerated; a genuinely different public origin still fails closed). (2) The integrations OAuth callback derives every return URL from the state-bound redirect URI's origin (`oauthReturnOrigin`), falling back to `resolvePublicOrigin(request)`; the binding check keeps strict pathname equality plus the origin rule above. (3) The WhatsApp callback uses the same origin rule. (4) The platform MCP OAuth start builds its redirect_uri from `resolvePublicOrigin(req)`; the MCP callback derives its return origin from the state-bound redirect URI when it is a usable public origin. |
+| Correction scope | `src/lib/public-origin.ts`, `src/app/api/integrations/oauth/callback/route.ts`, `src/app/api/whatsapp/oauth/callback/route.ts`, `src/app/api/platform/mcp-servers/oauth/start/route.ts`, `src/app/api/platform/mcp-servers/oauth/callback/route.ts` |
+| Explicit non-scope | No change to `resolvePublicOrigin()` priority order (existing email/payment consumers unaffected), no change to state consumption, PKCE, token exchange, grant revalidation, credential encryption, or embed/CORS self-origin logic. No proxy-side configuration change (recommended separately: forward `Host`/`X-Forwarded-Host`). |
+| Regression protection | `src/lib/public-origin.test.ts` (34 tests: hostname classification, origin matching incl. forwarded headers and bind-host tolerance, public-origin priorities) and 4 new cases in `src/app/api/integrations/oauth/callback/route.test.ts`: connection completes behind a Host-rewriting proxy and returns to the registered origin; completes with NEXT_PUBLIC_APP_URL configured; fails closed on a genuinely different public origin without exchanging the code; agent-screen return behind a proxy. |
+| Verification | Focused suites executed on the reconciled tree: 4 files / 47 tests PASS (public-origin 34, integrations callback 9, integrations start 2, WhatsApp callback 2); email-verification suite 23/23 PASS (resolvePublicOrigin consumer regression). `tsc --noEmit -p tsconfig.typecheck.json`: 43 errors before AND after the change (byte-identical pre-existing set; zero new). ESLint could not execute — typescript-eslint rejects the locally installed TS 7.0.2 on untouched files identically (pre-existing environment limitation, recorded, not introduced). No live provider consent or deployed-runtime PASS claimed. |
+| Related records | VERIFICATION_STATE.md (2026-10-12 hotfix addendum); SESSION-DEV-20261012-02. |
+
 ## I-097 — Type-check failures from shadowed Stripe SDK declarations
 
 | Field | Value |
@@ -2024,3 +2045,46 @@ Status: OPEN. The current feature head `4200b0c` was sent through a real Vercel 
 | Verification | Not resolved/verified yet. No post-change type-check, test, build, CI, Vercel, or deployment run. No PASS claimed. |
 | Next action | Pull the correction and rerun `npm run type-check`; use the fresh residual diagnostic list to determine the next bounded correction. |
 | Related records | EVT-FIX-20261012-01; SESSION-FIX-20261012-01; FIX-01 role-local WORKLOG.md. |
+
+
+## I-098 — Subscription entitlement authority and stale provider allow-lists
+
+| Field | Value |
+|---|---|
+| Issue ID | I-098 |
+| Title | Ensure current subscription entitlements are authoritative for AI provider access |
+| Phase | Subscription / AI governance correctness |
+| Severity | P1 security/correctness |
+| Status | FIX IMPLEMENTED IN BRANCH — focused tests not yet executed |
+| Date identified | 2026-10-12 |
+| Reporter / role | Owner report + architect source audit |
+| Evidence | GitHub issue #296: https://github.com/Rilan-Dev/Clara-AI-Platform/issues/296 |
+| Confirmed defect A | `src/modules/ai-core/resolve.ts` rejected providers against legacy `org_ai_settings.allowed_providers` before the shared live subscription governance gate. The org AI-settings PATCH is frozen (410), so stale rows could block Sarvam even when the platform and current plan permit it. |
+| Confirmed defect B | `resolvePlanAIEntitlements` used a joined capability/provider/model query with `LIMIT 200`; joined matrices can multiply rows and truncate entitlement data. Missing provider rows were treated as allowed. |
+| Confirmed defect C | When an expired/non-active paid subscription fell back to Free entitlement rows, the fallback metadata reused the old paid plan's `voice_enabled` value, which could incorrectly restore voice capability if Free capability rows were absent. |
+| Confirmed defect D | `validateAgentAISelection` returned early with `ok: true` when a known provider had no registry row, skipping subscription entitlement checks. A missing/partial registry could therefore bypass plan restrictions on chat or voice surfaces. |
+| Correction | Runtime provider access now relies on platform governance/current plan entitlements rather than the legacy org provider list. Platform-default fallback considers configured providers that pass the live governance gate. Entitlement matrices are loaded independently without the cross-product limit; missing provider rows deny access once the matrix is active. Expired/non-active subscriptions resolve using actual Free-plan metadata. Missing registry rows preserve legacy platform fallback only; live plan/capability/model entitlements are still enforced. |
+| Regression coverage added | `src/modules/ai-core/resolve-provider-entitlement.test.ts`; `src/modules/ai-governance/core/entitlements-db.test.ts` |
+| Verification | Source and test review only. Tests, type-check, build, database migration, production runtime, CI and Vercel have NOT been run. No PASS claimed. |
+| Related finding | Voice resolver already documents and ignores stale `allowedVoiceProviders`; AI brain resolver now follows the same provider-authority principle. |
+| Next action | Pull this branch, run the two focused Vitest files and type-check; correct any failures. Then test Sarvam session on a Pro plan and confirm Starter/Free denial using current entitlement rows. |
+
+
+## I-098 — Duplicated governance registry implementation blocks
+
+| Field | Value |
+|---|---|
+| Issue ID | I-098 |
+| Title | Remove duplicated and syntactically invalid tail blocks from AI governance registry |
+| Phase | DEV-01 live model catalogue audit; FIX-01 source-correctness handoff |
+| Severity | P1 |
+| Status | SOURCE CORRECTED — verification pending |
+| Date identified | 2026-10-12 |
+| Reporter / role | DEV-01 / Forge |
+| Symptom | Current branch source contained 3,344 lines in src/modules/ai-governance/core/registry-db.ts, including a dangling SQL-query tail after listProviderHealthHistory and repeated top-level listProviderModels/mutation/health function blocks. |
+| Root cause | Repeated copied implementation fragments were appended to the module; the dangling fragment is not valid TypeScript. |
+| Correction | Retained the first complete implementation (523 lines), preserving the live-catalogue filtering/counting/workspace changes and removing 2,821 duplicated/dangling lines. |
+| Correction commit | 8a79e296d24227f7e2caf97724c551d85b8eb4b8 |
+| Verification | Not run. No test, type-check, build or runtime PASS is claimed. |
+| Required FIX-01 action | Pull latest branch, inspect the diff and confirm all expected registry exports/callers remain; run npm run type-check and focused AI-governance tests when local execution is available. Do not wait for CI/Vercel. |
+| Prevention | Before editing large registry modules, count top-level exports and inspect the full file tail; a successful API write is not syntax verification. |

@@ -207,6 +207,8 @@ could not be connected at all.
 
 
 - Additional audit finding: `validateAgentAISelection` previously returned `ok: true` immediately for known providers absent from the registry, bypassing subscription entitlement checks. Changed it to retain legacy registry compatibility only while still enforcing current plan capability/provider/model restrictions. Added regression coverage for Sarvam absent from registry but denied by Starter. Not verified by execution.
+
+
 ## 2026-10-12 — DEV-01 Gemini live catalogue and defaults audit
 - Fixed model release-date extraction in src/modules/ai-governance/core/live-catalog.ts (commit 865e657901d479e29ce1625b1869edfaa0eb04d5).
 - Corrected embedding recovery in src/modules/ai-core/resolve.ts: fallback candidates must be enabled vendor-live embedding rows and must respect the organisation allow-list (commit d7d6a144750799ab127b92e84e2546dacb20e59b).

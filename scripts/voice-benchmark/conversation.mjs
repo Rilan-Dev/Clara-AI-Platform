@@ -133,7 +133,7 @@ async function main() {
   // into this track on demand; the real app still uses its real session/STT/RAG/
   // model/TTS paths. No text is posted directly to a RAG endpoint.
   await page.addInitScript(() => {
-    const state = { events: [], dataChannelEvents: [], playedInputs: [], audioContext: null, destination: null, microphoneTrack: null, peerConnection: null, dataChannel: null, clickAt: null };
+    const state = { events: [], dataChannelEvents: [], playedInputs: [], ragRequests: [], audioContext: null, destination: null, microphoneTrack: null, peerConnection: null, dataChannel: null, clickAt: null };
     const recordDataChannelEvent = (channel, direction, type, detail = null) => {
       state.dataChannelEvents.push({
         at: Date.now(),
@@ -159,9 +159,9 @@ async function main() {
         for (const key of ["type", "code", "param", "message"]) {
           if (typeof error[key] === "string") {
             safeError[key] = String(error[key])
-              .replace(/Bearer\\s+[^\\s"'<>]+/gi, "Bearer [REDACTED]")
-              .replace(/\\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\\b/g, "[REDACTED_TOKEN]")
-              .replace(/https?:\\/\\/[^\\s"'<>]+/g, "[URL]")
+              .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]")
+              .replace(/\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\b/g, "[REDACTED_TOKEN]")
+              .replace(/https?:\/\/[^\s"'<>]+/g, "[URL]")
               .slice(0, 300);
           }
         }
@@ -170,10 +170,33 @@ async function main() {
       if (message?.response && typeof message.response === "object") {
         const response = message.response;
         if (typeof response.status === "string") detail.responseStatus = response.status.slice(0, 80);
-        if (typeof response.status_details?.reason === "string") detail.responseReason = response.status_details.reason.slice(0, 120);
+        if (typeof response.status_details?.reason === "string") detail.responseReason = response.status_details.reason
+          .replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]")
+          .replace(/\b(?:clr|sk|AIza|eyJ)[A-Za-z0-9_.-]{12,}\b/g, "[REDACTED_TOKEN]")
+          .replace(/https?:\/\/[^\s"'<>]+/g, "[URL]")
+          .slice(0, 120);
       }
       for (const key of ["audio_start_ms", "audio_end_ms"]) {
         if (typeof message?.[key] === "number") detail[key] = message[key];
+      }
+      // Keep transcription diagnostics useful without storing transcript text.
+      if (typeof message?.delta === "string") detail.deltaLength = message.delta.length;
+      if (typeof message?.transcript === "string") detail.transcriptLength = message.transcript.length;
+      // Record only non-secret effective input configuration returned by the service.
+      if (message?.type === "session.updated" && message?.session && typeof message.session === "object") {
+        const session = message.session;
+        const input = session.audio?.input ?? {};
+        const turn = input.turn_detection ?? session.turn_detection ?? {};
+        const transcription = input.transcription ?? session.input_audio_transcription ?? {};
+        detail.effectiveInputConfig = {
+          turnDetectionType: typeof turn.type === "string" ? turn.type : null,
+          threshold: typeof turn.threshold === "number" ? turn.threshold : null,
+          prefixPaddingMs: typeof turn.prefix_padding_ms === "number" ? turn.prefix_padding_ms : null,
+          silenceDurationMs: typeof turn.silence_duration_ms === "number" ? turn.silence_duration_ms : null,
+          createResponse: typeof turn.create_response === "boolean" ? turn.create_response : null,
+          transcriptionModel: typeof transcription.model === "string" ? transcription.model : null,
+          transcriptionLanguage: typeof transcription.language === "string" ? transcription.language : null,
+        };
       }
       return Object.keys(detail).length ? detail : null;
     };
@@ -191,10 +214,15 @@ async function main() {
         try {
           const parsed = JSON.parse(String(event.data));
           type = typeof parsed?.type === "string" ? parsed.type : "json-without-type";
-          if (type === "error" || type === "input_audio_buffer.speech_started" ||
+          if (type === "error" || type === "session.updated" ||
+              type === "input_audio_buffer.speech_started" ||
               type === "input_audio_buffer.speech_stopped" ||
               type === "input_audio_buffer.committed" ||
+              type === "input_audio_buffer.timeout_triggered" ||
+              type === "input_audio_buffer.cleared" ||
+              type === "conversation.item.input_audio_transcription.delta" ||
               type === "conversation.item.input_audio_transcription.completed" ||
+              type === "conversation.item.input_audio_transcription.failed" ||
               type === "response.done") {
             detail = safeEventDetail(parsed);
           }
@@ -221,6 +249,38 @@ async function main() {
       };
     } catch {}
     window.__claraVoiceBench = state;
+    // Capture RAG request timing and server-side stage timings without storing
+    // questions, context, snippets, credentials, or response bodies.
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (...fetchArgs) => {
+      const startedAt = performance.now();
+      const response = await originalFetch(...fetchArgs);
+      try {
+        const input = fetchArgs[0];
+        const rawUrl = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+        const url = new URL(rawUrl, window.location.href);
+        if (url.pathname.endsWith("/api/rag/search") || url.pathname.endsWith("/api/embed/rag")) {
+          const record = {
+            endpoint: url.pathname.endsWith("/api/embed/rag") ? "embed-rag" : "rag-search",
+            status: response.status,
+            elapsedMs: Math.round(performance.now() - startedAt),
+            serverTimingHeader: response.headers.get("server-timing"),
+            timings: null,
+          };
+          state.ragRequests.push(record);
+          void response.clone().json().then((payload) => {
+            if (payload && payload.timings && typeof payload.timings === "object") {
+              const safeTimings = {};
+              for (const [key, value] of Object.entries(payload.timings)) {
+                if (typeof value === "number" && Number.isFinite(value)) safeTimings[key] = value;
+              }
+              record.timings = safeTimings;
+            }
+          }).catch(() => {});
+        }
+      } catch {}
+      return response;
+    };
     window.addEventListener("clara:voice:latency", (event) => {
       const d = event.detail || {};
       state.events.push({
@@ -240,6 +300,16 @@ async function main() {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const ctx = new AudioCtx();
       const destination = ctx.createMediaStreamDestination();
+      // Keep the synthetic microphone clock running between injected clips.
+      // Without a continuously-rendered silent source, the destination track
+      // can stop producing RTP after BufferSource.onended, so server VAD never
+      // observes the trailing silence needed to emit speech_stopped/commit.
+      const silenceKeepAlive = ctx.createOscillator();
+      const silenceGain = ctx.createGain();
+      silenceGain.gain.value = 0;
+      silenceKeepAlive.connect(silenceGain);
+      silenceGain.connect(destination);
+      silenceKeepAlive.start();
       state.audioContext = ctx;
       state.destination = destination;
       const track = destination.stream.getAudioTracks()[0] ?? null;
@@ -261,6 +331,36 @@ async function main() {
       const source = state.audioContext.createBufferSource();
       source.buffer = audio;
       const playbackStartedAt = Date.now();
+      const readAudioRtpStats = async () => {
+        try {
+          const report = await state.peerConnection?.getStats();
+          if (!report) return null;
+          const rows = [];
+          report.forEach((stat) => {
+            if (
+              (stat.type === "outbound-rtp" && stat.kind === "audio") ||
+              (stat.type === "remote-inbound-rtp" && stat.kind === "audio") ||
+              (stat.type === "media-source" && stat.kind === "audio")
+            ) {
+              rows.push({
+                type: stat.type,
+                kind: stat.kind ?? null,
+                packetsSent: typeof stat.packetsSent === "number" ? stat.packetsSent : null,
+                bytesSent: typeof stat.bytesSent === "number" ? stat.bytesSent : null,
+                packetsReceived: typeof stat.packetsReceived === "number" ? stat.packetsReceived : null,
+                bytesReceived: typeof stat.bytesReceived === "number" ? stat.bytesReceived : null,
+                audioLevel: typeof stat.audioLevel === "number" ? stat.audioLevel : null,
+                totalAudioEnergy: typeof stat.totalAudioEnergy === "number" ? stat.totalAudioEnergy : null,
+                totalSamplesDuration: typeof stat.totalSamplesDuration === "number" ? stat.totalSamplesDuration : null,
+              });
+            }
+          });
+          return rows;
+        } catch {
+          return null;
+        }
+      };
+      const rtpBefore = await readAudioRtpStats();
       source.connect(state.destination);
       const ended = new Promise((resolve) => { source.onended = resolve; });
       source.start();
@@ -277,9 +377,12 @@ async function main() {
           sampleCount++;
         }
       }
+      const rtpAfter = await readAudioRtpStats();
       const result = {
         durationMs: audio.duration * 1000,
         sampleRate: audio.sampleRate,
+        rtpBefore,
+        rtpAfter,
         channels: audio.numberOfChannels,
         rms: sampleCount ? Math.sqrt(sumSquares / sampleCount) : 0,
         peak,
@@ -310,16 +413,23 @@ async function main() {
     connectClick.monotonicMs = await page.evaluate(() => performance.now());
     await connect.click();
 
-    // The greeting may not emit a telemetry event on every provider yet. A
-    // missing greeting event is a failed/missing metric, not a fabricated zero.
-    welcomeEvent = await waitFor(async () => {
-      const events = await page.evaluate(() => window.__claraVoiceBench?.events ?? []);
-      const candidates = events.filter((e) => typeof e.marks?.["browser.first_audio"] === "number");
-      return candidates[0] ?? null;
-    }, args.welcomeTimeoutMs, "first audible welcome/assistant audio telemetry");
+    // Welcome telemetry is useful but is not a prerequisite for measuring question turns.
+    // Some sessions/providers do not emit a welcome first-audio mark. Preserve that as
+    // unavailable, then continue; each actual question still has its own required telemetry
+    // barrier and provider check. Never fabricate a zero or count the greeting as an answer.
+    try {
+      welcomeEvent = await waitFor(async () => {
+        const events = await page.evaluate(() => window.__claraVoiceBench?.events ?? []);
+        const candidates = events.filter((e) => typeof e.marks?.["browser.first_audio"] === "number");
+        return candidates[0] ?? null;
+      }, args.welcomeTimeoutMs, "first audible welcome/assistant audio telemetry");
+    } catch (welcomeError) {
+      if (!String(welcomeError?.message ?? welcomeError).includes("first audible welcome/assistant audio telemetry")) throw welcomeError;
+      console.warn("[conversation-bench] welcome audio telemetry unavailable; continuing to question-turn diagnostics");
+    }
 
     const clickWallTime = await page.evaluate(() => window.__claraVoiceBench?.clickAt?.wallTime ?? null);
-    const welcomeFirstAudioMark = welcomeEvent.marks["browser.first_audio"];
+    const welcomeFirstAudioMark = welcomeEvent?.marks?.["browser.first_audio"] ?? null;
     // Both values use epoch milliseconds because current shared stage marks use Date.now().
     const welcomeMsFromClick = typeof clickWallTime === "number" && typeof welcomeFirstAudioMark === "number"
       ? welcomeFirstAudioMark - clickWallTime
@@ -378,8 +488,22 @@ async function main() {
       if (!providerMatch) throw new Error(`Expected provider '${args.provider}' but telemetry reported '${event.provider}'. Stop: this is not a valid provider comparison.`);
     }
 
-    // Wait for request bodies to finish before serializing total response durations.
-    await Promise.all(pendingResponseFinishes);
+    // Some browser responses are intentionally long-lived (for example, event streams)
+    // and response.finished() may never settle before the page closes. Never let those
+    // requests keep a completed five-turn benchmark alive indefinitely. Give ordinary
+    // response bodies a short flush window, then serialize unfinished timings as null.
+    const responseFlushTimeoutMs = 2000;
+    let responseFlushTimedOut = false;
+    await Promise.race([
+      Promise.allSettled(pendingResponseFinishes),
+      new Promise((resolve) => setTimeout(() => {
+        responseFlushTimedOut = true;
+        resolve();
+      }, responseFlushTimeoutMs)),
+    ]);
+    if (responseFlushTimedOut) {
+      console.log(`[conversation-bench] response-body flush window elapsed after ${responseFlushTimeoutMs}ms; continuing with any still-pending response timings unset`);
+    }
 
     // Collect timing/counts for requests that occurred while the page was live.
     const resourceTimings = await page.evaluate(() => performance.getEntriesByType("resource").map((e) => ({
@@ -412,8 +536,9 @@ async function main() {
       expectedProvider: args.provider,
       browser: "Playwright Chromium",
       inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
-      session: { connectClick: connectClick.wallTime, welcomeEvent: { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks }, sessionClickToWelcomeAudioMs: welcomeMsFromClick, metricMeaning: "first browser.first_audio telemetry mark; not independent confirmation of audible playback" },
+      session: { connectClick: connectClick.wallTime, welcomeEvent: welcomeEvent ? { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks } : null, sessionClickToWelcomeAudioMs: welcomeMsFromClick, metricMeaning: "first browser.first_audio telemetry mark; null means unavailable, not zero; not independent confirmation of audible playback" },
       turns: turnResults,
+      ragRequests: await page.evaluate(() => window.__claraVoiceBench?.ragRequests ?? []),
       requestCounts,
       requestTimings: responseRecords,
       resourceTimings,
@@ -458,11 +583,12 @@ async function main() {
         inputFiles: Object.fromEntries(EXPECTED_INPUTS.map((n) => [n, { path: args.inputs[n].path, bytes: args.inputs[n].bytes }])),
         session: { connectClick: connectClick.wallTime, welcomeEvent: welcomeEvent ? { provider: welcomeEvent.provider, model: welcomeEvent.model, marks: welcomeEvent.marks } : null },
         playedInputs: await page.evaluate(() => window.__claraVoiceBench?.playedInputs ?? []),
+        ragRequests: await page.evaluate(() => window.__claraVoiceBench?.ragRequests ?? []),
         drainSettings: { welcomeDrainMs: args.welcomeDrainMs, interTurnDrainMs: args.drainMs },
         turns: turnResults,
         observedLatencyEvents: events.map((e) => ({ provider: e.provider, model: e.model, sessionId: e.sessionId, generationId: e.generationId, turnId: e.turnId, marks: e.marks, latencies: e.latencies })),
         dataChannelEvents,
-        microphoneDiagnostics: await page.evaluate(() => {
+        microphoneDiagnostics: await page.evaluate(async () => {
           const state = window.__claraVoiceBench;
           const pc = state?.peerConnection;
           const dc = pc?.getDataChannels?.()?.[0] ?? null;
@@ -479,6 +605,34 @@ async function main() {
               iceConnectionState: pc.iceConnectionState,
               iceGatheringState: pc.iceGatheringState,
               signalingState: pc.signalingState,
+              audioRtpStats: await (async () => {
+                try {
+                  const report = await pc.getStats();
+                  const rows = [];
+                  report.forEach((stat) => {
+                    if (
+                      (stat.type === "outbound-rtp" && stat.kind === "audio") ||
+                      (stat.type === "remote-inbound-rtp" && stat.kind === "audio") ||
+                      (stat.type === "media-source" && stat.kind === "audio")
+                    ) {
+                      rows.push({
+                        type: stat.type,
+                        kind: stat.kind ?? null,
+                        packetsSent: typeof stat.packetsSent === "number" ? stat.packetsSent : null,
+                        bytesSent: typeof stat.bytesSent === "number" ? stat.bytesSent : null,
+                        packetsReceived: typeof stat.packetsReceived === "number" ? stat.packetsReceived : null,
+                        bytesReceived: typeof stat.bytesReceived === "number" ? stat.bytesReceived : null,
+                        audioLevel: typeof stat.audioLevel === "number" ? stat.audioLevel : null,
+                        totalAudioEnergy: typeof stat.totalAudioEnergy === "number" ? stat.totalAudioEnergy : null,
+                        totalSamplesDuration: typeof stat.totalSamplesDuration === "number" ? stat.totalSamplesDuration : null,
+                      });
+                    }
+                  });
+                  return rows;
+                } catch {
+                  return null;
+                }
+              })(),
             } : null,
             dataChannel: state?.dataChannelEvents?.length ? {
               readyState: dc?.readyState ?? state.dataChannelEvents[state.dataChannelEvents.length - 1]?.channelState ?? null,

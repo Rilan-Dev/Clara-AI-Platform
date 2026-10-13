@@ -26,6 +26,7 @@ import {
   mcpToolName,
   streamableHttpMcpToolResolver,
 } from "@/modules/ai-platform-core";
+import { resolveOrgOwnedMcpCapabilities } from "@/modules/mcp/runtime-resolver";
 
 // Legacy document mode only. Unset → no cap (provider default "inf"); the
 // spoken audio counts against this limit, so a small cap truncates answers.
@@ -256,6 +257,19 @@ export async function postRealtimeSession(request: NextRequest): Promise<NextRes
                 name: mcpToolName(descriptor.serverId, descriptor.name),
                 description: descriptor.description.slice(0, 1000),
                 parameters: descriptor.inputSchemaJson ?? { type: "object", properties: {}, additionalProperties: false },
+              });
+            }
+
+            // Organization-owned MCP connections are advertised through the
+            // same entitlement-gated discovery path used by chat, so voice and
+            // chat share one authorization and tool-execution policy.
+            const orgOwned = await resolveOrgOwnedMcpCapabilities(executionContext);
+            for (const tool of orgOwned.tools) {
+              tools.push({
+                type: "function",
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
               });
             }
           }

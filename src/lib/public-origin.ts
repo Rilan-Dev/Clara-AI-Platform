@@ -46,6 +46,66 @@ export function resolvePublicOrigin(req?: Request): string {
   return "http://localhost:3000";
 }
 
+/**
+ * True when a hostname can never be a public browser origin: loopback,
+ * the unspecified addresses (0.0.0.0 / :: — what the server surfaces when the
+ * app listens on 0.0.0.0 behind a Host-rewriting reverse proxy), RFC1918
+ * private ranges, link-local, IPv6 ULA/loopback, plus IPv4-mapped IPv6 forms
+ * of all of the above.
+ *
+ * OAuth callbacks use this to classify a request whose visible host is a
+ * private/bind address as an unverifiable reverse-proxy hop rather than an
+ * origin mismatch: reverse proxies that rewrite Host (nginx's default
+ * `proxy_set_header Host $proxy_host`) surface e.g. 0.0.0.0:3000 to the app
+ * even though the user's browser is on the real public domain.
+ */
+export function isPrivateOrLocalHostname(hostname: string): boolean {
+  const bare = hostname.trim().toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  if (!bare) return true;
+  if (bare === "localhost" || bare.endsWith(".localhost") || bare.endsWith(".local") || bare.endsWith(".internal")) {
+    return true;
+  }
+  // IPv4 literal, possibly IPv4-mapped IPv6 (::ffff:a.b.c.d).
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(bare);
+  const ipv4 = mapped?.[1] ?? (/^(\d{1,3})(?:\.\d{1,3}){3}$/.test(bare) ? bare : null);
+  if (ipv4) {
+    const [a, b] = ipv4.split(".").map(Number);
+    if (a === 0 || a === 10 || a === 127) return true; // unspecified, private, loopback
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+    if (a === 192 && b === 168) return true; // 192.168.0.0/16
+    if (a === 169 && b === 254) return true; // link-local
+    return false;
+  }
+  // IPv6 literals (after unwrapping any IPv4-mapped prefix).
+  const ipv6 = bare.replace(/^::ffff:/, "");
+  if (ipv6 === "::" || ipv6 === "::1") return true; // unspecified, loopback
+  if (/^f[cd][0-9a-f]{2}:/.test(ipv6)) return true; // fc00::/7 unique-local
+  if (/^fe[89ab][0-9a-f]:/.test(ipv6)) return true; // fe80::/10 link-local
+  return false;
+}
+
+/**
+ * OAuth callbacks bind the exact redirect URI into server-side state before
+ * the browser leaves for the provider, and the provider only redirects the
+ * browser to that exact registered URI. This check is defense-in-depth: the
+ * request must have landed on the bound URI *as the deployment publicly
+ * exposes it*, so compare against the request's PUBLIC origin
+ * (resolvePublicOrigin: NEXT_PUBLIC_APP_URL → forwarded headers → Host)
+ * rather than req.nextUrl.origin, and treat a private/loopback/unspecified
+ * request host as an unverifiable proxy hop instead of a mismatch.
+ *
+ * A request on a genuinely different public origin still fails closed.
+ */
+export function oauthRequestOriginMatches(stateRedirectUriOrigin: string, req: Request): boolean {
+  const publicOrigin = resolvePublicOrigin(req);
+  if (stateRedirectUriOrigin === publicOrigin) return true;
+  try {
+    return isPrivateOrLocalHostname(new URL(publicOrigin).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** appUrl() with a request-derived base — see resolvePublicOrigin(). */
 export function appUrlFor(path: string, req?: Request): string {
   const base = resolvePublicOrigin(req);

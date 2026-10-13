@@ -328,6 +328,29 @@ function contextSignal(context: PlatformExecutionContext): AbortSignal | undefin
   return typeof signal.aborted === "boolean" && typeof signal.addEventListener === "function" ? signal : undefined;
 }
 
+/**
+ * Build a runtime-safe McpToolDescriptor from an already-stored tool record
+ * (organization-owned connections persist discovered tools in
+ * org_mcp_tools). Applies exactly the same untrusted-description prefixing,
+ * control-character stripping and strict JSON-Schema normalization the live
+ * discovery path uses, so a stored tool that can no longer satisfy the
+ * provider-safe constraints fails closed instead of being advertised.
+ */
+export function buildStoredMcpToolDescriptor(
+  serverId: string,
+  toolName: string,
+  description: string,
+  inputSchema: unknown,
+  allowedSurfaces: readonly SurfaceKind[],
+): McpToolDescriptor | null {
+  if (!inputSchema || typeof inputSchema !== "object" || Array.isArray(inputSchema)) return null;
+  return readTool(
+    { name: toolName, description, inputSchema } as JsonObject,
+    serverId,
+    allowedSurfaces,
+  );
+}
+
 async function getAuthorizedServer(context: PlatformExecutionContext, serverId: string, toolName?: string): Promise<ServerAccess | null> {
   assertExecutionContext(context);
   if (!process.env.ENABLE_MCP || !["1","true","yes","on"].includes(process.env.ENABLE_MCP.trim().toLowerCase())) return null;

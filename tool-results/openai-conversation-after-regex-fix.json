@@ -1,0 +1,933 @@
+{
+  "schemaVersion": 2,
+  "runStatus": "failed",
+  "benchmarkError": "Error: Timed out waiting for completed assistant response for input 1 after 90000ms\n    at waitFor (file:///docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/conversation.mjs:68:9)\n    at async main (file:///docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/conversation.mjs:348:21)",
+  "startedAt": "2026-10-12T00:38:21.151Z",
+  "finishedAt": "2026-10-12T00:40:12.395Z",
+  "target": "https://clara.ai.amazetechclans.com/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861",
+  "expectedProvider": "openai",
+  "browser": "Playwright Chromium",
+  "inputFiles": {
+    "1": {
+      "path": "/docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/questions/turn-01.mp3",
+      "bytes": 1770
+    },
+    "2": {
+      "path": "/docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/questions/turn-02.mp3",
+      "bytes": 2132
+    },
+    "3": {
+      "path": "/docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/questions/turn-03.mp3",
+      "bytes": 2276
+    },
+    "4": {
+      "path": "/docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/questions/turn-04.mp3",
+      "bytes": 1772
+    },
+    "5": {
+      "path": "/docker/Clara-AI-Platform/clara-backend/scripts/voice-benchmark/questions/turn-05.mp3",
+      "bytes": 2348
+    }
+  },
+  "session": {
+    "connectClick": 1791765508256,
+    "welcomeEvent": {
+      "provider": "openai",
+      "model": "gpt-realtime-2.1-mini",
+      "marks": {
+        "turn.start": 1791765517186,
+        "llm.start": 1791765517186,
+        "tts.start": 1791765517186,
+        "llm.first_token": 1791765518847,
+        "tts.first_audio": 1791765518987,
+        "browser.first_audio": 1791765518987,
+        "turn.complete": 1791765519183
+      }
+    }
+  },
+  "playedInputs": [
+    {
+      "playbackStartedAt": 1791765521236,
+      "playbackCompletedAt": 1791765522328,
+      "durationMs": 1085.873015873016,
+      "sampleRate": 44100,
+      "channels": 1,
+      "rms": 0.0936376846040888,
+      "peak": 0.7436456084251404,
+      "microphoneTrackState": {
+        "readyState": "live",
+        "enabled": true,
+        "muted": false,
+        "settings": {
+          "channelCount": 2,
+          "deviceId": "WebAudio-0ad359a1-e9ac-4810-b768-d4e853c75398",
+          "latency": 0.01,
+          "sampleRate": 44100,
+          "sampleSize": 16
+        }
+      },
+      "audioContextState": "running"
+    }
+  ],
+  "drainSettings": {
+    "welcomeDrainMs": 2000,
+    "interTurnDrainMs": 1800
+  },
+  "turns": [],
+  "observedLatencyEvents": [
+    {
+      "provider": "openai",
+      "model": "gpt-realtime-2.1-mini",
+      "sessionId": "vrs_b6ae73ed-6149-48ab-9180-20aa93516373",
+      "generationId": null,
+      "turnId": "2761ec1f-71a2-4209-80f8-74445fe56e07",
+      "marks": {
+        "turn.start": 1791765517186,
+        "llm.start": 1791765517186,
+        "tts.start": 1791765517186,
+        "llm.first_token": 1791765518847,
+        "tts.first_audio": 1791765518987,
+        "browser.first_audio": 1791765518987,
+        "turn.complete": 1791765519183
+      },
+      "latencies": {
+        "sttMs": null,
+        "ragMs": null,
+        "llmMs": 1661,
+        "ttsMs": 1801,
+        "playbackMs": 0,
+        "ttfaMs": null
+      }
+    }
+  ],
+  "dataChannelEvents": [
+    {
+      "at": 1791765514598,
+      "channelLabel": "oai-events",
+      "channelState": "connecting",
+      "direction": "channel",
+      "type": "created"
+    },
+    {
+      "at": 1791765518215,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "channel",
+      "type": "open"
+    },
+    {
+      "at": 1791765518215,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "outbound",
+      "type": "session.update"
+    },
+    {
+      "at": 1791765518215,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "outbound",
+      "type": "response.create"
+    },
+    {
+      "at": 1791765518456,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "session.created"
+    },
+    {
+      "at": 1791765518697,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "session.updated"
+    },
+    {
+      "at": 1791765518697,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.created"
+    },
+    {
+      "at": 1791765518840,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_item.added"
+    },
+    {
+      "at": 1791765518843,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.added"
+    },
+    {
+      "at": 1791765518847,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.content_part.added"
+    },
+    {
+      "at": 1791765518847,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765518852,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765518935,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765518940,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765518987,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "output_audio_buffer.started"
+    },
+    {
+      "at": 1791765518990,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765518992,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765519030,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765519036,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765519040,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.delta"
+    },
+    {
+      "at": 1791765519172,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio.done"
+    },
+    {
+      "at": 1791765519172,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_audio_transcript.done"
+    },
+    {
+      "at": 1791765519174,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.content_part.done"
+    },
+    {
+      "at": 1791765519181,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.done"
+    },
+    {
+      "at": 1791765519181,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.output_item.done"
+    },
+    {
+      "at": 1791765519183,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "response.done",
+      "detail": {
+        "event_id": "event_EXyLnAinaTgciGW4UpDLZ",
+        "responseStatus": "completed"
+      }
+    },
+    {
+      "at": 1791765519218,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "rate_limits.updated"
+    },
+    {
+      "at": 1791765521272,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "output_audio_buffer.stopped"
+    },
+    {
+      "at": 1791765521542,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "input_audio_buffer.speech_started",
+      "detail": {
+        "event_id": "event_EXyLpyWeZlGis0f8IR0f2",
+        "item_id": "item_EXyLp3pS3E6JwgPOJzTcf",
+        "audio_start_ms": 0
+      }
+    },
+    {
+      "at": 1791765531703,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    },
+    {
+      "at": 1791765531710,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    },
+    {
+      "at": 1791765531723,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    },
+    {
+      "at": 1791765536705,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    },
+    {
+      "at": 1791765536711,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    },
+    {
+      "at": 1791765541712,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    },
+    {
+      "at": 1791765541719,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    },
+    {
+      "at": 1791765541727,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    },
+    {
+      "at": 1791765541734,
+      "channelLabel": "oai-events",
+      "channelState": "open",
+      "direction": "inbound",
+      "type": "conversation.item.input_audio_transcription.delta"
+    }
+  ],
+  "microphoneDiagnostics": {
+    "audioContextState": "running",
+    "track": {
+      "readyState": "live",
+      "enabled": true,
+      "muted": false,
+      "settings": {
+        "channelCount": 2,
+        "deviceId": "WebAudio-0ad359a1-e9ac-4810-b768-d4e853c75398",
+        "latency": 0.01,
+        "sampleRate": 44100,
+        "sampleSize": 16
+      }
+    },
+    "peerConnection": {
+      "connectionState": "connected",
+      "iceConnectionState": "connected",
+      "iceGatheringState": "complete",
+      "signalingState": "stable"
+    },
+    "dataChannel": {
+      "readyState": "open",
+      "bufferedAmount": null
+    }
+  },
+  "requestCounts": {
+    "GET https://clara.ai.amazetechclans.com/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/css/5e824c047a269598.css 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/css/b7396cd21e3dd43a.css 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/webpack-559875e53d553110.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/main-app-496f8c6c04bcbb0f.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/8409-6373923c44c3aac5.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/3452-dce7a44ba1f3b1e2.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/5460-8ae3af5d72b23aa6.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/global-error-37c1ebf8dc3873d2.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/agents/%5BagentId%5D/page-37f1a96d6775df9e.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/965-62e747737a63a9b0.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/3854-87fdb52b5d27868d.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/4bd1b696-8cd12253b448cc13.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/3794-178e9ce509ee27b8.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/5330-df02311a1d0bc820.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/155-6f1208cc86adce5e.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/144d3bae-b262a7c603fc8500.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/6427-590b94859be049a7.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/6609-d828c87ffe266439.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/9748-b1dfb415e1c3c775.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/951-2cd2b8f445356871.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/layout-b2d6a4dbf0a15249.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/1095-f6f6c0e38bb0e922.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/8500-63a4afbeacab3b52.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/not-found-9931b966e9ce705a.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_next/static/chunks/app/error-b9083ad15b7bb42f.js 200": 1,
+    "GET https://clara.ai.amazetechclans.com/_vercel/insights/script.js 404": 1,
+    "GET https://clara.ai.amazetechclans.com/_vercel/speed-insights/script.js 404": 1,
+    "GET https://clara.ai.amazetechclans.com/api/public/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861/config 200": 1,
+    "POST https://clara.ai.amazetechclans.com/api/embed/session 200": 2,
+    "POST https://api.openai.com/v1/realtime/calls 201": 1
+  },
+  "requestTimings": [
+    {
+      "id": 1,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861",
+      "resourceType": "document",
+      "startedAt": 1791765501162,
+      "startedIso": "2026-10-12T00:38:21.162Z",
+      "status": 200,
+      "responseHeadersAt": 1791765501975,
+      "responseHeadersMs": 813,
+      "responseFinishedAt": 1791765502006,
+      "responseTotalMs": 844,
+      "responseBodyError": null
+    },
+    {
+      "id": 3,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/css/5e824c047a269598.css",
+      "resourceType": "stylesheet",
+      "startedAt": 1791765502002,
+      "startedIso": "2026-10-12T00:38:22.002Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502021,
+      "responseHeadersMs": 19,
+      "responseFinishedAt": 1791765502027,
+      "responseTotalMs": 25,
+      "responseBodyError": null
+    },
+    {
+      "id": 2,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/css/b7396cd21e3dd43a.css",
+      "resourceType": "stylesheet",
+      "startedAt": 1791765501996,
+      "startedIso": "2026-10-12T00:38:21.996Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502027,
+      "responseHeadersMs": 31,
+      "responseFinishedAt": 1791765502054,
+      "responseTotalMs": 58,
+      "responseBodyError": null
+    },
+    {
+      "id": 4,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/webpack-559875e53d553110.js",
+      "resourceType": "script",
+      "startedAt": 1791765502002,
+      "startedIso": "2026-10-12T00:38:22.002Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502037,
+      "responseHeadersMs": 35,
+      "responseFinishedAt": 1791765502037,
+      "responseTotalMs": 35,
+      "responseBodyError": null
+    },
+    {
+      "id": 7,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/main-app-496f8c6c04bcbb0f.js",
+      "resourceType": "script",
+      "startedAt": 1791765502003,
+      "startedIso": "2026-10-12T00:38:22.003Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502037,
+      "responseHeadersMs": 34,
+      "responseFinishedAt": 1791765502038,
+      "responseTotalMs": 35,
+      "responseBodyError": null
+    },
+    {
+      "id": 9,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/8409-6373923c44c3aac5.js",
+      "resourceType": "script",
+      "startedAt": 1791765502004,
+      "startedIso": "2026-10-12T00:38:22.004Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502038,
+      "responseHeadersMs": 34,
+      "responseFinishedAt": 1791765502038,
+      "responseTotalMs": 34,
+      "responseBodyError": null
+    },
+    {
+      "id": 10,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/3452-dce7a44ba1f3b1e2.js",
+      "resourceType": "script",
+      "startedAt": 1791765502004,
+      "startedIso": "2026-10-12T00:38:22.004Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502038,
+      "responseHeadersMs": 34,
+      "responseFinishedAt": 1791765502038,
+      "responseTotalMs": 34,
+      "responseBodyError": null
+    },
+    {
+      "id": 12,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/5460-8ae3af5d72b23aa6.js",
+      "resourceType": "script",
+      "startedAt": 1791765502004,
+      "startedIso": "2026-10-12T00:38:22.004Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502039,
+      "responseHeadersMs": 35,
+      "responseFinishedAt": 1791765502040,
+      "responseTotalMs": 36,
+      "responseBodyError": null
+    },
+    {
+      "id": 17,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/global-error-37c1ebf8dc3873d2.js",
+      "resourceType": "script",
+      "startedAt": 1791765502005,
+      "startedIso": "2026-10-12T00:38:22.005Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502054,
+      "responseHeadersMs": 49,
+      "responseFinishedAt": 1791765502054,
+      "responseTotalMs": 49,
+      "responseBodyError": null
+    },
+    {
+      "id": 16,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/agents/%5BagentId%5D/page-37f1a96d6775df9e.js",
+      "resourceType": "script",
+      "startedAt": 1791765502005,
+      "startedIso": "2026-10-12T00:38:22.005Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502056,
+      "responseHeadersMs": 51,
+      "responseFinishedAt": 1791765502056,
+      "responseTotalMs": 51,
+      "responseBodyError": null
+    },
+    {
+      "id": 15,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/965-62e747737a63a9b0.js",
+      "resourceType": "script",
+      "startedAt": 1791765502004,
+      "startedIso": "2026-10-12T00:38:22.004Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502076,
+      "responseHeadersMs": 72,
+      "responseFinishedAt": 1791765502076,
+      "responseTotalMs": 72,
+      "responseBodyError": null
+    },
+    {
+      "id": 11,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/3854-87fdb52b5d27868d.js",
+      "resourceType": "script",
+      "startedAt": 1791765502004,
+      "startedIso": "2026-10-12T00:38:22.004Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502078,
+      "responseHeadersMs": 74,
+      "responseFinishedAt": 1791765502078,
+      "responseTotalMs": 74,
+      "responseBodyError": null
+    },
+    {
+      "id": 5,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/4bd1b696-8cd12253b448cc13.js",
+      "resourceType": "script",
+      "startedAt": 1791765502003,
+      "startedIso": "2026-10-12T00:38:22.003Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502079,
+      "responseHeadersMs": 76,
+      "responseFinishedAt": 1791765502079,
+      "responseTotalMs": 76,
+      "responseBodyError": null
+    },
+    {
+      "id": 6,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/3794-178e9ce509ee27b8.js",
+      "resourceType": "script",
+      "startedAt": 1791765502003,
+      "startedIso": "2026-10-12T00:38:22.003Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502079,
+      "responseHeadersMs": 76,
+      "responseFinishedAt": 1791765502079,
+      "responseTotalMs": 76,
+      "responseBodyError": null
+    },
+    {
+      "id": 13,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/5330-df02311a1d0bc820.js",
+      "resourceType": "script",
+      "startedAt": 1791765502004,
+      "startedIso": "2026-10-12T00:38:22.004Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502079,
+      "responseHeadersMs": 75,
+      "responseFinishedAt": 1791765502080,
+      "responseTotalMs": 76,
+      "responseBodyError": null
+    },
+    {
+      "id": 14,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/155-6f1208cc86adce5e.js",
+      "resourceType": "script",
+      "startedAt": 1791765502004,
+      "startedIso": "2026-10-12T00:38:22.004Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502081,
+      "responseHeadersMs": 77,
+      "responseFinishedAt": 1791765502081,
+      "responseTotalMs": 77,
+      "responseBodyError": null
+    },
+    {
+      "id": 8,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/144d3bae-b262a7c603fc8500.js",
+      "resourceType": "script",
+      "startedAt": 1791765502003,
+      "startedIso": "2026-10-12T00:38:22.003Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502190,
+      "responseHeadersMs": 187,
+      "responseFinishedAt": 1791765502191,
+      "responseTotalMs": 188,
+      "responseBodyError": null
+    },
+    {
+      "id": 18,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/6427-590b94859be049a7.js",
+      "resourceType": "script",
+      "startedAt": 1791765502188,
+      "startedIso": "2026-10-12T00:38:22.188Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502215,
+      "responseHeadersMs": 27,
+      "responseFinishedAt": 1791765502215,
+      "responseTotalMs": 27,
+      "responseBodyError": null
+    },
+    {
+      "id": 20,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/6609-d828c87ffe266439.js",
+      "resourceType": "script",
+      "startedAt": 1791765502188,
+      "startedIso": "2026-10-12T00:38:22.188Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502352,
+      "responseHeadersMs": 164,
+      "responseFinishedAt": 1791765502353,
+      "responseTotalMs": 165,
+      "responseBodyError": null
+    },
+    {
+      "id": 21,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/9748-b1dfb415e1c3c775.js",
+      "resourceType": "script",
+      "startedAt": 1791765502188,
+      "startedIso": "2026-10-12T00:38:22.188Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502355,
+      "responseHeadersMs": 167,
+      "responseFinishedAt": 1791765502355,
+      "responseTotalMs": 167,
+      "responseBodyError": null
+    },
+    {
+      "id": 19,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/951-2cd2b8f445356871.js",
+      "resourceType": "script",
+      "startedAt": 1791765502188,
+      "startedIso": "2026-10-12T00:38:22.188Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502356,
+      "responseHeadersMs": 168,
+      "responseFinishedAt": 1791765502356,
+      "responseTotalMs": 168,
+      "responseBodyError": null
+    },
+    {
+      "id": 23,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/layout-b2d6a4dbf0a15249.js",
+      "resourceType": "script",
+      "startedAt": 1791765502190,
+      "startedIso": "2026-10-12T00:38:22.190Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502356,
+      "responseHeadersMs": 166,
+      "responseFinishedAt": 1791765502356,
+      "responseTotalMs": 166,
+      "responseBodyError": null
+    },
+    {
+      "id": 22,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/1095-f6f6c0e38bb0e922.js",
+      "resourceType": "script",
+      "startedAt": 1791765502188,
+      "startedIso": "2026-10-12T00:38:22.188Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502356,
+      "responseHeadersMs": 168,
+      "responseFinishedAt": 1791765502356,
+      "responseTotalMs": 168,
+      "responseBodyError": null
+    },
+    {
+      "id": 24,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/8500-63a4afbeacab3b52.js",
+      "resourceType": "script",
+      "startedAt": 1791765502190,
+      "startedIso": "2026-10-12T00:38:22.190Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502357,
+      "responseHeadersMs": 167,
+      "responseFinishedAt": 1791765502357,
+      "responseTotalMs": 167,
+      "responseBodyError": null
+    },
+    {
+      "id": 26,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/not-found-9931b966e9ce705a.js",
+      "resourceType": "script",
+      "startedAt": 1791765502190,
+      "startedIso": "2026-10-12T00:38:22.190Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502359,
+      "responseHeadersMs": 169,
+      "responseFinishedAt": 1791765502359,
+      "responseTotalMs": 169,
+      "responseBodyError": null
+    },
+    {
+      "id": 25,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_next/static/chunks/app/error-b9083ad15b7bb42f.js",
+      "resourceType": "script",
+      "startedAt": 1791765502190,
+      "startedIso": "2026-10-12T00:38:22.190Z",
+      "status": 200,
+      "responseHeadersAt": 1791765502359,
+      "responseHeadersMs": 169,
+      "responseFinishedAt": 1791765502360,
+      "responseTotalMs": 170,
+      "responseBodyError": null
+    },
+    {
+      "id": 28,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_vercel/insights/script.js",
+      "resourceType": "script",
+      "startedAt": 1791765502429,
+      "startedIso": "2026-10-12T00:38:22.429Z",
+      "status": 404,
+      "responseHeadersAt": 1791765502438,
+      "responseHeadersMs": 9,
+      "responseFinishedAt": null,
+      "responseTotalMs": null,
+      "responseBodyError": null
+    },
+    {
+      "id": 29,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_vercel/speed-insights/script.js",
+      "resourceType": "script",
+      "startedAt": 1791765502430,
+      "startedIso": "2026-10-12T00:38:22.430Z",
+      "status": 404,
+      "responseHeadersAt": 1791765502443,
+      "responseHeadersMs": 13,
+      "responseFinishedAt": null,
+      "responseTotalMs": null,
+      "responseBodyError": null
+    },
+    {
+      "id": 27,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/api/public/agents/a7107bde-ff33-4952-9ebf-ad0d1dac3861/config",
+      "resourceType": "fetch",
+      "startedAt": 1791765502422,
+      "startedIso": "2026-10-12T00:38:22.422Z",
+      "status": 200,
+      "responseHeadersAt": 1791765507783,
+      "responseHeadersMs": 5361,
+      "responseFinishedAt": 1791765507784,
+      "responseTotalMs": 5362,
+      "responseBodyError": null
+    },
+    {
+      "id": 30,
+      "method": "POST",
+      "url": "https://clara.ai.amazetechclans.com/api/embed/session",
+      "resourceType": "fetch",
+      "startedAt": 1791765508398,
+      "startedIso": "2026-10-12T00:38:28.398Z",
+      "status": 200,
+      "responseHeadersAt": 1791765513674,
+      "responseHeadersMs": 5276,
+      "responseFinishedAt": 1791765513678,
+      "responseTotalMs": 5280,
+      "responseBodyError": null
+    },
+    {
+      "id": 31,
+      "method": "POST",
+      "url": "https://clara.ai.amazetechclans.com/api/embed/session",
+      "resourceType": "fetch",
+      "startedAt": 1791765513679,
+      "startedIso": "2026-10-12T00:38:33.679Z",
+      "status": 200,
+      "responseHeadersAt": 1791765514592,
+      "responseHeadersMs": 913,
+      "responseFinishedAt": 1791765514593,
+      "responseTotalMs": 914,
+      "responseBodyError": null
+    },
+    {
+      "id": 32,
+      "method": "POST",
+      "url": "https://api.openai.com/v1/realtime/calls",
+      "resourceType": "fetch",
+      "startedAt": 1791765514744,
+      "startedIso": "2026-10-12T00:38:34.744Z",
+      "status": 201,
+      "responseHeadersAt": 1791765517174,
+      "responseHeadersMs": 2430,
+      "responseFinishedAt": 1791765517175,
+      "responseTotalMs": 2431,
+      "responseBodyError": null
+    }
+  ],
+  "failures": [
+    {
+      "id": 28,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_vercel/insights/script.js",
+      "resourceType": "script",
+      "startedAt": 1791765502429,
+      "startedIso": "2026-10-12T00:38:22.429Z",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "id": 29,
+      "method": "GET",
+      "url": "https://clara.ai.amazetechclans.com/_vercel/speed-insights/script.js",
+      "resourceType": "script",
+      "startedAt": 1791765502430,
+      "startedIso": "2026-10-12T00:38:22.430Z",
+      "failure": "net::ERR_ABORTED"
+    }
+  ],
+  "consoleErrors": [
+    {
+      "at": "2026-10-12T00:38:22.439Z",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "at": "2026-10-12T00:38:22.439Z",
+      "text": "Refused to execute script from 'https://clara.ai.amazetechclans.com/_vercel/insights/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    },
+    {
+      "at": "2026-10-12T00:38:22.443Z",
+      "text": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "at": "2026-10-12T00:38:22.443Z",
+      "text": "Refused to execute script from 'https://clara.ai.amazetechclans.com/_vercel/speed-insights/script.js' because its MIME type ('text/plain') is not executable, and strict MIME type checking is enabled."
+    }
+  ],
+  "summary": {
+    "telemetryBarrierTurns": 0,
+    "requiredTurns": 5,
+    "browserRequests": 32,
+    "failedRequests": 2,
+    "note": "Partial failure diagnostics only; no provider benchmark result should be accepted."
+  }
+}

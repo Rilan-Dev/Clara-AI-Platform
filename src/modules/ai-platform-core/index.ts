@@ -140,4 +140,5 @@ export {
   streamableHttpMcpToolResolver,
   isMcpPublicIpAddress,
   validateMcpEndpoint,
+  buildStoredMcpToolDescriptor,
 } from "./mcp-streamable-http-resolver";

@@ -67,6 +67,7 @@ function orgWorkspaceNav(orgId: string, role: string | null | undefined) {
   return [
     { href: base, icon: LayoutDashboard, label: "Dashboard", exact: true },
     { href: `${base}/agents`, icon: Bot, label: "Agents", exact: false },
+    { href: `${base}/integrations`, icon: PlugZap, label: "Integrations", exact: false },
     ...(canInvite ? [{ href: `${base}/members`, icon: Users, label: "Members", exact: false }] : []),
     ...(canBilling ? [{ href: `${base}/billing`, icon: CreditCard, label: "Billing", exact: false }] : []),
   ];
@@ -87,7 +88,7 @@ function agentSectionNav(orgId: string, agentId: string, role: string | null | u
       { href: `${base}/faq`,       icon: MessageCircleQuestion,  label: "FAQ",      exact: false },
       { href: `${base}/tools`,     icon: Wrench,                 label: "Capabilities", exact: false },
       { href: `${base}/integrations`, icon: PlugZap,              label: "Integrations", exact: false },
-      { href: `${base}/mcp`,        icon: Cable,                  label: "MCP Tools", exact: false },
+      { href: `${base}/mcp`,       icon: Cable,                  label: "MCP Tools", exact: false },
       { href: `${base}/messaging`, icon: MessageCircleQuestion, label: "Messaging", exact: false },
       { href: `${base}/versions`,  icon: GitBranch,              label: "Branches", exact: false },
       { href: `${base}/publish`,   icon: Rocket,                 label: "Publish",  exact: false },

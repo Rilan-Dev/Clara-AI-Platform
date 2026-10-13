@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 
 export type SettingsSection =
-  | "account" | "appearance" | "ai" | "environment" | "embed" | "mcp"
+  | "account" | "appearance" | "ai" | "environment" | "embed" | "mcp" | "mcpGovernance"
   | "payments" | "email" | "templates" | "phone" | "announcements" | "integrations";
 
 export type SettingsGroup = "You" | "Platform" | "AI & voice" | "Billing" | "Communications" | "Channels";
@@ -92,6 +92,16 @@ export const ADMIN_SETTINGS_PAGES: SettingsPage[] = [
     label: "Integrations",
     title: "Integrations",
     description: "Control the integration catalog exposed to organisations and their agents.",
+    group: "Platform",
+    audience: "Platform admin",
+  },
+  {
+    id: "mcpGovernance",
+    href: "/settings/mcp/governance",
+    icon: Cable,
+    label: "MCP governance",
+    title: "MCP governance",
+    description: "Global MCP enablement, security policy, emergency controls, plan-entitlement boundaries and platform catalog switches.",
     group: "Platform",
     audience: "Platform admin",
   },

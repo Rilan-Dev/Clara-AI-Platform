@@ -1,17 +1,8 @@
 name: Voice Benchmark Script Checks
 
+# Project-owner policy: all workflows are manual-only; no push, pull_request,
+# schedule, or other automatic triggers. Run from Actions -> Run workflow.
 on:
-  push:
-    branches:
-      - feature/ai-core-from-doable-source
-    paths:
-      - "scripts/voice-benchmark/**"
-      - "package.json"
-      - ".github/workflows/voice-benchmark-script-check.yml"
-  pull_request:
-    paths:
-      - "scripts/voice-benchmark/**"
-      - ".github/workflows/voice-benchmark-script-check.yml"
   workflow_dispatch:
 
 permissions:

@@ -14,7 +14,7 @@ import {
   X, Clock, Play, Pause, Ban,
   RotateCcw, Gift, Zap, Receipt, Shield, Bell, ChevronRight,
   CheckCircle2, XCircle, AlertCircle, Mail,
-  Send, Edit3, Plus, Building2,
+  Send, Edit3, Plus, Building2, Cable,
 } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
@@ -22,6 +22,12 @@ import { toast } from "@/components/ui/sonner";
 import { LoadError } from "@/components/ui/load-error";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  PlanMcpEntitlementsEditor,
+  PLAN_MCP_DISABLED,
+  type PlanMcpEntitlements,
+} from "@/features/admin/screens/plan-mcp-entitlements-editor";
+import { PlatformOrgMcpEntitlementsPanel } from "@/features/admin/screens/platform-org-mcp-entitlements-panel";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,6 +51,7 @@ type Plan = {
   analytics_level: string;
   priority_support: boolean;
   features: string[];
+  mcp_entitlements?: PlanMcpEntitlements;
   published_version_id?: string;
   published_version?: number;
   draft_version_id?: string;
@@ -495,6 +502,8 @@ export default function AdminSubscriptionsScreen() {
   const [planSuccess, setPlanSuccess] = useState<string | null>(null);
 
   // Helper functions for plan management
+  const [mcpConfirmation, setMcpConfirmation] = useState("");
+  const [mcpConfirmRequired, setMcpConfirmRequired] = useState(false);
   const savePlan = async (plan: Plan) => {
     setSavingPlan(true);
     setPlanError(null);
@@ -523,6 +532,8 @@ export default function AdminSubscriptionsScreen() {
         prioritySupport: plan.priority_support,
         features: plan.features,
         multilingualEmbeddings: plan.multilingual_embeddings,
+        mcpEntitlements: plan.mcp_entitlements ?? { ...PLAN_MCP_DISABLED },
+        mcpConfirmation: mcpConfirmation.trim().toUpperCase() || undefined,
       };
       const r = await fetch(apiUrl("/api/platform/subscription-plans"), {
         method: "POST",
@@ -530,10 +541,21 @@ export default function AdminSubscriptionsScreen() {
         body: JSON.stringify(body),
       });
       const data = await r.json();
-      if (!r.ok) throw new Error(data.error ?? "Failed to save plan");
-      
+      if (!r.ok) {
+        if (data.code === "CONFIRMATION_REQUIRED") {
+          setMcpConfirmRequired(true);
+          throw new Error(data.error ?? "Confirmation required");
+        }
+        if (Array.isArray(data.issues) && data.issues.length) {
+          throw new Error(`${data.error ?? "Invalid plan"}: ${data.issues.join("; ")}`);
+        }
+        throw new Error(data.error ?? "Failed to save plan");
+      }
+
       setPlanSuccess(`Plan ${plan.id === "new" ? "created" : "updated"} successfully`);
       setEditPlan(null);
+      setMcpConfirmRequired(false);
+      setMcpConfirmation("");
       loadData();
     } catch (e) {
       setPlanError((e as Error).message);
@@ -987,6 +1009,28 @@ export default function AdminSubscriptionsScreen() {
                     </label>
                   </div>
 
+                  {/* MCP plan entitlements — centralized validation on save */}
+                  {mcpConfirmRequired && (
+                    <div role="alert" className="rounded-xl border border-amber-600/30 bg-amber-500/5 p-3 space-y-2">
+                      <p className="text-xs text-amber-700">
+                        Disabling MCP for this plan blocks new MCP operations for its
+                        subscribers immediately. Existing connections are preserved but
+                        stop working. Type <span className="font-mono font-semibold">DISABLE-PLAN-MCP</span> to confirm.
+                      </p>
+                      <input
+                        type="text"
+                        value={mcpConfirmation}
+                        onChange={e => setMcpConfirmation(e.target.value)}
+                        placeholder="DISABLE-PLAN-MCP"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs focus:outline-none focus:border-primary/50"
+                      />
+                    </div>
+                  )}
+                  <PlanMcpEntitlementsEditor
+                    value={editPlan.mcp_entitlements ?? { ...PLAN_MCP_DISABLED }}
+                    onChange={mcp => setEditPlan({ ...editPlan, mcp_entitlements: mcp })}
+                  />
+
                   <div className="flex gap-2 pt-4 border-t border-border/70">
                     <Button size="sm" variant="outline" onClick={() => setEditPlan(null)}>Cancel</Button>
                     <Button size="sm" onClick={() => void savePlan(editPlan)} disabled={savingPlan || !editPlan.name.trim()}>
@@ -1018,7 +1062,7 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
   orgId: string; orgName: string; onClose: () => void;
 }) {
   const [data, setData] = useState<{ invoices: BillingEvent[]; auditLog: AuditEntry[] } | null>(null);
-  const [tab, setTab]   = useState<"invoices" | "audit">("invoices");
+  const [tab, setTab]   = useState<"invoices" | "audit" | "mcp">("invoices");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1056,18 +1100,20 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
 
         {/* Tabs */}
         <div className="flex border-b border-border shrink-0">
-          {(["invoices","audit"] as const).map(t => (
+          {(["invoices","audit","mcp"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`flex-1 text-xs font-medium py-2.5 capitalize transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5
                 ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground/70 hover:text-foreground"}`}>
-              {t === "invoices" ? <><Receipt className="w-3.5 h-3.5" /> Payment Events</> : <><Shield className="w-3.5 h-3.5" /> Audit Log</>}
+              {t === "invoices" ? <><Receipt className="w-3.5 h-3.5" /> Payment Events</> : t === "audit" ? <><Shield className="w-3.5 h-3.5" /> Audit Log</> : <><Cable className="w-3.5 h-3.5" /> MCP</>}
             </button>
           ))}
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {loading ? (
+          {tab === "mcp" ? (
+            <PlatformOrgMcpEntitlementsPanel orgId={orgId} />
+          ) : loading ? (
             <div className="flex items-center justify-center h-40 text-muted-foreground/70 text-sm">Loading…</div>
           ) : tab === "invoices" ? (
             !data?.invoices.length ? (

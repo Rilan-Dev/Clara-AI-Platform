@@ -3,6 +3,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { ENCRYPTION_KEY } from "@/lib/secrets";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { isPrivateOrLocalHostname, oauthRequestOriginMatches, resolvePublicOrigin } from "@/lib/public-origin";
 import { hashOAuthState } from "@/modules/integrations/oauth-state";
 import {
   buildOAuthCredentialFromTokenSet,
@@ -46,7 +47,12 @@ function settingsReturnUrl(origin: string, status: string, reason?: string, serv
  * banner. Every failure path redirects — an admin never sees raw JSON here.
  */
 export async function GET(req: NextRequest) {
-  const origin = req.nextUrl.origin;
+  // Pre-state redirects (auth failure, provider error, missing code) use the
+  // request-derived public origin — req.nextUrl.origin would surface the bind
+  // address (e.g. https://0.0.0.0:3000) behind Host-rewriting reverse proxies.
+  // Once the state row is loaded, the state-bound redirect URI's origin takes
+  // over (see below).
+  const requestOrigin = resolvePublicOrigin(req);
   let authed = false;
   try {
     await ensureMigrated();
@@ -57,7 +63,7 @@ export async function GET(req: NextRequest) {
     authed = false;
   }
   if (!authed) {
-    return NextResponse.redirect(settingsReturnUrl(origin, "error", "auth"));
+    return NextResponse.redirect(settingsReturnUrl(requestOrigin, "error", "auth"));
   }
 
   const code = req.nextUrl.searchParams.get("code");
@@ -65,10 +71,10 @@ export async function GET(req: NextRequest) {
   const providerError = req.nextUrl.searchParams.get("error");
   if (providerError) {
     const cancelled = providerError === "access_denied" || providerError === "user_cancelled" || providerError === "consent_denied";
-    return NextResponse.redirect(settingsReturnUrl(origin, cancelled ? "cancelled" : "error", providerError.slice(0, 64)));
+    return NextResponse.redirect(settingsReturnUrl(requestOrigin, cancelled ? "cancelled" : "error", providerError.slice(0, 64)));
   }
   if (!code || !state) {
-    return NextResponse.redirect(settingsReturnUrl(origin, "error", "missing_code"));
+    return NextResponse.redirect(settingsReturnUrl(requestOrigin, "error", "missing_code"));
   }
 
   // Single-use, expiring state lookup + atomic consumption.
@@ -85,13 +91,39 @@ export async function GET(req: NextRequest) {
   );
   const pending = consumed[0];
   if (!pending) {
-    return NextResponse.redirect(settingsReturnUrl(origin, "error", "state_not_found"));
+    return NextResponse.redirect(settingsReturnUrl(requestOrigin, "error", "state_not_found"));
   }
 
-  // The callback must land on the same origin/path the state was bound to.
-  const expected = new URL(pending.redirect_uri);
-  const actual = new URL(req.nextUrl.pathname, origin);
-  if (expected.origin !== actual.origin || expected.pathname !== actual.pathname) {
+  // Post-state return origin: the state-bound redirect URI's origin is where
+  // the provider just redirected the admin's browser. Fall back to the
+  // request-derived public origin when the state row carries a private/bind
+  // address (flows started before the proxy fix, or an unconfigured public
+  // origin) so the admin still lands on a reachable settings page.
+  let origin = requestOrigin;
+  try {
+    const stateOrigin = new URL(pending.redirect_uri).origin;
+    if (!isPrivateOrLocalHostname(new URL(stateOrigin).hostname)) origin = stateOrigin;
+  } catch {
+    // Corrupt state row — keep the request-derived origin.
+  }
+
+  // The callback must land on the path the state was bound to, on the
+  // deployment's public origin. The provider already redirected the browser to
+  // the exact registered redirect URI, so the origin comparison is against the
+  // request-derived public origin; a private/bind request host (reverse-proxy
+  // hop) is tolerated, and a genuinely different public origin still fails
+  // closed.
+  let expected: URL | null = null;
+  try {
+    expected = new URL(pending.redirect_uri);
+  } catch {
+    expected = null;
+  }
+  if (
+    !expected ||
+    expected.pathname !== req.nextUrl.pathname ||
+    !oauthRequestOriginMatches(expected.origin, req)
+  ) {
     return NextResponse.redirect(settingsReturnUrl(origin, "error", "redirect_mismatch"));
   }
 

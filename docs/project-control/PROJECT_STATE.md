@@ -708,6 +708,17 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 
 [architect-verified] Connected integration discovery now requires user and agent identity and filters candidates by active scoped connection, platform enablement, organisation and agent grants, and organisation plan allowlist before registration. Execution remains in Unified Tool Runtime and the existing runner. Commits: `8aac1c8a5b0e4f61c3f36f2d416c0fc3da6102b5`, `e0a3001e6911fc896df0611e83756c78ecb22da4`, `d722ff3f547a00b90c027b45e479944aa3cf9827`. Chat/realtime dispatch and secure OAuth app configuration remain incomplete. No tests or live provider integrations were run; CI/Vercel/Gates remain deferred.
 
+---
+
+# CURRENT PROJECT STATE — 2026-10-12 — ORGANIZATION-OWNED MCP + PLAN ENTITLEMENTS IMPLEMENTED
+
+- Branch: `feature/ai-core-from-doable-source`.
+- The 2026-10-12 owner directive (organization-owned MCP product, platform-admin-configurable plan entitlements, subscription validation, usage enforcement, global governance, agent permissions, chat/realtime runtime integration, security controls, regression tests) is implemented at source level. Full record: `docs/plans/mcp-organization-owned-endpoints.md`.
+- Migration `069_mcp_organization_owned_endpoints.sql` is additive and authored; it has NOT been applied to any live database from this environment.
+- 91 new focused tests pass locally (`vitest`); the full suite result 1334 passed / 50 failed matches the pre-change branch baseline exactly (stash-diff verified, zero new failures). No CI/Vercel/deployment/live handshake was run or awaited; no runtime PASS is claimed.
+- `ENABLE_MCP` remains OFF. Evidence required before enabling: migration applied on the deployed revision, governance + plan entitlements configured via admin UI, controlled live handshake, focused suites green there.
+- Exact next action: follow `docs/project-control/NEXT_ACTION.md` (2026-10-12 section); do not wait for external gates.
+
 ## FIX-01 type-check follow-up — 2026-10-12
 - Owner's post-pull compiler run verified the Stripe ambient declaration fix removed the Stripe missing-member cluster, reducing diagnostics from 44/19 files to 33/15 files.
 - FIX-01 committed narrow compatibility changes for the next known diagnostics. These edits are not yet type-checked locally.
@@ -736,6 +747,16 @@ I-086 is RESOLVED by architect source review. I-2 remains **IMPLEMENTED — VERI
 - Code corrections are on branch `fix/subscription-ai-entitlements-authority`; do not merge or deploy without the normal review.
 - Plan entitlements are now the intended authority for runtime provider access; org AI settings' legacy provider lists are compatibility data only.
 - Regression tests were added but not executed. Current state is unverified; no PASS.
+
+## 2026-10-12 — OpenAI realtime voice latency diagnostic checkpoint
+
+The voice-latency workstream is being tracked separately from other feature/type-check work and is active on `fix/openai-vad-audio-diagnostics-clean` (PR #295; do not merge without owner authorization). Durable details: `docs/project-control/sessions/SESSION-VOICE-LATENCY-20261012-01.md`.
+
+Owner-provided five-turn benchmark completed after benchmark-only synthetic silent-audio keepalive and bounded finalization wait. Per-turn TTFA was 8273, 6078, 5213, 1447, 1704 ms (median 5213 ms). RAG took 7249, 5186, 4433, 527, 663 ms; STT 1.1–1.6 s, LLM-first 0.59–0.81 s, TTS-first 0.68–0.94 s. These numbers show latency remains far above the aspirational <=500 ms grounded-answer target. Welcome audio and acknowledgements must not be counted as grounded answers.
+
+Privacy-safe RAG timing instrumentation is committed to capture browser elapsed, HTTP status, Server-Timing, and numeric server timing fields without query/context/credentials. **Next evidence required:** run the updated benchmark to `tool-results/openai-rag-stage-timings.json` and inspect server stage timings before changing production RAG. No production latency fix/deployment/pass is claimed. Keep GitHub Actions manual-only and continue without waiting for CI/Vercel.
+
+
 ## DEV-01 — Live Gemini catalogue audit — 2026-10-12
 - Current bounded work: replace static availability decisions with live governance catalogue, including environment/seed defaults and embedding dimension safety.
 - Commits in this continuation: 865e657901d479e29ce1625b1869edfaa0eb04d5 (release-date parsing), d7d6a144750799ab127b92e84e2546dacb20e59b (live-only embedding fallback), c7321aa2f63b099ffbf7ffdb873cd362e7b5f8a3 and 6bed6c178884df567e8478974d693ed033f49631 (legacy env examples), af5e16ef22bc79249fee95b3d09cc74a10e4edc2 (seed semantics), 1d9de9d29483c3b8781194e6988d0e84a703aad9 (unknown Gemini embedding dimensions fail closed), 4869b25802fae07ff5061c2e970cc4cc4418856a (governance availability views).
