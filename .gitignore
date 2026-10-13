@@ -15,7 +15,8 @@ node_modules/
 /coverage
 
 # next.js
-/.next/
+# (unanchored: also covers nested builds like scripts/ws-repro/.next)
+.next/
 /out/
 
 # production

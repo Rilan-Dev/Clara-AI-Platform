@@ -1,0 +1,8 @@
+{
+  "name": "ws-repro",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "start": "node scripts/start.mjs"
+  }
+}
