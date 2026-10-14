@@ -25,6 +25,7 @@ import type {
 } from "./config-types";
 import type { AgentAISettings } from "@/modules/organisations/core/agent-ai-types";
 import { resolveAgentRuntimeSelection } from "@/modules/organisations/core/agent-ai-types";
+import { selectEmbeddingProvider } from "./embedding-provider-selection";
 
 export class AIConfigResolutionError extends Error {
   constructor(message: string) {
@@ -368,15 +369,12 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // OpenAI is explicitly unconfigured, prefer Gemini if available. This is a
   // runtime availability fallback only — the platform default is not rewritten,
   // and the existing collection dimension is still resolved/pinned below.
-  const embeddingProviderOverride = process.env.AI_EMBEDDING_PROVIDER?.trim().toLowerCase();
-  const embeddingProvider: AIProvider =
-    embeddingProviderOverride === "gemini" && process.env.GEMINI_API_KEY?.trim()
-      ? "gemini"
-      : configuredEmbeddingProvider === "openai" &&
-          !process.env.OPENAI_API_KEY?.trim() &&
-          Boolean(process.env.GEMINI_API_KEY?.trim())
-        ? "gemini"
-        : configuredEmbeddingProvider;
+  const embeddingProvider = selectEmbeddingProvider({
+    configuredProvider: configuredEmbeddingProvider,
+    override: process.env.AI_EMBEDDING_PROVIDER,
+    openaiApiKey: process.env.OPENAI_API_KEY,
+    geminiApiKey: process.env.GEMINI_API_KEY,
+  });
 
   if (embeddingProvider !== configuredEmbeddingProvider) {
     console.warn(
