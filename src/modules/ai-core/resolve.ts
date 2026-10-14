@@ -358,9 +358,29 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // ingestion from accidentally inheriting a chat/realtime provider that has
   // no embedding API (for example Sarvam). The legacy env fallback is used
   // only if the migration has no row yet.
-  const embeddingProvider: AIProvider =
+  const configuredEmbeddingProvider: AIProvider =
     registry.embeddingDefault?.providerId ??
     (provider === "sarvam" ? parseSarvamEmbeddingFallbackProvider() : provider);
+
+  // A temporarily unavailable OpenAI billing/key configuration must not keep
+  // RAG pinned to OpenAI when Gemini credentials are configured. The platform
+  // embedding default remains authoritative while its provider has a key; when
+  // OpenAI is explicitly unconfigured, prefer Gemini if available. This is a
+  // runtime availability fallback only — the platform default is not rewritten,
+  // and the existing collection dimension is still resolved/pinned below.
+  const embeddingProvider: AIProvider =
+    configuredEmbeddingProvider === "openai" &&
+    !process.env.OPENAI_API_KEY?.trim() &&
+    Boolean(process.env.GEMINI_API_KEY?.trim())
+      ? "gemini"
+      : configuredEmbeddingProvider;
+
+  if (embeddingProvider !== configuredEmbeddingProvider) {
+    console.warn(
+      "[ai-config] OpenAI embedding credentials are not configured; using Gemini embeddings for this resolution. " +
+      "Set the platform Embeddings default to Gemini to make this selection explicit and schedule fleet re-indexing.",
+    );
+  }
 
   // Model availability is owned by the vendor-refreshed governance catalogue,
   // not by static lists, env defaults, or migration seed rows. Load each model
