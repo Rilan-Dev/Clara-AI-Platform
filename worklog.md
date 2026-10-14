@@ -855,3 +855,24 @@ Stage summary:
 - Runtime unified: removed the global `mcp_availability`/`mcp_tool` meta-tool registration; org-owned tools now advertised and executed through the request-scoped Unified Tool Runtime via `OrgMcpToolResolver` + composite resolver (`src/modules/mcp/runtime-resolver.ts`); chat/realtime/realtime-tool share one authorization and metering path with the platform catalog.
 - UI reconciled: `/settings/mcp` = catalog servers (target), `/settings/mcp/governance` = governance (PR); agent MCP screen unified with both sections; org Integrations hub restored at `/orgs/:id/integrations`; agent integrations screen/route kept the target's superset versions.
 - Docs: plan doc, NEXT_ACTION, VERIFICATION_STATE merged with both histories plus reconciliation entries.
+
+---
+Task ID: 2
+Agent: main (Super Z)
+Task: Fix all remaining docker-log errors — relay CONNECTING-close noise, brain provider failures not reaching platform admin, broken email delivery invisible (branch feature/ai-core-from-doable-source)
+
+Work Log:
+- Verified prior fixes live and working: the user's quoted "re-index started automatically" message confirms embedding self-heal (e481935c) fires in production; 7952f147 catalogues + ai-health cron confirmed present.
+- Root-caused [sarvam-tts-relay] upstream error from ws@8.18.3 source: close() AND terminate() on a CONNECTING socket both call abortHandshake() → synthetic "WebSocket was closed before the connection was established" error on nextTick. Every teardown racing a pending vendor handshake logged it; a hung handshake (user's api.vendor.ai proxy) also parked silently in CONNECTING.
+- NEW scripts/ws-lifecycle.mjs (shared): closeUpstreamSocket (terminate + __relaySelfClosed marking for CONNECTING/CLOSING, clean close for OPEN), safeWsHost, armHandshakeTimeout (10s fail-fast, actionable host in browser error), isSelfClosedSocket/isHandshakeTimedOut filters.
+- Hardened all relay legs: sarvam-tts-relay + elevenlabs-relay TTS (handshake timeout, quiet filters, CONNECTING-safe interrupt, host-bearing errors, bounded reconnect preserved), elevenlabs-relay STT + sarvam-relay (CONNECTING-safe closeBoth + quiet error filters). voice-relay already safe (OPEN-guarded closes).
+- Closed the "issue was not captured" gap for the ANSWER ENGINE: incidents.ts adds recordBrainRuntimeFailure (classifies 401/403 → critical credential guidance, 429 → recharge, model-not-found, network/timeout; aborts never recorded) + noteBrainRequestSucceeded auto-recovery. Wired into assistant chat (KB + document modes) and embed widget chat catch/finally paths with provider/model context. health-alerts routes ai-brain:* → Settings → AI Platform.
+- Email-delivery meta-monitoring: notifyAdmins records email-delivery:{provider} incident on failed sends WITHOUT emailing about it (opts.notify=false on recordRuntimeIncident/syncSingleHealthIncident — no recursion; loop-safety verified by test), auto-resolves on next delivered email; banner routes to Settings → Email Delivery. Fixes the invisible broken Resend key.
+- OAuth callback origin mismatch: code does NOT exist in this repo/branch (grep for state-bound/redirect URI handling = empty) — comes from the user's local env or an external service; cannot be fixed here (noted to user).
+- Fixed test-stub breakage: embed/chat used provider.getProviderName() (stub lacks it) → switched to resolved.provider.
+- Validation: node --check all relays; 23 new tests pass (ws-lifecycle semantics 9, brain incidents 8 incl. no-recursion email guard, metering 6); full-suite normalized diff vs baseline = ZERO new failures; tsc diff vs stashed baseline = ZERO new errors. Staged via untracked fix-stage/ + re-runnable apply.sh (sandbox resets to main between tool calls).
+
+Stage Summary:
+- Commit 6ce57a51 pushed to origin/feature/ai-core-from-doable-source (10 files, +740/−92).
+- After pulling + docker compose up -d --build: relay log noise gone; hung Sarvam base URLs fail fast with "Sarvam TTS endpoint (api.vendor.ai) is not responding — check the provider base URL"; ANY brain 401/429 now drives the super-admin banner + email within minutes (rate-limited); broken email channel surfaces as its own incident.
+- User action items (env, not code): fix RESEND_API_KEY or switch to SMTP (Settings → Email Delivery); fix or replace the dead OpenAI key for chat/brain (or switch brain provider); switch SARVAM_BASE_URL off the api.vendor.ai proxy to https://api.sarvam.ai if TTS WS is unreachable; the OAuth callback origin error is not from this repo — check the external integration service.
