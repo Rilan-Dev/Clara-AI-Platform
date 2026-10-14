@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-14 — GEMINI EMBEDDING CONTINUITY
+
+[architect source update] Added embedding-only provider selection to let development continue when OpenAI is temporarily unavailable. `AI_EMBEDDING_PROVIDER=gemini` selects Gemini for RAG embeddings when `GEMINI_API_KEY` is configured without changing chat/realtime routing; missing OpenAI credentials also permit Gemini fallback. This does not mutate the persisted platform embedding default or trigger fleet re-indexing.
+
+Commits: `4aaf0c5409eef0414542aeadae799ac52df96c27`, `a53ba5b97cbd36417ac498972d53a533cf0ee533`, `0621d8bed7726a2a68890a4dfe02246df3797210`, `9521837f00bebae3ec30ec5f7d1f04c6768aa51a`.
+
+**Next:** configure the runtime override and Gemini credential; for the durable production change, select Gemini in Settings → AI Platform → Embeddings so the platform queues Qdrant fleet re-indexing. Continue live model-catalogue implementation without waiting for CI/Vercel. Verification remains pending; no PASS claimed.
+
+---
+
 # LIVE MODEL DISCOVERY — GEMINI + ELEVENLABS REALTIME — 2026-10-12
 
 - **Agent/session:** DEV-01 / Forge — SESSION-DEV-20261012-01.
