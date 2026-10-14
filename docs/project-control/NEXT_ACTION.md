@@ -1,3 +1,15 @@
+## DEV-01 CONTINUATION — TEMPORARY GEMINI EMBEDDING ROUTING — 2026-10-14
+
+- Owner reports OpenAI is temporarily unavailable due to billing/key issues and wants to continue using Gemini embeddings.
+- Added an embedding-only `AI_EMBEDDING_PROVIDER=openai|gemini` override. It changes only the embedding execution provider, not chat/realtime provider selection. The platform environment API validates the value, and production seeding carries the non-secret setting forward.
+- If this override is set to `gemini` and `GEMINI_API_KEY` is configured, resolver chooses Gemini even if the stored platform embedding default still says OpenAI. If no override is set, absent OpenAI credentials plus a configured Gemini key also selects Gemini.
+- Source commits: `4aaf0c5409eef0414542aeadae799ac52df96c27` (resolver), `a53ba5b97cbd36417ac498972d53a533cf0ee533` (environment API validation), `0621d8bed7726a2a68890a4dfe02246df3797210` (production seed), `9521837f00bebae3ec30ec5f7d1f04c6768aa51a` (.env example).
+- **Important operational next step:** configure `AI_EMBEDDING_PROVIDER=gemini` and ensure `GEMINI_API_KEY` is valid in the runtime environment, or choose Gemini in Settings → AI Platform → Embeddings. The platform UI path persists the official default and queues fleet re-indexing; an environment override does not itself schedule re-indexing.
+- Existing Qdrant vectors must remain dimension-compatible; after selecting the platform embedding default, follow the re-index job status. No tests/typecheck/build/live embedding call/CI/Vercel/deployment was run or claimed.
+- **Exact next implementation:** continue the current live-model catalogue audit from this state, add focused regression coverage for the new provider override and model capability selection, then continue replacing remaining static Gemini model selectors with live governance rows. Do not wait for CI/Vercel.
+
+---
+
 ## DEV-01 CONTINUATION — LIVE MODEL SELECTION FOR ELEVENLABS PREVIEW — 2026-10-12
 
 - ElevenLabs voice preview now obtains TTS models from the vendor-refreshed governance catalogue, rejects an explicitly selected model that is no longer available, and defaults to the lowest known unit-cost live model (unknown costs sort after known costs; release date breaks ties).
