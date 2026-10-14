@@ -44,6 +44,7 @@ import {
   toRealtimeModel,
   toUpstreamSttFrame,
 } from "./sarvam-wire.mjs";
+import { closeUpstreamSocket, isSelfClosedSocket } from "./ws-lifecycle.mjs";
 
 // Re-exported for the relay wire tests (the helpers live in sarvam-wire.mjs,
 // shared with the TTS relay and the phone stream).
@@ -253,11 +254,11 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
 
   function closeBoth(code, reason) {
     if (state.closed) return;
-    state.closed = true;
+    state.closed = true; // set FIRST: synthetic abortHandshake events are filtered below
     clearTimeout(lifetimeTimer);
     clearInterval(idleTimer);
     clearInterval(keepAliveTimer);
-    try { upstream.close(code, reason); } catch (_) {}
+    closeUpstreamSocket(upstream, code, reason); // CONNECTING-safe teardown
     try { browserWs.close(code, reason); } catch (_) {}
   }
 
@@ -339,6 +340,11 @@ export async function handleSarvamRealtimeConnection(browserWs, req) {
   });
 
   upstream.on("error", (err) => {
+    // ws@8 emits a synthetic "WebSocket was closed before the connection
+    // was established" whenever close()/terminate() races a pending
+    // handshake — e.g. the browser disconnects while the vendor endpoint is
+    // still handshaking. Deliberate teardowns stay quiet.
+    if (state.closed || isSelfClosedSocket(upstream)) return;
     console.error("[sarvam-relay] upstream error:", err.message);
     send(browserWs, { type: "error", message: "Upstream connection error", fatal: true });
     closeBoth(1011, "Upstream error");

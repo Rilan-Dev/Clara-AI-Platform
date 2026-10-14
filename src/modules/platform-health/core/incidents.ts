@@ -44,6 +44,54 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#039;");
 }
 
+// ── Email delivery meta-monitoring ────────────────────────────────────────
+//
+// notifyAdmins() is the platform's "let the admin know" channel. When the
+// email provider itself is broken (invalid Resend key, SMTP unreachable),
+// notification rows pile up as status='failed' in the DB and NOBODY is told —
+// the exact "issue was not captured" complaint that let a dead OpenAI key
+// break KB chat unnoticed. These helpers record an email-delivery incident
+// (visible on the super-admin banner + System Status, which do not depend on
+// email) WITHOUT attempting an email for it — recording an email failure by
+// email would loop.
+
+async function noteEmailDeliveryFailed(provider: string, error: string): Promise<void> {
+  try {
+    await recordRuntimeIncident(
+      {
+        key: `email-delivery:${provider}`,
+        serviceName: "Email delivery",
+        healthy: false,
+        severity: "warning",
+        message:
+          `Admin notification emails are failing via ${provider}: ${error.slice(0, 200)} ` +
+          `Incidents are still recorded in-app (super-admin banner / System Status), but no emails go out. ` +
+          `Fix the credential or switch provider in Settings → Email Delivery.`,
+      },
+      { notify: false },
+    );
+  } catch {
+    // Meta-monitoring must never break the notification write path.
+  }
+}
+
+async function noteEmailDeliverySucceeded(provider: string): Promise<void> {
+  try {
+    await recordRuntimeIncident(
+      {
+        key: `email-delivery:${provider}`,
+        serviceName: "Email delivery",
+        healthy: true,
+        severity: "warning",
+        message: `Notification emails are delivering again via ${provider}.`,
+      },
+      { notify: false },
+    );
+  } catch {
+    // Meta-monitoring must never break the notification write path.
+  }
+}
+
 async function notifyAdmins(params: {
   incidentKey: string;
   severity: "warning" | "critical";
@@ -84,6 +132,11 @@ async function notifyAdmins(params: {
             WHERE id = $1`,
           [notificationId],
         );
+        if (result.provider !== "console") {
+          // A delivered email proves the notification channel is alive —
+          // resolve any failing email-delivery incident.
+          void noteEmailDeliverySucceeded(result.provider);
+        }
       } else {
         await query(
           `UPDATE platform_admin_notifications
@@ -91,6 +144,9 @@ async function notifyAdmins(params: {
             WHERE id = $2`,
           [result.error ?? "Email provider did not send the notification.", notificationId],
         );
+        // The notification channel itself is broken — surface it in-app
+        // (never by email, which would loop).
+        void noteEmailDeliveryFailed(result.provider, result.error ?? "email provider did not send");
       }
     } catch (error) {
       console.error("[platform-health] admin notification delivery failed", error);
@@ -106,7 +162,10 @@ export async function syncPlatformHealthIncidents(
   }
 }
 
-async function syncSingleHealthIncident(check: PlatformHealthCheck): Promise<void> {
+async function syncSingleHealthIncident(
+  check: PlatformHealthCheck,
+  opts?: { notify?: boolean },
+): Promise<void> {
   try {
     const existing = await query<{
       status: "healthy" | "failing";
@@ -167,7 +226,7 @@ async function syncSingleHealthIncident(check: PlatformHealthCheck): Promise<voi
       previous.status === "healthy" ||
       previous.message !== check.message;
 
-    if (shouldNotify) {
+    if (shouldNotify && opts?.notify !== false) {
       await query(
         `UPDATE platform_health_incidents
               SET last_notified_at = now()
@@ -205,7 +264,10 @@ const RUNTIME_RATE_LIMIT_MS = 10 * 60_000;
 
 const runtimeRecent = new Map<string, { healthy: boolean; message: string; at: number; check: PlatformHealthCheck }>();
 
-export async function recordRuntimeIncident(check: PlatformHealthCheck): Promise<void> {
+export async function recordRuntimeIncident(
+  check: PlatformHealthCheck,
+  opts?: { notify?: boolean },
+): Promise<void> {
   try {
     const recent = runtimeRecent.get(check.key);
     if (
@@ -216,7 +278,7 @@ export async function recordRuntimeIncident(check: PlatformHealthCheck): Promise
     ) {
       return;
     }
-    await syncSingleHealthIncident(check);
+    await syncSingleHealthIncident(check, opts);
     runtimeRecent.set(check.key, { healthy: check.healthy, message: check.message, at: Date.now(), check });
   } catch (error) {
     console.error("[platform-health] runtime incident record failed", check.key, error);
@@ -323,5 +385,118 @@ export async function recordEmbeddingRuntimeFailure(
     await recordRuntimeIncident({ key, serviceName, healthy: false, severity, message });
   } catch (recordError) {
     console.error("[platform-health] embedding failure classification failed", recordError);
+  }
+}
+
+// ── Brain (chat completion) runtime incident capture ────────────────────────
+//
+// The embedding backbone got runtime incident capture first because it broke
+// every KB chat. But the SAME blind spot existed for the answer engine: an
+// OpenAI/Gemini/Sarvam chat-completion 401 (dead key) or 429 (billing
+// exhausted) only produced container logs — "The assistant could not complete
+// the answer" for users, silence for the platform admin. These helpers close
+// that gap from the live request paths (assistant chat, embed widget chat).
+
+function displayBrainProviderName(provider: string): string {
+  switch (provider.toLowerCase()) {
+    case "openai":
+      return "OpenAI";
+    case "gemini":
+    case "google":
+      return "Gemini";
+    case "sarvam":
+      return "Sarvam";
+    case "anthropic":
+      return "Anthropic";
+    default:
+      return provider.charAt(0).toUpperCase() + provider.slice(1);
+  }
+}
+
+function inferBrainProviderFromError(message: string): string {
+  if (/openai|sk-proj-|api\.openai\.com|gpt-|invalid_api_key/i.test(message)) return "openai";
+  if (/gemini|generativelanguage|google/i.test(message)) return "gemini";
+  if (/sarvam|api\.sarvam\.ai/i.test(message)) return "sarvam";
+  return "provider";
+}
+
+/**
+ * Classify a brain (chat-completion) provider failure from a live request
+ * path and record a runtime incident — the super-admin banner + email fire
+ * without anyone watching container logs. Rate-limited per key (10 min).
+ */
+export async function recordBrainRuntimeFailure(
+  error: unknown,
+  context?: { surface?: string; provider?: string; model?: string },
+): Promise<void> {
+  try {
+    const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const surface = context?.surface ?? "a chat request";
+    const providerId = (context?.provider ?? inferBrainProviderFromError(raw)).toLowerCase();
+    const providerName = displayBrainProviderName(providerId);
+    const modelNote = context?.model ? ` (model ${context.model})` : "";
+    const aborted = /abort|cancel|AbortError/i.test(raw);
+
+    // User aborts/cancellations are not provider failures — never record.
+    if (aborted && !/401|403|429|quota|invalid_api_key/i.test(raw)) return;
+
+    let message: string;
+    let severity: "warning" | "critical";
+
+    if (/invalid_api_key|Incorrect API key|Unauthorized|401|403/i.test(raw)) {
+      message =
+        `The ${providerName} answer engine failed during ${surface}: the API key was rejected (401/403). ` +
+        `Chats, agent preview and published agents will keep failing until the credential is fixed — ` +
+        `update it in Settings → AI Platform → Providers${modelNote}.`;
+      severity = "critical";
+    } else if (/insufficient_quota|quota|billing|exceeded your current quota|429/i.test(raw)) {
+      message =
+        `The ${providerName} answer engine failed during ${surface}: the provider reported a quota/billing limit (429). ` +
+        `Recharge the account or switch the chat/brain default to another provider (Settings → AI Platform)${modelNote}.`;
+      severity = "critical";
+    } else if (/model_not_found|model .* does not exist|no such model|404/i.test(raw)) {
+      message =
+        `The ${providerName} answer engine failed during ${surface}: the configured chat model is unavailable to this account${modelNote}. ` +
+        `Pick an accessible model in Settings → AI Platform.`;
+      severity = "critical";
+    } else if (/timeout|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|fetch failed/i.test(raw)) {
+      message =
+        `The ${providerName} answer engine could not be reached during ${surface} (network/timeout). ` +
+        `Check the provider base URL and network egress${modelNote}.`;
+      severity = "warning";
+    } else {
+      message = `The ${providerName} answer engine failed during ${surface}: ${raw.slice(0, 300)}${modelNote}.`;
+      severity = "warning";
+    }
+
+    await recordRuntimeIncident({
+      key: `ai-brain:${providerId}`,
+      serviceName: `${providerName} answer engine`,
+      healthy: false,
+      severity,
+      message,
+    });
+  } catch (recordError) {
+    console.error("[platform-health] brain failure classification failed", recordError);
+  }
+}
+
+/**
+ * Called after a successful chat-completion round trip. Clears the
+ * runtime-failing brain incident for that provider (rate-limited, no-op when
+ * healthy) so the admin banner reflects recovery promptly.
+ */
+export async function noteBrainRequestSucceeded(provider?: string): Promise<void> {
+  const suffix = provider ? `:${provider.toLowerCase()}` : null;
+  for (const [key, state] of runtimeRecent) {
+    if (!key.startsWith("ai-brain") || state.healthy) continue;
+    if (suffix && !key.endsWith(suffix)) continue;
+    await recordRuntimeIncident({
+      key,
+      serviceName: state.check.serviceName,
+      healthy: true,
+      severity: "warning",
+      message: "Chat completion requests are succeeding again.",
+    });
   }
 }

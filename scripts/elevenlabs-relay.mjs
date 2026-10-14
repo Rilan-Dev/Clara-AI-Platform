@@ -44,6 +44,13 @@
 
 import crypto from "node:crypto";
 import WebSocket from "ws";
+import {
+  closeUpstreamSocket,
+  isSelfClosedSocket,
+  isHandshakeTimedOut,
+  safeWsHost,
+  armHandshakeTimeout,
+} from "./ws-lifecycle.mjs";
 
 const PORT = process.env.PORT ?? 3000;
 const BASE = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://127.0.0.1:${PORT}`;
@@ -255,10 +262,10 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
 
   function closeBoth(code, reason) {
     if (state.closed) return;
-    state.closed = true;
+    state.closed = true; // set FIRST: synthetic abortHandshake events are filtered below
     clearInterval(keepAliveTimer);
     if (reconnectTimer) clearTimeout(reconnectTimer);
-    try { upstream?.close(code, reason); } catch {}
+    closeUpstreamSocket(upstream, code, reason); // CONNECTING-safe teardown
     try { browserWs.close(code, reason); } catch {}
   }
 
@@ -331,6 +338,11 @@ export async function handleElevenLabsRealtimeStt(browserWs, req) {
     });
 
     socket.on("error", (err) => {
+      // ws@8 emits a synthetic "WebSocket was closed before the connection
+      // was established" whenever close()/terminate() races a pending
+      // handshake (browser disconnect during vendor handshake). Deliberate
+      // teardowns stay quiet; genuine failures still log.
+      if (state.closed || isSelfClosedSocket(socket)) return;
       console.error("[elevenlabs-relay] stt upstream error:", err.message);
       // The close event handles recovery. Preserve the browser session.
     });
@@ -453,11 +465,11 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
 
   const closeBoth = (code = 1000, reason = "closed") => {
     if (closed) return;
-    closed = true;
+    closed = true; // set FIRST: synthetic abortHandshake events are filtered below
     settleGeneration(); // meter the trailing generation exactly once
     if (reconnectTimer) clearTimeout(reconnectTimer);
     if (pingTimer) clearInterval(pingTimer);
-    try { upstream?.close(code, reason); } catch {}
+    closeUpstreamSocket(upstream, code, reason); // CONNECTING-safe teardown
     try { browserWs.close(code, reason); } catch {}
   };
 
@@ -467,7 +479,26 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
       headers: { "xi-api-key": cfg.apiKey },
     });
     upstream = socket;
+    // Fail fast when the vendor endpoint hangs mid-handshake instead of
+    // parking in CONNECTING until the browser gives up.
+    const disarmHandshakeTimer = armHandshakeTimeout({
+      socket,
+      url: ttsStreamInputUrl(cfg),
+      timeoutMs: 10_000,
+      onTimeout: (host) => {
+        console.error(
+          `[elevenlabs-relay] tts upstream (${host}) did not complete the WebSocket handshake within 10 s — check the provider base URL`,
+        );
+        send(browserWs, {
+          type: "error",
+          message: `ElevenLabs TTS endpoint (${host}) is not responding — check the provider base URL and network.`,
+          fatal: false,
+        });
+      },
+    });
     socket.on("open", () => {
+      socket.__relayOpened = true; // handshake completed at least once (error classification)
+      disarmHandshakeTimer();
       reconnect.succeeded(); // vendor is healthy again — reset the budget
       socket.send(ttsBosMessage());
       send(browserWs, { type: "status", value: "connected", model, sampleRate });
@@ -500,12 +531,20 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
     });
 
     socket.on("error", (err) => {
-      console.error("[elevenlabs-relay] tts upstream error:", err.message);
+      disarmHandshakeTimer();
+      // Deliberate teardowns (browser disconnect / interrupt / handshake
+      // timeout racing a pending handshake) stay quiet — ws@8's synthetic
+      // abortHandshake error is not a vendor failure.
+      if (closed || isSelfClosedSocket(socket) || isHandshakeTimedOut(socket)) return;
+      const host = safeWsHost(ttsStreamInputUrl(cfg));
+      console.error(`[elevenlabs-relay] tts upstream error (${host}${socket.__relayOpened ? "" : ", during handshake"}):`, err.message);
       send(browserWs, { type: "error", message: "TTS connection error", fatal: false });
     });
 
     socket.on("close", () => {
+      disarmHandshakeTimer();
       if (upstream === socket) upstream = null;
+      if (isSelfClosedSocket(socket)) return; // interrupt path opens its own fresh socket
       if (!closed) {
         const delay = reconnect.nextDelayMs();
         // Keep the browser WebSocket alive indefinitely; only an explicit
@@ -569,7 +608,9 @@ export async function handleElevenLabsRealtimeTts(browserWs, req) {
 
     if (type === "interrupt") {
       pending.length = 0;
-      try { upstream?.close(1000, "generation interrupted"); } catch {}
+      // CONNECTING-safe: an interrupt during a pending handshake must
+      // terminate quietly instead of tripping ws@8's synthetic error.
+      closeUpstreamSocket(upstream, 1000, "generation interrupted");
       upstream = null;
       setTimeout(openUpstream, 0);
       return;

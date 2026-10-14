@@ -12,6 +12,10 @@ import type { ChatMessage } from "@/modules/ai-core/types";
 import { AIConfigResolutionError, toProviderConfig } from "@/modules/ai-core/resolve";
 import { resolveAIConfigCached } from "@/modules/ai-core/resolve-cache";
 import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/model-catalog";
+import {
+  noteBrainRequestSucceeded,
+  recordBrainRuntimeFailure,
+} from "@/modules/platform-health/core/incidents";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
 import {
   buildConversationAwareSearchQuery,
@@ -325,9 +329,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             }
           } catch (error) {
             console.error("[embed/chat] provider stream failed", error);
+            // A dead brain credential (401/429) must reach the platform admin
+            // as an incident — banner + email — not just container logs.
+            void recordBrainRuntimeFailure(error, {
+              surface: "embed chat answer",
+              provider: resolved.provider,
+              model: provider.getModelName("chat"),
+            });
             streamError = publicAIErrorMessage(error);
             safeWrite({ type: "error", payload: streamError });
           } finally {
+            // A completed stream proves the brain provider is alive — clear
+            // any runtime-failing answer-engine incident (rate-limited no-op).
+            if (!streamError) void noteBrainRequestSucceeded(resolved.provider);
             safeWrite({ type: "done" });
             close();
             req.signal.removeEventListener("abort", onAbort);

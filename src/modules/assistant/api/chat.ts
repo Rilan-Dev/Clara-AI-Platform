@@ -35,7 +35,9 @@ import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentT
 import { EmbeddingBackboneBrokenError } from "@/modules/knowledge-bases/core/embedding-selfheal";
 import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
 import {
+  noteBrainRequestSucceeded,
   noteEmbeddingRequestSucceeded,
+  recordBrainRuntimeFailure,
   recordEmbeddingRuntimeFailure,
 } from "@/modules/platform-health/core/incidents";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
@@ -661,6 +663,13 @@ async function postChatKb(
           // reference regions, keys or upstream internals) — log them, show a
           // friendly event. The audit row keeps the error status either way.
           console.error("[chat] stream failed:", streamError);
+          // A dead brain credential (401/429) must reach the platform admin
+          // as an incident — banner + email — not just container logs.
+          void recordBrainRuntimeFailure(err, {
+            surface: "KB chat answer",
+            provider: provider.getProviderName(),
+            model: provider.getModelName("chat"),
+          });
           write({ type: "error", payload: "The assistant could not complete the answer. Please try again in a moment." });
         } finally {
           // V4: flush pending sentence translations BEFORE closing the
@@ -672,6 +681,9 @@ async function postChatKb(
               console.warn("[chat] answer translation flush failed:", (flushErr as Error).message);
             }
           }
+          // A completed stream proves the brain provider is alive — clear
+          // any runtime-failing answer-engine incident (rate-limited no-op).
+          if (!streamError) void noteBrainRequestSucceeded(provider.getProviderName());
           // Persist the AI-generated answer + metering for the platform
           // audit trail and the usage-event spine.
           void finalizeQueryEvent(eventId, {
@@ -968,6 +980,13 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
           } catch (error) {
             streamFailed = true;
             console.error("[chat] streaming error:", error);
+            // A dead brain credential (401/429) must reach the platform admin
+            // as an incident — banner + email — not just container logs.
+            void recordBrainRuntimeFailure(error, {
+              surface: "document chat answer",
+              provider: provider.getProviderName(),
+              model: provider.getModelName("chat"),
+            });
             // Raw provider/edge errors must not reach the client — show a
             // friendly event (mirrors the KB-mode stream error contract).
             writeEvent({
@@ -975,6 +994,9 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
               payload: "The assistant could not complete the answer. Please try again in a moment.",
             });
           } finally {
+            // A completed stream proves the brain provider is alive — clear
+            // any runtime-failing answer-engine incident (rate-limited no-op).
+            if (!streamFailed) void noteBrainRequestSucceeded(provider.getProviderName());
             // WS-1.2 + WS-1.1: audit the answer + record token metering
             // for the legacy path (previously neither was captured).
             void finalizeQueryEvent(modeBEventId, {
