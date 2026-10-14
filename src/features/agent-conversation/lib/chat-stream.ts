@@ -8,6 +8,8 @@
  * exact same line protocol:
  *
  *   {"type":"sources","payload":[{title,snippet,score},…]}
+ *   {"type":"retrieval_degraded","payload":{message}} (optional — search is down,
+ *   the answer is ungrounded and the UI can banner it)
  *   {"type":"quota_warning","payload":{…}}        (optional)
  *   {"type":"token","payload":"…text…"}           (many)
  *   {"type":"error","payload":"message"}          (terminal)
@@ -23,6 +25,8 @@ export interface ChatStreamCallbacks {
   onSources: (sources: Array<{ title: string; snippet: string; index: number }>) => void;
   onToken: (token: string) => void;
   onQuotaWarning?: (warning: unknown) => void;
+  /** Retrieval failed server-side; the answer arrives WITHOUT document evidence. */
+  onRetrievalDegraded?: (payload: { message?: string }) => void;
   onError: (message: string) => void;
   onDone: () => void;
 }
@@ -117,6 +121,9 @@ export async function streamAgentChat(
           }
           case "token":
             if (typeof event.payload === "string" && event.payload) callbacks.onToken(event.payload);
+            break;
+          case "retrieval_degraded":
+            callbacks.onRetrievalDegraded?.((event.payload ?? {}) as { message?: string });
             break;
           case "quota_warning":
             callbacks.onQuotaWarning?.(event.payload);

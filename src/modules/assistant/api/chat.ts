@@ -33,6 +33,11 @@ import {
 } from "@/modules/assistant/core/config";
 import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
 import { EmbeddingBackboneBrokenError } from "@/modules/knowledge-bases/core/embedding-selfheal";
+import {
+  isStrictRetrievalMode,
+  retrievalDegradationEvent,
+  retrievalDegradationSystemNotice,
+} from "./retrieval-degradation";
 import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
 import {
   noteBrainRequestSucceeded,
@@ -467,23 +472,40 @@ async function postChatKb(
   // replace resolved.chatModel with resolved.realtimeModel.
   const providerConfig = toProviderConfig(resolved);
   const groundingSettled = await groundingPromise;
+  // ── Retrieval degradation ──────────────────────────────────────────────
+  // A failed retrieval must not take the whole chat down. The published
+  // widget (/api/embed/chat) already answers without evidence when search
+  // fails; a workspace chat returning 502 on every turn while the embedding
+  // backbone heals (or a re-index rebuilds) is strictly worse for users.
+  // Instead: record the incident (admin banner + email), keep the audit row
+  // alive, answer WITHOUT evidence, tell the model search is down, and emit
+  // a retrieval_degraded event so surfaces can banner it. Set
+  // CHAT_STRICT_RETRIEVAL=1 to restore the hard failure.
+  let retrievalDegradedNotice: string | null = null;
   if (!groundingSettled.ok) {
-    // Retrieval failed — mark the audit row as an error, then surface it.
-    void finalizeQueryEvent(eventId, {
-      answerText: "", status: "error",
-      latencyMs: Date.now() - t0,
-    });
+    console.error(
+      "[chat] retrieval failed (degrading to an ungrounded answer):",
+      groundingSettled.error instanceof Error ? groundingSettled.error.message : groundingSettled.error,
+    );
     // Capture the provider/embedding failure as a platform incident so the
     // admin banner + email notification fire without anyone watching the logs.
     void recordEmbeddingRuntimeFailure(groundingSettled.error, { surface: "KB chat retrieval" });
-    throw new ChatRetrievalError(groundingSettled.error);
+    if (isStrictRetrievalMode()) {
+      void finalizeQueryEvent(eventId, {
+        answerText: "", status: "error",
+        latencyMs: Date.now() - t0,
+      });
+      throw new ChatRetrievalError(groundingSettled.error);
+    }
+    retrievalDegradedNotice = retrievalDegradationSystemNotice();
+  } else {
+    // A successful grounding proves the embedding pipeline is alive — clear any
+    // runtime-failing embedding incident (rate-limited, no-op when healthy).
+    void noteEmbeddingRequestSucceeded();
   }
-  // A successful grounding proves the embedding pipeline is alive — clear any
-  // runtime-failing embedding incident (rate-limited, no-op when healthy).
-  void noteEmbeddingRequestSucceeded();
-  const grounding = groundingSettled.value;
+  const grounding = groundingSettled.ok ? groundingSettled.value : null;
   // A KB with no indexed content yet (503) is a no-evidence turn, not an error.
-  const groundedResult = grounding.ok ? grounding.result : null;
+  const groundedResult = grounding && grounding.ok ? grounding.result : null;
   const results = groundedResult?.sources ?? [];
   const latencyMs = Date.now() - t0;
   void finalizeQueryEvent(eventId, {
@@ -508,7 +530,7 @@ async function postChatKb(
   const chatMessages: ChatMessage[] = [
     {
       role: "system",
-      content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found for this query."}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}`,
+      content: `${systemPrompt}\n\nContext from knowledge base:\n${context || "No relevant context found for this query."}${recentConversationContextBlock ? `\n\n${recentConversationContextBlock}` : ""}${retrievalDegradedNotice ? `\n\n${retrievalDegradedNotice}` : ""}`,
     },
     ...recentMessages(messages).map((m): ChatMessage => ({ role: m.role, content: m.content })),
   ];
@@ -561,6 +583,9 @@ async function postChatKb(
 
       // Emit KB metadata + sources immediately
       write({ type: "kb", payload: { id: kb.id, name: kb.name } });
+      if (retrievalDegradedNotice) {
+        write({ type: "retrieval_degraded", payload: retrievalDegradationEvent() });
+      }
       write({ type: "sources", payload: sources });
 
       // WS-1.2: 80% soft warning — the client renders a dismissible banner.

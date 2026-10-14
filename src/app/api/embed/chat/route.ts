@@ -15,6 +15,7 @@ import { getPlatformDefaultSarvamRealtimeLlmModel } from "@/modules/voice-core/m
 import {
   noteBrainRequestSucceeded,
   recordBrainRuntimeFailure,
+  recordEmbeddingRuntimeFailure,
 } from "@/modules/platform-health/core/incidents";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
 import {
@@ -101,7 +102,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       sessionId: body.sessionId ?? null,
       channel: realtimeVoice ? "voice" : "chat",
     }).catch((error: unknown) => {
-      console.error("[embed/chat] RAG search failed", error);
+      console.error("[embed/chat] RAG search failed (answering without evidence)", error);
+      // The public widget degrades silently by design — the platform admin
+      // still needs to know the published assistant lost its grounding.
+      void recordEmbeddingRuntimeFailure(error, { surface: "Public widget chat retrieval" });
       return null;
     });
 

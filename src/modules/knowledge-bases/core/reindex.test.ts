@@ -16,6 +16,7 @@ const state = vi.hoisted(() => {
     jobs: new Map<string, JobRow>(),
     collections: new Map<string, Map<string, { vector: number[]; payload: Record<string, unknown> }>>(),
     nextJob: 1,
+    registryDefault: null as { providerId: string; modelId: string } | null,
   };
 });
 
@@ -158,8 +159,20 @@ vi.mock("@/modules/ai-core/factory", () => ({
   },
 }));
 
+// The platform embedding default registry (consumed by targetForIndex to
+// align NEW standard indexes with the platform default model).
+vi.mock("@/modules/ai-governance/core/registry-db", () => ({
+  getPlatformAIRegistry: vi.fn(async () => ({
+    embeddingDefault: state.registryDefault ?? null,
+    defaults: [],
+    providers: [],
+    defaultModels: [],
+  })),
+}));
+
 import { advanceReindexJob, cancelReindex, startReindex } from "./reindex";
 import { clearEmbeddingIndexCaches, resolveSearchEmbedding, resolveWriteEmbedding } from "./embedding-index";
+import { toProviderConfig } from "@/modules/ai-core/resolve";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
 
 function seedLegacyCollection(count: number) {
@@ -250,5 +263,52 @@ describe("multilingual knowledge index", () => {
     expect(state.collections.has(job.targetCollection)).toBe(false);
     expect(state.kb.qdrant_collection).toBe("kb_one");
     expect(state.kb.embedding_index).toBe("standard");
+  });
+
+  it("builds a NEW standard index with the platform embedding default, not a stale tenant pin", async () => {
+    // Production defect: the self-heal notice promised a re-index to the
+    // platform default (gemini-embedding-2-preview) while the resolver fell
+    // back to a tenant/org pin (gemini-embedding-001) and built with THAT.
+    seedLegacyCollection(2);
+    state.registry.set("kb_one", {
+      collection_name: "kb_one", kb_id: "kb-1", embedding_index: "standard",
+      embedding_provider: "openai", embedding_model: "text-embedding-3-small", dimension: 1536, role: "live",
+    });
+    state.registryDefault = { providerId: "gemini", modelId: "gemini-embedding-2-preview" };
+    const mock = vi.mocked(toProviderConfig);
+    mock.mockImplementation(
+      () => ({ provider: "gemini", embeddingModel: "gemini-embedding-001" }) as ReturnType<typeof toProviderConfig>,
+    );
+    try {
+      const job = await startReindex({ kbId: "kb-1", index: "standard" });
+      expect(job.provider).toBe("gemini");
+      expect(job.model).toBe("gemini-embedding-2-preview");
+    } finally {
+      mock.mockImplementation(
+        () => ({ provider: "openai", embeddingModel: "text-embedding-3-small" }) as ReturnType<typeof toProviderConfig>,
+      );
+      state.registryDefault = null;
+    }
+  });
+
+  it("keeps the tenant-resolved model when no platform embedding default is set", async () => {
+    seedLegacyCollection(2);
+    state.registry.set("kb_one", {
+      collection_name: "kb_one", kb_id: "kb-1", embedding_index: "standard",
+      embedding_provider: "openai", embedding_model: "text-embedding-3-small", dimension: 1536, role: "live",
+    });
+    state.registryDefault = null; // registry unreachable / unset
+    const mock = vi.mocked(toProviderConfig);
+    mock.mockImplementation(
+      () => ({ provider: "gemini", embeddingModel: "gemini-embedding-001" }) as ReturnType<typeof toProviderConfig>,
+    );
+    try {
+      const job = await startReindex({ kbId: "kb-1", index: "standard" });
+      expect(job.model).toBe("gemini-embedding-001");
+    } finally {
+      mock.mockImplementation(
+        () => ({ provider: "openai", embeddingModel: "text-embedding-3-small" }) as ReturnType<typeof toProviderConfig>,
+      );
+    }
   });
 });

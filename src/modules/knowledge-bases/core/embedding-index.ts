@@ -26,6 +26,7 @@ import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getProviderApiKey, resolveAIConfig, toProviderConfig } from "@/modules/ai-core/resolve";
 import { getMultilingualSettings } from "@/modules/ai-core/multilingual-embeddings";
+import { getPlatformAIRegistry } from "@/modules/ai-governance/core/registry-db";
 import type { AIProvider, EmbeddingProviderId, ProviderConfig } from "@/modules/ai-core/types";
 
 export type EmbeddingIndexKind = "standard" | "multilingual";
@@ -189,6 +190,27 @@ export async function targetForIndex(kbId: string, index: EmbeddingIndexKind): P
   }
   const resolved = await resolveAIConfig({ kbId, surface: "rag-embedding" });
   const config = toProviderConfig(resolved, "embedding");
+  // The platform embedding default is authoritative for NEW standard
+  // indexes: a re-index (admin action or the self-heal migration) must
+  // build with the model the platform promise names — never with a stale
+  // tenant-level model pin (observed in production: the self-heal notice
+  // promised gemini-embedding-2-preview while the resolver fell back to a
+  // tenant/org gemini-embedding-001 pin and built the index with it).
+  const platformDefault =
+    (await getPlatformAIRegistry().catch(() => null))?.embeddingDefault ?? null;
+  if (
+    platformDefault &&
+    platformDefault.providerId === config.provider &&
+    platformDefault.modelId &&
+    platformDefault.modelId !== config.embeddingModel
+  ) {
+    console.warn(
+      `[embedding-index] new standard index for kb ${kbId} realigned to the platform ` +
+        `embedding default (${config.provider}/${platformDefault.modelId}); tenant-level ` +
+        `embedding model "${config.embeddingModel ?? "(none)"}" is not used for new indexes.`,
+    );
+    config.embeddingModel = platformDefault.modelId;
+  }
   const provider = ProviderFactory.getProvider(config);
   return {
     index,

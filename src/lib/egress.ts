@@ -29,6 +29,15 @@
 import { Agent, EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 20_000;
+/**
+ * Happy-eyeballs attempt window. Node >= 20 enables autoSelectFamily by
+ * default; older runtimes (and some docker base images) try only the first
+ * DNS family, so an IPv6 blackhole turns into a 10-20s connect timeout
+ * against dual-stack vendors (observed: api.openai.com reachable,
+ * generativelanguage.googleapis.com timing out). Setting it explicitly
+ * makes family fallback version-independent.
+ */
+const DEFAULT_FAMILY_ATTEMPT_TIMEOUT_MS = 500;
 
 function numberFromEnv(name: string, fallback: number): number {
   const value = Number(process.env[name]);
@@ -88,17 +97,24 @@ export function installEgressDispatcher(): void {
     null;
 
   try {
+    const dualStack = {
+      autoSelectFamily: true,
+      autoSelectFamilyAttemptTimeout: DEFAULT_FAMILY_ATTEMPT_TIMEOUT_MS,
+    };
     if (proxyUrl) {
       ensureLoopbackNoProxy();
-      setGlobalDispatcher(new EnvHttpProxyAgent({ connect: { timeout: connectTimeoutMs } }));
+      setGlobalDispatcher(
+        new EnvHttpProxyAgent({ connect: { timeout: connectTimeoutMs }, ...dualStack }),
+      );
       console.log(
         `[egress] outbound provider traffic routed through proxy (${maskProxyUrl(proxyUrl)}); ` +
           `connect timeout ${connectTimeoutMs}ms; NO_PROXY=${process.env.NO_PROXY}`,
       );
     } else {
-      setGlobalDispatcher(new Agent({ connect: { timeout: connectTimeoutMs } }));
+      setGlobalDispatcher(new Agent({ connect: { timeout: connectTimeoutMs }, ...dualStack }));
       console.log(
-        `[egress] outbound connect timeout set to ${connectTimeoutMs}ms ` +
+        `[egress] outbound connect timeout set to ${connectTimeoutMs}ms; ` +
+          `dual-stack connect (IPv4/IPv6 fallback) enabled ` +
           `(set EGRESS_CONNECT_TIMEOUT_MS to tune; set HTTPS_PROXY to route provider traffic through an egress proxy)`,
       );
     }

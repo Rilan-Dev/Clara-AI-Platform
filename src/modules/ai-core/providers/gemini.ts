@@ -2,6 +2,28 @@ import { GoogleGenAI, type Content } from "@google/genai";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
 import { embeddingDimensionFor, findEmbeddingModel } from "../model-catalog";
 
+/**
+ * Optional relay for deployments whose servers cannot reach
+ * generativelanguage.googleapis.com directly (restricted networks, regional
+ * blocks, DPI-filtered ISPs): set GEMINI_BASE_URL to an HTTPS forwarder that
+ * proxies the Google AI Studio API. Invalid values are ignored with a
+ * warning so a typo cannot break every Gemini call.
+ */
+function geminiHttpOptions(): { httpOptions?: { baseUrl: string } } {
+  const raw = process.env.GEMINI_BASE_URL?.trim();
+  if (!raw) return {};
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      throw new Error(`unsupported protocol "${url.protocol}"`);
+    }
+    return { httpOptions: { baseUrl: url.toString() } };
+  } catch (error) {
+    console.warn(`[gemini] ignoring invalid GEMINI_BASE_URL "${raw}": ${(error as Error).message}`);
+    return {};
+  }
+}
+
 export class GeminiProvider implements LLMProvider {
   private config: ProviderConfig;
   private ai: GoogleGenAI;
@@ -15,7 +37,7 @@ export class GeminiProvider implements LLMProvider {
         "GEMINI_API_KEY is not set. Add it to your environment or provide it in the config."
       );
     }
-    this.ai = new GoogleGenAI({ apiKey });
+    this.ai = new GoogleGenAI({ apiKey, ...geminiHttpOptions() });
   }
 
   private getChatModelName(): string {

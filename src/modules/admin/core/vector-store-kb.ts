@@ -26,6 +26,7 @@ import {
   resolveWriteEmbedding,
   type ReindexJob,
 } from "@/modules/knowledge-bases/core/embedding-index";
+import { describeNetworkError } from "@/lib/egress";
 
 // Re-use batch config from env
 const EMBED_BATCH_SIZE = (() => {
@@ -98,6 +99,21 @@ function describeProvider(provider: { getProviderName(): string; getModelName(t:
   return `${name}/${model} @ ${host}`;
 }
 
+/**
+ * Operator-actionable failure detail. Provider SDKs collapse transport
+ * failures into a bare `TypeError: fetch failed` — the real story
+ * ("Connect Timeout Error (attempted address:
+ * generativelanguage.googleapis.com:443…)") only exists in error.cause.
+ */
+function embeddingFailureDetail(err: unknown): string {
+  const message = (err as { message?: string })?.message ?? String(err);
+  const network = describeNetworkError(err);
+  if (!network) return message;
+  return network.host
+    ? `${message} [${network.detail} — this server cannot reach ${network.host}]`
+    : `${message} [${network.detail}]`;
+}
+
 async function embedBatchWithRetry(
   texts: string[],
   providerConfig: ProviderConfig,
@@ -128,17 +144,17 @@ async function embedBatchWithRetry(
     if (retryable && attempt < EMBED_MAX_RETRIES) {
       const wait = Math.min(1_000 * 2 ** attempt, 30_000);
       console.warn(
-        `[vs-kb] embedding batch failed (${providerDesc}), retrying in ${wait}ms (attempt ${attempt + 1}/${EMBED_MAX_RETRIES}): ${(e?.message as string) ?? err}`
+        `[vs-kb] embedding batch failed (${providerDesc}), retrying in ${wait}ms (attempt ${attempt + 1}/${EMBED_MAX_RETRIES}): ${embeddingFailureDetail(err)}`
       );
       await sleep(wait);
       return embedBatchWithRetry(texts, providerConfig, attempt + 1, metering);
     }
     // Attach provider context so document error_messages in the UI and logs
     // say exactly what failed and where, instead of a bare "Request timed out."
-    const detail = (e?.message as string) ?? String(err);
+    const detail = embeddingFailureDetail(err);
     const hint =
-      /timed out|timeout|econnrefused|enotfound|eai_again|fetch failed|connection error|not supported/i.test(detail)
-        ? " — the embedding provider is unreachable from this server. Check outbound network access (or region restrictions) and switch provider in settings if needed."
+      /timed out|timeout|econnrefused|enotfound|eai_again|fetch failed|connection error|not supported|cannot reach/i.test(detail)
+        ? " — the embedding provider is unreachable from this server. Check outbound network access (firewall/DNS/region restrictions), set HTTPS_PROXY to route through an egress proxy, or set GEMINI_BASE_URL to a reachable relay, then retry from the knowledge base's index settings."
         : "";
     throw new Error(`Embedding failed (${providerDesc}): ${detail}${hint}`);
   }

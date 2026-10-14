@@ -2233,3 +2233,15 @@ DEV-01 corrected the duplicated governance registry implementation blocks while 
 
 ## 2026-10-12 — Gemini provider env fallback removed
 The Gemini provider no longer reads GEMINI_CHAT_MODEL or GEMINI_EMBEDDING_MODEL directly when the resolved config is blank; both IDs must be supplied by the governance-resolved runtime config. Regression source verifies env variables cannot bypass catalogue validation. Commits: a02e92d47982a3977b82d1d3071e507eefe2feab and ffff0cf29be92740c8709fb4bc389b3522a6e350. Tests are authored only, not run. Continue the branch-local audit; I-098 remains verification pending with FIX-01.
+
+
+## 2026-10-15 — Embedding reachability + re-index model alignment + chat degradation (batch 2)
+Follow-up to 79130557 against the post-rebuild docker logs (Gemini embedding batches still failing with a bare "fetch failed"; the auto re-index still building with gemini-embedding-001 while the self-heal notice promised the platform default gemini-embedding-2-preview; /api/chat returning 502 on every turn while the backbone was down).
+
+1. egress.ts — dual-stack (happy-eyeballs) connect explicitly enabled on both the direct Agent and EnvHttpProxyAgent: an IPv6 blackhole on runtimes without the Node 20+ autoSelectFamily default no longer turns into a 10-20s connect timeout against dual-stack vendors (observed: api.openai.com reachable, generativelanguage.googleapis.com timing out).
+2. GeminiProvider — GEMINI_BASE_URL relay support (httpOptions.baseUrl) for servers that cannot reach generativelanguage.googleapis.com directly; invalid values warn-and-ignore instead of breaking every call.
+3. vector-store-kb.ts — embedding retry logs and final errors unwrap the undici cause chain via describeNetworkError, so operators see "Connect Timeout Error (attempted address: generativelanguage.googleapis.com:443)" plus the HTTPS_PROXY / GEMINI_BASE_URL remediation instead of a bare "fetch failed".
+4. embedding-index.ts targetForIndex — NEW standard indexes build with the platform embedding default model: a stale tenant/org gemini-embedding-001 pin can no longer diverge the re-index target from the model the self-heal notice names.
+5. chat.ts — retrieval failures degrade gracefully (ungrounded answer + model-facing system notice + retrieval_degraded stream event + admin incident; audit row kept alive) instead of a 502 dead end; CHAT_STRICT_RETRIEVAL=1 restores strict mode. The public widget's silent degradation now records an incident too.
+
+Verification: npm run type-check GREEN; targeted suites all pass (egress 5+3, gemini-embedding-2 6, reindex 8 incl. 2 new realignment cases, embedding-selfheal 7, resolve-embedding-default 4, selection 7, retrieval-degradation 4, embed/chat route 3); full suite: 19 failing files, identical set to the pre-existing baseline before this batch.
