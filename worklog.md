@@ -876,3 +876,48 @@ Stage Summary:
 - Commit 6ce57a51 pushed to origin/feature/ai-core-from-doable-source (10 files, +740/−92).
 - After pulling + docker compose up -d --build: relay log noise gone; hung Sarvam base URLs fail fast with "Sarvam TTS endpoint (api.vendor.ai) is not responding — check the provider base URL"; ANY brain 401/429 now drives the super-admin banner + email within minutes (rate-limited); broken email channel surfaces as its own incident.
 - User action items (env, not code): fix RESEND_API_KEY or switch to SMTP (Settings → Email Delivery); fix or replace the dead OpenAI key for chat/brain (or switch brain provider); switch SARVAM_BASE_URL off the api.vendor.ai proxy to https://api.sarvam.ai if TTS WS is unreachable; the OAuth callback origin error is not from this repo — check the external integration service.
+
+---
+Task ID: 3
+Agent: Super Z (main agent)
+Task: Post-79130557 docker logs: Gemini embedding still failing ("fetch failed"), re-index still building with gemini-embedding-001 instead of the promised gemini-embedding-2-preview, /api/chat 502 dead-end while the backbone is down — fix all on feature/ai-core-from-doable-source.
+
+Work Log:
+- Diagnosed against the branch tree (sandbox flaps between a main-view and a feature-view; every command re-checks out the branch defensively; learned the tool-output renderer eats "[m"-style sequences, so grep -c NUMBERS are the only trusted display).
+- Root causes found: (a) egress dispatcher had no explicit autoSelectFamily — on runtimes without the Node 20+ happy-eyeballs default an IPv6 blackhole becomes a 10-20s connect timeout that looks exactly like "Gemini down" while api.openai.com works; (b) targetForIndex resolved the re-index target through the tenant-level embeddingCandidate chain, so a stale org/version pin (gemini-embedding-001) beat the platform embedding default the self-heal notice names; (c) /api/chat threw ChatRetrievalError → 502 on every turn while /api/embed/chat already degraded gracefully — inconsistent surfaces; (d) [vs-kb] retry logs printed only "fetch failed" with no cause-chain detail.
+- Implemented (scripts/apply_fixes_batch2*.py, all assertion-anchored, re-runnable):
+  - egress.ts: dual-stack connect (autoSelectFamily: true, 500ms attempt window) on BOTH the direct Agent and EnvHttpProxyAgent; log line now states dual-stack.
+  - GeminiProvider: GEMINI_BASE_URL relay (httpOptions.baseUrl via @google/genai 2.28) for networks that cannot reach generativelanguage.googleapis.com; invalid values warn-and-ignore.
+  - vector-store-kb.ts: embeddingFailureDetail() unwraps undici cause chains (describeNetworkError) — retry log + final error + document error_messages now name the host/failure mode and the HTTPS_PROXY / GEMINI_BASE_URL remediation.
+  - embedding-index.ts targetForIndex: NEW standard indexes realign to the platform embedding default model when its provider matches (console.warn on realignment); tenant pins keep effect only when no platform default is set.
+  - chat.ts: retrieval failure degrades — incident recorded, audit row kept alive, ungrounded answer, model-facing system notice, retrieval_degraded stream event; CHAT_STRICT_RETRIEVAL=1 restores the 502. embed/chat's silent degradation now records an incident.
+  - chat-stream.ts: onRetrievalDegraded callback + retrieval_degraded case (unknown events remain no-ops for older surfaces).
+  - NEW retrieval-degradation.ts (+4 tests), egress-dispatcher.test.ts (+3), gemini-embedding-2.test.ts +2 (GEMINI_BASE_URL), reindex.test.ts +2 (realignment, no-default fallback).
+- Verified: npm run type-check GREEN; targeted suites 18+26+32 pass; full suite 19 failing files == the documented pre-existing baseline (zero new failures).
+- Committed 304e6fbb and pushed to origin/feature/ai-core-from-doable-source only. Fresh-clone verification from GitHub (numeric grep assertions) confirms every fix landed; docs/project-control/NEXT_ACTION.md updated with the batch entry.
+
+Stage Summary:
+- Deliverable: commit 304e6fbb "fix(rag): embedding reachability knobs + platform-default index alignment + chat retrieval degradation" (13 files, +409/−22).
+- Expected user-side behavior after pull + docker compose up -d --build:
+  1. If the Gemini timeouts were an IPv6 blackhole, embedding starts working with no env change (happy-eyeballs now explicit).
+  2. If the network is genuinely blocked, /api/chat now ANSWERS (ungrounded, with a visible notice) instead of 502, and [vs-kb] logs name the exact unreachable host + remediation (set HTTPS_PROXY, or GEMINI_BASE_URL to a reachable relay).
+  3. Any NEW re-index builds with the platform default gemini-embedding-2-preview — notice and index can no longer disagree.
+  4. Quickest full recovery is still env-side: fix the OpenAI key (the live collection is OpenAI-built; retrieval resumes instantly) or give Gemini a reachable route.
+- Remaining known items (not this batch): RESEND_API_KEY invalid (admin emails; in-app incidents still work), Sarvam base URL api.vendor.ai → https://api.sarvam.ai, Sarvam half-canvas Models 0 / Voices 0, ElevenLabs STT/STS realtime model listing.
+
+---
+Task ID: 4
+Agent: Super Z (main agent)
+Task: User pulled 304e6fbb ("Already up to date", nothing new on GitHub) — confirm push state, then fix the remaining log-error classes on feature/ai-core-from-doable-source.
+
+Work Log:
+- Verified push state: local feature branch == origin == 304e6fbb (commits 79130557 + 304e6fbb from 2026-10-14 were the last pushes; the previous session ended right after, so "no changes on GitHub" was expected). Answered the user accordingly.
+- Cleaned sandbox git state: resolved the stuck mid-merge worklog.md on local main (local-only commit, NOT pushed), restored the 906-line worklog on the feature branch, backed it up as worklog.backup.md (untracked).
+- Root-caused four remaining code-side gaps: (a) /api/chat Mode B (document chat) threw ChatRetrievalError → 502 on embedQuery/searchSimilarDocuments failure — no degradation, unlike Mode A; (b) resolver.ts realtime_voice modelKinds omitted 'sts' so STS rows never reached agent pickers; (c) live-catalog syncElevenLabs aborted ENTIRELY on vendor fetch failure (curated STT/STS rows never landed) AND the curated STS fallback was dead code (stsModelIds pre-seeded with fallback ids) AND runSync read env keys before DB-settings hydration (cold-start "Models 0 / Voices 0"); (d) ai-health cron Gemini probe hardcoded generativelanguage.googleapis.com (ignored GEMINI_BASE_URL relays) and its 10s timeout could abort before a raised EGRESS_CONNECT_TIMEOUT_MS (false "backbone down" incidents).
+- Implemented: Mode B graceful degradation (ungrounded answer + retrieval_degraded event + system notice + incident + strict-mode opt-out); resolver 'sts' kind; live-catalog env hydration before sync + vendor-failure-resilient curated rows + live STS fallback fix; new shared embedding-probe module (geminiEmbeddingBaseUrl + embeddingCheckTimeoutMs) used by the ai-health route.
+- Tests: new embedding-probe.test.ts (8), live-catalog.elevenlabs.test.ts (2 — the second one caught the dead STS-fallback bug), resolver.test.ts +1 sts case; targeted 26/26 pass; adjacent sweep (ai-governance + assistant + egress + ai-settings-options) 171/172 with the single failure (realtime-tool) verified pre-existing on stashed HEAD. npm run type-check GREEN (one interim t0-scope error in Mode B fixed). Installed @tailwindcss/postcss --no-save to boot vitest (per prior session notes).
+
+Stage Summary:
+- Deliverable: this batch's commit on feature/ai-core-from-doable-source only.
+- Expected user-side behavior after pull + rebuild: (1) document-mode chat ANSWERS instead of 502 while the embedding backbone is down; (2) realtime voice model pickers list ElevenLabs STT (Scribe) + STS (conversational) models — and they appear even while api.elevenlabs.io is unreachable; (3) Sarvam/ElevenLabs half-canvases populate for DB-configured keys on a cold container; (4) the 15-minute ai-health monitor probes GEMINI_BASE_URL relays and no longer false-alarms on slow routes.
+- Embedding backbone recovery itself remains env-side on the user's host (network to generativelanguage.googleapis.com blocked): fix/replace the dead OpenAI key (api.openai.com IS reachable — fastest path), or set HTTPS_PROXY / GEMINI_BASE_URL, or raise EGRESS_CONNECT_TIMEOUT_MS. RESEND_API_KEY is still invalid (emails fail; in-app incidents + banner work).

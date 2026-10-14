@@ -3,6 +3,10 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { getPlatformAIRegistry, recordProviderHealth } from "@/modules/ai-governance/core/registry-db";
 import { testProviderConnection } from "@/modules/ai-governance/core/health";
 import {
+  embeddingCheckTimeoutMs,
+  geminiEmbeddingBaseUrl,
+} from "@/modules/ai-governance/core/embedding-probe";
+import {
   syncPlatformHealthIncidents,
   type PlatformHealthCheck,
 } from "@/modules/platform-health/core/incidents";
@@ -36,7 +40,8 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const EMBEDDING_CHECK_TIMEOUT_MS = 10_000;
+/** Probe timeout + Gemini base URL come from the shared embedding-probe module. */
+const EMBEDDING_CHECK_TIMEOUT_MS = embeddingCheckTimeoutMs();
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -83,7 +88,7 @@ async function checkEmbeddingRoundTrip(
       });
     } else {
       res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:embedContent?key=${encodeURIComponent(apiKey)}`,
+        `${geminiEmbeddingBaseUrl()}/v1beta/models/${encodeURIComponent(model)}:embedContent?key=${encodeURIComponent(apiKey)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

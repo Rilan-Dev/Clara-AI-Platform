@@ -165,10 +165,14 @@ export async function resolveAvailableAIOptions(
           ? ["chat"]
           : capability === "voice_chat"
             ? ["tts", "stt"]
-            : // Realtime tab: native realtime models, realtime STT, transcription
-              // and conversational TTS (ElevenLabs Mode B serves realtime via its
-              // conversational TTS models).
-              ["realtime", "stt", "transcription", "tts"];
+            : // Realtime tab: native realtime models, realtime STT, transcription,
+              // conversational TTS (ElevenLabs Mode B serves realtime via its
+              // conversational TTS models) AND the speech-to-speech (STS)
+              // conversational models. 'sts' was previously missing here, so the
+              // curated STS rows existed in the catalogue but never reached the
+              // agent model pickers — the realtime voice model selection showed
+              // TTS models only.
+              ["realtime", "stt", "transcription", "tts", "sts"];
       const voiceKinds: ResolvedAIModelOption["kind"][] = capability === "chat" ? [] : ["voice"];
 
       const modelOptions = toModelOptions(models, entitlements ?? emptyEntitlements(), provider.providerId, capability, modelKinds);

@@ -11,6 +11,7 @@
  */
 
 import { execute } from "@/lib/db";
+import { loadRuntimeSettingsOnStartup } from "@/lib/db/migrate";
 import { findChatModel, findEmbeddingModel } from "@/modules/ai-core/model-catalog";
 import { findTTSModel } from "@/modules/voice-core/model-catalog";
 import { recordRuntimeIncident } from "@/modules/platform-health/core/incidents";
@@ -421,64 +422,11 @@ async function syncElevenLabs(): Promise<void> {
   const base = (key("ELEVENLABS_API_BASE_URL") || key("ELEVENLABS_BASE_URL") || "https://api.elevenlabs.io").replace(/\/+$/, "");
   const headers = { "xi-api-key": apiKey };
 
-  const models = (await jsonFetch(`${base}/v1/models`, { headers })) as Array<{
-    model_id?: string;
-    name?: string;
-    can_do_text_to_speech?: boolean;
-    can_do_voice_conversion?: boolean;
-  }>;
-  const modelItems: CatalogItem[] = [];
-  const stsItems: CatalogItem[] = [];
-  const ttsModelIds = new Set<string>();
-  const stsModelIds = new Set<string>(ELEVENLABS_STS_FALLBACK_MODEL_IDS);
-  for (const model of models ?? []) {
-    if (!model.model_id) continue;
-    if (model.can_do_text_to_speech) {
-      ttsModelIds.add(model.model_id);
-      // Vendor model discovery is shared by Voice Chat and Realtime Voice.
-      // The old realtime picker hardcoded eleven_flash_v2_5, even when the
-      // workspace advertised newer/cheaper supported TTS models.
-      for (const capability of ["voice_chat", "realtime_voice"] as const) {
-        modelItems.push({
-          providerId: "elevenlabs",
-          capability,
-          kind: "tts",
-          modelId: model.model_id,
-          displayName: model.name ?? model.model_id,
-          metadata: {
-            canDoTextToSpeech: true,
-            canDoVoiceConversion: model.can_do_voice_conversion ?? false,
-            modelType: model.model_id.toLowerCase().includes("flash") ? "low_latency" : "standard",
-            usdPer1kChars: findTTSModel(model.model_id)?.usdPer1kChars ?? null,
-          },
-        });
-      }
-      // Conversational models are ElevenLabs' speech-to-speech realtime
-      // offering (Conversational AI / Speech Engine sessions): audio in,
-      // low-latency speech out with turn taking. Catalogue them under the
-      // dedicated 'sts' kind so the Realtime Voice half-canvas lists them
-      // separately from plain TTS.
-      if (model.model_id.toLowerCase().includes("conversational")) {
-        stsModelIds.add(model.model_id);
-        stsItems.push({
-          providerId: "elevenlabs",
-          capability: "realtime_voice",
-          kind: "sts",
-          modelId: model.model_id,
-          displayName: model.name ?? model.model_id,
-          metadata: {
-            speechToSpeech: true,
-            canDoTextToSpeech: true,
-            canDoVoiceConversion: model.can_do_voice_conversion ?? false,
-            modelType: model.model_id.toLowerCase().includes("flash") ? "low_latency" : "standard",
-            usdPer1kChars: findTTSModel(model.model_id)?.usdPer1kChars ?? null,
-          },
-        });
-      }
-    }
-  }
-
-  // Curated STT rows — the vendor models endpoint does not list Scribe.
+  // Curated rows are vendor-independent and are upserted EVEN when the vendor
+  // catalogue endpoints are unreachable (observed in production: an AbortError
+  // on /v1/models aborted the whole sync, so the model pickers showed ONLY
+  // stale TTS rows — the Scribe STT and conversational STS halves of the
+  // realtime pipeline stayed invisible until the vendor came back).
   const sttItems: CatalogItem[] = [
     ...ELEVENLABS_REALTIME_STT_MODELS.map((m) => ({
       providerId: "elevenlabs" as const,
@@ -497,9 +445,81 @@ async function syncElevenLabs(): Promise<void> {
       metadata: { source: "curated", batch: true },
     })),
   ];
+  const stsItems: CatalogItem[] = [];
+  // Vendor-discovered conversational model ids only — the curated fallback
+  // below dedupes against these. (This set MUST start empty: seeding it with
+  // the fallback ids made the fallback loop dead code, so the STS section
+  // silently vanished whenever the vendor list omitted conversational
+  // models — exactly the case the fallback exists for.)
+  const stsModelIds = new Set<string>();
+
+  // ── Vendor discovery (TTS models + workspace voices) — best effort ────────
+  let vendorError: unknown = null;
+  let models: Array<{
+    model_id?: string;
+    name?: string;
+    can_do_text_to_speech?: boolean;
+    can_do_voice_conversion?: boolean;
+  }> = [];
+  try {
+    models = (await jsonFetch(`${base}/v1/models`, { headers })) as typeof models;
+  } catch (error) {
+    vendorError = error;
+  }
+
+  const modelItems: CatalogItem[] = [];
+  if (!vendorError) {
+    for (const model of models ?? []) {
+      if (!model.model_id) continue;
+      if (model.can_do_text_to_speech) {
+        // Vendor model discovery is shared by Voice Chat and Realtime Voice.
+        // The old realtime picker hardcoded eleven_flash_v2_5, even when the
+        // workspace advertised newer/cheaper supported TTS models.
+        for (const capability of ["voice_chat", "realtime_voice"] as const) {
+          modelItems.push({
+            providerId: "elevenlabs",
+            capability,
+            kind: "tts",
+            modelId: model.model_id,
+            displayName: model.name ?? model.model_id,
+            metadata: {
+              canDoTextToSpeech: true,
+              canDoVoiceConversion: model.can_do_voice_conversion ?? false,
+              modelType: model.model_id.toLowerCase().includes("flash") ? "low_latency" : "standard",
+              usdPer1kChars: findTTSModel(model.model_id)?.usdPer1kChars ?? null,
+            },
+          });
+        }
+        // Conversational models are ElevenLabs' speech-to-speech realtime
+        // offering (Conversational AI / Speech Engine sessions): audio in,
+        // low-latency speech out with turn taking. Catalogue them under the
+        // dedicated 'sts' kind so the Realtime Voice half-canvas lists them
+        // separately from plain TTS.
+        if (model.model_id.toLowerCase().includes("conversational")) {
+          stsModelIds.add(model.model_id);
+          stsItems.push({
+            providerId: "elevenlabs",
+            capability: "realtime_voice",
+            kind: "sts",
+            modelId: model.model_id,
+            displayName: model.name ?? model.model_id,
+            metadata: {
+              speechToSpeech: true,
+              canDoTextToSpeech: true,
+              canDoVoiceConversion: model.can_do_voice_conversion ?? false,
+              modelType: model.model_id.toLowerCase().includes("flash") ? "low_latency" : "standard",
+              usdPer1kChars: findTTSModel(model.model_id)?.usdPer1kChars ?? null,
+            },
+          });
+        }
+      }
+    }
+  }
 
   // Curated STS fallback — guarantees the STS section exists even when the
-  // vendor list omits conversational variants for this workspace.
+  // vendor list omits conversational variants for this workspace (or the
+  // vendor catalogue endpoint is unreachable: the loop above never ran and
+  // stsModelIds stayed empty).
   for (const id of ELEVENLABS_STS_FALLBACK_MODEL_IDS) {
     if (stsModelIds.has(id)) continue;
     stsModelIds.add(id);
@@ -514,28 +534,30 @@ async function syncElevenLabs(): Promise<void> {
   }
 
   const voiceItems: CatalogItem[] = [];
-  let nextPageToken = "";
-  for (let page = 0; page < 100; page++) {
-    const qs = new URLSearchParams({ page_size: "100", include_total_count: "false" });
-    if (nextPageToken) qs.set("next_page_token", nextPageToken);
-    const body = (await jsonFetch(`${base}/v2/voices?${qs}`, { headers })) as {
-      voices?: Array<{ voice_id?: string; name?: string; category?: string; verified_languages?: unknown[] }>;
-      has_more?: boolean;
-      next_page_token?: string;
-    };
-    for (const voice of body.voices ?? []) {
-      if (!voice.voice_id) continue;
-      voiceItems.push({
-        providerId: "elevenlabs",
-        capability: "voice_chat",
-        kind: "voice",
-        modelId: voice.voice_id,
-        displayName: voice.name ?? voice.voice_id,
-        metadata: { category: voice.category ?? null, verifiedLanguages: voice.verified_languages ?? [] },
-      });
+  if (!vendorError) {
+    let nextPageToken = "";
+    for (let page = 0; page < 100; page++) {
+      const qs = new URLSearchParams({ page_size: "100", include_total_count: "false" });
+      if (nextPageToken) qs.set("next_page_token", nextPageToken);
+      const body = (await jsonFetch(`${base}/v2/voices?${qs}`, { headers })) as {
+        voices?: Array<{ voice_id?: string; name?: string; category?: string; verified_languages?: unknown[] }>;
+        has_more?: boolean;
+        next_page_token?: string;
+      };
+      for (const voice of body.voices ?? []) {
+        if (!voice.voice_id) continue;
+        voiceItems.push({
+          providerId: "elevenlabs",
+          capability: "voice_chat",
+          kind: "voice",
+          modelId: voice.voice_id,
+          displayName: voice.name ?? voice.voice_id,
+          metadata: { category: voice.category ?? null, verifiedLanguages: voice.verified_languages ?? [] },
+        });
+      }
+      nextPageToken = body.next_page_token ?? "";
+      if (!body.has_more || !nextPageToken) break;
     }
-    nextPageToken = body.next_page_token ?? "";
-    if (!body.has_more || !nextPageToken) break;
   }
 
   // The same ElevenLabs workspace voices are valid for both turn-based
@@ -548,20 +570,40 @@ async function syncElevenLabs(): Promise<void> {
   }));
 
   await upsertItems([...modelItems, ...sttItems, ...stsItems, ...voiceItems, ...realtimeVoiceItems]);
-  await disableMissing("elevenlabs", "voice_chat", "tts", new Set(modelItems.filter((item) => item.capability === "voice_chat").map((item) => item.modelId)));
-  await disableMissing("elevenlabs", "realtime_voice", "tts", new Set(modelItems.filter((item) => item.capability === "realtime_voice").map((item) => item.modelId)));
+
+  // Curated groups are authoritative regardless of vendor availability.
   await disableMissing("elevenlabs", "realtime_voice", "stt", new Set(ELEVENLABS_REALTIME_STT_MODELS.map((m) => m.id)));
   await disableMissing("elevenlabs", "voice_chat", "stt", new Set(ELEVENLABS_BATCH_STT_MODELS.map((m) => m.id)));
   await disableMissing("elevenlabs", "realtime_voice", "sts", new Set(stsModelIds));
-  await disableMissing("elevenlabs", "voice_chat", "voice", new Set(voiceItems.map((item) => item.modelId)));
-  await disableMissing("elevenlabs", "realtime_voice", "voice", new Set(realtimeVoiceItems.map((item) => item.modelId)));
-
   await setLiveDefault("elevenlabs", "realtime_voice", "stt", "scribe_v2_realtime");
   await setLiveDefault("elevenlabs", "voice_chat", "stt", "scribe_v1");
   await setLiveDefault("elevenlabs", "realtime_voice", "sts", "eleven_v3_conversational");
+
+  if (vendorError) {
+    // Curated STT/STS rows are in place and the last-known TTS/voice rows
+    // stay enabled (no reconciliation against a response we never got).
+    // Surface the vendor outage so the admin banner/email fires at the true
+    // point of failure — runSync records the incident.
+    throw vendorError;
+  }
+
+  // Vendor-authoritative reconciliation — only on a successful discovery.
+  await disableMissing("elevenlabs", "voice_chat", "tts", new Set(modelItems.filter((item) => item.capability === "voice_chat").map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "realtime_voice", "tts", new Set(modelItems.filter((item) => item.capability === "realtime_voice").map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "voice_chat", "voice", new Set(voiceItems.map((item) => item.modelId)));
+  await disableMissing("elevenlabs", "realtime_voice", "voice", new Set(realtimeVoiceItems.map((item) => item.modelId)));
 }
 
 async function runSync(): Promise<void> {
+  // DB-configured provider credentials (Settings → AI Platform → Providers)
+  // are hydrated into process.env on the first registry read — but the
+  // catalogue sync can run BEFORE that (getProviderWorkspace syncs first and
+  // reads the registry second, and the sync's own key lookups are env-only).
+  // A cold instance therefore skipped whole providers whose keys live only
+  // in the database, silently leaving "Models 0 / Voices 0" half-canvases for
+  // the 5-minute sync TTL. Hydrate first so the sync always sees saved keys.
+  await loadRuntimeSettingsOnStartup().catch(() => undefined);
+
   // A single failed provider must not prevent the others from refreshing —
   // and a failed discovery must never stay silent: an unreachable vendor or
   // rejected credential leaves the platform without vendor-live model rows,

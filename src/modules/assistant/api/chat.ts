@@ -822,22 +822,50 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
         `collection=${documentRecord.collectionName} ` +
         `query="${query.slice(0, 120)}" maxTokens=${CHAT_MAX_TOKENS}`
     );
-    const embedding = await embedQuery(query).catch((embedErr) => {
-      // Provider failure during the Mode-B retrieval — same typed wrap so the
-      // outer handler returns the friendly 502 (never the raw provider text).
-      void recordEmbeddingRuntimeFailure(embedErr, { surface: "Mode-B chat retrieval" });
-      throw new ChatRetrievalError(embedErr);
-    });
-    const retrieved = await searchSimilarDocuments(
-      documentRecord.collectionName,
-      embedding,
-      4
-    );
-    // The query embedding round trip succeeded — clear runtime incidents.
-    void noteEmbeddingRequestSucceeded();
-    console.log(
-      `[chat] retrieval done hits=${retrieved.length} docId=${documentRecord.id}`
-    );
+    // ── Retrieval degradation (Mode B) ──────────────────────────────────────
+    // Mirrors the KB-mode policy: a failed retrieval (embedding provider
+    // unreachable, credential rejected, collection still rebuilding) must not
+    // take the whole document chat down with a 502 on every turn. Degrade to
+    // an ungrounded answer over the document overview, emit a
+    // retrieval_degraded event, record the incident — and fail hard only when
+    // the operator opted into CHAT_STRICT_RETRIEVAL.
+    const modeBRetrieval = await (async () => {
+      try {
+        const embedding = await embedQuery(query);
+        const retrieved = await searchSimilarDocuments(
+          documentRecord.collectionName,
+          embedding,
+          4
+        );
+        return { ok: true as const, retrieved };
+      } catch (retrievalError) {
+        return { ok: false as const, error: retrievalError };
+      }
+    })();
+    let modeBDegradedNotice: string | null = null;
+    if (!modeBRetrieval.ok) {
+      console.error(
+        "[chat] document retrieval failed (degrading to an ungrounded answer):",
+        modeBRetrieval.error instanceof Error ? modeBRetrieval.error.message : modeBRetrieval.error,
+      );
+      // The embedding/provider failure must reach the platform admin as an
+      // incident (banner + email) — not just the container log.
+      void recordEmbeddingRuntimeFailure(modeBRetrieval.error, {
+        surface: "document chat retrieval",
+      });
+      if (isStrictRetrievalMode()) {
+        void finalizeQueryEvent(modeBEventId, { answerText: "", status: "error" });
+        throw new ChatRetrievalError(modeBRetrieval.error);
+      }
+      modeBDegradedNotice = retrievalDegradationSystemNotice();
+    } else {
+      // The query embedding round trip succeeded — clear runtime incidents.
+      void noteEmbeddingRequestSucceeded();
+      console.log(
+        `[chat] retrieval done hits=${modeBRetrieval.retrieved.length} docId=${documentRecord.id}`
+      );
+    }
+    const retrieved = modeBRetrieval.ok ? modeBRetrieval.retrieved : [];
 
     const contextSegments: string[] = [];
     if (overview) contextSegments.push(overview);
@@ -871,6 +899,7 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
       "Ground every answer in the provided context and the document insight you already know.",
       "If a detail is missing, say so briefly, share the most relevant guidance you can, and invite the visitor to explore the available highlights with you.",
       CHART_RESPONSE_INSTRUCTIONS,
+      ...(modeBDegradedNotice ? [modeBDegradedNotice] : []),
     ].join(" ");
 
     const augmentedMessages: ChatMessage[] = [
@@ -906,6 +935,9 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
             type: "document",
             payload: { id: documentRecord.id, title: documentRecord.title },
           });
+          if (modeBDegradedNotice) {
+            writeEvent({ type: "retrieval_degraded", payload: retrievalDegradationEvent() });
+          }
           writeEvent({ type: "sources", payload: retrieved });
 
           // WS-1.2: 80% soft warning banner.
@@ -937,6 +969,9 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
           type: "document",
           payload: { id: documentRecord.id, title: documentRecord.title },
         });
+        if (modeBDegradedNotice) {
+          writeEvent({ type: "retrieval_degraded", payload: retrievalDegradationEvent() });
+        }
         writeEvent({ type: "sources", payload: retrieved });
 
           // WS-1.2: 80% soft warning banner.

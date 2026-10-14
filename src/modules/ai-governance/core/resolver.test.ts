@@ -180,6 +180,25 @@ describe("resolveAvailableAIOptions", () => {
     expect(result.available.find((p) => p.providerId === "sarvam")!.isDefault).toBe(true);
     expect(result.available.find((p) => p.providerId === "openai")!.isDefault).toBe(false);
   });
+
+  it("includes sts (speech-to-speech) and stt models in the realtime_voice options", async () => {
+    // Regression: the realtime modelKinds list omitted 'sts', so the curated
+    // ElevenLabs conversational rows existed in the catalogue but never
+    // reached the agent model pickers — the realtime voice model selection
+    // showed TTS models only.
+    setProviders([makeProvider({ providerId: "openai" })]);
+    (registryState.providers[0] as { models: Array<Record<string, unknown>> }).models.push(
+      { providerId: "openai", capability: "realtime_voice", kind: "sts", modelId: "eleven_v3_conversational", displayName: "Eleven v3 Conversational", enabled: true, isDefault: false, metadata: { catalogSource: "vendor_live" } },
+      { providerId: "openai", capability: "realtime_voice", kind: "stt", modelId: "scribe_v2_realtime", displayName: "Scribe v2 Realtime", enabled: true, isDefault: false, metadata: { catalogSource: "vendor_live" } },
+      { providerId: "openai", capability: "realtime_voice", kind: "sts", modelId: "sts-disabled", displayName: "Disabled STS", enabled: false, isDefault: false, metadata: { catalogSource: "vendor_live" } },
+    );
+    const result = await resolveAvailableAIOptions({ organizationId: "org-1", capability: "realtime_voice" });
+    const models = result.available[0]!.models.map((m) => `${m.kind}:${m.modelId}`).sort();
+    expect(models).toContain("sts:eleven_v3_conversational");
+    expect(models).toContain("stt:scribe_v2_realtime");
+    expect(models).toContain("realtime:m-rt-1");
+    expect(models).not.toContain("sts:sts-disabled"); // disabled rows never resolve
+  });
 });
 
 describe("validateAgentAISelection (runtime gate)", () => {
