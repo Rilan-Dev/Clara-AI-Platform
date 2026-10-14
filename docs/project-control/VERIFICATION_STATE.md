@@ -1,3 +1,12 @@
+## 2026-10-14 — GEMINI EMBEDDING PROVIDER OVERRIDE SOURCE CHANGE
+
+- Source changes allow `AI_EMBEDDING_PROVIDER=gemini` as an embedding-only override and validate the setting in the platform environment API. Production seed and `.env.example.v2` include the non-secret selector.
+- Commits: `4aaf0c5409eef0414542aeadae799ac52df96c27`, `a53ba5b97cbd36417ac498972d53a533cf0ee533`, `0621d8bed7726a2a68890a4dfe02246df3797210`, `9521837f00bebae3ec30ec5f7d1f04c6768aa51a`.
+- No tests, type-check, build, live Gemini API call, migration, deployment, CI, or Vercel execution was run. No PASS claimed.
+- Operational distinction: an environment override changes resolution but does not update `platform_ai_embedding_defaults` or enqueue re-indexing. For durable production migration, use Settings → AI Platform → Embeddings, which saves the default and enqueues re-index jobs.
+
+---
+
 ## 2026-10-11 — MCP Streamable HTTP resolver and Chat/realtime source wiring
 
 - Added the host-owned Streamable HTTP resolver behind the existing `McpToolResolver`; Chat and OpenAI realtime now have source-level discovery/advertisement and Unified Tool Runtime dispatch paths.
