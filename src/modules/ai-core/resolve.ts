@@ -368,17 +368,20 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // OpenAI is explicitly unconfigured, prefer Gemini if available. This is a
   // runtime availability fallback only — the platform default is not rewritten,
   // and the existing collection dimension is still resolved/pinned below.
+  const embeddingProviderOverride = process.env.AI_EMBEDDING_PROVIDER?.trim().toLowerCase();
   const embeddingProvider: AIProvider =
-    configuredEmbeddingProvider === "openai" &&
-    !process.env.OPENAI_API_KEY?.trim() &&
-    Boolean(process.env.GEMINI_API_KEY?.trim())
+    embeddingProviderOverride === "gemini" && process.env.GEMINI_API_KEY?.trim()
       ? "gemini"
-      : configuredEmbeddingProvider;
+      : configuredEmbeddingProvider === "openai" &&
+          !process.env.OPENAI_API_KEY?.trim() &&
+          Boolean(process.env.GEMINI_API_KEY?.trim())
+        ? "gemini"
+        : configuredEmbeddingProvider;
 
   if (embeddingProvider !== configuredEmbeddingProvider) {
     console.warn(
-      "[ai-config] OpenAI embedding credentials are not configured; using Gemini embeddings for this resolution. " +
-      "Set the platform Embeddings default to Gemini to make this selection explicit and schedule fleet re-indexing.",
+      "[ai-config] Gemini embeddings override is active because AI_EMBEDDING_PROVIDER=gemini or OpenAI credentials are absent. " +
+      "Set the platform Embeddings default to Gemini to persist this choice and schedule fleet re-indexing.",
     );
   }
 
