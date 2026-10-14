@@ -8,6 +8,8 @@
  *   language identification    ₹3.5 / 10K chars ≈ $0.0042 / 1K chars
  */
 
+import { normalizeProviderBaseUrl } from "@/modules/voice-core/model-catalog";
+
 export interface TranslateModel {
   modelId: string;
   name: string;
@@ -45,7 +47,12 @@ export function getSarvamLanguageApiKey(): string | undefined {
 }
 
 export function getSarvamLanguageBaseUrl(): string {
-  return (process.env.SARVAM_BASE_URL?.trim() || "https://api.sarvam.ai").replace(/\/+$/, "");
+  // Shared normaliser (voice-core/model-catalog): empty → official endpoint,
+  // bare hosts get a scheme, and the dead api.vendor.ai placeholder that the
+  // provider-settings Base URL field used to suggest is rewritten to the
+  // official endpoint with a warning. The language axis must agree with the
+  // voice/chat/catalogue interpretations of SARVAM_BASE_URL.
+  return normalizeProviderBaseUrl(process.env.SARVAM_BASE_URL, "https://api.sarvam.ai", "Sarvam");
 }
 
 export function getSarvamLanguageTimeoutMs(): number {

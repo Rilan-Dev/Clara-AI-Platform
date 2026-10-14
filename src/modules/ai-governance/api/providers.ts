@@ -34,6 +34,7 @@ import { getProviderUsageReports } from "../core/usage-db";
 import { resolveAvailableAIOptions } from "../core/resolver";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getProviderApiKey } from "@/modules/ai-core/resolve";
+import { isPlaceholderProviderBaseUrl } from "@/modules/voice-core/model-catalog";
 import { enqueueReindexToPlatformDefault } from "@/modules/knowledge-bases/core/reindex";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { setPlatformEnvSetting } from "@/modules/phone/core/db";
@@ -173,6 +174,20 @@ export async function putProviderCredentialsHandler(req: NextRequest, providerId
     const baseUrl = typeof body.baseUrl === "string" ? body.baseUrl : undefined;
     if (apiKey === undefined && baseUrl === undefined) {
       return errorResponse("Provide apiKey and/or baseUrl", 400);
+    }
+    // The Base URL field's old placeholder example (api.vendor.ai) is NOT a
+    // real endpoint — the domain does not resolve. It leaked into live
+    // deployments twice (env var + saved settings row) because it looked
+    // plausible, silently breaking every Sarvam/ElevenLabs call with connect
+    // timeouts. Reject it at the save boundary with the actionable fix
+    // instead of persisting a dead endpoint.
+    if (baseUrl !== undefined && isPlaceholderProviderBaseUrl(baseUrl)) {
+      return errorResponse(
+        "That Base URL is the field's placeholder example (api.vendor.ai), not a real endpoint — the domain does not resolve. " +
+          "Leave the field empty to use the provider's official endpoint, or enter a proxy URL you know is reachable.",
+        400,
+        "BASE_URL_PLACEHOLDER",
+      );
     }
     const credential = await updateProviderCredential(
       providerId,

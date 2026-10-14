@@ -170,7 +170,11 @@ export function getElevenLabsBaseUrl(): string {
   // platform-settings save of a blank field, or `KEY=` in .env) must fall
   // back to the default. `??` kept "" and every vendor URL collapsed to a
   // bare path → "Failed to parse URL".
-  return (process.env.ELEVENLABS_API_BASE_URL?.trim() || "https://api.elevenlabs.io").replace(/\/+$/, "");
+  return normalizeProviderBaseUrl(
+    process.env.ELEVENLABS_API_BASE_URL,
+    "https://api.elevenlabs.io",
+    "ElevenLabs",
+  );
 }
 
 export function getElevenLabsTimeoutMs(): number {
@@ -531,13 +535,84 @@ export function getSarvamApiKey(): string | undefined {
  * Override exists for SageMaker self-hosted deployments only.
  */
 export function getSarvamBaseUrl(): string {
-  // `?.trim() ||` (NOT `??`): an env var that is set-but-empty ("" — e.g. a
-  // platform-settings save of a blank Base URL field, or `KEY=` in .env)
-  // must fall back to the default. `??` kept "" and every Sarvam URL —
-  // chat /v1/chat/completions, TTS /text-to-speech, STT /speech-to-text,
-  // realtime-init baseUrl — collapsed to a bare path, failing with
-  // "Failed to parse URL from <path>" platform-wide.
-  return (process.env.SARVAM_BASE_URL?.trim() || "https://api.sarvam.ai").replace(/\/+$/, "");
+  return normalizeProviderBaseUrl(process.env.SARVAM_BASE_URL, "https://api.sarvam.ai", "Sarvam");
+}
+
+// ─── Provider base-URL normalisation (shared) ──────────────────────────────
+
+/**
+ * The example value the provider-settings Base URL field USED to show:
+ * "https://api.vendor.ai". It is not a real endpoint — the domain does not
+ * resolve at all — but it leaked into live deployments twice (SARVAM_BASE_URL
+ * in the user's docker env; a saved platform_env_settings row on another
+ * host) because the placeholder looked like a plausible vendor URL. Every
+ * read- and save-side guard below keys off this exact host.
+ */
+export const PROVIDER_BASE_URL_PLACEHOLDER_HOST = "api.vendor.ai";
+
+/**
+ * True when the value is (or points at) the settings-field placeholder host.
+ * Used by the credential save path to reject the value with an actionable
+ * error instead of persisting a dead endpoint.
+ */
+export function isPlaceholderProviderBaseUrl(value: string | undefined | null): boolean {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return false;
+  const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(candidate).hostname.toLowerCase() === PROVIDER_BASE_URL_PLACEHOLDER_HOST;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Normalise a provider base-URL override (Sarvam / ElevenLabs) into a usable
+ * absolute origin. Shared by every reader so env vars, platform_env_settings
+ * rows and the catalogue sync all agree on one interpretation.
+ *
+ *   - unset / empty / whitespace-only → the official endpoint (the blank-save
+ *     regression that collapsed every URL to a bare path stays fixed);
+ *   - a bare host ("api.sarvam.ai", "proxy.internal:8443") → https://-prefixed;
+ *   - the old placeholder host api.vendor.ai (does not resolve — it was the
+ *     Base URL field's EXAMPLE value, not a real proxy) → the official
+ *     endpoint, with a loud remediation warning;
+ *   - anything else passes through verbatim (minus trailing slashes) so a
+ *     genuine misconfiguration still fails loudly and debuggably.
+ */
+export function normalizeProviderBaseUrl(
+  raw: string | undefined | null,
+  officialBase: string,
+  providerLabel: string,
+): string {
+  const trimmed = raw?.trim() ?? "";
+  if (!trimmed) return officialBase;
+  let candidate = trimmed;
+  // Only a value that is EXACTLY a bare host (optionally with a port) gets a
+  // scheme prefixed — "api.sarvam.ai" is unambiguous, while junk like
+  // "not a url" passes through verbatim so fetch fails with the value visible
+  // in the error message (loud debuggability).
+  if (
+    !/^[a-z][a-z0-9+.-]*:\/\//i.test(candidate) &&
+    /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?::\d+)?$/i.test(candidate)
+  ) {
+    candidate = `https://${candidate}`;
+  }
+  try {
+    const host = new URL(candidate).hostname.toLowerCase();
+    if (host === PROVIDER_BASE_URL_PLACEHOLDER_HOST) {
+      console.warn(
+        `[model-catalog] ${providerLabel} base URL "${trimmed}" is the settings-field placeholder (api.vendor.ai does not resolve — not a Sarvam/ElevenLabs endpoint). ` +
+          `Using the official endpoint ${officialBase} instead. ` +
+          `Remove the Base URL override (Settings → AI Platform → Providers) or point it at a reachable proxy to silence this warning.`,
+      );
+      return officialBase;
+    }
+  } catch {
+    // Unparseable value — pass through so fetch fails with the value visible
+    // in the error message (same loud-debuggability as before).
+  }
+  return candidate.replace(/\/+$/, "");
 }
 
 export function getSarvamTimeoutMs(): number {

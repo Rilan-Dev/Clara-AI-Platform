@@ -197,7 +197,7 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
   SARVAM_BASE_URL: {
     label: "Sarvam API base URL",
-    hint: "Override only for self-hosted endpoints. Default: https://api.sarvam.ai",
+    hint: "Override only for a reachable self-hosted endpoint or proxy. Default: https://api.sarvam.ai. Never api.vendor.ai — that is a dead placeholder domain, not a Sarvam endpoint.",
   },
   SARVAM_TIMEOUT_MS: {
     label: "Sarvam timeout (ms)",

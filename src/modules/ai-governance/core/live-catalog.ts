@@ -13,7 +13,7 @@
 import { execute } from "@/lib/db";
 import { loadRuntimeSettingsOnStartup } from "@/lib/db/migrate";
 import { findChatModel, findEmbeddingModel } from "@/modules/ai-core/model-catalog";
-import { findTTSModel } from "@/modules/voice-core/model-catalog";
+import { findTTSModel, normalizeProviderBaseUrl } from "@/modules/voice-core/model-catalog";
 import { recordRuntimeIncident } from "@/modules/platform-health/core/incidents";
 
 type Provider = "openai" | "gemini" | "sarvam" | "elevenlabs";
@@ -142,9 +142,9 @@ function classifyOpenAIModel(id: string): Array<{ capability: Capability; kind: 
   return [];
 }
 
-async function syncOpenAI(): Promise<void> {
+async function syncOpenAI(): Promise<boolean> {
   const apiKey = key("OPENAI_API_KEY");
-  if (!apiKey) return;
+  if (!apiKey) return false;
   const body = (await jsonFetch("https://api.openai.com/v1/models", {
     headers: { Authorization: `Bearer ${apiKey}` },
   })) as { data?: Array<{ id: string; owned_by?: string }> };
@@ -184,11 +184,12 @@ async function syncOpenAI(): Promise<void> {
     const [capability, kind] = group.split(":") as [Capability, Kind];
     await disableMissing("openai", capability, kind, groups.get(group) ?? new Set<string>());
   }
+  return true;
 }
 
-async function syncGemini(): Promise<void> {
+async function syncGemini(): Promise<boolean> {
   const apiKey = key("GEMINI_API_KEY");
-  if (!apiKey) return;
+  if (!apiKey) return false;
   const items: CatalogItem[] = [];
   let pageToken = "";
   for (let page = 0; page < 20; page++) {
@@ -231,6 +232,7 @@ async function syncGemini(): Promise<void> {
     const [capability, kind] = group.split(":") as [Capability, Kind];
     await disableMissing("gemini", capability, kind, groups.get(group) ?? new Set<string>());
   }
+  return true;
 }
 
 // ── Sarvam curated catalogue ────────────────────────────────────────────────
@@ -269,24 +271,29 @@ const SARVAM_VOICES = [
   "tanya", "tarun", "sunny", "mani", "gokul", "vijay",
 ];
 
-async function syncSarvam(): Promise<void> {
+async function syncSarvam(): Promise<boolean> {
   const apiKey = key("SARVAM_API_KEY");
-  if (!apiKey) return;
 
   // Chat models: try the vendor discovery endpoints. Sarvam has shipped both
   // /v1/models and /v2/models depending on release; try v2 then v1 and keep
   // the first that answers. A failed discovery keeps the curated minimum.
-  const base = (key("SARVAM_BASE_URL") || "https://api.sarvam.ai").replace(/\/+$/, "");
+  // Shared normaliser: the dead api.vendor.ai placeholder that the Base URL
+  // field used to suggest is rewritten to the official endpoint, so discovery
+  // probes the real host instead of timing out against a domain that does
+  // not resolve.
+  const base = normalizeProviderBaseUrl(key("SARVAM_BASE_URL"), "https://api.sarvam.ai", "Sarvam");
   let discoveredChatIds: string[] = [];
-  for (const modelsPath of ["/v2/models", "/v1/models"]) {
-    try {
-      const body = (await jsonFetch(`${base}${modelsPath}`, {
-        headers: { "api-subscription-key": apiKey, Authorization: `Bearer ${apiKey}` },
-      })) as { data?: Array<{ id?: string; owned_by?: string }> };
-      discoveredChatIds = (body.data ?? []).map((m) => m.id ?? "").filter(Boolean);
-      if (discoveredChatIds.length > 0) break;
-    } catch {
-      // try the next endpoint / fall through to the curated minimum
+  if (apiKey) {
+    for (const modelsPath of ["/v2/models", "/v1/models"]) {
+      try {
+        const body = (await jsonFetch(`${base}${modelsPath}`, {
+          headers: { "api-subscription-key": apiKey, Authorization: `Bearer ${apiKey}` },
+        })) as { data?: Array<{ id?: string; owned_by?: string }> };
+        discoveredChatIds = (body.data ?? []).map((m) => m.id ?? "").filter(Boolean);
+        if (discoveredChatIds.length > 0) break;
+      } catch {
+        // try the next endpoint / fall through to the curated minimum
+      }
     }
   }
 
@@ -371,19 +378,22 @@ async function syncSarvam(): Promise<void> {
   await upsertItems([...chatItems, ...realtimeItems, ...voiceChatItems, ...voiceItems, ...realtimeVoiceItems]);
 
   // Reconciliation: a model disappears only when the curated list no longer
-  // contains it AND vendor discovery succeeded without it.
-  const authoritativeChatIds = new Set([
-    ...SARVAM_REALTIME_LLM_MODELS.map((m) => m.id),
-    ...discoveredChatIds,
-  ]);
-  await disableMissing("sarvam", "chat", "chat", authoritativeChatIds);
-  await disableMissing("sarvam", "realtime_voice", "realtime", new Set(SARVAM_REALTIME_LLM_MODELS.map((m) => m.id)));
-  await disableMissing("sarvam", "realtime_voice", "stt", new Set(SARVAM_REALTIME_STT_MODELS.map((m) => m.id)));
-  await disableMissing("sarvam", "realtime_voice", "tts", new Set(SARVAM_TTS_MODELS.map((m) => m.id)));
-  await disableMissing("sarvam", "voice_chat", "tts", new Set(SARVAM_TTS_MODELS.map((m) => m.id)));
-  await disableMissing("sarvam", "voice_chat", "stt", new Set(SARVAM_BATCH_STT_MODELS.map((m) => m.id)));
-  await disableMissing("sarvam", "voice_chat", "voice", new Set(SARVAM_VOICES));
-  await disableMissing("sarvam", "realtime_voice", "voice", new Set(SARVAM_VOICES));
+  // contains it AND vendor discovery succeeded without it. Keyless syncs make
+  // no vendor claim at all — previously-discovered rows stay enabled.
+  if (apiKey) {
+    const authoritativeChatIds = new Set([
+      ...SARVAM_REALTIME_LLM_MODELS.map((m) => m.id),
+      ...discoveredChatIds,
+    ]);
+    await disableMissing("sarvam", "chat", "chat", authoritativeChatIds);
+    await disableMissing("sarvam", "realtime_voice", "realtime", new Set(SARVAM_REALTIME_LLM_MODELS.map((m) => m.id)));
+    await disableMissing("sarvam", "realtime_voice", "stt", new Set(SARVAM_REALTIME_STT_MODELS.map((m) => m.id)));
+    await disableMissing("sarvam", "realtime_voice", "tts", new Set(SARVAM_TTS_MODELS.map((m) => m.id)));
+    await disableMissing("sarvam", "voice_chat", "tts", new Set(SARVAM_TTS_MODELS.map((m) => m.id)));
+    await disableMissing("sarvam", "voice_chat", "stt", new Set(SARVAM_BATCH_STT_MODELS.map((m) => m.id)));
+    await disableMissing("sarvam", "voice_chat", "voice", new Set(SARVAM_VOICES));
+    await disableMissing("sarvam", "realtime_voice", "voice", new Set(SARVAM_VOICES));
+  }
 
   await setLiveDefault("sarvam", "chat", "chat", "sarvam-105b-conversations");
   await setLiveDefault("sarvam", "realtime_voice", "realtime", "sarvam-105b-conversations");
@@ -393,6 +403,7 @@ async function syncSarvam(): Promise<void> {
   await setLiveDefault("sarvam", "voice_chat", "stt", "saaras:v3");
   await setLiveDefault("sarvam", "voice_chat", "voice", "shubh");
   await setLiveDefault("sarvam", "realtime_voice", "voice", "shubh");
+  return Boolean(apiKey);
 }
 
 // ── ElevenLabs curated STT / STS catalogue ──────────────────────────────────
@@ -416,11 +427,17 @@ const ELEVENLABS_BATCH_STT_MODELS: Array<{ id: string; name: string; default: bo
 
 const ELEVENLABS_STS_FALLBACK_MODEL_IDS = ["eleven_v3_conversational"];
 
-async function syncElevenLabs(): Promise<void> {
+async function syncElevenLabs(): Promise<boolean> {
   const apiKey = key("ELEVENLABS_API_KEY");
-  if (!apiKey) return;
-  const base = (key("ELEVENLABS_API_BASE_URL") || key("ELEVENLABS_BASE_URL") || "https://api.elevenlabs.io").replace(/\/+$/, "");
-  const headers = { "xi-api-key": apiKey };
+  // Shared normaliser (Sarvam + ElevenLabs read the same Base URL field
+  // semantics): empty → official endpoint, bare host → https://, and the dead
+  // api.vendor.ai placeholder is rewritten to the official endpoint.
+  const base = normalizeProviderBaseUrl(
+    key("ELEVENLABS_API_BASE_URL") ?? key("ELEVENLABS_BASE_URL"),
+    "https://api.elevenlabs.io",
+    "ElevenLabs",
+  );
+  const headers = { "xi-api-key": apiKey ?? "" };
 
   // Curated rows are vendor-independent and are upserted EVEN when the vendor
   // catalogue endpoints are unreachable (observed in production: an AbortError
@@ -452,6 +469,31 @@ async function syncElevenLabs(): Promise<void> {
   // silently vanished whenever the vendor list omitted conversational
   // models — exactly the case the fallback exists for.)
   const stsModelIds = new Set<string>();
+
+  // Keyless sync: curated STT/STS rows are vendor-independent — land them so
+  // the Realtime Voice half-canvas never shows a bare TTS-only (or empty)
+  // catalogue before the first key is saved — but make NO vendor contact, no
+  // health claim, and no reconciliation against rows we cannot verify
+  // without a credential.
+  if (!apiKey) {
+    for (const id of ELEVENLABS_STS_FALLBACK_MODEL_IDS) {
+      if (stsModelIds.has(id)) continue;
+      stsModelIds.add(id);
+      stsItems.push({
+        providerId: "elevenlabs",
+        capability: "realtime_voice",
+        kind: "sts",
+        modelId: id,
+        displayName: "Eleven v3 Conversational",
+        metadata: { speechToSpeech: true, source: "curated" },
+      });
+    }
+    await upsertItems([...sttItems, ...stsItems]);
+    await setLiveDefault("elevenlabs", "realtime_voice", "stt", "scribe_v2_realtime");
+    await setLiveDefault("elevenlabs", "voice_chat", "stt", "scribe_v1");
+    await setLiveDefault("elevenlabs", "realtime_voice", "sts", "eleven_v3_conversational");
+    return false;
+  }
 
   // ── Vendor discovery (TTS models + workspace voices) — best effort ────────
   let vendorError: unknown = null;
@@ -592,6 +634,7 @@ async function syncElevenLabs(): Promise<void> {
   await disableMissing("elevenlabs", "realtime_voice", "tts", new Set(modelItems.filter((item) => item.capability === "realtime_voice").map((item) => item.modelId)));
   await disableMissing("elevenlabs", "voice_chat", "voice", new Set(voiceItems.map((item) => item.modelId)));
   await disableMissing("elevenlabs", "realtime_voice", "voice", new Set(realtimeVoiceItems.map((item) => item.modelId)));
+  return true;
 }
 
 async function runSync(): Promise<void> {
@@ -610,7 +653,7 @@ async function runSync(): Promise<void> {
   // which surfaces later as "No embedding model is configured for this
   // tenant". Record a runtime incident per failed provider so the admin
   // banner and email notification fire at the true point of failure.
-  const tasks: Array<{ provider: Provider; run: () => Promise<void> }> = [
+  const tasks: Array<{ provider: Provider; run: () => Promise<boolean> }> = [
     { provider: "openai", run: syncOpenAI },
     { provider: "gemini", run: syncGemini },
     { provider: "sarvam", run: syncSarvam },
@@ -619,7 +662,8 @@ async function runSync(): Promise<void> {
   await Promise.all(
     tasks.map(async ({ provider, run }) => {
       try {
-        await run();
+        const vendorContacted = await run();
+        if (!vendorContacted) return;
         await recordRuntimeIncident({
           key: `ai-catalog:${provider}`,
           serviceName: `${provider} model catalogue`,

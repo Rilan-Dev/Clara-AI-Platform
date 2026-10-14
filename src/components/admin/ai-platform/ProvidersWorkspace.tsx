@@ -87,6 +87,17 @@ const KIND_LABELS: Record<string, string> = {
   sts: "Speech-to-speech realtime",
 };
 
+// The Base URL field's example value per env key. The OLD generic placeholder
+// ("https://api.vendor.ai") was a dead domain that looked like a plausible
+// vendor endpoint — it leaked into live SARVAM_BASE_URL configs twice and
+// silently broke every Sarvam call with connect timeouts. Show the OFFICIAL
+// endpoint per provider instead, and never suggest a URL that does not exist.
+const BASE_URL_PLACEHOLDERS: Record<string, string> = {
+  SARVAM_BASE_URL: "https://api.sarvam.ai",
+  ELEVENLABS_BASE_URL: "https://api.elevenlabs.io",
+  ELEVENLABS_API_BASE_URL: "https://api.elevenlabs.io",
+};
+
 export function ProvidersWorkspace() {
   const [area, setArea] = useState<AICapability | "embeddings">("chat");
   const capability: AICapability = area === "embeddings" ? "chat" : area;
@@ -726,9 +737,12 @@ function ProviderDetailDrawer({
                   type="url"
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="https://api.vendor.ai"
+                  placeholder={BASE_URL_PLACEHOLDERS[provider.credential.baseUrlEnvKey] ?? "https://api.example.com"}
                   className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/80 focus:border-primary/40"
                 />
+                <span className="mt-1 block text-[11px] text-muted-foreground/80">
+                  Leave empty to use the provider's official endpoint. Only set a proxy you know is reachable — never the placeholder example.
+                </span>
               </label>
             )}
             <div className="flex items-center gap-2.5">

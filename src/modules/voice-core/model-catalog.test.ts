@@ -23,6 +23,9 @@ import {
   looksLikeSarvamSpeaker,
   isSarvamEnabled,
   getSarvamBaseUrl,
+  normalizeProviderBaseUrl,
+  isPlaceholderProviderBaseUrl,
+  PROVIDER_BASE_URL_PLACEHOLDER_HOST,
   getSarvamTimeoutMs,
   getPlatformDefaultSarvamTTSModel,
   getPlatformDefaultSarvamSttModel,
@@ -341,5 +344,63 @@ describe("Sarvam connection settings and defaults (V0)", () => {
   it("treats a set-but-EMPTY ELEVENLABS_API_BASE_URL as unset (same class of bug)", () => {
     vi.stubEnv("ELEVENLABS_API_BASE_URL", "");
     expect(getElevenLabsBaseUrl()).toBe("https://api.elevenlabs.io");
+  });
+});
+
+describe("Provider base-URL placeholder normalisation (api.vendor.ai)", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  // Regression (2026-10 production): the provider-settings Base URL field's
+  // placeholder example was "https://api.vendor.ai" — a dead domain that does
+  // not resolve. Copied into SARVAM_BASE_URL it silently broke every Sarvam
+  // call (chat, TTS REST, TTS WS relay, STT, catalogue discovery) with
+  // connect timeouts that looked like "Sarvam down". All readers now rewrite
+  // the exact placeholder host to the official endpoint, loudly.
+  it("rewrites the api.vendor.ai placeholder to the official Sarvam endpoint and warns", () => {
+    vi.stubEnv("SARVAM_BASE_URL", "https://api.vendor.ai");
+    expect(getSarvamBaseUrl()).toBe("https://api.sarvam.ai");
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining("api.vendor.ai"),
+    );
+  });
+
+  it("accepts the placeholder in non-canonical shapes (bare host, trailing path)", () => {
+    vi.stubEnv("SARVAM_BASE_URL", "api.vendor.ai");
+    expect(getSarvamBaseUrl()).toBe("https://api.sarvam.ai");
+    vi.stubEnv("SARVAM_BASE_URL", "https://api.vendor.ai/");
+    expect(getSarvamBaseUrl()).toBe("https://api.sarvam.ai");
+  });
+
+  it("rewrites the placeholder for ElevenLabs too (shared field semantics)", () => {
+    vi.stubEnv("ELEVENLABS_API_BASE_URL", "https://api.vendor.ai");
+    expect(getElevenLabsBaseUrl()).toBe("https://api.elevenlabs.io");
+  });
+
+  it("prefixes a scheme onto bare hosts but keeps real overrides verbatim", () => {
+    expect(normalizeProviderBaseUrl("api.sarvam.ai", "https://api.sarvam.ai", "Sarvam")).toBe("https://api.sarvam.ai");
+    expect(normalizeProviderBaseUrl("https://proxy.internal:8443/", "https://api.sarvam.ai", "Sarvam")).toBe("https://proxy.internal:8443");
+    expect(normalizeProviderBaseUrl(undefined, "https://api.sarvam.ai", "Sarvam")).toBe("https://api.sarvam.ai");
+    // Unparseable junk passes through so fetch fails with the value visible
+    // in the error (loud-debuggability preserved).
+    expect(normalizeProviderBaseUrl("not a url", "https://api.sarvam.ai", "Sarvam")).toBe("not a url");
+  });
+
+  it("detects the placeholder for the save-boundary guards without warn noise", () => {
+    expect(PROVIDER_BASE_URL_PLACEHOLDER_HOST).toBe("api.vendor.ai");
+    expect(isPlaceholderProviderBaseUrl("https://api.vendor.ai")).toBe(true);
+    expect(isPlaceholderProviderBaseUrl("api.vendor.ai")).toBe(true);
+    expect(isPlaceholderProviderBaseUrl("  https://api.vendor.ai/v1  ")).toBe(true);
+    expect(isPlaceholderProviderBaseUrl("https://api.sarvam.ai")).toBe(false);
+    expect(isPlaceholderProviderBaseUrl("")).toBe(false);
+    expect(isPlaceholderProviderBaseUrl(undefined)).toBe(false);
+    expect(isPlaceholderProviderBaseUrl("https://api.vendor.ai.evil.example.com")).toBe(false);
+    expect(console.warn).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@ import { invalidateOpenAICatalogCache } from "@/modules/assistant/api/openai-cat
 import { resetEmailTransportCache } from "@/lib/email";
 import { validateModelField } from "@/modules/ai-core/model-catalog";
 import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
+import { isPlaceholderProviderBaseUrl } from "@/modules/voice-core/model-catalog";
 
 // WS-0.4: model keys that must hold a model id from the correct catalogue.
 const MODEL_FIELD_KEYS: Record<string, { field: "chat" | "embedding"; provider: "openai" | "gemini" }> = {
@@ -195,6 +196,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (body.key === "AI_EMBEDDING_PROVIDER" && !["", "openai", "gemini"].includes(body.value.trim().toLowerCase())) {
       return NextResponse.json({ error: "AI_EMBEDDING_PROVIDER must be openai or gemini." }, { status: 400 });
+    }
+
+    // Base-URL settings: reject the provider-settings placeholder example
+    // (api.vendor.ai — a dead domain that does not resolve). It leaked into
+    // live SARVAM_BASE_URL configs twice and silently broke every Sarvam
+    // call with connect timeouts; a copy-paste of the old field hint must
+    // never reach the egress path again.
+    if (
+      (body.key === "SARVAM_BASE_URL" || body.key === "MULTILINGUAL_EMBEDDINGS_BASE_URL") &&
+      typeof body.value === "string" &&
+      isPlaceholderProviderBaseUrl(body.value)
+    ) {
+      return NextResponse.json(
+        {
+          error: "invalid_base_url",
+          code: "BASE_URL_PLACEHOLDER",
+          key: body.key,
+          message:
+            "api.vendor.ai is the field's old placeholder example, not a real endpoint — the domain does not resolve. " +
+            "Leave the value empty to use the official endpoint, or set a proxy you know is reachable.",
+        },
+        { status: 400 },
+      );
     }
 
     // WS-0.4: server-side catalogue check — a chat model saved into an

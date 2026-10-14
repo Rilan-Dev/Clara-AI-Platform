@@ -38,7 +38,10 @@ vi.mock("@/modules/ai-core/model-catalog", () => ({
   findEmbeddingModel: () => null,
 }));
 
-vi.mock("@/modules/voice-core/model-catalog", () => ({
+// Real normaliser semantics preserved (the Sarvam base-URL rewrite shares
+// this module); only the pricing lookup is stubbed out.
+vi.mock("@/modules/voice-core/model-catalog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/modules/voice-core/model-catalog")>()),
   findTTSModel: () => null,
 }));
 
@@ -82,6 +85,33 @@ afterEach(() => {
 });
 
 describe("syncElevenLabs curated resilience", () => {
+  it("lands curated STT/STS rows with NO credential and NO vendor contact (keyless half-canvas)", async () => {
+    // Keyless: the Realtime Voice half-canvas used to show only stale TTS
+    // rows (or nothing) before the first key was saved — curated Scribe STT
+    // and conversational STS rows are vendor-independent and must land.
+    const fetchSpy = vi.fn(async () => new Response("nope", { status: 404 }));
+    vi.stubGlobal("fetch", fetchSpy);
+    delete process.env.ELEVENLABS_API_KEY;
+
+    await freshSync();
+
+    // No vendor discovery was attempted — a keyless provider makes no
+    // network claim at all.
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    const rows = insertedModelRows();
+    const byId = new Map(rows.map((row) => [`${row.kind}:${row.modelId}`, row]));
+    expect(byId.get("stt:scribe_v2_realtime")).toMatchObject({ capability: "realtime_voice" });
+    expect(byId.get("stt:scribe_v1")).toMatchObject({ capability: "voice_chat" });
+    expect(byId.get("sts:eleven_v3_conversational")).toMatchObject({ capability: "realtime_voice" });
+    for (const row of rows) {
+      expect(row.metadata.catalogSource).toBe("vendor_live");
+    }
+
+    // No vendor contact ⇒ no health claim either way.
+    expect(incidents.find((incident) => incident.key === "ai-catalog:elevenlabs")).toBeUndefined();
+  });
+
   it("upserts curated STT/STS rows even when the vendor catalogue rejects the request", async () => {
     // Non-retryable vendor failure (HTTP 401) — the vendor half of the sync
     // fails exactly like the production AbortError did.
