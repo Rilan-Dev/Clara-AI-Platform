@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-14 — EMBEDDING PROVIDER POLICY ISOLATED
+
+[architect source update] Extracted the Gemini/OpenAI embedding provider fallback decision into a pure policy helper used by `resolve.ts`, with focused regression source covering explicit override and credential conditions. This keeps embedding provider selection separate from chat/realtime provider routing and does not mutate the persisted platform default or trigger re-indexing.
+
+Commits: `204f2e588cab69e4d99206c85fd38c41e1f3d49f` (helper), `db3a0a303f83615266bc4224762cde7190ef89d2` (regression source).
+
+**Next:** continue the remaining live-model catalogue audit in `NEXT_ACTION.md`. Owner-provided runtime logs show OpenAI credential rejection and Gemini network/API failure; do not infer that switching providers makes an invalid Gemini key or outbound connectivity healthy. No tests/build/live call/CI/Vercel/deployment was run or claimed.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-14 — GEMINI EMBEDDING CONTINUITY
 
 [architect source update] Added embedding-only provider selection to let development continue when OpenAI is temporarily unavailable. `AI_EMBEDDING_PROVIDER=gemini` selects Gemini for RAG embeddings when `GEMINI_API_KEY` is configured without changing chat/realtime routing; missing OpenAI credentials also permit Gemini fallback. This does not mutate the persisted platform embedding default or trigger fleet re-indexing.
