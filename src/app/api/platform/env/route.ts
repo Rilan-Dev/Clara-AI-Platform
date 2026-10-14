@@ -49,7 +49,7 @@ const MANAGED_KEYS = new Set([
   "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PRICE_STARTER", "STRIPE_PRICE_PRO",
   "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", "NEXT_PUBLIC_RAZORPAY_KEY_ID", "NEXT_PUBLIC_APP_URL",
   // AI Configuration
-  "AI_PROVIDER",
+  "AI_PROVIDER", "AI_EMBEDDING_PROVIDER",
   "OPENAI_API_KEY", "OPENAI_CHAT_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_REALTIME_MODEL", "OPENAI_TRANSCRIPTION_MODEL", "OPENAI_DEFAULT_VOICE",
   "GEMINI_API_KEY", "GEMINI_CHAT_MODEL", "GEMINI_EMBEDDING_MODEL", "GEMINI_REALTIME_MODEL", "GEMINI_TRANSCRIPTION_MODEL", "GEMINI_DEFAULT_VOICE",
   "ELEVENLABS_API_KEY", "ELEVENLABS_DEFAULT_TTS_MODEL", "ELEVENLABS_DEFAULT_STT_MODEL", "ELEVENLABS_DEFAULT_VOICE_ID", "ELEVENLABS_REALTIME_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ENABLED", "ELEVENLABS_SPEECH_ENGINE_ID",
@@ -191,6 +191,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
     if (!valid) {
       return NextResponse.json({ error: "Invalid confirmation token." }, { status: 403 });
+    }
+
+    if (body.key === "AI_EMBEDDING_PROVIDER" && !["", "openai", "gemini"].includes(body.value.trim().toLowerCase())) {
+      return NextResponse.json({ error: "AI_EMBEDDING_PROVIDER must be openai or gemini." }, { status: 400 });
     }
 
     // WS-0.4: server-side catalogue check — a chat model saved into an
