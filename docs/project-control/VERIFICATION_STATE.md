@@ -1,3 +1,12 @@
+## 2026-10-14 — EMBEDDING PROVIDER POLICY REGRESSION SOURCE
+
+- Extracted the embedding-only provider choice into a pure helper and added focused regression source for credential-aware override/fallback semantics.
+- Commits: `204f2e588cab69e4d99206c85fd38c41e1f3d49f`, `db3a0a303f83615266bc4224762cde7190ef89d2`.
+- Source inspection only. Tests/type-check/build/live Gemini API/re-index/CI/Vercel/deployment were not run. No PASS claimed.
+- User-provided runtime logs independently show OpenAI `401 invalid_api_key` and Gemini fetch failures; the latter remains an environment/network/provider-credential issue until diagnosed by the operator.
+
+---
+
 ## 2026-10-14 — GEMINI EMBEDDING PROVIDER OVERRIDE SOURCE CHANGE
 
 - Source changes allow `AI_EMBEDDING_PROVIDER=gemini` as an embedding-only override and validate the setting in the platform environment API. Production seed and `.env.example.v2` include the non-secret selector.
