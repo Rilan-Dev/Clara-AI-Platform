@@ -103,7 +103,7 @@ function productionSettingValues(): Record<string, string> {
   // vendor_live governance rows and falls back to a compatible discovered model.
   // This seed deliberately supplies no static chat/embedding/realtime model IDs.
   for (const key of [
-    "AI_PROVIDER", "PHONE_PROVIDER", "NEXT_PUBLIC_APP_URL",
+    "AI_PROVIDER", "AI_EMBEDDING_PROVIDER", "PHONE_PROVIDER", "NEXT_PUBLIC_APP_URL",
     "OPENAI_CHAT_MODEL", "OPENAI_EMBEDDING_MODEL", "OPENAI_REALTIME_MODEL", "OPENAI_TRANSCRIPTION_MODEL",
     "GEMINI_CHAT_MODEL", "GEMINI_EMBEDDING_MODEL", "GEMINI_REALTIME_MODEL", "GEMINI_TRANSCRIPTION_MODEL", "SARVAM_CHAT_MODEL",
     "EMAIL_PROVIDER", "EMAIL_FROM_NAME", "EMAIL_FROM_ADDRESS",
