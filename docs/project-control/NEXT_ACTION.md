@@ -1,3 +1,14 @@
+## DEV-01 CONTINUATION — EMBEDDING PROVIDER POLICY REGRESSION SOURCE — 2026-10-14
+
+- Extracted the embedding-only provider choice into `src/modules/ai-core/embedding-provider-selection.ts`; `resolve.ts` now delegates to this pure policy helper.
+- Added focused regression source for explicit Gemini override with/without credentials, OpenAI-credential absence fallback, preservation of the configured Gemini default, unrelated override values, and no credential-driven switch from other providers.
+- Commits: `204f2e588cab69e4d99206c85fd38c41e1f3d49f` (helper), `db3a0a303f83615266bc4224762cde7190ef89d2` (tests). Resolver integration is included in the branch update before these commits.
+- No tests, type-check, build, live Gemini call, CI/Vercel, deployment, or re-index execution was run or awaited. No PASS claimed.
+- The owner's logs show OpenAI 401 and Gemini fetch failures; source fallback cannot repair invalid provider credentials or runtime egress. Do not expose keys in logs. Durable provider selection should be made in Settings → AI Platform → Embeddings to queue the Qdrant fleet re-index; the environment override alone does not re-index.
+- **Exact next implementation:** continue the live model-catalogue audit: replace remaining selectable static Gemini model lists/defaults with governance live rows and capability filters; keep static metadata only for pricing/vector compatibility. Add focused regressions and continue without waiting for CI/Vercel.
+
+---
+
 ## DEV-01 CONTINUATION — TEMPORARY GEMINI EMBEDDING ROUTING — 2026-10-14
 
 - Owner reports OpenAI is temporarily unavailable due to billing/key issues and wants to continue using Gemini embeddings.
