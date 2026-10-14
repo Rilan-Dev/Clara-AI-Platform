@@ -297,6 +297,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.186.1",
     "typescript": "^7",
+    "undici": "7.29.0",
     "vaul": "^1.1.2",
     "ws": "^8.22.0",
     "xlsx": "^0.18.5",
@@ -311,6 +312,7 @@
     "baseline-browser-mapping": "^2.11.27",
     "pdf-lib": "^1.17.1",
     "tsx": "^4.23.15",
+    "vite": "^7.3.7",
     "vitest": "^5.0.3"
   },
   "allowScripts": {

@@ -99,7 +99,7 @@ export async function testProviderConnection(
       const base = getSarvamBaseUrl().replace(/\/$/, "");
       // Sarvam's authenticated model-serving endpoint is the most meaningful
       // health probe. /v1/models is not the credential validation path.
-      return timedTest("Sarvam", async () => {
+      const outcome = await timedTest("Sarvam", async () => {
         const res = await fetch(`${base}/v1/chat/completions`, {
           method: "POST",
           headers: {
@@ -117,6 +117,14 @@ export async function testProviderConnection(
         });
         return { ok: res.ok, status: res.status, body: (await res.text()).slice(0, 500) };
       });
+      // Name the base URL being probed on failure — an operator-custom base
+      // URL pointing at a non-Sarvam endpoint reads as a bare "unhealthy"
+      // otherwise (observed: https://api.vendor.ai configured while the UI
+      // said only "Provider Sarvam AI is currently unhealthy").
+      if (outcome.status !== "healthy") {
+        outcome.errorMessage = `${outcome.errorMessage ?? "Connectivity check failed."} (probing ${base})`;
+      }
+      return outcome;
     }
     case "elevenlabs": {
       const key = process.env.ELEVENLABS_API_KEY?.trim();

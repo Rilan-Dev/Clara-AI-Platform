@@ -323,17 +323,44 @@ async function describeEmbeddingDefault(): Promise<string> {
 }
 
 /**
+ * Flatten an error and its cause chain into one classifiable string. Provider
+ * SDKs wrap transport failures as a bare `TypeError: fetch failed`; the
+ * operator-actionable detail ("Connect Timeout Error (attempted address:
+ * generativelanguage.googleapis.com:443, timeout: 10000ms)") only appears in
+ * `error.cause`. Without this, network failures classified as a generic
+ * one-line warning and nobody could tell WHICH endpoint was unreachable.
+ */
+function chainText(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  const parts: string[] = [`${error.name}: ${error.message}`];
+  let current: unknown = (error as { cause?: unknown }).cause;
+  for (let depth = 0; depth < 5 && current != null; depth++) {
+    if (current instanceof Error) {
+      parts.push(current.message);
+      current = (current as { cause?: unknown }).cause;
+    } else if (typeof current === "string") {
+      parts.push(current);
+      current = null;
+    } else {
+      current = null;
+    }
+  }
+  return parts.join(" · ");
+}
+
+/**
  * Classify an embedding/retrieval failure from a live request path and record
  * a runtime incident. Message patterns map to operator-actionable guidance:
  * invalid API key → fix the credential; quota/billing → recharge; resolution
- * failure → configure the embedding default; dimension mismatch → re-index.
+ * failure → configure the embedding default; dimension mismatch → re-index;
+ * unreachable endpoint → firewall/DNS/proxy.
  */
 export async function recordEmbeddingRuntimeFailure(
   error: unknown,
   context?: { surface?: string },
 ): Promise<void> {
   try {
-    const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const raw = chainText(error);
     const surface = context?.surface ?? "a chat/retrieval request";
     const defaultNote = await describeEmbeddingDefault();
     const inferredProvider = inferEmbeddingProviderFromError(raw);
@@ -373,6 +400,21 @@ export async function recordEmbeddingRuntimeFailure(
       message =
         `Retrieval failed during ${surface}: the query embedding dimensions do not match the knowledge-base collection. ` +
         `The platform embedding backbone changed after this KB was indexed — re-index the knowledge base (or restore the original embedding provider).${defaultNote}`;
+      severity = "warning";
+    } else if (/fetch failed|connect ?timeout|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|getaddrinfo|socket hang up|EHOSTUNREACH|ENETUNREACH|unreachable/i.test(raw)) {
+      const provider = inferredProvider;
+      key = provider ? `ai-embedding:${provider}` : "ai-embedding";
+      serviceName = provider ? `${provider === "openai" ? "OpenAI" : "Gemini"} embedding` : "Embedding pipeline";
+      const host =
+        raw.match(/attempted address:\s*([a-z0-9._-]+(?::\d+)?)/i)?.[1] ??
+        raw.match(/https?:\/\/([a-z0-9._-]+)/i)?.[1] ??
+        null;
+      message =
+        `The embedding endpoint could not be reached from the server during ${surface}` +
+        `${host ? ` (${host})` : ""}: ${raw.slice(0, 200)}. ` +
+        `Outbound access to the embedding vendor is blocked, flaky or slow — check the server's ` +
+        `firewall/DNS/egress, set HTTPS_PROXY if provider traffic must go through an egress proxy, ` +
+        `or raise EGRESS_CONNECT_TIMEOUT_MS for slow international routes.${defaultNote}`;
       severity = "warning";
     } else {
       const provider = inferredProvider;
@@ -430,7 +472,7 @@ export async function recordBrainRuntimeFailure(
   context?: { surface?: string; provider?: string; model?: string },
 ): Promise<void> {
   try {
-    const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const raw = chainText(error);
     const surface = context?.surface ?? "a chat request";
     const providerId = (context?.provider ?? inferBrainProviderFromError(raw)).toLowerCase();
     const providerName = displayBrainProviderName(providerId);
@@ -458,6 +500,13 @@ export async function recordBrainRuntimeFailure(
       message =
         `The ${providerName} answer engine failed during ${surface}: the configured chat model is unavailable to this account${modelNote}. ` +
         `Pick an accessible model in Settings → AI Platform.`;
+      severity = "critical";
+    } else if (/is currently unhealthy|has no configured credentials|is disabled by the platform/i.test(raw)) {
+      message =
+        `The ${providerName} provider is gated for ${surface}: ${raw.slice(0, 200)}. ` +
+        `Chats, agent preview and published agents keep failing until the provider is healthy again — ` +
+        `run "Test connection" (Settings → AI Platform → Providers), fix the credential/base URL, ` +
+        `or switch the assistant's chat model${modelNote}.`;
       severity = "critical";
     } else if (/timeout|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|fetch failed/i.test(raw)) {
       message =

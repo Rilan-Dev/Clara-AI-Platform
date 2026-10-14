@@ -48,7 +48,7 @@ import { hit, rateLimitResponse, CHAT_RATE } from "@/lib/rate-limit";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { getAuthContext } from "@/modules/auth/core/rbac";
-import { toProviderConfig } from "@/modules/ai-core/resolve";
+import { AIConfigResolutionError, toProviderConfig } from "@/modules/ai-core/resolve";
 import { resolveAIConfigCached } from "@/modules/ai-core/resolve-cache";
 import { SentenceTranslator, translateQueryForRag } from "@/modules/language-core/pipeline";
 import { toTranslateLanguageCode } from "@/modules/language-core/model-catalog";
@@ -1040,6 +1040,26 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
             "Knowledge-base search failed. Please verify the embedding configuration and try again.",
         },
         { status: 502 },
+      );
+    }
+    if (error instanceof AIConfigResolutionError) {
+      // Provider health/credential gating (e.g. "Provider Sarvam AI is
+      // currently unhealthy", "No embedding model is configured for this
+      // tenant") is a service-availability problem, not a malformed request:
+      // return a retryable 503 with the remediation path instead of a raw
+      // 400, and record the incident so the admin banner/email fires.
+      console.error("[chat] configuration resolution failed:", error.message);
+      const embeddingRelated = /embedding/i.test(error.message);
+      void (embeddingRelated
+        ? recordEmbeddingRuntimeFailure(error, { surface: "chat configuration" })
+        : recordBrainRuntimeFailure(error, { surface: "chat configuration" }));
+      return NextResponse.json(
+        {
+          error:
+            `${error.message} ` +
+            `Check the provider credential/health in Settings → AI Platform → Providers, or switch this assistant's model.`,
+        },
+        { status: 503 },
       );
     }
     console.error("[chat] handler error:", error);

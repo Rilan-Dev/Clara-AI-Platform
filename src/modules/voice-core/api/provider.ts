@@ -32,7 +32,7 @@ import { isElevenLabsEnabled, isElevenLabsRealtimeEnabled } from "@/modules/voic
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
-import { getPlatformAIDefaults } from "@/modules/ai-core/resolve";
+import { AIConfigResolutionError, getPlatformAIDefaults } from "@/modules/ai-core/resolve";
 import {
   isConversationalAIEnabled,
 } from "../model-catalog";
@@ -150,6 +150,19 @@ export async function postVoiceProvider(request: NextRequest): Promise<NextRespo
     // Surface resolution failures (disabled voice, not-allowed provider, kill
     // switch) as a 400 the client can render directly — same contract the
     // realtime session endpoints use.
+    if (error instanceof AIConfigResolutionError) {
+      // Provider health/credential gating ("Provider Sarvam AI is currently
+      // unhealthy") — keep the client-renderable 400 contract but append the
+      // remediation path so the operator knows where to look.
+      return NextResponse.json(
+        {
+          error:
+            `${error.message} ` +
+            `Check the provider credential/health in Settings → AI Platform → Providers, or pick a different model for this assistant.`,
+        },
+        { status: 400 },
+      );
+    }
     const message = (error as Error).message ?? "Voice configuration could not be resolved.";
     return NextResponse.json({ error: message }, { status: 400 });
   }

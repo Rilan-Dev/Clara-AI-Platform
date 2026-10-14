@@ -4,8 +4,13 @@ import { embeddingDimensionFor, findEmbeddingModel } from "./model-catalog";
 
 // The GoogleGenAI constructor is never reached by these tests (dimension
 // resolution is pure), but the import graph needs the module to exist.
+// NOTE: the mock must be CONSTRUCTABLE — `new GoogleGenAI(...)` rejects an
+// arrow-function mock with "is not a constructor" (3 tests failed on it).
 vi.mock("@google/genai", () => ({
-  GoogleGenAI: vi.fn(() => ({ models: { embedContent: vi.fn() } })),
+  GoogleGenAI: class {
+    models = { embedContent: vi.fn() };
+    constructor(_options?: unknown) {}
+  },
 }));
 
 import { GeminiProvider } from "./providers/gemini";

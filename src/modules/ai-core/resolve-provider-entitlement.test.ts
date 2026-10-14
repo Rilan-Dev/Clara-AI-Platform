@@ -25,6 +25,10 @@ vi.mock("@/modules/knowledge-bases/core/ai-overrides-db", () => ({
 vi.mock("@/modules/ai-core/model-catalog", () => ({
   looksLikeChatModel: () => false,
   looksLikeEmbeddingModel: () => false,
+  // resolve.ts re-injects the platform embedding default through the static
+  // catalogue when vendor discovery loses it — undefined keeps this suite's
+  // mocked rows authoritative.
+  findEmbeddingModel: () => undefined,
 }));
 vi.mock("@/modules/agent-versioning/core/db", () => ({
   getActiveDeploymentCached: vi.fn(async () => null),

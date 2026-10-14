@@ -26,11 +26,18 @@ function authorized(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (ENCRYPTION_KEY.length < 32) return NextResponse.json({ error: "WhatsApp encryption is not configured" }, { status: 503 });
+  // Feature-not-configured is a SKIP for a scheduled job, not an error — a
+  // 503 here made local-cron log a failure every morning on platforms that
+  // never enabled WhatsApp briefings (observed in docker logs).
+  if (ENCRYPTION_KEY.length < 32) {
+    console.warn("[cron/whatsapp-daily-briefings] skipped — WhatsApp encryption is not configured");
+    return NextResponse.json({ ok: true, skipped: true, reason: "WhatsApp encryption is not configured" });
+  }
   const templateName = process.env.WHATSAPP_DAILY_BRIEFING_TEMPLATE_NAME?.trim() ?? "";
   const templateLanguage = process.env.WHATSAPP_DAILY_BRIEFING_TEMPLATE_LANGUAGE?.trim() || "en_US";
   if (!/^[a-z0-9_]{1,512}$/.test(templateName) || !/^[a-z]{2,3}(?:_[A-Z]{2})?$/.test(templateLanguage)) {
-    return NextResponse.json({ error: "An approved WhatsApp daily-briefing template and language must be configured" }, { status: 503 });
+    console.warn("[cron/whatsapp-daily-briefings] skipped — no approved daily-briefing template configured");
+    return NextResponse.json({ ok: true, skipped: true, reason: "An approved WhatsApp daily-briefing template and language must be configured" });
   }
 
   try {

@@ -8,6 +8,7 @@ const nextConfig = {
 
   serverExternalPackages: [
     "pg",
+    "undici",
     "resend",
     "pdfjs-dist",
     "pdf-parse",

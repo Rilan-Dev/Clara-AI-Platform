@@ -23,6 +23,7 @@ import { randomUUID } from "node:crypto";
 import { query, queryOne, withTransaction } from "@/lib/db";
 import { ensureCollectionExists, getQdrantClient } from "@/modules/admin/core/vector-store";
 import { embedBatches, ensureDocumentIdIndex } from "@/modules/admin/core/vector-store-kb";
+import { recordEmbeddingRuntimeFailure } from "@/modules/platform-health/core/incidents";
 import {
   ensureRuntimeSettings,
   forgetCollection,
@@ -222,6 +223,14 @@ export async function advanceReindexJob(jobId: string, budgetMs = 8_000): Promis
   } catch (error) {
     const message = (error as Error).message.slice(0, 1000);
     console.error(`[reindex] job ${claimed.id} failed after ${done} points:`, message);
+    // A failed migration job is an operator-visible outage: KB answers stay on
+    // the broken old index while the self-heal notice already told the admin
+    // answers would "resume as soon as the new index finishes building".
+    // Record a runtime incident so the admin banner/email fires at the true
+    // point of failure (rate-limited), not only a row in KB index settings.
+    void recordEmbeddingRuntimeFailure(error, {
+      surface: `the automatic re-index of a knowledge base (${done}/${claimed.pointsTotal} points done)`,
+    });
     await query(
       `UPDATE kb_reindex_jobs SET status = 'failed', error_message = $2, lease_until = NULL, updated_at = now()
         WHERE id = $1`,

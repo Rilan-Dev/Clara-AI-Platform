@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { describeNetworkError } from "@/lib/egress";
 import {
   getPlatformAIRegistry,
   getProviderWorkspace,
@@ -331,6 +332,20 @@ export async function testEmbeddingDefaultHandler(req: NextRequest): Promise<Nex
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[POST /api/platform/ai/embedding-default/test]", err);
+    // Provider SDKs wrap transport failures as a bare "TypeError: fetch
+    // failed" — useless in the admin UI. Unwrap the cause chain and say WHAT
+    // was unreachable and how to fix it (observed: ConnectTimeoutError to
+    // generativelanguage.googleapis.com rendered as a one-line TypeError).
+    const network = describeNetworkError(err);
+    if (network) {
+      return errorResponse(
+        `Embedding test failed: the server could not reach the embedding endpoint` +
+          `${network.host ? ` (${network.host})` : ""} — ${network.detail}. ` +
+          `Check outbound network access (firewall/DNS) from this server, set HTTPS_PROXY if an egress ` +
+          `proxy is required, or switch the embedding default to a reachable provider.`,
+        502,
+      );
+    }
     return errorResponse((err as Error).message || "Embedding test failed", 502);
   }
 }

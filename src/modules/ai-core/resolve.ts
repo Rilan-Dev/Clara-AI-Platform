@@ -4,7 +4,7 @@ import { getAgentAISettings } from "@/modules/organisations/core/agent-ai-settin
 import { getAssistantConfigByAgent, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getKbAIOverrides } from "@/modules/knowledge-bases/core/ai-overrides-db";
 import type { ProviderConfig } from "@/modules/ai-core/types";
-import { looksLikeChatModel, looksLikeEmbeddingModel } from "@/modules/ai-core/model-catalog";
+import { findEmbeddingModel, looksLikeChatModel, looksLikeEmbeddingModel } from "@/modules/ai-core/model-catalog";
 import {
   getActiveDeploymentCached,
   getAgentDraftConfigCached,
@@ -434,6 +434,55 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
           `Run "Test connection" for this provider (Settings → AI Platform → Providers) and check the credential.`,
       }).catch(() => undefined);
     }
+  }
+
+  // ── Platform embedding default must always resolve ──────────────────────
+  // Google's ListModels does not advertise preview models, and discovery
+  // fails outright on restricted networks. When the configured default drops
+  // out of the effective rows (disabled as stale, or never discovered), the
+  // resolver silently built NEW indexes with a DIFFERENT model than the
+  // migration notice promised (observed in production: default
+  // gemini-embedding-2-preview, re-index building with gemini-embedding-001).
+  // Re-inject the configured default from the static catalogue so the
+  // operator-visible promise and the built index always agree.
+  const configuredEmbeddingDefault =
+    registry.embeddingDefault?.providerId === embeddingProvider ? registry.embeddingDefault : null;
+  if (
+    configuredEmbeddingDefault &&
+    findEmbeddingModel(configuredEmbeddingDefault.modelId) &&
+    !effectiveEmbeddingRows.some((row) => row.modelId === configuredEmbeddingDefault.modelId)
+  ) {
+    const entry = findEmbeddingModel(configuredEmbeddingDefault.modelId)!;
+    effectiveEmbeddingRows = [
+      ...effectiveEmbeddingRows,
+      {
+        id: `bootstrap:${embeddingProvider}:${configuredEmbeddingDefault.modelId}`,
+        providerId: embeddingProvider,
+        capability: "chat" as const,
+        kind: "embedding" as const,
+        modelId: configuredEmbeddingDefault.modelId,
+        displayName: entry.id,
+        enabled: true,
+        isDefault: true,
+        metadata: { catalogSource: "bootstrap", source: "platform-embedding-default" },
+      },
+    ];
+    console.warn(
+      `[ai-config] platform embedding default ${embeddingProvider}/${configuredEmbeddingDefault.modelId} ` +
+        `is missing from the effective catalogue rows (vendor discovery failed or no longer lists it) — ` +
+        `re-injected from the static catalogue so indexes keep using the configured default model.`,
+    );
+    void recordRuntimeIncident({
+      key: `ai-embedding-catalog:${embeddingProvider}`,
+      serviceName: `${embeddingProvider} embedding catalogue`,
+      healthy: false,
+      severity: "warning",
+      message:
+        `The platform embedding default (${embeddingProvider}/${configuredEmbeddingDefault.modelId}) is not present in the ` +
+        `vendor-discovered or bootstrap catalogue rows — vendor model discovery is failing or no longer advertises this model. ` +
+        `Resolution continues on the static catalogue entry so embeddings keep using the configured default. ` +
+        `Run "Test connection" for this provider (Settings → AI Platform → Providers).`,
+    }).catch(() => undefined);
   }
 
   const defaultFrom = (rows: typeof chatRows, configuredId?: string | null) =>

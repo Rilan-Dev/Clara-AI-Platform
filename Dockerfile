@@ -78,7 +78,8 @@ RUN mkdir -p .next/standalone/node_modules/@elevenlabs .next/standalone/node_mod
     cp -r node_modules/ms .next/standalone/node_modules/ms && \
     cp -r node_modules/denque .next/standalone/node_modules/denque && \
     cp -r node_modules/redis-errors .next/standalone/node_modules/redis-errors && \
-    cp -r node_modules/standard-as-callback .next/standalone/node_modules/standard-as-callback
+    cp -r node_modules/standard-as-callback .next/standalone/node_modules/standard-as-callback && \
+    cp -r node_modules/undici .next/standalone/node_modules/undici
 
 FROM base AS runner
 WORKDIR /app

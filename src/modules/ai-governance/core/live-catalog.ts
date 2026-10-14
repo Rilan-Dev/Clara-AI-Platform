@@ -37,9 +37,17 @@ function key(name: string): string | undefined {
   return value || undefined;
 }
 
-async function jsonFetch(url: string, init: RequestInit = {}): Promise<unknown> {
+// Catalogue discovery talks to paginated, latency-sensitive vendor APIs; an
+// 8s hard timeout aborted the whole ElevenLabs sync (AbortError in production
+// docker logs), which left STS/voice rows undiscovered. Tunable + retried.
+const AI_CATALOG_TIMEOUT_MS = (() => {
+  const value = Number(process.env.AI_CATALOG_TIMEOUT_MS);
+  return Number.isFinite(value) && value >= 1_000 ? value : 20_000;
+})();
+
+async function jsonFetch(url: string, init: RequestInit = {}, attempt = 0): Promise<unknown> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
+  const timeout = setTimeout(() => controller.abort(), AI_CATALOG_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
       ...init,
@@ -51,6 +59,17 @@ async function jsonFetch(url: string, init: RequestInit = {}): Promise<unknown> 
     });
     if (!response.ok) throw new Error(`HTTP ${response.status} from ${new URL(url).hostname}`);
     return response.json();
+  } catch (error) {
+    // One retry for transport-level flakiness (observed: transient AbortError
+    // on slow routes). HTTP errors (401 etc.) are NOT retried.
+    const retryable = /abort|timeout|timed out|fetch failed|econnreset|socket hang up/i.test(
+      error instanceof Error ? error.message : String(error),
+    );
+    if (retryable && attempt < 1) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return jsonFetch(url, init, attempt + 1);
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -100,6 +119,14 @@ async function disableMissing(provider: Provider, capability: Capability, kind: 
             metadata = metadata || jsonb_build_object('catalogSource', 'vendor_live', 'stale', TRUE, 'staleAt', now())
       WHERE provider_id = $1 AND capability = $2 AND kind = $3
         AND model_id <> ALL($4::text[])
+        AND NOT (
+          $3 = 'embedding' AND EXISTS (
+            SELECT 1 FROM platform_ai_embedding_defaults d
+             WHERE d.id IS TRUE
+               AND d.provider_id = platform_ai_provider_models.provider_id
+               AND d.model_id = platform_ai_provider_models.model_id
+          )
+        )
 `,
     [provider, capability, kind, [...liveIds]],
   );

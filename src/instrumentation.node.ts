@@ -6,6 +6,17 @@
 const SWEEP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 export async function registerNode(): Promise<void> {
+  // Egress policy first: every provider SDK call in this process (Gemini
+  // embeddings, OpenAI catalogue, ElevenLabs discovery, health probes)
+  // inherits the dispatcher installed here — tunable connect timeout
+  // (EGRESS_CONNECT_TIMEOUT_MS) and optional HTTPS_PROXY egress routing.
+  try {
+    const { installEgressDispatcher } = await import("@/lib/egress");
+    installEgressDispatcher();
+  } catch (err) {
+    console.error("[instrumentation] egress dispatcher install failed — using Node defaults:", (err as Error).message);
+  }
+
   try {
     const { env } = await import("@/lib/env");
     if (env.NODE_ENV === "production") {
