@@ -43,6 +43,7 @@ import type { ProviderConfig } from "@/modules/ai-core/types";
 import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { embedQueryCached } from "@/modules/rag/query-embedding-cache";
 import { getCollectionEmbedding, resolveSearchEmbedding } from "@/modules/knowledge-bases/core/embedding-index";
+import { selfHealBrokenCollectionEmbedding } from "@/modules/knowledge-bases/core/embedding-selfheal";
 import { scoreThresholdFor } from "@/modules/ai-core/multilingual-embeddings";
 import {
   inferKnowledgeLanguage,
@@ -758,7 +759,18 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         detail: msg,
       };
     }
-    throw searchErr;
+    // Credential/billing death on the model that BUILT this collection (e.g.
+    // a revoked OpenAI key after the platform default moved to Gemini): try to
+    // self-heal by enqueueing a re-index to the platform embedding default.
+    // The healed error carries a public-safe, actionable message; otherwise
+    // the original error propagates unchanged.
+    const healed = await selfHealBrokenCollectionEmbedding({
+      kbId: kb.id,
+      collectionName: searchCollection,
+      providerConfig,
+      error: searchErr,
+    }).catch(() => null);
+    throw healed ?? searchErr;
   }
 
   // Vector and graph retrieval are independent; the graph request is started

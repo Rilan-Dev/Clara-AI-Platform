@@ -125,7 +125,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     for (const provider of registry.providers) {
       if (!provider.enabled || !provider.configured) continue;
       const outcome = await testProviderConnection(provider.providerId);
-      await recordProviderHealth(provider.providerId, outcome, "ai-health-cron");
+      // checked_by is UUID REFERENCES users(id) — the cron has no user, so it
+      // records NULL (checked_at already attributes the row to the schedule).
+      // A single provider's health write must never abort the pass before the
+      // incidents sync below — that turned one bad row into "monitoring is
+      // down" (the 500 loop seen in docker logs).
+      try {
+        await recordProviderHealth(provider.providerId, outcome, null);
+      } catch (healthWriteError) {
+        console.error(
+          `[cron/ai-health] could not persist health row for ${provider.providerId}:`,
+          healthWriteError,
+        );
+      }
       providerResults.push({
         providerId: provider.providerId,
         status: outcome.status,

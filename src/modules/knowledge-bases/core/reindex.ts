@@ -343,3 +343,92 @@ export async function advanceAllReindexJobs(budgetMs = 20_000): Promise<number> 
   }
   return rows.length;
 }
+
+// ── Platform embedding-default migration ──────────────────────────────────────
+
+export type ReindexMigrationPlan = {
+  /** KBs whose live standard collection is pinned to a different embedding. */
+  scanned: number;
+  /** Re-index jobs enqueued (the background workers advance them). */
+  enqueued: number;
+  /** Already on the target model, already running, or intentionally skipped. */
+  skipped: number;
+  migrated: Array<{ kbId: string; from: string; to: string }>;
+  errors: Array<{ kbId: string; error: string }>;
+};
+
+/**
+ * Enqueue re-index jobs for every live STANDARD collection whose registered
+ * embedding differs from the platform embedding default — the orchestration
+ * the admin previously had to perform KB-by-KB by hand.
+ *
+ * Why this exists: switching the platform embedding default (e.g. OpenAI →
+ * Gemini after an OpenAI key died) only changes what NEW collections use.
+ * Existing collections keep searching with the model that BUILT them
+ * (embedding-index.ts), so every KB chat kept hitting the dead OpenAI
+ * credential and failing with 401 until someone manually re-indexed each KB.
+ * Now the switch itself migrates the fleet: jobs build new collections with
+ * the new default and swap atomically when complete.
+ *
+ * Multilingual (TEI) indexes are governed by the multilingual settings, not
+ * the platform embedding default — they are never migrated here.
+ */
+export async function enqueueReindexToPlatformDefault(options?: {
+  userId?: string | null;
+  limit?: number;
+}): Promise<ReindexMigrationPlan> {
+  const limit = Math.max(1, Math.min(options?.limit ?? 200, 500));
+  const plan: ReindexMigrationPlan = { scanned: 0, enqueued: 0, skipped: 0, migrated: [], errors: [] };
+
+  // Live standard collections pinned to a provider+model, with each KB's
+  // desired index kind. role='live' + kb_id NOT NULL only: 'building' rows
+  // belong to running jobs, 'snapshot' rows serve published versions, and
+  // multilingual KBs are skipped by index kind below.
+  const rows = await query<{
+    kb_id: string;
+    embedding_provider: string;
+    embedding_model: string;
+    embedding_index: string | null;
+  }>(
+    `SELECT c.kb_id, c.embedding_provider, c.embedding_model, kb.embedding_index
+       FROM kb_vector_collections c
+       JOIN knowledge_bases kb ON kb.id = c.kb_id
+      WHERE c.role = 'live' AND c.kb_id IS NOT NULL
+        AND c.embedding_index = 'standard'
+        AND COALESCE(kb.embedding_index, 'standard') = 'standard'
+      ORDER BY c.updated_at ASC
+      LIMIT $1`,
+    [limit],
+  );
+
+  if (rows.length === 0) return plan;
+
+  const { getPlatformAIRegistry } = await import("@/modules/ai-governance/core/registry-db");
+  const registry = await getPlatformAIRegistry();
+  const embeddingDefault = registry.embeddingDefault ?? null;
+  if (!embeddingDefault) return plan; // nothing to migrate towards
+
+  for (const row of rows) {
+    plan.scanned++;
+    const from = `${row.embedding_provider}/${row.embedding_model}`;
+    const to = `${embeddingDefault.providerId}/${embeddingDefault.modelId}`;
+    if (from === to) {
+      plan.skipped++;
+      continue;
+    }
+    try {
+      await startReindex({ kbId: row.kb_id, index: "standard", userId: options?.userId ?? null });
+      plan.enqueued++;
+      plan.migrated.push({ kbId: row.kb_id, from, to });
+    } catch (error) {
+      if (error instanceof ReindexError) {
+        // ALREADY_INDEXED / REINDEX_RUNNING / MULTILINGUAL_UNAVAILABLE are
+        // expected states, not failures.
+        plan.skipped++;
+        continue;
+      }
+      plan.errors.push({ kbId: row.kb_id, error: (error as Error).message });
+    }
+  }
+  return plan;
+}

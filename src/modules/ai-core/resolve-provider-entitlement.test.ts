@@ -37,7 +37,21 @@ vi.mock("@/modules/ai-governance/core/resolver", () => ({
 }));
 vi.mock("@/modules/ai-governance/core/registry-db", () => ({
   getPlatformAIRegistry: vi.fn(async () => mocks.registry),
-  listProviderModels: vi.fn(async () => []),
+  // Resolution only accepts vendor-live catalogue rows; the selected chat
+  // model must be discoverable or "No chat model is configured" fires.
+  listProviderModels: vi.fn(async (provider: string, capability: string) =>
+    provider === "sarvam" && capability === "chat"
+      ? [{
+          providerId: "sarvam",
+          capability: "chat",
+          kind: "chat",
+          modelId: "sarvam-105b",
+          displayName: "Sarvam 105B",
+          enabled: true,
+          isDefault: true,
+          metadata: { catalogSource: "vendor_live" },
+        }]
+      : []),
 }));
 vi.mock("@/modules/organisations/core/agent-ai-types", () => ({
   resolveAgentRuntimeSelection: () => ({

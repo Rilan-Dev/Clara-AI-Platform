@@ -32,6 +32,7 @@ import {
   resolveLanguagePreferences,
 } from "@/modules/assistant/core/config";
 import { getKnowledgeBaseById, getAssistantConfigByKb, getKnowledgeBaseDocumentTitles } from "@/modules/knowledge-bases/core/db";
+import { EmbeddingBackboneBrokenError } from "@/modules/knowledge-bases/core/embedding-selfheal";
 import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
 import {
   noteEmbeddingRequestSucceeded,
@@ -1004,9 +1005,18 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
       // incident recorder is already called at the typed throw sites; this
       // catch is the safety net for anything that slipped through unclassified.
       console.error("[chat] retrieval failed:", error.cause ?? error.message);
-      void recordEmbeddingRuntimeFailure(error.cause ?? error, { surface: "chat retrieval" });
+      const healed = error.cause instanceof EmbeddingBackboneBrokenError ? error.cause : null;
+      void recordEmbeddingRuntimeFailure(
+        // Classify the ORIGINAL vendor error, not the healed public message.
+        healed?.cause ?? error.cause ?? error,
+        { surface: "chat retrieval" },
+      );
       return NextResponse.json(
-        { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
+        {
+          error:
+            healed?.message ??
+            "Knowledge-base search failed. Please verify the embedding configuration and try again.",
+        },
         { status: 502 },
       );
     }

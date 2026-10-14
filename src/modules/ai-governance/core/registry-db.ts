@@ -475,11 +475,20 @@ export async function recordProviderHealth(
   checkedBy: string | null,
 ): Promise<ProviderHealthRecord> {
   const id = randomUUID();
+  // checked_by is UUID REFERENCES users(id) ON DELETE SET NULL. A non-UUID
+  // actor label (e.g. a cron name) made Postgres reject the whole INSERT with
+  // "invalid input syntax for type uuid", which took the ai-health cron — and
+  // with it every incident capture — down for as long as it ran. Coerce any
+  // non-UUID value to NULL instead of failing the health write.
+  const safeCheckedBy =
+    checkedBy && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(checkedBy.trim())
+      ? checkedBy.trim()
+      : null;
   const row = await queryOne<Row>(
     `INSERT INTO platform_ai_provider_health (id, provider_id, status, latency_ms, error_message, checked_by)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING provider_id, status, latency_ms, error_message, checked_by, checked_at`,
-    [id, providerId, result.status, result.latencyMs, result.errorMessage, checkedBy],
+    [id, providerId, result.status, result.latencyMs, result.errorMessage, safeCheckedBy],
   );
   invalidateProviderRegistryCache();
   return {
@@ -488,7 +497,7 @@ export async function recordProviderHealth(
     latencyMs: result.latencyMs,
     errorMessage: result.errorMessage,
     checkedAt: row?.checked_at ? String(row.checked_at) : new Date().toISOString(),
-    checkedBy,
+    checkedBy: safeCheckedBy,
   };
 }
 

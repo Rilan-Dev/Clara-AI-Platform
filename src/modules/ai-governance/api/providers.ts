@@ -33,6 +33,7 @@ import { getProviderUsageReports } from "../core/usage-db";
 import { resolveAvailableAIOptions } from "../core/resolver";
 import { ProviderFactory } from "@/modules/ai-core/factory";
 import { getProviderApiKey } from "@/modules/ai-core/resolve";
+import { enqueueReindexToPlatformDefault } from "@/modules/knowledge-bases/core/reindex";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { setPlatformEnvSetting } from "@/modules/phone/core/db";
 import type { AICapability, AIModelKind } from "../core/types";
@@ -345,8 +346,34 @@ export async function putEmbeddingDefaultHandler(req: NextRequest): Promise<Next
     if (!modelId) return errorResponse("modelId is required", 400);
 
     await setEmbeddingDefault(providerId, modelId, auth.user.id);
+
+    // Existing Qdrant collections keep searching with the model that BUILT
+    // them, so a default switch alone leaves every already-indexed KB on the
+    // OLD provider (e.g. a dead OpenAI key → 401 on every chat). Migrate the
+    // fleet: enqueue a re-index job per live standard collection that is
+    // pinned to a different embedding. Background workers advance the jobs;
+    // the swap is atomic per KB. Never fatal — the default itself is saved.
+    let migration: Awaited<ReturnType<typeof enqueueReindexToPlatformDefault>> | null = null;
+    try {
+      migration = await enqueueReindexToPlatformDefault({ userId: auth.user.id });
+    } catch (migrationError) {
+      console.error("[PUT /api/platform/ai/embedding-default] re-index orchestration failed", migrationError);
+    }
+
     const registry = await getPlatformAIRegistry();
-    return NextResponse.json({ embeddingDefault: registry.embeddingDefault });
+    return NextResponse.json({
+      embeddingDefault: registry.embeddingDefault,
+      ...(migration
+        ? {
+            reindexMigration: {
+              scanned: migration.scanned,
+              enqueued: migration.enqueued,
+              skipped: migration.skipped,
+              errors: migration.errors,
+            },
+          }
+        : {}),
+    });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[PUT /api/platform/ai/embedding-default]", err);

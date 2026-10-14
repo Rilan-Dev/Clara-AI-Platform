@@ -1,6 +1,6 @@
 import { GoogleGenAI, type Content } from "@google/genai";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
-import { embeddingDimensionFor } from "../model-catalog";
+import { embeddingDimensionFor, findEmbeddingModel } from "../model-catalog";
 
 export class GeminiProvider implements LLMProvider {
   private config: ProviderConfig;
@@ -167,13 +167,19 @@ export class GeminiProvider implements LLMProvider {
     const envDim = process.env.GEMINI_EMBEDDING_DIMENSION?.trim();
     const requestedDimension = configured ?? (envDim ? Number(envDim) : null);
 
+    // Matryoshka models (catalogued matryoshkaMaxDimension — e.g.
+    // gemini-embedding-001, gemini-embedding-2-preview) emit any dimension
+    // up to the max via outputDimensionality, so a requested dimension is
+    // always honoured for them.
+    const catalogEntry = embeddingDimensionFor(model) != null ? findEmbeddingModel(model) : undefined;
+    const matryoshkaMax = catalogEntry?.matryoshkaMaxDimension ?? null;
+    const isMatryoshka = matryoshkaMax != null;
+
     if (requestedDimension != null) {
       if (!Number.isInteger(requestedDimension) || requestedDimension <= 0 || requestedDimension > 3072) {
         throw new Error("GEMINI_EMBEDDING_DIMENSION must be a positive integer no greater than 3072.");
       }
-      // gemini-embedding-001 is Matryoshka and can emit a smaller vector on
-      // request. Other known Gemini embedding models have fixed dimensions.
-      if (model.includes("gemini-embedding-001")) return requestedDimension;
+      if (isMatryoshka && requestedDimension <= matryoshkaMax!) return requestedDimension;
       const knownDimension = embeddingDimensionFor(model);
       if (knownDimension != null && requestedDimension !== knownDimension) {
         throw new Error(
@@ -192,18 +198,21 @@ export class GeminiProvider implements LLMProvider {
   }
 
   /**
-   * gemini-embedding-001 is Matryoshka: it can emit any dimensionality up to
-   * 3072 via outputDimensionality. Passing the configured dimension keeps
-   * vectors compatible with existing Qdrant collections (e.g. 1536 created
-   * under OpenAI) when an operator switches providers — without this, a
-   * provider switch would upsert 3072-dim vectors into a 1536-dim collection
-   * and every embed would fail.
+   * Matryoshka models (catalogued matryoshkaMaxDimension — gemini-embedding-001
+   * and its successors such as gemini-embedding-2-preview) emit any
+   * dimensionality up to the max via outputDimensionality. Passing the pinned
+   * dimension keeps vectors compatible with the Qdrant collections this
+   * platform creates for the model (e.g. re-using 1536 when switching an
+   * OpenAI-built collection over) — without this, a provider switch would
+   * upsert 3072-dim vectors into a 1536-dim collection and every embed would
+   * fail.
    */
   private embeddingOutputDimensionality(): { outputDimensionality?: number } {
     const dim = this.getEmbeddingDimension();
     const model = this.getEmbeddingModelName();
-    if (!model.includes("gemini-embedding-001")) return {}; // older models are fixed-size
-    if (!Number.isFinite(dim) || dim <= 0 || dim > 3072) return {};
+    const entry = findEmbeddingModel(model);
+    if (!entry?.matryoshkaMaxDimension) return {}; // fixed-size models
+    if (!Number.isFinite(dim) || dim <= 0 || dim > entry.matryoshkaMaxDimension) return {};
     return { outputDimensionality: dim };
   }
 }

@@ -26,6 +26,7 @@ import {
   recordEmbeddingRuntimeFailure,
 } from "@/modules/platform-health/core/incidents";
 import { resolveSearchEmbedding } from "@/modules/knowledge-bases/core/embedding-index";
+import { selfHealBrokenCollectionEmbedding } from "@/modules/knowledge-bases/core/embedding-selfheal";
 import { scoreThresholdFor } from "@/modules/ai-core/multilingual-embeddings";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 
@@ -174,16 +175,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         scoreThreshold: scoreThresholdFor(providerConfig.provider, providerConfig.embeddingModel, 0.25),
       });
     } catch (searchErr) {
-      // Retrieval failed (e.g. embedding provider unreachable). Three duties:
+      // Retrieval failed (e.g. embedding provider unreachable). Four duties:
       // 1. Finalise the already-admitted query event so the audit trail never
       //    keeps orphaned `pending` rows (mirrors the chat route's pattern).
       // 2. Record a runtime platform-health incident so the admin banner /
       //    email fires without anyone watching the container logs.
-      // 3. Return a friendly message — raw provider/edge errors (which can
+      // 3. Self-heal when the collection's registered embedding provider has
+      //    a dead credential but the platform default points elsewhere —
+      //    enqueue the re-index and tell the visitor migration is underway.
+      // 4. Return a friendly message — raw provider/edge errors (which can
       //    reference regions, keys or upstream internals) must not leak to
       //    public embed visitors.
       console.error("[embed/search] retrieval failed", searchErr);
-      void recordEmbeddingRuntimeFailure(searchErr, { surface: "public embed search" });
+      const healed = await selfHealBrokenCollectionEmbedding({
+        kbId,
+        collectionName: searchCollection,
+        providerConfig,
+        error: searchErr,
+      }).catch(() => null);
+      void recordEmbeddingRuntimeFailure(healed?.cause ?? searchErr, { surface: "public embed search" });
       void finalizeQueryEvent(searchAdmission.admitted ? searchAdmission.eventId : null, {
         answerText: "",
         sourceCount: 0,
@@ -191,7 +201,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         status: "error",
       });
       return NextResponse.json(
-        { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
+        {
+          error:
+            healed?.message ??
+            "Knowledge-base search failed. Please verify the embedding configuration and try again.",
+        },
         { status: 502, headers: corsHeaders },
       );
     }

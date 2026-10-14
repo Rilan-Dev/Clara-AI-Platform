@@ -93,6 +93,14 @@ export const GEMINI_EMBEDDING_MODELS: EmbeddingModelEntry[] = [
   // Matryoshka: any dimension ≤ 3072 can be requested; the platform pins a
   // compatible dimension via outputDimensionality when switching providers.
   { id: "gemini-embedding-001", provider: "gemini", dimension: 3072, inputUsdPerMTokens: 0.075, matryoshkaMaxDimension: 3072 },
+  // gemini-embedding-2-preview surfaced through Google's ListModels discovery
+  // (supportedGenerationMethods includes embedContent) before the static
+  // catalogue knew it — without a dimension entry every embedText call threw
+  // "Unknown output dimension for Gemini embedding model", so selecting it in
+  // Settings → AI Platform → Embeddings broke ingestion AND retrieval even
+  // with a valid Gemini key. Same family contract as gemini-embedding-001:
+  // Matryoshka, 3072 full dims, smaller via outputDimensionality.
+  { id: "gemini-embedding-2-preview", provider: "gemini", dimension: 3072, inputUsdPerMTokens: 0.075, matryoshkaMaxDimension: 3072 },
   { id: "text-embedding-004",   provider: "gemini", dimension: 768,  inputUsdPerMTokens: 0.075 },
   { id: "embedding-001",        provider: "gemini", dimension: 768,  inputUsdPerMTokens: 0.075 },
 ];
