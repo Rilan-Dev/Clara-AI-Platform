@@ -73,9 +73,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         }
         if (metadata.contentHash !== undefined && (typeof metadata.contentHash !== "string" || !/^[a-f0-9]{64}$/i.test(metadata.contentHash))) return errorResponse("Invalid contentHash", 400);
         if (metadata.metadataHash !== undefined && (typeof metadata.metadataHash !== "string" || !/^[a-f0-9]{64}$/i.test(metadata.metadataHash))) return errorResponse("Invalid metadataHash", 400);
-        if (metadata.sender !== undefined && !nonEmptyString(metadata.sender, 1024)) return errorResponse("Invalid sender", 400);
-        if (metadata.subject !== undefined && !nonEmptyString(metadata.subject, 2048)) return errorResponse("Invalid subject", 400);
-        if (metadata.labels !== undefined && (!Array.isArray(metadata.labels) || metadata.labels.length > 100 || metadata.labels.some((v) => !nonEmptyString(v, 256)))) {
+        if (metadata.sender !== undefined && metadata.sender !== null && !nonEmptyString(metadata.sender, 1024)) return errorResponse("Invalid sender", 400);
+        if (metadata.subject !== undefined && metadata.subject !== null && !nonEmptyString(metadata.subject, 2048)) return errorResponse("Invalid subject", 400);
+        if (metadata.labels !== undefined && metadata.labels !== null && (!Array.isArray(metadata.labels) || metadata.labels.length > 100 || metadata.labels.some((v) => !nonEmptyString(v, 256)))) {
           return errorResponse("Invalid labels", 400);
         }
 
@@ -130,13 +130,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             !isRecord(body.metadata)) {
           return errorResponse("orgId, accountId, messageId, and metadata are required", 400);
         }
-        const metadata: { sender?: string; subject?: string; labels?: string[]; receivedAt?: string; sourceId?: string } = {};
+        const metadata: { sender?: string | null; subject?: string | null; labels?: string[] | null; receivedAt?: string | null; sourceId?: string } = {};
         if (body.metadata.sender !== undefined) {
-          if (!nonEmptyString(body.metadata.sender, 1024)) return errorResponse("Invalid sender", 400);
+          if (body.metadata.sender !== null && !nonEmptyString(body.metadata.sender, 1024)) return errorResponse("Invalid sender", 400);
           metadata.sender = body.metadata.sender;
         }
         if (body.metadata.subject !== undefined) {
-          if (!nonEmptyString(body.metadata.subject, 2048)) return errorResponse("Invalid subject", 400);
+          if (body.metadata.subject !== null && !nonEmptyString(body.metadata.subject, 2048)) return errorResponse("Invalid subject", 400);
           metadata.subject = body.metadata.subject;
         }
         if (body.metadata.sourceId !== undefined) {
@@ -144,11 +144,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           metadata.sourceId = body.metadata.sourceId;
         }
         if (body.metadata.receivedAt !== undefined) {
-          if (!nonEmptyString(body.metadata.receivedAt, 80) || !Number.isFinite(Date.parse(body.metadata.receivedAt))) return errorResponse("Invalid receivedAt", 400);
+          if (body.metadata.receivedAt !== null && (!nonEmptyString(body.metadata.receivedAt, 80) || !Number.isFinite(Date.parse(body.metadata.receivedAt)))) return errorResponse("Invalid receivedAt", 400);
           metadata.receivedAt = body.metadata.receivedAt;
         }
         if (body.metadata.labels !== undefined) {
-          if (!Array.isArray(body.metadata.labels) || body.metadata.labels.length > 100 || body.metadata.labels.some((v) => !nonEmptyString(v, 256))) return errorResponse("Invalid labels", 400);
+          if (body.metadata.labels !== null && (!Array.isArray(body.metadata.labels) || body.metadata.labels.length > 100 || body.metadata.labels.some((v) => !nonEmptyString(v, 256)))) return errorResponse("Invalid labels", 400);
           metadata.labels = body.metadata.labels as string[];
         }
         if (Object.keys(metadata).length === 0) return errorResponse("At least one supported metadata field is required", 400);
