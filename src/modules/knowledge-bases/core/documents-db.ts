@@ -367,17 +367,23 @@ export async function getDocumentJobStatus(documentId: string): Promise<IngestJo
  * A job should never legitimately run longer than the route's maxDuration
  * (300s); we reset anything running longer than the stale window (default
  * 10 min) so it gets re-claimed by the poller.
+ *
+ * Attempts-aware: a stale job whose attempts are exhausted goes to the
+ * terminal 'failed' state — resetting it to 'pending' would make it
+ * unclaimable forever (claimNextPendingJob requires attempts < max_attempts),
+ * which is exactly how documents got stuck in 'pending' with a dead job.
  */
 export async function resetStaleIngestJobs(staleMs = 10 * 60 * 1000): Promise<number> {
   const row = await queryOne<{ count: string | number }>(
     `WITH stale AS (
        UPDATE ingest_jobs
-       SET status       = 'pending',
+       SET status       = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,
            error_message = COALESCE(error_message, '') ||
                             CASE WHEN error_message IS NULL OR error_message = ''
                                  THEN '' ELSE ' | ' END ||
                             'Recovered from interrupted run',
-           scheduled_at  = now()
+           scheduled_at  = now(),
+           completed_at  = CASE WHEN attempts >= max_attempts THEN now() ELSE NULL END
        WHERE status = 'running'
          AND started_at < now() - ($1 || ' milliseconds')::interval
        RETURNING 1
@@ -387,16 +393,77 @@ export async function resetStaleIngestJobs(staleMs = 10 * 60 * 1000): Promise<nu
   );
   const count = Number(row?.count ?? 0);
   if (count > 0) {
-    console.log(`[ingest-recovery] reset ${count} stale running job(s) back to pending`);
+    console.log(`[ingest-recovery] reset ${count} stale running job(s) (re-queued or finalized)`);
   }
   return count;
 }
 
 /**
- * Mark documents stuck in 'processing' that have no pending/running job left
- * (e.g. every job finished while the status update was lost, or a recovered
- * job was cancelled) as failed so the UI shows a Retry button instead of an
- * eternal spinner.
+ * Finalize pending ingest jobs that can never be claimed again
+ * (attempts >= max_attempts) and fail their still-pending/processing
+ * documents.
+ *
+ * How a job ends up 'pending' but unclaimable: markJobFailed() flipped it to
+ * 'failed', but a transient DB error during a later recovery pass, or an
+ * interrupted run between the claim and the failure write, leaves the row in
+ * a state where attempts are exhausted while status is still 'pending'.
+ * claimNextPendingJob() skips it forever (attempts < max_attempts is part of
+ * its WHERE clause), so the document sits in 'pending' eternally — the
+ * "background worker never starts parsing" symptom.
+ *
+ * This pass is the only thing that heals those rows without user action; it
+ * runs on every maintenance cycle (poller / drain endpoint), so pulling this
+ * fix is enough to un-stick existing documents.
+ */
+export async function finalizeUnclaimableIngestJobs(): Promise<number> {
+  const row = await queryOne<{ count: string | number }>(
+    `WITH dead AS (
+       UPDATE ingest_jobs ij
+       SET status       = 'failed',
+           error_message = COALESCE(NULLIF(ij.error_message, ''), 'Ingest attempts exhausted'),
+           completed_at  = now()
+       WHERE ij.status = 'pending'
+         AND ij.attempts >= ij.max_attempts
+       RETURNING ij.document_id, ij.error_message
+     ), healed_docs AS (
+       UPDATE documents d
+       SET status        = 'failed',
+           error_message = 'Processing stopped after repeated ingest failures. ' ||
+                           COALESCE(NULLIF((
+                             SELECT ij.error_message FROM ingest_jobs ij
+                             WHERE ij.document_id = d.id
+                             ORDER BY ij.created_at DESC LIMIT 1
+                           ), ''), 'Fix the embedding provider, then retry this document.'),
+           updated_at    = now()
+       WHERE d.status IN ('pending', 'processing')
+         AND EXISTS (SELECT 1 FROM dead WHERE dead.document_id = d.id)
+         AND NOT EXISTS (
+           -- another still-claimable job exists for the same document
+           SELECT 1 FROM ingest_jobs ij2
+           WHERE ij2.document_id = d.id
+             AND ij2.status = 'pending'
+             AND ij2.attempts < ij2.max_attempts
+         )
+       RETURNING 1
+     )
+     SELECT COUNT(*) AS count FROM dead`,
+  );
+  const count = Number(row?.count ?? 0);
+  if (count > 0) {
+    console.log(`[ingest-recovery] finalized ${count} unclaimable pending job(s) and failed their document(s)`);
+  }
+  return count;
+}
+
+/**
+ * Mark documents stuck in 'pending' or 'processing' that have no live job left
+ * as failed so the UI shows a Retry button instead of an eternal spinner /
+ * eternal "pending" row.
+ *
+ * A job keeps a document "alive" only when it is running, or pending AND
+ * still claimable (attempts < max_attempts — this includes jobs sitting out
+ * a retry backoff). A pending job with exhausted attempts is dead weight: it
+ * can never be claimed, so it must not keep the document pending forever.
  */
 export async function failOrphanedProcessingDocuments(): Promise<number> {
   const row = await queryOne<{ count: string | number }>(
@@ -405,11 +472,14 @@ export async function failOrphanedProcessingDocuments(): Promise<number> {
        SET status        = 'failed',
            error_message = 'Processing was interrupted before completing. Retry to rebuild vectors.',
            updated_at    = now()
-       WHERE d.status = 'processing'
+       WHERE d.status IN ('pending', 'processing')
          AND NOT EXISTS (
            SELECT 1 FROM ingest_jobs ij
            WHERE ij.document_id = d.id
-             AND ij.status IN ('pending', 'running')
+             AND (
+               ij.status = 'running'
+               OR (ij.status = 'pending' AND ij.attempts < ij.max_attempts)
+             )
          )
        RETURNING 1
      )
@@ -417,7 +487,7 @@ export async function failOrphanedProcessingDocuments(): Promise<number> {
   );
   const count = Number(row?.count ?? 0);
   if (count > 0) {
-    console.log(`[ingest-recovery] marked ${count} orphaned processing document(s) as failed`);
+    console.log(`[ingest-recovery] marked ${count} orphaned document(s) as failed`);
   }
   return count;
 }

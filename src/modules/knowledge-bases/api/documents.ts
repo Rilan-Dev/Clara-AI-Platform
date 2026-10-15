@@ -363,6 +363,25 @@ export async function reprocessDocumentHandler(
     // A fresh pending job already exists — the background poller will pick it
     // up; kick the queue so it happens immediately.
     if (latestJob.status === "pending") {
+      // Attempts-exhausted pending jobs can never be claimed again
+      // (claimPendingJobById requires attempts < max_attempts) — the enqueue
+      // below would be a silent no-op and the document would sit in 'pending'
+      // forever. Retrying such a document must create a FRESH job.
+      if (latestJob.attempts >= latestJob.maxAttempts) {
+        if (!latestJob.filePayload) {
+          await updateDocumentStatus(docId, "failed", {
+            errorMessage: latestJob.errorMessage ?? "Ingest attempts exhausted",
+          });
+          return NextResponse.json(
+            { error: "File payload has been cleared — please re-upload the document" },
+            { status: 400 }
+          );
+        }
+        await updateDocumentStatus(docId, "pending");
+        const freshJob = await createIngestJob(docId, kbId, latestJob.filePayload);
+        await enqueueIngestJob(freshJob.id);
+        return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: freshJob.id });
+      }
       await enqueueIngestJob(latestJob.id);
       return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: latestJob.id });
     }

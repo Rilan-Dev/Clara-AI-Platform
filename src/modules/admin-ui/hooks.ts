@@ -266,15 +266,34 @@ export function useDocuments(kbId: string, pollIntervalMs = 4000) {
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Track load failures so the poller keeps retrying even when the list is
+  // (or appears) empty. Previously a failed initial fetch left docs=[] and
+  // the poller's "only poll while something is pending" check never fired
+  // again — the KB page showed an empty table until the next manual action.
+  const loadFailedRef = useRef(false);
 
   const load = useCallback(() => {
-    api.fetchDocuments(kbId).then(setDocs).catch((e: Error) => setError(e.message)).finally(() => setLoading(false));
+    api.fetchDocuments(kbId)
+      .then((next) => {
+        loadFailedRef.current = false;
+        setError(null);
+        setDocs(next);
+      })
+      .catch((e: Error) => {
+        loadFailedRef.current = true;
+        setError(e.message);
+      })
+      .finally(() => setLoading(false));
   }, [kbId]);
 
   useEffect(() => {
     load();
     intervalRef.current = setInterval(() => {
-      setDocs((prev) => { const hasPending = prev.some((d) => d.status === "pending" || d.status === "processing"); if (hasPending) load(); return prev; });
+      setDocs((prev) => {
+        const hasPending = prev.some((d) => d.status === "pending" || d.status === "processing");
+        if (hasPending || loadFailedRef.current) load();
+        return prev;
+      });
     }, pollIntervalMs);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [load, pollIntervalMs]);

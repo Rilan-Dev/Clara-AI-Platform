@@ -41,7 +41,7 @@ export default function KbDashboardPage() {
   const { data: agent } = useAgent(agentId);
   const orgId = agent?.orgId ?? searchParams.get("orgId");
   const { data: org } = useOrg(orgId);
-  const { docs, loading: docsLoading, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
+  const { docs, loading: docsLoading, error: docsError, upload, remove, reprocess, refetch: refetchDocs } = useDocuments(kbId);
   const { data: analytics, loading: analyticsLoading, refetch: refetchAnalytics } = useAnalytics(kbId);
 
   // The active tab lives in the URL (?tab=design) so it survives refresh,
@@ -61,6 +61,10 @@ export default function KbDashboardPage() {
   const [archiving, setArchiving] = useState(false);
   const [draining, setDraining] = useState(false);
   const [drainResult, setDrainResult] = useState<string | null>(null);
+
+  const handleRetryLoad = useCallback(() => {
+    refetchDocs();
+  }, [refetchDocs]);
 
   const total = docs.length;
   const ready = docs.filter((doc) => doc.status === "ready").length;
@@ -210,6 +214,22 @@ export default function KbDashboardPage() {
         {tab === "documents" && (
           <div className="space-y-4">
             {!isAdmin && <KnowledgeIndexPanel kbId={kbId} />}
+            {docsError && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-medium text-destructive">
+                    Couldn&apos;t load the document list{docsError ? ": " : "."}
+                    {docsError}
+                  </p>
+                  <p className="mt-1 text-xs text-destructive/75">
+                    Your documents are safe — this is a temporary server/database hiccup. The list keeps retrying automatically every 4 seconds.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleRetryLoad} className="shrink-0">
+                  Retry now
+                </Button>
+              </div>
+            )}
             {stuck > 0 && (
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-600/20 bg-amber-500/10 px-5 py-4">
                 <div>
@@ -419,6 +439,22 @@ export default function KbDashboardPage() {
       {tab === "documents" && (
         <div className="space-y-4">
           {!isAdmin && <KnowledgeIndexPanel kbId={kbId} />}
+          {docsError && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-destructive">
+                  Couldn&apos;t load the document list{docsError ? ": " : "."}
+                  {docsError}
+                </p>
+                <p className="mt-1 text-xs text-destructive/75">
+                  Your documents are safe — this is a temporary server/database hiccup. The list keeps retrying automatically every 4 seconds.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleRetryLoad} className="shrink-0">
+                Retry now
+              </Button>
+            </div>
+          )}
           {stuck > 0 && (
             <div className="flex items-center justify-between gap-4 rounded-2xl border border-amber-600/20 bg-amber-500/10 px-5 py-4">
               <div>

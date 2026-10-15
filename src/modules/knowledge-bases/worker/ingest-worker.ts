@@ -25,6 +25,7 @@ import {
   claimPendingJobById,
   claimNextPendingJob,
   failOrphanedProcessingDocuments,
+  finalizeUnclaimableIngestJobs,
   resetStaleIngestJobs,
   type IngestJobWithPayload,
   markJobDone,
@@ -42,6 +43,42 @@ export type ProcessResult =
   | { status: "processed"; documentId: string; chunkCount: number }
   | { status: "idle" }
   | { status: "error"; error: string };
+
+/** Small backoff between retries of failure-status DB writes. */
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Run a tiny failure-status UPDATE with retries.
+ *
+ * These writes are the ONLY thing that moves a failed job/document out of
+ * their in-flight states. When the database is flaky (pool exhaustion during
+ * an embedding-provider outage — exactly when ingest jobs fail in bulk), a
+ * single lost UPDATE orphans the pair forever: the job stays 'running', the
+ * document stays 'pending'/'processing', and no poller can make progress on
+ * them. Retrying these one-row writes makes orphaned states practically
+ * impossible; the recovery passes in runIngestMaintenance() remain the
+ * safety net for anything that still slips through (e.g. container kill).
+ */
+async function withStatusWriteRetry(
+  label: string,
+  write: () => Promise<void>,
+  attempts = 3,
+): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await write();
+      return;
+    } catch (err) {
+      if (attempt >= attempts) {
+        console.error(`[ingest-worker] ${label} status write failed after ${attempt} attempt(s):`, (err as Error).message);
+        return;
+      }
+      await sleep(attempt === 1 ? 500 : 1500);
+    }
+  }
+}
 
 async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResult> {
   const { documentId, kbId, id: jobId, filePayload } = job;
@@ -95,10 +132,16 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
     const message = (err as Error).message;
     console.error(`[ingest-worker] ❌ job ${jobId} failed:`, message);
 
-    await updateDocumentStatus(documentId, "failed", { errorMessage: message });
+    // Failure-status writes are retried: losing one to a flaky DB is how
+    // documents end up orphaned in 'pending' with an unclaimable job.
+    await withStatusWriteRetry(`document ${documentId}`, () =>
+      updateDocumentStatus(documentId, "failed", { errorMessage: message })
+    );
 
     const delaySec = 30 * Math.pow(2, job.attempts - 1);
-    await markJobFailed(jobId, message, delaySec);
+    await withStatusWriteRetry(`job ${jobId}`, () =>
+      markJobFailed(jobId, message, delaySec)
+    );
 
     return { status: "error", error: message };
   }
@@ -136,12 +179,24 @@ export async function runIngestMaintenance(maxJobs = 20): Promise<{
     console.error("[ingest-worker] stale job recovery failed:", (err as Error).message);
     return 0;
   });
+  // Pending-but-unclaimable jobs are the direct cause of documents sitting in
+  // 'pending' forever with the background worker seemingly idle. Finalize
+  // them (and fail their documents) before the orphan pass so both agree.
+  const finalizedDeadJobs = await finalizeUnclaimableIngestJobs().catch((err) => {
+    console.error("[ingest-worker] dead-job finalization failed:", (err as Error).message);
+    return 0;
+  });
   const recoveredDocuments = await failOrphanedProcessingDocuments().catch((err) => {
     console.error("[ingest-worker] orphaned document recovery failed:", (err as Error).message);
     return 0;
   });
   const { processed, errors } = await drainQueue(maxJobs);
-  return { processed, errors, recoveredJobs, recoveredDocuments };
+  return {
+    processed,
+    errors,
+    recoveredJobs: recoveredJobs + finalizedDeadJobs,
+    recoveredDocuments,
+  };
 }
 
 /**

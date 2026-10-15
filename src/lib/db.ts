@@ -57,7 +57,16 @@ function getPgConfig() {
     // to release their connection.
     idleTimeoutMillis: 30_000,
 
-    connectionTimeoutMillis: 5_000,
+    // Waiting time for a free pool client (also covers TCP setup). Under a
+    // self-hosted load spike (bulk ingest + dashboards + crons) a 5s budget
+    // failed unrelated requests with "timeout exceeded when trying to
+    // connect" — the document list itself 500'd, which surfaced in the UI as
+    // an empty knowledge base. 10s rides out the spike; requests get slower
+    // instead of failing. PG_CONNECT_TIMEOUT_MS overrides.
+    connectionTimeoutMillis: (() => {
+      const v = Number(process.env.PG_CONNECT_TIMEOUT_MS);
+      return Number.isFinite(v) && v > 0 ? v : 10_000;
+    })(),
     query_timeout: 8_000,
     statement_timeout: 8_000,
     keepAlive: true,

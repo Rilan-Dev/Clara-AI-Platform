@@ -44,6 +44,18 @@ const EMBED_MAX_RETRIES = (() => {
   return Number.isFinite(v) && v >= 0 ? v : 4;
 })();
 
+/**
+ * Retries for connect-level "host is unreachable" failures. An unreachable
+ * endpoint is not a transient condition — each retry burns a full connect
+ * timeout (20s default). One confirmation retry is enough; grinding through
+ * all EMBED_MAX_RETRIES against a blackholed host only generates the load
+ * storm (DB/Qdrant timeouts everywhere) that made whole-page requests fail.
+ */
+const EMBED_UNREACHABLE_RETRIES = (() => {
+  const v = Number(process.env.EMBED_UNREACHABLE_RETRIES ?? "1");
+  return Number.isFinite(v) && v >= 0 ? v : 1;
+})();
+
 const UPSERT_BATCH_SIZE = (() => {
   const v = Number(process.env.UPSERT_BATCH_SIZE ?? "200");
   return Number.isFinite(v) && v > 0 ? v : 200;
@@ -114,6 +126,20 @@ function embeddingFailureDetail(err: unknown): string {
     : `${message} [${network.detail}]`;
 }
 
+/**
+ * Connect-level failure classification: the embedding endpoint itself could
+ * not be reached (connect timeout / DNS / refused / unreachable). Distinct
+ * from transient errors (429, mid-flight resets) worth full retries — see
+ * EMBED_UNREACHABLE_RETRIES.
+ */
+export function isUnreachableEmbeddingError(err: unknown): boolean {
+  const network = describeNetworkError(err);
+  if (!network) return false;
+  return /connect ?timeout|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|getaddrinfo|EHOSTUNREACH|ENETUNREACH|unreachable|cannot reach/i.test(
+    network.detail
+  );
+}
+
 async function embedBatchWithRetry(
   texts: string[],
   providerConfig: ProviderConfig,
@@ -141,10 +167,16 @@ async function embedBatchWithRetry(
     const status = typeof e?.status === "number" ? e.status
       : String(e?.message ?? "").includes("429") ? 429 : 0;
     const retryable = status === 429 || isRetryableEmbedError(err);
-    if (retryable && attempt < EMBED_MAX_RETRIES) {
+    // Unreachable endpoints get a short retry budget — see
+    // EMBED_UNREACHABLE_RETRIES. Everything else (429 / transient resets)
+    // keeps the full retry ladder.
+    const maxRetries = isUnreachableEmbeddingError(err)
+      ? EMBED_UNREACHABLE_RETRIES
+      : EMBED_MAX_RETRIES;
+    if (retryable && attempt < maxRetries) {
       const wait = Math.min(1_000 * 2 ** attempt, 30_000);
       console.warn(
-        `[vs-kb] embedding batch failed (${providerDesc}), retrying in ${wait}ms (attempt ${attempt + 1}/${EMBED_MAX_RETRIES}): ${embeddingFailureDetail(err)}`
+        `[vs-kb] embedding batch failed (${providerDesc}), retrying in ${wait}ms (attempt ${attempt + 1}/${maxRetries}): ${embeddingFailureDetail(err)}`
       );
       await sleep(wait);
       return embedBatchWithRetry(texts, providerConfig, attempt + 1, metering);
@@ -178,22 +210,37 @@ export async function embedBatches(
     // One API call per batch (provider batch endpoint) instead of N parallel
     // single-text calls — fewer requests, fewer rate limits, faster ingest.
     // WS-1.1: each batch appends one EMBEDDING usage event (tokens + cost).
-    const embeddings = await embedBatchWithRetry(batch, providerConfig, 0, {
-      ...metering,
-      onTokens: (tokens) => {
-        const provider = ProviderFactory.getProvider(providerConfig);
-        void logUsageEvent({
-          kind: "EMBEDDING",
-          model: provider.getModelName("embedding"),
-          provider: provider.getProviderName(),
-          orgId: metering?.orgId ?? null,
-          kbId: metering?.kbId ?? null,
-          documentId: metering?.documentId ?? null,
-          promptTokens: tokens,
-          metadata: { batch: batchNum, chunks: batch.length },
-        });
-      },
-    });
+    let embeddings: number[][];
+    try {
+      embeddings = await embedBatchWithRetry(batch, providerConfig, 0, {
+        ...metering,
+        onTokens: (tokens) => {
+          const provider = ProviderFactory.getProvider(providerConfig);
+          void logUsageEvent({
+            kind: "EMBEDDING",
+            model: provider.getModelName("embedding"),
+            provider: provider.getProviderName(),
+            orgId: metering?.orgId ?? null,
+            kbId: metering?.kbId ?? null,
+            documentId: metering?.documentId ?? null,
+            promptTokens: tokens,
+            metadata: { batch: batchNum, chunks: batch.length },
+          });
+        },
+      });
+    } catch (err) {
+      // Fail fast when the provider endpoint is unreachable: every remaining
+      // batch would burn the same connect timeout (~20s × retries) against a
+      // blackholed host — a 295-chunk document used to grind for 20+ minutes
+      // per attempt, keeping the DB and Qdrant under a load storm that failed
+      // unrelated page requests. One unreachable batch proves the rest.
+      if (isUnreachableEmbeddingError(err) && batchNum < totalBatches) {
+        console.error(
+          `[vs-kb] embedding provider unreachable — aborting the remaining ${totalBatches - batchNum} batch(es) of this document (fail fast)`
+        );
+      }
+      throw err;
+    }
     if (embeddings.length !== batch.length) {
       throw new Error(
         `Embedding provider returned ${embeddings.length} vectors for ${batch.length} inputs`
