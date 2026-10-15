@@ -50,7 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   let body: unknown;
   try {
     const raw = await request.text();
-    if (raw.length > 2_000_000) return errorResponse("Request body exceeds 2 MB", 413);
+    if (Buffer.byteLength(raw, "utf8") > 2_000_000) return errorResponse("Request body exceeds 2 MB", 413);
     body = JSON.parse(raw);
   } catch {
     return errorResponse("A valid JSON request body is required", 400);
