@@ -28,11 +28,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme}
-      className="toaster group"
+      className="toaster group clara-responsive-toaster"
       toastOptions={{
         classNames: {
           toast:
-            "group toast min-w-0 max-w-[min(24rem,calc(100vw-2rem))] overflow-hidden group-hover:overflow-visible group-hover:z-50 group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+            "group toast box-border w-[calc(100vw-1.5rem)] min-w-0 max-w-[min(28rem,calc(100vw-1.5rem))] sm:w-[min(28rem,calc(100vw-2rem))] overflow-hidden break-words [overflow-wrap:anywhere] group-hover:overflow-visible group-hover:z-50 group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
           title: "line-clamp-1 overflow-hidden break-words [overflow-wrap:anywhere] group-hover:line-clamp-none group-hover:overflow-visible",
           description: "group-[.toast]:text-muted-foreground line-clamp-1 overflow-hidden break-words [overflow-wrap:anywhere] transition-[max-height] duration-150 group-hover:line-clamp-none group-hover:overflow-visible",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
