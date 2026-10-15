@@ -1,3 +1,17 @@
+## SOURCE CHANGE — LIVE NAVBAR NOTIFICATION CENTER — 2026-10-15
+
+Source-only review of the owner-requested notification UX change:
+- Navbar bell with count badge and active platform health issues dropdown.
+- Polling every 30 seconds and on focus, with no screen reload required for notification refresh.
+- Sonner warnings auto-dismiss; critical Risk toast is persistent until explicitly closed, and recovery emits an informational toast.
+- Removed the old banner's tomorrow/never suppression actions.
+
+Commits: `550449f4bde71d04977ffd26af5faad0659e2167`, `cfbf75807a6c386e2c17fc8edf5d6bb8a83f69e9`, `872e1fd137f8485e748050fba23f18fab89827f5`, `a1f32c17ee31a268e7407ed23cd6f9d3f5e392d7`.
+
+No tests, type-check, build, live browser, CI, Vercel, or Gate execution was run or awaited. This is not a PASS claim.
+
+---
+
 ## 2026-10-14 — EMBEDDING PROVIDER POLICY REGRESSION SOURCE
 
 - Extracted the embedding-only provider choice into a pure helper and added focused regression source for credential-aware override/fallback semantics.
