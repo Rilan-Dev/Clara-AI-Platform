@@ -61,7 +61,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
         <AppShell>
           {children}
-          <Toaster position="top-right" richColors closeButton />
+          <Toaster position="bottom-center" visibleToasts={5} expand richColors closeButton className="clara-responsive-toaster" />
           <ConfirmDialogHost />
           <Analytics />
           <SpeedInsights />
