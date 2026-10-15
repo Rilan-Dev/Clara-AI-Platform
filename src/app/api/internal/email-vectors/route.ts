@@ -71,6 +71,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             !Array.isArray(chunks) || chunks.length > 200) {
           return errorResponse("Invalid metadata or chunks", 400);
         }
+        if (metadata.contentHash !== undefined && (typeof metadata.contentHash !== "string" || !/^[a-f0-9]{64}$/i.test(metadata.contentHash))) return errorResponse("Invalid contentHash", 400);
+        if (metadata.metadataHash !== undefined && (typeof metadata.metadataHash !== "string" || !/^[a-f0-9]{64}$/i.test(metadata.metadataHash))) return errorResponse("Invalid metadataHash", 400);
         if (metadata.sender !== undefined && !nonEmptyString(metadata.sender, 1024)) return errorResponse("Invalid sender", 400);
         if (metadata.subject !== undefined && !nonEmptyString(metadata.subject, 2048)) return errorResponse("Invalid subject", 400);
         if (metadata.labels !== undefined && (!Array.isArray(metadata.labels) || metadata.labels.length > 100 || metadata.labels.some((v) => !nonEmptyString(v, 256)))) {
@@ -84,12 +86,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               !nonEmptyString(item.text, 12_000) ||
               !Number.isInteger(item.chunkIndex) ||
               Number(item.chunkIndex) < 0 ||
-              !nonEmptyString(item.sourceId, 512)) {
+              !nonEmptyString(item.sourceId, 512) ||
+              (item.contentHash !== undefined && (typeof item.contentHash !== "string" || !/^[a-f0-9]{64}$/i.test(item.contentHash)))) {
             return errorResponse("Each chunk requires text, a non-negative integer chunkIndex, and sourceId", 400);
           }
           if (seenIndices.has(Number(item.chunkIndex))) return errorResponse("chunkIndex values must be unique", 400);
           seenIndices.add(Number(item.chunkIndex));
-          normalizedChunks.push({ text: item.text, chunkIndex: Number(item.chunkIndex), sourceId: item.sourceId });
+          normalizedChunks.push({ text: item.text, chunkIndex: Number(item.chunkIndex), sourceId: item.sourceId, ...(typeof item.contentHash === "string" ? { contentHash: item.contentHash } : {}) });
         }
 
         const result = await upsertEmailVectors({
