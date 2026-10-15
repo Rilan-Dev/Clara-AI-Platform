@@ -1,3 +1,9 @@
+## SONNER TOAST UX — RESPONSIVE BOTTOM STACK — 2026-10-16
+
+Global Sonner notifications now use bottom-center placement, an expanded stack with up to five visible notifications, and viewport-aware toast sizing for phone through desktop widths. Long error text continues to wrap safely and individual toasts expand on hover. Commits: `35be473c9a744a36c13d3a88a24688765ac62c40`, `2aea322552891bb1313e39902dfecf2aba2ae52c`. Browser/build/CI/Vercel/Gate verification was not run or awaited; no visual PASS claimed.
+
+---
+
 ## SONNER TOAST UX — 2026-10-16
 
 Implemented compact Sonner notifications: long titles/details are clamped to one line by default, the hovered toast expands and wraps safely, and toast width/stacking are bounded for consistent interaction. Commits: `146bf14e09c3b64879908b72d1fcda2a8e2ce221`, `f3fd7ad5c925c5075b6b03a9795f59dc31165660`. Visual verification deferred; no tests/build/CI/Vercel/Gate awaited.
