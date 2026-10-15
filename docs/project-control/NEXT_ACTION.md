@@ -1,3 +1,13 @@
+## SONNER TOAST UX — RESPONSIVE BOTTOM STACK — 2026-10-16
+
+- Global Sonner notifications now anchor at the bottom-center on desktop and mobile, show up to five stacked notifications, and expand the stack by default so active notifications remain visible.
+- Toast cards use viewport-bounded widths (narrow phone-safe sizing, wider desktop cap), safe word breaking for long provider/API errors, and existing per-toast hover expansion.
+- Commits: `35be473c9a744a36c13d3a88a24688765ac62c40` (global bottom placement/stack), `2aea322552891bb1313e39902dfecf2aba2ae52c` (responsive toast sizing).
+- No browser test, build, CI, Vercel, or Gate was run or awaited. Responsive appearance remains unverified.
+- **Next implementation:** continue the authorized live Gemini model-catalogue audit. Enabled live governance rows must be filtered by provider, capability, and kind for selectable defaults; static price/dimension data remains metadata only; stale defaults fail closed when discovery fails; add regression coverage for filters, stale defaults, discovery failures, pricing, and dimensions.
+
+---
+
 ## SONNER TOAST UX — 2026-10-16
 
 - Toast titles and descriptions now stay compact to one line by default, wrap safely for long provider/API errors, and expand when the user hovers the specific toast. Toast width is constrained to the viewport and the hovered toast is raised above adjacent notifications.
