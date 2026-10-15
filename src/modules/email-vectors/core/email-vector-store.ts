@@ -59,9 +59,17 @@ async function embeddingContext(orgId: string): Promise<{ config: ProviderConfig
     .digest("hex")
     .slice(0, 12);
   const providerKey = String(config.provider).toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 20);
-  const collection = `email_vectors_${providerKey}_${modelKey}`;
+  const orgKey = createHash("sha256").update(orgId).digest("hex").slice(0, 16);
+  const collection = `email_vectors_${orgKey}_${providerKey}_${modelKey}`;
   await ensureCollectionExists(collection, { vectorSize: dimension, distance: "Cosine" });
   return { config, collection };
+}
+
+async function collectionsForOrg(orgId: string): Promise<string[]> {
+  const orgKey = createHash("sha256").update(orgId).digest("hex").slice(0, 16);
+  const prefix = `email_vectors_${orgKey}_`;
+  const result = await getQdrantClient().getCollections();
+  return result.collections.map((item) => item.name).filter((name) => name.startsWith(prefix));
 }
 
 function tenantAccountFilter(orgId: string, accountIds: string[]) {
@@ -127,53 +135,65 @@ export async function updateEmailVectorMetadata(input: {
   messageId: string;
   metadata: { sender?: string; subject?: string; labels?: string[]; receivedAt?: string; sourceId?: string };
 }): Promise<void> {
-  const { collection } = await embeddingContext(input.orgId);
-  await getQdrantClient().setPayload(collection, {
-    wait: true,
-    payload: input.metadata,
-    filter: {
-      must: [
-        { key: "orgId", match: { value: input.orgId } },
-        { key: "accountId", match: { value: input.accountId } },
-        { key: "messageId", match: { value: input.messageId } },
-      ],
-    },
-  });
+  const client = getQdrantClient();
+  const collections = await collectionsForOrg(input.orgId);
+  for (const collection of collections) {
+    await client.setPayload(collection, {
+      wait: true,
+      payload: input.metadata,
+      filter: {
+        must: [
+          { key: "orgId", match: { value: input.orgId } },
+          { key: "accountId", match: { value: input.accountId } },
+          { key: "messageId", match: { value: input.messageId } },
+        ],
+      },
+    });
+  }
 }
 
 export async function deleteEmailMessageVectors(orgId: string, accountId: string, messageId: string): Promise<void> {
-  const { collection } = await embeddingContext(orgId);
-  await getQdrantClient().delete(collection, {
-    wait: true,
-    filter: {
-      must: [
-        { key: "orgId", match: { value: orgId } },
-        { key: "accountId", match: { value: accountId } },
-        { key: "messageId", match: { value: messageId } },
-      ],
-    },
-  });
+  const client = getQdrantClient();
+  const collections = await collectionsForOrg(orgId);
+  for (const collection of collections) {
+    await client.delete(collection, {
+      wait: true,
+      filter: {
+        must: [
+          { key: "orgId", match: { value: orgId } },
+          { key: "accountId", match: { value: accountId } },
+          { key: "messageId", match: { value: messageId } },
+        ],
+      },
+    });
+  }
 }
 
 export async function purgeEmailAccountVectors(orgId: string, accountId: string): Promise<void> {
-  const { collection } = await embeddingContext(orgId);
-  await getQdrantClient().delete(collection, {
-    wait: true,
-    filter: {
-      must: [
-        { key: "orgId", match: { value: orgId } },
-        { key: "accountId", match: { value: accountId } },
-      ],
-    },
-  });
+  const client = getQdrantClient();
+  const collections = await collectionsForOrg(orgId);
+  for (const collection of collections) {
+    await client.delete(collection, {
+      wait: true,
+      filter: {
+        must: [
+          { key: "orgId", match: { value: orgId } },
+          { key: "accountId", match: { value: accountId } },
+        ],
+      },
+    });
+  }
 }
 
 export async function purgeEmailOrgVectors(orgId: string): Promise<void> {
-  const { collection } = await embeddingContext(orgId);
-  await getQdrantClient().delete(collection, {
-    wait: true,
-    filter: { must: [{ key: "orgId", match: { value: orgId } }] },
-  });
+  const client = getQdrantClient();
+  const collections = await collectionsForOrg(orgId);
+  for (const collection of collections) {
+    await client.delete(collection, {
+      wait: true,
+      filter: { must: [{ key: "orgId", match: { value: orgId } }] },
+    });
+  }
 }
 
 export async function searchEmailVectors(input: {
