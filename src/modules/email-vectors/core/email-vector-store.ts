@@ -58,7 +58,7 @@ async function embeddingContext(orgId: string): Promise<{ config: ProviderConfig
     .update([config.provider, config.embeddingModel ?? "", String(dimension)].join("\\0"))
     .digest("hex")
     .slice(0, 12);
-  const providerKey = String(config.provider).toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 20);
+  const providerKey = String(config.provider).toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 16);
   const orgKey = createHash("sha256").update(orgId).digest("hex").slice(0, 16);
   const collection = `email_vectors_${orgKey}_${providerKey}_${modelKey}`;
   await ensureCollectionExists(collection, { vectorSize: dimension, distance: "Cosine" });
@@ -125,6 +125,24 @@ export async function upsertEmailVectors(input: {
       must_not: [{ key: "chunkIndex", match: { any: indices } }],
     },
   });
+
+  // A provider/model change creates a separate collection. Once the new
+  // representation is written, remove obsolete copies from prior model
+  // collections so old content is not retained or returned after a rollback.
+  const priorCollections = await collectionsForOrg(metadata.orgId);
+  for (const priorCollection of priorCollections) {
+    if (priorCollection === collection) continue;
+    await client.delete(priorCollection, {
+      wait: true,
+      filter: {
+        must: [
+          { key: "orgId", match: { value: metadata.orgId } },
+          { key: "accountId", match: { value: metadata.accountId } },
+          { key: "messageId", match: { value: metadata.messageId } },
+        ],
+      },
+    });
+  }
 
   return { upserted: points.length, staleCleanupApplied: true };
 }
