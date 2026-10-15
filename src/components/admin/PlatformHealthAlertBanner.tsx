@@ -105,7 +105,7 @@ export function PlatformHealthAlertBanner() {
 
     let cancelled = false;
     const initial = async () => {
-      await refresh(false);
+      await refresh(true);
     };
     void initial();
     const timer = window.setInterval(() => {
