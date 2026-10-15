@@ -1,3 +1,12 @@
+## SOURCE-ONLY UPDATE — 2026-10-16 — GEMINI STALE EMBEDDING DEFAULT
+
+- Reviewed and changed `src/modules/ai-core/resolve.ts`: static model metadata no longer creates a synthetic enabled embedding option when the configured platform default is missing from enabled vendor-live governance rows. A stale default emits a degraded runtime incident.
+- Commit: `8b1d64d2bb06764342205040cf00918c864abebb`.
+- Verification boundary: source change only. No tests/type-check/build/live vendor API/CI/Vercel/Gate was run or awaited. No PASS.
+- Remaining audit work: focused regression coverage for provider/capability/kind filtering, stale default and discovery-failure behavior, pricing/dimension metadata enrichment, plus remaining consumer/failure-boundary review.
+
+---
+
 ## IMPLEMENTATION-ONLY UPDATE — 2026-10-16 — SONNER + ORGANISATION NOTIFICATIONS
 
 - Source changes committed: per-toast hover width expansion; organization notification center; organization status and announcement Sonner notifications; dismissible announcement controls; org topbar integration.
