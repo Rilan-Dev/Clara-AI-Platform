@@ -1,3 +1,9 @@
+## SONNER TOAST UX — 2026-10-16
+
+Implemented compact Sonner notifications: long titles/details are clamped to one line by default, the hovered toast expands and wraps safely, and toast width/stacking are bounded for consistent interaction. Commits: `146bf14e09c3b64879908b72d1fcda2a8e2ce221`, `f3fd7ad5c925c5075b6b03a9795f59dc31165660`. Visual verification deferred; no tests/build/CI/Vercel/Gate awaited.
+
+---
+
 ## OWNER-REQUESTED UI CHANGE — LIVE NAVBAR NOTIFICATION CENTER — 2026-10-15
 
 [architect source review] Platform-health alerts have been moved from a large dismissible banner into a top-right navbar bell with a count badge and a priority-labelled dropdown. The client refreshes on a 30-second interval and window focus; it uses Sonner to announce new incidents, critical escalations, and recoveries without requiring a route reload. Critical incidents use a persistent Risk toast with an explicit close control; warnings auto-dismiss.
