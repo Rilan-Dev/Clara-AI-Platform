@@ -1,3 +1,11 @@
+## IMPLEMENTATION-ONLY UPDATE — 2026-10-16 — SONNER + ORGANISATION NOTIFICATIONS
+
+- Source changes committed: per-toast hover width expansion; organization notification center; organization status and announcement Sonner notifications; dismissible announcement controls; org topbar integration.
+- Commit sequence: `8476e1003f6727ef5d7294642f5553c8206a146a`, `3957bdd84000b6c5cd86ff6f3715981c729ec7f1`, `2f4d8bbc69c269b313cbb76527d07bff8cf0d34b`, `3d5453afdc514479a6d1ac836381361ed03195b9`, `b37fd82a47c1c9f1daad2184b973dfe5a75e339d`.
+- No automated tests, type-check, build, browser inspection, CI, Vercel build, or Gate was run or awaited. This is not a verification PASS; visual and runtime behavior remain unverified.
+
+---
+
 ## SONNER TOAST UX — RESPONSIVE BOTTOM STACK — 2026-10-16
 
 Source changes committed: `35be473c9a744a36c13d3a88a24688765ac62c40` (global bottom-center placement, expanded stack, up to five visible notifications) and `2aea322552891bb1313e39902dfecf2aba2ae52c` (viewport-bounded responsive toast widths and safe wrapping). No browser verification, tests, build, CI, Vercel, or Gate execution was performed. Responsive appearance is not verified; no PASS claimed.
