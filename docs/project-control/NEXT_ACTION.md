@@ -1,3 +1,12 @@
+## SONNER TOAST UX — 2026-10-16
+
+- Toast titles and descriptions now stay compact to one line by default, wrap safely for long provider/API errors, and expand when the user hovers the specific toast. Toast width is constrained to the viewport and the hovered toast is raised above adjacent notifications.
+- Commits: `146bf14e09c3b64879908b72d1fcda2a8e2ce221` (compact toast layout and hover behavior), `f3fd7ad5c925c5075b6b03a9795f59dc31165660` (title clamping).
+- No browser test, build, CI, Vercel, or Gate was run or awaited. Visual behavior is implementation-only, not verified.
+- **Next implementation remains:** continue the authorized live Gemini model-catalogue audit. Enabled live governance rows must be filtered by provider, capability, and kind for selectable defaults; static price/dimension data remains metadata only; stale defaults fail closed when discovery fails; add regression coverage for filters, stale defaults, discovery failures, pricing, and dimensions.
+
+---
+
 # EMBEDDING EGRESS ROOT CAUSE + ENVIRONMENT SCOPING (DEV/PROD ON ONE STACK) — 2026-10-15
 
 - Owner-confirmed state after 941c6305: both PDFs now show `Failed` with the full actionable error — `Connect Timeout Error (attempted address: generativelanguage.googleapis.com:443, timeout: 20000ms) — this server cannot reach generativelanguage.googleapis.com:443`. Extraction works (the worker parses 185k chars into ~295 chunks); ONLY the embedding outbound call fails. Root cause is network-level: the deployment host's route to Google's Gemini endpoint is blocked (verified from a clean network the same code path reaches the endpoint in ~60ms and gets HTTP 403 auth-gated, i.e. transport OK).
