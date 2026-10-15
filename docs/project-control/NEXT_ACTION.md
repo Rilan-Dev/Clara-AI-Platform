@@ -1,3 +1,14 @@
+## GEMINI LIVE MODEL CATALOGUE — DISCOVERY/RECONCILIATION AUDIT SOURCE WORK COMPLETE — 2026-10-16
+
+- Added a hard fail-closed pagination boundary to Gemini discovery: a repeated page token or a still-present next-page token at the 20-page limit throws before any Gemini upsert or stale-row reconciliation. Partial discovery can no longer be mistaken for a complete catalogue.
+- Added `src/modules/ai-governance/core/live-catalog.test.ts` regression source covering static price/context metadata and embedding dimension enrichment on genuinely discovered rows, failed discovery preserving last-known rows, successful empty discovery disabling stale rows, and pagination-limit failure leaving existing rows untouched.
+- Implementation commit: `e70860232a726a849c89f191135be0d360a99ece`.
+- Regression source commit: `51b0162c5dcedc054dccbd09e26ffafe234f4964`.
+- No tests, type-check, build, live vendor API, CI, Vercel, or Gate was run or awaited. No executable PASS is claimed.
+- Source audit items supplied in the current action are addressed. The broader live-catalogue workstream remains open only for any further scope already recorded elsewhere in this file; do not infer project-wide phase closure from this focused audit.
+
+---
+
 ## KB INGEST EMBEDDING — FIX CLOBBERED BY FORCE-PUSH + NO-OP DEPLOY — RECOVERED — 2026-10-16
 
 - Symptom recurrence explained: the owner redeploy ("Already up to date." + ALL Docker layers cached → containers not recreated) ran BEFORE the fix landed on GitHub, and the fix commit c40d266c was subsequently force-pushed off the branch by a stale-checkout push (owner's a9e5b8e3 export-qdrant + the stale-default/ai-catalog session → head 977489ef). The running image was 6cbece5a the whole time — the probe output WITHOUT BATCH/QDRANT stages and the hard-fail "1 vectors for 20 inputs" signature are pre-fix behavior, NOT a failure of the fix.
