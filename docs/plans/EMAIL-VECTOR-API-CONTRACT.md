@@ -94,3 +94,7 @@ All delete filters include the organization, and message/account operations incl
 ## Metadata clearing and Qdrant integration coverage
 
 For upsert and metadata-only updates, an explicitly supplied null/empty value clears a previously stored optional payload field; omission means the field is not being updated. This distinction prevents stale sender/subject/labels from surviving source metadata changes. The endpoint enforces the 2 MB body limit in UTF-8 bytes. An opt-in Qdrant integration test checks the real server's organization + explicit allowed-account filter and account-scoped deletion semantics when QDRANT_INTEGRATION_URL is configured (optional QDRANT_INTEGRATION_API_KEY). The test has been authored but not executed in the current work session.
+
+### Search freshness metadata — 2026-10-16
+
+Semantic search hits now include the indexed message `contentHash` from the Qdrant payload. Consumers must compare this hash with the authoritative current PostgreSQL document hash before using a semantic-only candidate. If the current source document is missing or its content hash differs, discard that stale semantic candidate. The final answer body and metadata must always be loaded from PostgreSQL, not the vector payload. This field addition is source-authored and has not been executed against a live Qdrant instance.
