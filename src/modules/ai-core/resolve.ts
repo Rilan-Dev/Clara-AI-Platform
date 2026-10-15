@@ -399,89 +399,28 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const liveRealtimeRows = liveRows(realtimeRows, "realtime");
   const liveTranscriptionRows = liveRows(transcriptionRows, "transcription");
 
-  // ── Embedding bootstrap fallback ─────────────────────────────────────────
-  // The live catalogue philosophy (live-catalog.ts) is "bootstrap rows remain
-  // a safe fallback when a provider is unreachable" — but the vendor_live
-  // filter alone made every seeded/disabled discovery failure fatal: with an
-  // invalid OpenAI key, discovery 401s, no vendor_live rows exist, and every
-  // KB chat dies with "No embedding model is configured for this tenant".
-  // When the embedding provider has NO vendor-live rows but the migration/
-  // admin-curated bootstrap rows are enabled, resolve against those instead
-  // and record a degraded-mode incident so the operator knows discovery is
-  // failing while embeddings keep working (or fail with a REAL provider error
-  // if the credential is broken, which the runtime incident hook captures).
-  let effectiveEmbeddingRows = liveEmbeddingRows;
-  let embeddingCatalogDegraded = false;
-  if (liveEmbeddingRows.length === 0) {
-    const bootstrapEmbeddingRows = embeddingRows.filter(
-      (row) => row.enabled && row.kind === "embedding" && !looksLikeChatModel(row.modelId),
-    );
-    if (bootstrapEmbeddingRows.length > 0) {
-      effectiveEmbeddingRows = bootstrapEmbeddingRows;
-      embeddingCatalogDegraded = true;
-      console.warn(
-        `[ai-config] embedding provider "${embeddingProvider}" has no vendor-live models — ` +
-          `falling back to ${bootstrapEmbeddingRows.length} bootstrap catalogue row(s). ` +
-          `Live discovery is failing (bad credential or unreachable vendor); verify the provider in Settings → AI Platform.`,
-      );
-      void recordRuntimeIncident({
-        key: `ai-embedding-catalog:${embeddingProvider}`,
-        serviceName: `${embeddingProvider} embedding catalogue`,
-        healthy: false,
-        severity: "warning",
-        message:
-          `No vendor-live embedding models discovered for ${embeddingProvider} — resolution is running on bootstrap catalogue rows. ` +
-          `Run "Test connection" for this provider (Settings → AI Platform → Providers) and check the credential.`,
-      }).catch(() => undefined);
-    }
-  }
-
-  // ── Platform embedding default must always resolve ──────────────────────
-  // Google's ListModels does not advertise preview models, and discovery
-  // fails outright on restricted networks. When the configured default drops
-  // out of the effective rows (disabled as stale, or never discovered), the
-  // resolver silently built NEW indexes with a DIFFERENT model than the
-  // migration notice promised (observed in production: default
-  // gemini-embedding-2-preview, re-index building with gemini-embedding-001).
-  // Re-inject the configured default from the static catalogue so the
-  // operator-visible promise and the built index always agree.
+  // Availability is fail-closed: pricing and vector dimensions may be enriched
+  // from the static metadata catalogue, but metadata must never make an
+  // undiscovered/disabled embedding model selectable. A configured default
+  // missing from vendor-live governance rows is stale or undiscoverable.
+  // Keep resolution on live rows only and surface a clear incident instead
+  // of silently creating/querying vectors with an unadvertised model.
+  const effectiveEmbeddingRows = liveEmbeddingRows;
+  const embeddingCatalogDegraded = false;
   const configuredEmbeddingDefault =
     registry.embeddingDefault?.providerId === embeddingProvider ? registry.embeddingDefault : null;
   if (
     configuredEmbeddingDefault &&
-    findEmbeddingModel(configuredEmbeddingDefault.modelId) &&
     !effectiveEmbeddingRows.some((row) => row.modelId === configuredEmbeddingDefault.modelId)
   ) {
-    const entry = findEmbeddingModel(configuredEmbeddingDefault.modelId)!;
-    effectiveEmbeddingRows = [
-      ...effectiveEmbeddingRows,
-      {
-        id: `bootstrap:${embeddingProvider}:${configuredEmbeddingDefault.modelId}`,
-        providerId: embeddingProvider,
-        capability: "chat" as const,
-        kind: "embedding" as const,
-        modelId: configuredEmbeddingDefault.modelId,
-        displayName: entry.id,
-        enabled: true,
-        isDefault: true,
-        metadata: { catalogSource: "bootstrap", source: "platform-embedding-default" },
-      },
-    ];
-    console.warn(
-      `[ai-config] platform embedding default ${embeddingProvider}/${configuredEmbeddingDefault.modelId} ` +
-        `is missing from the effective catalogue rows (vendor discovery failed or no longer lists it) — ` +
-        `re-injected from the static catalogue so indexes keep using the configured default model.`,
-    );
     void recordRuntimeIncident({
       key: `ai-embedding-catalog:${embeddingProvider}`,
       serviceName: `${embeddingProvider} embedding catalogue`,
       healthy: false,
       severity: "warning",
       message:
-        `The platform embedding default (${embeddingProvider}/${configuredEmbeddingDefault.modelId}) is not present in the ` +
-        `vendor-discovered or bootstrap catalogue rows — vendor model discovery is failing or no longer advertises this model. ` +
-        `Resolution continues on the static catalogue entry so embeddings keep using the configured default. ` +
-        `Run "Test connection" for this provider (Settings → AI Platform → Providers).`,
+        `The platform embedding default (${embeddingProvider}/${configuredEmbeddingDefault.modelId}) is not present in the vendor-live enabled catalogue. ` +
+        "It will not be used until discovery confirms it is available; check the provider credential and connectivity.",
     }).catch(() => undefined);
   }
 
