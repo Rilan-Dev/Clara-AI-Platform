@@ -54,13 +54,7 @@ export function OrganizationNotificationCenter({ orgId }: { orgId: string }) {
         const all = [...statusNotices, ...announcementNotices];
         setNotices(all);
         setDismissed(all.filter((item) => item.dismissible && window.localStorage.getItem(DISMISSED_PREFIX + orgId + ":" + item.id) === "1").map((item) => item.id));
-        for (const item of all) {
-          const key = "clara:org-notification-center-toast:" + orgId + ":" + item.id;
-          if (window.sessionStorage.getItem(key) === "1") continue;
-          window.sessionStorage.setItem(key, "1");
-          const notify = item.severity === "critical" || item.severity === "warning" ? toast.warning : item.severity === "success" ? toast.success : toast.info;
-          notify(item.title, { description: item.message, duration: item.severity === "critical" ? Infinity : 8000 });
-        }
+
       } catch {
         // Notification UI must not disrupt the organization workspace.
       }
