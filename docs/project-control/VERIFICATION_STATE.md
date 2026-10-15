@@ -1,3 +1,14 @@
+## SOURCE REVIEW UPDATE — GEMINI LIVE CATALOGUE AUDIT — 2026-10-16
+
+[architect-verified] Source changes address the requested catalogue audit items: metadata enrichment is tested separately from availability, pagination truncation/repeated-token responses fail before Gemini writes or reconciliation, failed discovery does not disable last-known rows, and a successful empty response is authoritative for stale-row disabling.
+
+- Implementation: `e70860232a726a849c89f191135be0d360a99ece`
+- Regression source: `51b0162c5dcedc054dccbd09e26ffafe234f4964`
+- Classification: source-level review only. No executable test, type-check, build, live vendor request, CI, Vercel, or Gate execution occurred.
+- Disposition: no Gate closure or executable PASS is inferred.
+
+---
+
 ## KB INGEST EMBEDDING — CLOBBER + RECOVERY VERIFICATION — 2026-10-16
 
 - Evidence the deployed image was pre-fix: owner probe output (2026-10-15T23:21:23Z) contains NO batch-contract/Qdrant stages and no v3 marker; the Docker build log shows `CACHED … COPY src ./src` and `CACHED … COPY . ./` for every source layer with the worker/backend containers left "Running"; `git pull` printed "Already up to date." (local and remote both at 6cbece5a at pull time — before the 22:30:17 UTC fix push). The persistent error string is the pre-fix hard-fail, which cannot occur under the degradation fix.
