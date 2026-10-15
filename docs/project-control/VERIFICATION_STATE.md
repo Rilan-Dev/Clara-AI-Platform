@@ -1,3 +1,9 @@
+## SONNER TOAST UX — RESPONSIVE BOTTOM STACK — 2026-10-16
+
+Source changes committed: `35be473c9a744a36c13d3a88a24688765ac62c40` (global bottom-center placement, expanded stack, up to five visible notifications) and `2aea322552891bb1313e39902dfecf2aba2ae52c` (viewport-bounded responsive toast widths and safe wrapping). No browser verification, tests, build, CI, Vercel, or Gate execution was performed. Responsive appearance is not verified; no PASS claimed.
+
+---
+
 ## SONNER TOAST UX — 2026-10-16
 
 Source changes committed: `146bf14e09c3b64879908b72d1fcda2a8e2ce221`, `f3fd7ad5c925c5075b6b03a9795f59dc31165660`. Toast titles/descriptions are constrained to one line until hovering the individual toast, with safe wrapping and a higher hover stacking order. No browser verification, tests, build, CI, Vercel, or Gate execution was performed. Do not claim visual verification or Gate PASS.
