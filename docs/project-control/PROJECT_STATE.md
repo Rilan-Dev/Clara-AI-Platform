@@ -1,3 +1,13 @@
+## OWNER-REQUESTED UI CHANGE — LIVE NAVBAR NOTIFICATION CENTER — 2026-10-15
+
+[architect source review] Platform-health alerts have been moved from a large dismissible banner into a top-right navbar bell with a count badge and a priority-labelled dropdown. The client refreshes on a 30-second interval and window focus; it uses Sonner to announce new incidents, critical escalations, and recoveries without requiring a route reload. Critical incidents use a persistent Risk toast with an explicit close control; warnings auto-dismiss.
+
+- Source commits: `550449f4bde71d04977ffd26af5faad0659e2167`, `cfbf75807a6c386e2c17fc8edf5d6bb8a83f69e9`, `872e1fd137f8485e748050fba23f18fab89827f5`, `a1f32c17ee31a268e7407ed23cd6f9d3f5e392d7`.
+- External verification was intentionally not run or awaited; no tests/build/CI/Vercel/Gate PASS is claimed.
+- Next product implementation remains the live model-catalogue audit recorded in `NEXT_ACTION.md`.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-14 — EMBEDDING PROVIDER POLICY ISOLATED
 
 [architect source update] Extracted the Gemini/OpenAI embedding provider fallback decision into a pure policy helper used by `resolve.ts`, with focused regression source covering explicit override and credential conditions. This keeps embedding provider selection separate from chat/realtime provider routing and does not mutate the persisted platform default or trigger re-indexing.
