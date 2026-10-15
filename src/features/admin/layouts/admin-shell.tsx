@@ -14,6 +14,7 @@ import { ADMIN_SETTINGS_PAGES, groupSettingsPages } from "@/features/admin/setti
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
 import { OrganizationStatusBanner } from "@/components/admin/OrganizationStatusBanner";
 import { PlatformHealthAlertBanner } from "@/components/admin/PlatformHealthAlertBanner";
+import { OrganizationNotificationCenter } from "@/components/admin/OrganizationNotificationCenter";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import {
   fetchAgentWorkspaceContextCached,
@@ -499,7 +500,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Agent version cluster + theme switch + profile avatar (no name) */}
           <div className="flex items-center gap-2">
-            <PlatformHealthAlertBanner />
+            {isAdmin ? <PlatformHealthAlertBanner /> : primaryOrgId ? <OrganizationNotificationCenter orgId={primaryOrgId} /> : null}
             <AgentTopbarCluster />
             <ThemeToggle />
             {user && (
