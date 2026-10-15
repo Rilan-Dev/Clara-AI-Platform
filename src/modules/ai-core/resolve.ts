@@ -392,12 +392,23 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     listProviderModels(provider, "realtime_voice"),
     listProviderModels(provider, "realtime_voice"),
   ]);
-  const liveRows = (rows: typeof chatRows, kind: string) =>
-    rows.filter((row) => row.enabled && row.metadata.catalogSource === "vendor_live" && row.kind === kind);
-  const liveChatRows = liveRows(chatRows, "chat");
-  const liveEmbeddingRows = liveRows(embeddingRows, "embedding");
-  const liveRealtimeRows = liveRows(realtimeRows, "realtime");
-  const liveTranscriptionRows = liveRows(transcriptionRows, "transcription");
+  const liveRows = (
+    rows: typeof chatRows,
+    expectedProvider: AIProvider,
+    expectedCapability: "chat" | "realtime_voice",
+    kind: string,
+  ) =>
+    rows.filter((row) =>
+      row.providerId === expectedProvider &&
+      row.capability === expectedCapability &&
+      row.enabled &&
+      row.metadata.catalogSource === "vendor_live" &&
+      row.kind === kind
+    );
+  const liveChatRows = liveRows(chatRows, provider, "chat", "chat");
+  const liveEmbeddingRows = liveRows(embeddingRows, embeddingProvider, "chat", "embedding");
+  const liveRealtimeRows = liveRows(realtimeRows, provider, "realtime_voice", "realtime");
+  const liveTranscriptionRows = liveRows(transcriptionRows, provider, "realtime_voice", "transcription");
 
   // Availability is fail-closed: pricing and vector dimensions may be enriched
   // from the static metadata catalogue, but metadata must never make an
