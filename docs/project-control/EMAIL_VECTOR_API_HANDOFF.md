@@ -57,3 +57,10 @@ The API is not yet production verified. No typecheck, lint, unit test execution,
 - Upsert accepts contentHash, metadataHash, and per-chunk contentHash. When stored content hash, chunk indices, and per-chunk hashes match, the implementation updates payload metadata without embedding again. If content/chunk identity differs, it re-embeds and upserts.
 - ai-comms-agent now has an unbound adapter draft at `apps/worker/src/knowledge/clara-email-vector-adapter.ts` on its own feature branch/PR #23. The adapter is intentionally not activated because ISS-026 remains open and Clara API checks are pending.
 - These are additional source edits only; executable tests/typecheck/build and live Qdrant checks remain unrun. A local clone attempt could not resolve github.com in this execution environment, so no local commands were executed.
+
+## Focused source review follow-up — 2026-10-16
+
+- Corrected request-body limit enforcement to count UTF-8 bytes rather than JS string characters.
+- Upsert and metadata-update now accept explicit null/empty sender, subject, labels, and receivedAt values where supported, allowing stale Qdrant payload metadata to be cleared. Field absence still means leave that field unchanged.
+- Added opt-in Qdrant integration coverage at src/modules/email-vectors/core/qdrant-filter.integration.test.ts for organization + allowed-account filtering and scoped deletion. Configure QDRANT_INTEGRATION_URL and optionally QDRANT_INTEGRATION_API_KEY to run it.
+- No tests/typecheck/lint/build/live Qdrant call were run in this work session. Do not mark the PR verified or production-ready.
