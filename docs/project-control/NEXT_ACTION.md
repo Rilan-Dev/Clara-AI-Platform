@@ -1,3 +1,13 @@
+## GEMINI LIVE MODEL CATALOGUE — FILTERING + STALE DEFAULT REGRESSIONS — 2026-10-16
+
+- Runtime source now explicitly filters vendor-live rows by expected provider, capability, enabled state, catalogue source, and kind before model selection. This guards against malformed/mis-scoped rows even if a registry adapter returns a mixed result set.
+- Regression source now covers bootstrap-only discovery with a stale configured embedding default, discovery returning no rows, degraded-incident reporting, a valid live embedding row among wrong-provider/wrong-capability/wrong-kind/disabled/bootstrap rows, and successful live default selection.
+- Commits: `7edb8ef23bf56a2cb4708b6df038e6e3b29f94c8` (runtime filtering), `3e657cd364ba557e899d4455a1d778bcff2b1116` (regression source).
+- No tests, type-check, build, live vendor API, CI, Vercel, or Gate was run or awaited. No PASS claimed.
+- **Next implementation:** finish static pricing/vector-dimension enrichment assertions against discovered rows, then review Gemini sync pagination/upsert/reconciliation failures and add targeted regressions for failed discovery preserving last-known rows and successful empty discovery disabling stale rows. Update project-control only when those audit items are addressed.
+
+---
+
 ## GEMINI LIVE MODEL CATALOGUE — STALE EMBEDDING DEFAULT FAIL-CLOSED — 2026-10-16
 
 - Source correction: `src/modules/ai-core/resolve.ts` no longer re-injects a configured Gemini/OpenAI embedding default from static metadata when it is absent from the enabled vendor-live governance rows. Static model metadata is for pricing/dimensions only; it cannot establish current availability.
