@@ -76,7 +76,7 @@ function bootstrapRow(modelId: string, extra: Record<string, unknown> = {}) {
   };
 }
 
-describe("resolveAIConfig — the platform embedding default always resolves", () => {
+describe("resolveAIConfig — live embedding catalogue availability", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.GEMINI_EMBEDDING_MODEL;
@@ -103,25 +103,25 @@ describe("resolveAIConfig — the platform embedding default always resolves", (
     process.env.GEMINI_API_KEY = "test-gemini-key";
   });
 
-  it("resolves the configured default when vendor discovery lost it (the reported defect)", async () => {
-    // Before the fix this resolved to gemini-embedding-001 (first bootstrap
-    // row) while the self-heal notice promised gemini-embedding-2-preview —
-    // new indexes were silently built with a DIFFERENT model.
-    const result = await resolveAIConfig({ orgId: "org-1", surface: "rag-embedding" });
-
-    expect(result.embeddingModel).toBe("gemini-embedding-2-preview");
+  it("fails closed when discovery returns only bootstrap rows and the configured default is stale", async () => {
+    await expect(resolveAIConfig({ orgId: "org-1", surface: "rag-embedding" }))
+      .rejects.toThrow("no vendor-live embedding models discovered");
+    expect(mocks.embeddingRows[0].metadata).toEqual({ catalogSource: "bootstrap" });
   });
 
-  it("records a degraded-catalogue incident when re-injecting the default", async () => {
-    await resolveAIConfig({ orgId: "org-1", surface: "rag-embedding" });
+  it("records degraded discovery and embedding-configuration incidents without selecting a stale default", async () => {
+    await expect(resolveAIConfig({ orgId: "org-1", surface: "rag-embedding" }))
+      .rejects.toThrow("no vendor-live embedding models discovered");
 
     const { recordRuntimeIncident } = await import("@/modules/platform-health/core/incidents");
-    expect(recordRuntimeIncident).toHaveBeenCalledWith(
-      expect.objectContaining({
-        key: "ai-embedding-catalog:gemini",
-        healthy: false,
-      }),
-    );
+    expect(recordRuntimeIncident).toHaveBeenCalledWith(expect.objectContaining({
+      key: "ai-embedding-catalog:gemini",
+      healthy: false,
+    }));
+    expect(recordRuntimeIncident).toHaveBeenCalledWith(expect.objectContaining({
+      key: "ai-embedding-config",
+      healthy: false,
+    }));
   });
 
   it("prefers a vendor-live row for the default when discovery actually lists it", async () => {
@@ -139,16 +139,43 @@ describe("resolveAIConfig — the platform embedding default always resolves", (
     expect(recordRuntimeIncident).not.toHaveBeenCalled();
   });
 
-  it("falls back to the first enabled row when the default is unknown to the static catalogue", async () => {
-    // A model the shipped catalogue has never heard of (typo, private fork):
-    // the resolver must not invent a dimension for it.
+  it("ignores rows from another provider, capability, kind, disabled state, or bootstrap source", async () => {
+    mocks.embeddingRows = [
+      bootstrapRow("bootstrap-model"),
+      bootstrapRow("wrong-provider", {
+        providerId: "openai",
+        metadata: { catalogSource: "vendor_live" },
+      }),
+      bootstrapRow("wrong-capability", {
+        capability: "realtime_voice",
+        metadata: { catalogSource: "vendor_live" },
+      }),
+      bootstrapRow("wrong-kind", {
+        kind: "chat",
+        metadata: { catalogSource: "vendor_live" },
+      }),
+      bootstrapRow("disabled-live", {
+        enabled: false,
+        metadata: { catalogSource: "vendor_live" },
+      }),
+      bootstrapRow("valid-live", {
+        metadata: { catalogSource: "vendor_live" },
+        isDefault: true,
+      }),
+    ];
     mocks.registry = {
       ...mocks.registry,
-      embeddingDefault: { providerId: "gemini", modelId: "totally-unknown-model" },
+      embeddingDefault: { providerId: "gemini", modelId: "stale-default" },
     };
 
     const result = await resolveAIConfig({ orgId: "org-1", surface: "rag-embedding" });
 
-    expect(result.embeddingModel).toBe("gemini-embedding-001");
+    expect(result.embeddingModel).toBe("valid-live");
+  });
+
+  it("does not select a static model when discovery returns no rows", async () => {
+    mocks.embeddingRows = [];
+    await expect(resolveAIConfig({ orgId: "org-1", surface: "rag-embedding" }))
+      .rejects.toThrow("no vendor-live embedding models discovered");
   });
 });
