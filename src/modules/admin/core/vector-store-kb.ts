@@ -97,7 +97,10 @@ function isRetryableEmbedError(err: unknown): boolean {
 
 /**
  * Human-readable description of the embedding provider for error messages —
- * operators need to know WHICH provider/endpoint failed to act on it.
+ * operators need to know WHICH provider/endpoint failed to act on it. The
+ * Gemini host honours GEMINI_BASE_URL: a deployment routing Google traffic
+ * through a relay must see the relay host in the error, not the default
+ * endpoint it is not actually calling.
  */
 function describeProvider(provider: { getProviderName(): string; getModelName(t: "embedding"): string }): string {
   const name = provider.getProviderName();
@@ -107,8 +110,21 @@ function describeProvider(provider: { getProviderName(): string; getModelName(t:
       ? process.env.OPENAI_BASE_URL?.replace(/\/v\d+\/?$/, "") || "api.openai.com"
       : name === "tei"
         ? process.env.MULTILINGUAL_EMBEDDINGS_BASE_URL?.trim() || "multilingual embeddings endpoint"
-        : "generativelanguage.googleapis.com";
+        : geminiEmbeddingHost();
   return `${name}/${model} @ ${host}`;
+}
+
+/** Gemini endpoint actually in use: GEMINI_BASE_URL relay, else the default. */
+function geminiEmbeddingHost(): string {
+  const raw = process.env.GEMINI_BASE_URL?.trim();
+  if (raw) {
+    try {
+      return new URL(raw).host;
+    } catch {
+      // Invalid values are ignored by the provider with a warning; fall through.
+    }
+  }
+  return "generativelanguage.googleapis.com";
 }
 
 /**

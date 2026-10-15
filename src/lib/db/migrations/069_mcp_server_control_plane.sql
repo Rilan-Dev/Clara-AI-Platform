@@ -81,26 +81,26 @@ CREATE INDEX IF NOT EXISTS organisation_mcp_tool_grants_org_idx
 CREATE INDEX IF NOT EXISTS agent_mcp_tool_grants_scope_idx
   ON agent_mcp_tool_grants(org_id, agent_id, enabled);
 
-ALTER TABLE public.platform_mcp_servers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.platform_mcp_tools ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.organisation_mcp_connections ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.organisation_mcp_tool_grants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.agent_mcp_tool_grants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_mcp_servers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_mcp_tools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organisation_mcp_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organisation_mcp_tool_grants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_mcp_tool_grants ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON public.platform_mcp_servers FROM anon;
-    REVOKE ALL ON public.platform_mcp_tools FROM anon;
-    REVOKE ALL ON public.organisation_mcp_connections FROM anon;
-    REVOKE ALL ON public.organisation_mcp_tool_grants FROM anon;
-    REVOKE ALL ON public.agent_mcp_tool_grants FROM anon;
+    REVOKE ALL ON platform_mcp_servers FROM anon;
+    REVOKE ALL ON platform_mcp_tools FROM anon;
+    REVOKE ALL ON organisation_mcp_connections FROM anon;
+    REVOKE ALL ON organisation_mcp_tool_grants FROM anon;
+    REVOKE ALL ON agent_mcp_tool_grants FROM anon;
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON public.platform_mcp_servers FROM authenticated;
-    REVOKE ALL ON public.platform_mcp_tools FROM authenticated;
-    REVOKE ALL ON public.organisation_mcp_connections FROM authenticated;
-    REVOKE ALL ON public.organisation_mcp_tool_grants FROM authenticated;
-    REVOKE ALL ON public.agent_mcp_tool_grants FROM authenticated;
+    REVOKE ALL ON platform_mcp_servers FROM authenticated;
+    REVOKE ALL ON platform_mcp_tools FROM authenticated;
+    REVOKE ALL ON organisation_mcp_connections FROM authenticated;
+    REVOKE ALL ON organisation_mcp_tool_grants FROM authenticated;
+    REVOKE ALL ON agent_mcp_tool_grants FROM authenticated;
   END IF;
 END $$;

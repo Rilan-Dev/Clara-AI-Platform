@@ -3,9 +3,38 @@ import path from "path";
 import { pool } from "@/lib/db";
 import type { PoolClient } from "pg";
 import { findDuplicateMigrationNumbers } from "@/lib/db/migration-validation";
+import { resolvePgSchema } from "@/lib/env-scope";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "src", "lib", "db", "migrations");
-const MIGRATION_LOCK_KEY = "clara-schema-migrations";
+
+/**
+ * Advisory-lock key. Environment-scoped (CLARA_ENV=development → clara_dev)
+ * so a dev migration run and a prod migration run on the same server take
+ * different locks instead of serialising against each other. Unscoped
+ * deployments keep the historical key.
+ */
+function migrationLockKey(): string {
+  const schema = resolvePgSchema();
+  return schema ? `${"clara-schema-migrations"}:${schema}` : "clara-schema-migrations";
+}
+
+/**
+ * Environment scoping: create the env schema before any migration touches
+ * the database. CREATE SCHEMA is database-level DDL, immune to search_path,
+ * and idempotent — safe on every boot. Unscoped deployments skip it.
+ */
+async function ensureEnvSchema(): Promise<string | null> {
+  const schema = resolvePgSchema();
+  if (!schema) return null;
+  if (!SCHEMA_NAME_RE.test(schema)) {
+    throw new Error(`[migrate] refusing unsafe schema name "${schema}"`);
+  }
+  await pool.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+  console.log(`[migrate] environment schema ready: ${schema}`);
+  return schema;
+}
+
+const SCHEMA_NAME_RE = /^[a-z_][a-z0-9_]{0,62}$/i;
 
 async function createMigrationsTable(client: PoolClient): Promise<void> {
   await client.query(
@@ -37,15 +66,19 @@ async function runMigrations(): Promise<void> {
 
   // Vercel can start multiple serverless instances at the same time. The
   // advisory lock serializes schema changes across instances.
-  //
   // IMPORTANT: the lock client must also execute the migration queries.
   // Vercel uses PG_POOL_MAX=1 by default, so acquiring one client and then
   // calling pool.query()/pool.connect() again would wait forever for a second
   // connection and surface as "timeout exceeded when trying to connect".
+  // The env schema (CLARA_ENV=development / PG_SCHEMA) is created BEFORE the
+  // lock client is taken: the pool already carries search_path for it, and
+  // CREATE SCHEMA itself must run outside any transaction the lock wraps.
+  await ensureEnvSchema();
+  const lockKey = migrationLockKey();
   const lockClient = await pool.connect();
 
   try {
-    await lockClient.query("SELECT pg_advisory_lock(hashtext($1))", [MIGRATION_LOCK_KEY]);
+    await lockClient.query("SELECT pg_advisory_lock(hashtext($1))", [lockKey]);
 
     await createMigrationsTable(lockClient);
     const applied = await appliedMigrations(lockClient);
@@ -75,7 +108,7 @@ async function runMigrations(): Promise<void> {
     if (appliedCount === 0) console.log("[migrate] All migrations already applied.");
   } finally {
     try {
-      await lockClient.query("SELECT pg_advisory_unlock(hashtext($1))", [MIGRATION_LOCK_KEY]);
+      await lockClient.query("SELECT pg_advisory_unlock(hashtext($1))", [lockKey]);
     } finally {
       lockClient.release();
     }

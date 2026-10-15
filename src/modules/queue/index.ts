@@ -18,7 +18,7 @@
  */
 
 import { Queue } from "bullmq";
-import { redisConnection } from "./redis";
+import { bullmqQueueOptions, redisConnection } from "./redis";
 
 // ── Crawl queue ───────────────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ let _crawlQueue: Queue<CrawlJobData> | null = null;
 export function getCrawlQueue(): Queue<CrawlJobData> {
   if (!_crawlQueue) {
     _crawlQueue = new Queue<CrawlJobData, any, string, CrawlJobData, any, string>("clara-crawl", {
-      connection: redisConnection,
+      ...bullmqQueueOptions(),
       defaultJobOptions: {
         removeOnComplete: { age: 3_600 },       // keep completed 1 hr
         removeOnFail:     { age: 86_400 },       // keep failed 24 hr for debug
@@ -82,7 +82,7 @@ let _retryQueue: Queue<UrlRetryJobData> | null = null;
 export function getRetryQueue(): Queue<UrlRetryJobData> {
   if (!_retryQueue) {
     _retryQueue = new Queue<UrlRetryJobData, any, string, UrlRetryJobData, any, string>("clara-retry", {
-      connection: redisConnection,
+      ...bullmqQueueOptions(),
       defaultJobOptions: {
         // Each job is already a scheduled retry — do NOT auto-retry on worker crash.
         // The worker handles its own re-scheduling logic.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolvePoolMax } from "./db";
+import { resolvePgScopeOptions, resolvePoolMax } from "./db";
 
 describe("resolvePoolMax", () => {
   it("keeps Vercel at one connection per instance", () => {
@@ -13,5 +13,35 @@ describe("resolvePoolMax", () => {
   });
   it("honours PG_POOL_MAX off Vercel", () => {
     expect(resolvePoolMax({ PG_POOL_MAX: "4" })).toBe(4);
+  });
+});
+
+describe("resolvePgScopeOptions (environment scoping)", () => {
+  const saved = {
+    CLARA_ENV: process.env.CLARA_ENV,
+    PG_SCHEMA: process.env.PG_SCHEMA,
+    NODE_ENV: process.env.NODE_ENV,
+  };
+
+  afterEach(() => {
+    process.env.CLARA_ENV = saved.CLARA_ENV;
+    process.env.PG_SCHEMA = saved.PG_SCHEMA;
+    process.env.NODE_ENV = saved.NODE_ENV;
+  });
+
+  it("production default sets NO options key — connections are byte-identical to today", () => {
+    expect(resolvePgScopeOptions({ NODE_ENV: "production" })).toEqual({});
+  });
+
+  it("development routes every connection into the clara_dev schema", () => {
+    expect(resolvePgScopeOptions({ CLARA_ENV: "development" })).toEqual({
+      options: "-c search_path=clara_dev,public",
+    });
+  });
+
+  it("PG_SCHEMA overrides the derived default", () => {
+    expect(resolvePgScopeOptions({ PG_SCHEMA: "clara_prod" })).toEqual({
+      options: "-c search_path=clara_prod,public",
+    });
   });
 });

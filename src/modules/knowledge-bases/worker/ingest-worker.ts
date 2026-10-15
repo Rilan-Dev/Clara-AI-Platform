@@ -83,6 +83,11 @@ async function withStatusWriteRetry(
 async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResult> {
   const { documentId, kbId, id: jobId, filePayload } = job;
 
+  // Chunks extracted from THIS run, kept for the failure path: when embedding
+  // fails, persisting the count proves extraction worked and shows real
+  // progress in the KB UI (Total Chunks) instead of a misleading 0.
+  let extractedChunks: number | null = null;
+
   try {
     // Queue consumers are fresh Vercel functions and do not necessarily pass
     // through the normal app bootstrap. Load DB-backed provider credentials and
@@ -111,6 +116,8 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
       throw new Error("Chunking produced 0 chunks — document may be empty or corrupt");
     }
 
+    extractedChunks = chunks.length;
+
     console.log(
       `[ingest-worker] document ${documentId}: parsed ${parsed.text.length} chars → ${chunks.length} chunks`
     );
@@ -134,8 +141,14 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
 
     // Failure-status writes are retried: losing one to a flaky DB is how
     // documents end up orphaned in 'pending' with an unclaimable job.
+    // The extracted chunk count rides along when parsing succeeded — the
+    // document row then shows "extracted N chunks, embedding failed" instead
+    // of looking like extraction never ran (owner-visible: Total Chunks).
     await withStatusWriteRetry(`document ${documentId}`, () =>
-      updateDocumentStatus(documentId, "failed", { errorMessage: message })
+      updateDocumentStatus(documentId, "failed", {
+        errorMessage: message,
+        ...(extractedChunks != null ? { chunkCount: extractedChunks } : {}),
+      })
     );
 
     const delaySec = 30 * Math.pow(2, job.attempts - 1);

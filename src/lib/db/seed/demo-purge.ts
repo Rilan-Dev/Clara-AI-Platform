@@ -156,9 +156,12 @@ export async function purgeDemoScope(
     if (entries.length === 0) continue;
 
     // Skip tables that do not exist on this schema (older deployments).
+    // Unqualified on purpose: to_regclass resolves via search_path, so the
+    // existence check matches the environment schema (CLARA_ENV=development)
+    // exactly like the DELETE below it.
     const exists = await client.query<{ present: boolean }>(
       `SELECT to_regclass($1) IS NOT NULL AS present`,
-      [`public.${step.table}`],
+      [step.table],
     );
     if (!exists.rows[0]?.present) {
       logger.warn(`[purge:demo] table ${step.table} not present — skipped`);

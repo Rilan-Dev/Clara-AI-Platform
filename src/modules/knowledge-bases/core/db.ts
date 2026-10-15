@@ -5,6 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 import { query, queryOne, withTransaction } from "@/lib/db";
+import { applyQdrantCollectionPrefix } from "@/lib/env-scope";
 import type {
   KnowledgeBase, AssistantConfig, CreateKbInput, UpdateKbInput,
   PutAssistantConfigInput, PatchAssistantConfigInput, FaqItem,
@@ -15,7 +16,11 @@ function slugify(v: string): string {
   return v.toLowerCase().trim().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,32)||"kb";
 }
 function makeCollectionName(kbId: string, name: string): string {
-  return `kb_${kbId.replace(/-/g,"").slice(0,8)}_${slugify(name)}`;
+  // Environment scoping: CLARA_ENV=development prefixes new collections
+  // (default dev_) so a dev stack sharing the production Qdrant can never
+  // collide with — or bulk-delete — production collections. Names are stored
+  // on the KB row at creation, so existing collections are untouched.
+  return applyQdrantCollectionPrefix(`kb_${kbId.replace(/-/g,"").slice(0,8)}_${slugify(name)}`);
 }
 
 // ── Row → model ───────────────────────────────────────────────────────────────

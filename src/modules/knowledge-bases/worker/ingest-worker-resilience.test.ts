@@ -96,8 +96,10 @@ describe("processClaimedJob failure-path resilience", () => {
     // "processing" + failed-write rejected + failed-write retry = 3 calls
     expect(updateDocumentStatusMock).toHaveBeenCalledTimes(3);
     expect(markJobFailedMock).toHaveBeenCalledTimes(1);
+    // Extraction evidence: the chunk count rides along on the failure write.
     expect(updateDocumentStatusMock).toHaveBeenLastCalledWith("doc-1", "failed", {
       errorMessage: expect.stringContaining("Embedding failed"),
+      chunkCount: 2,
     });
   });
 
@@ -133,5 +135,47 @@ describe("runIngestMaintenance healing passes", () => {
     expect(stats.recoveredJobs).toBe(4); // 1 stale + 3 dead
     expect(stats.processed).toBe(0);
     expect(stats.errors).toBe(0);
+  });
+});
+
+describe("extraction evidence on embedding failure", () => {
+  it("persists the extracted chunk count when the embedding step fails", async () => {
+    // Owner-visible symptom this guards: documents failed during embedding
+    // showed "Total Chunks 0" — looking like extraction never ran. The count
+    // must ride along on the failure write so the KB page proves parsing
+    // worked and only the vector step is broken.
+    claimPendingJobByIdMock.mockResolvedValue(job);
+    upsertDocumentsKbMock.mockRejectedValueOnce(
+      new Error("Embedding failed (gemini/gemini-embedding-2-preview @ generativelanguage.googleapis.com): fetch failed"),
+    );
+
+    const result = await processJobById("job-1");
+
+    expect(result.status).toBe("error");
+    const failureWrite = updateDocumentStatusMock.mock.calls.find(
+      ([, status]) => status === "failed",
+    );
+    expect(failureWrite).toBeDefined();
+    const [documentId, status, extra] = failureWrite!;
+    expect(documentId).toBe("doc-1");
+    expect(status).toBe("failed");
+    expect(extra?.errorMessage).toMatch(/Embedding failed/);
+    expect(extra?.chunkCount).toBe(2); // chunkText mock returns ["a","b"]
+  });
+
+  it("does NOT claim a chunk count when parsing itself fails", async () => {
+    claimPendingJobByIdMock.mockResolvedValue(job);
+    const { parseDocumentFromBuffer } = await import("@/modules/admin/core/ingest/document-loader");
+    vi.mocked(parseDocumentFromBuffer).mockRejectedValueOnce(new Error("corrupt PDF"));
+
+    await processJobById("job-1");
+
+    const failureWrite = updateDocumentStatusMock.mock.calls.find(
+      ([, status]) => status === "failed",
+    );
+    expect(failureWrite).toBeDefined();
+    const extra = failureWrite![2];
+    expect(extra?.chunkCount).toBeUndefined();
+    expect(extra?.errorMessage).toBe("corrupt PDF");
   });
 });

@@ -9,6 +9,7 @@
  */
 
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
+import { resolvePgSchema } from "@/lib/env-scope";
 
 // ── Environment ───────────────────────────────────────────────────────────────
 
@@ -37,10 +38,55 @@ export function resolvePoolMax(env: Record<string, string | undefined> = process
   return /pooler\.supabase\.com/i.test(env.DATABASE_URL ?? "") ? 3 : 10;
 }
 
+/**
+ * Testable: the pg `options` startup-packet entry for environment scoping.
+ * Pure w.r.t. the env record passed in — the process.env reflection keeps it
+ * unit-testable without constructing a Pool.
+ */
+export function resolvePgScopeOptions(
+  env: Record<string, string | undefined> = process.env,
+): { options: string } | Record<string, never> {
+  const saved = {
+    CLARA_ENV: process.env.CLARA_ENV,
+    PG_SCHEMA: process.env.PG_SCHEMA,
+    NODE_ENV: process.env.NODE_ENV,
+  };
+  // process.env coerces undefined to the STRING "undefined" — set-or-delete.
+  const apply = (key: string, value: string | undefined) => {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  };
+  apply("CLARA_ENV", env.CLARA_ENV);
+  apply("PG_SCHEMA", env.PG_SCHEMA);
+  apply("NODE_ENV", env.NODE_ENV);
+  try {
+    const schema = resolvePgSchema();
+    return schema ? { options: `-c search_path=${schema},public` } : {};
+  } finally {
+    apply("CLARA_ENV", saved.CLARA_ENV);
+    apply("PG_SCHEMA", saved.PG_SCHEMA);
+    apply("NODE_ENV", saved.NODE_ENV);
+  }
+}
+
 function getPgConfig() {
+  // Environment scoping (docs/deployment/environments.md): CLARA_ENV=
+  // development (or an explicit PG_SCHEMA) puts every unqualified table
+  // reference into the env schema via search_path — the same connection,
+  // the same server, a fully isolated table set. Unset → public, exactly
+  // today's behaviour. pg passes `options` straight to the server startup
+  // packet; the schema name is validated (env-scope rejects unsafe input).
+  const scopeOptions = resolvePgScopeOptions();
+  const scopeOptionsStr = (scopeOptions as { options?: string }).options;
+  if (scopeOptionsStr && !process.env.CLARA_ENV_SCOPE_LOGGED) {
+    process.env.CLARA_ENV_SCOPE_LOGGED = "1";
+    console.log(`[db] environment scope active: ${scopeOptionsStr.replace("-c ", "")}`);
+  }
 
   return {
     connectionString: getDatabaseUrl(),
+
+    ...(scopeOptionsStr ? { options: scopeOptionsStr } : {}),
 
     // Vercel/serverless instances multiply this pool across concurrent
     // functions. Session-mode Postgres/Supabase limits are global to the

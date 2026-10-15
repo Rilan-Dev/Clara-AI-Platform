@@ -165,8 +165,13 @@ export function describeNetworkError(error: unknown): NetworkErrorDetail | null 
 
   const host =
     text.match(/attempted address:\s*([a-z0-9._-]+(?::\d+)?)/i)?.[1] ??
-    // DNS failures carry the host inline: "getaddrinfo ENOTFOUND api.sarvam.ai"
-    text.match(/(?:ENOTFOUND|EAI_AGAIN)\s+([a-z0-9._-]+)/i)?.[1] ??
+    // DNS failures carry the host inline: "getaddrinfo ENOTFOUND api.sarvam.ai";
+    // refused/unreachable/timeout causes carry it as "connect ECONNREFUSED
+    // 127.0.0.1:45037" — without this arm, local relays and dead endpoints
+    // were attributed to NO host, hiding which endpoint to debug.
+    text.match(
+      /(?:ENOTFOUND|EAI_AGAIN|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ETIMEDOUT)\s+([a-z0-9._-]+(?::\d+)?)/i,
+    )?.[1] ??
     text.match(/https?:\/\/([a-z0-9._-]+)/i)?.[1] ??
     null;
 

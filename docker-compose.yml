@@ -305,7 +305,10 @@ services:
     environment:
       NODE_ENV: production
       CLARA_INTERNAL_API_URL: http://clara-backend:3000
-      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-clara}:${RABBITMQ_DEFAULT_PASS:-clara-rabbitmq-local}@rabbitmq:5672/%2F
+      # Vhost is environment-scoped: the default %2F ("/") keeps existing
+      # deployments identical; a dev stack sharing this broker sets
+      # RABBITMQ_VHOST=clara_dev (create it once via rabbitmqctl add_vhost).
+      RABBITMQ_URL: amqp://${RABBITMQ_DEFAULT_USER:-clara}:${RABBITMQ_DEFAULT_PASS:-clara-rabbitmq-local}@rabbitmq:5672/${RABBITMQ_VHOST:-%2F}
       RABBITMQ_OUTBOX_POLL_MS: ${RABBITMQ_OUTBOX_POLL_MS:-1000}
       RABBITMQ_WEBHOOK_PREFETCH: ${RABBITMQ_WEBHOOK_PREFETCH:-10}
     depends_on:

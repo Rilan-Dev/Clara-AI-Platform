@@ -24,15 +24,15 @@ CREATE INDEX IF NOT EXISTS integration_oauth_states_expiry_idx
 
 -- OAuth state is server-only even on Supabase deployments; browser roles must
 -- never read or consume state records or encrypted PKCE material.
-ALTER TABLE public.integration_oauth_states ENABLE ROW LEVEL SECURITY;
+ALTER TABLE integration_oauth_states ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON public.integration_oauth_states FROM anon;
+    REVOKE ALL ON integration_oauth_states FROM anon;
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON public.integration_oauth_states FROM authenticated;
+    REVOKE ALL ON integration_oauth_states FROM authenticated;
   END IF;
 END
 $$;

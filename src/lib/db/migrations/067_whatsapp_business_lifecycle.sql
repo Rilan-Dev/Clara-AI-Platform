@@ -126,23 +126,23 @@ CREATE INDEX IF NOT EXISTS whatsapp_daily_briefing_runs_status_idx
   ON whatsapp_daily_briefing_runs(status, briefing_date DESC);
 
 -- No browser role may read tokens, OAuth sessions, webhook payloads or message data.
-ALTER TABLE public.whatsapp_oauth_states ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.whatsapp_oauth_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.whatsapp_business_connections ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.whatsapp_webhook_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.whatsapp_messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.whatsapp_daily_briefing_runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_oauth_states ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_oauth_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_business_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE whatsapp_daily_briefing_runs ENABLE ROW LEVEL SECURITY;
 DO $$
 DECLARE role_name text;
 BEGIN
   FOREACH role_name IN ARRAY ARRAY['anon','authenticated'] LOOP
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = role_name) THEN
-      EXECUTE format('REVOKE ALL ON public.whatsapp_oauth_states FROM %I', role_name);
-      EXECUTE format('REVOKE ALL ON public.whatsapp_oauth_sessions FROM %I', role_name);
-      EXECUTE format('REVOKE ALL ON public.whatsapp_business_connections FROM %I', role_name);
-      EXECUTE format('REVOKE ALL ON public.whatsapp_webhook_events FROM %I', role_name);
-      EXECUTE format('REVOKE ALL ON public.whatsapp_messages FROM %I', role_name);
-      EXECUTE format('REVOKE ALL ON public.whatsapp_daily_briefing_runs FROM %I', role_name);
+      EXECUTE format('REVOKE ALL ON whatsapp_oauth_states FROM %I', role_name);
+      EXECUTE format('REVOKE ALL ON whatsapp_oauth_sessions FROM %I', role_name);
+      EXECUTE format('REVOKE ALL ON whatsapp_business_connections FROM %I', role_name);
+      EXECUTE format('REVOKE ALL ON whatsapp_webhook_events FROM %I', role_name);
+      EXECUTE format('REVOKE ALL ON whatsapp_messages FROM %I', role_name);
+      EXECUTE format('REVOKE ALL ON whatsapp_daily_briefing_runs FROM %I', role_name);
     END IF;
   END LOOP;
 END

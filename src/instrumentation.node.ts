@@ -30,6 +30,15 @@ export async function registerNode(): Promise<void> {
   }
 
   try {
+    const { describeEnvScope, resolveClaraEnv } = await import("@/lib/env-scope");
+    if (resolveClaraEnv() === "development") {
+      console.info(`[instrumentation] environment scope: ${describeEnvScope()}`);
+    }
+  } catch {
+    // Diagnostics only — never block startup.
+  }
+
+  try {
     const { loadRuntimeSettingsOnStartup, runMigrationsOnStartup } = await import("@/lib/db/migrate");
     // Self-hosted: apply pending schema migrations before serving (one
     // process, advisory-locked, already-applied files are skipped). Vercel

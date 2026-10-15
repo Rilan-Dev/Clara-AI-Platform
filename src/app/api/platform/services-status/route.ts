@@ -212,10 +212,13 @@ async function checkQueues(redisUp: boolean): Promise<CheckResult & {
   if (!redisUp) return { status: "down", error: "Redis unavailable — queue depths unknown" };
   try {
     const { Queue } = await import("bullmq");
-    const { redisConnection } = await import("@/modules/queue/redis");
+    const { bullmqQueueOptions, redisConnection } = await import("@/modules/queue/redis");
 
     const collect = async (name: string) => {
-      const q = new Queue(name, { connection: { ...redisConnection, maxRetriesPerRequest: null } });
+      // bullmqQueueOptions applies the environment key prefix (if scoped) so
+      // the status page counts THIS environment's queue depths, not another
+      // environment's jobs on a shared Redis.
+      const q = new Queue(name, { ...bullmqQueueOptions({ ...redisConnection, maxRetriesPerRequest: null }) });
       try {
         const counts = await withTimeout(
           Promise.all([q.getJobCounts("waiting", "active", "delayed", "failed")]),

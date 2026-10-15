@@ -13,6 +13,7 @@
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { withTransaction } from "@/lib/db";
+import { applyQdrantCollectionPrefix } from "@/lib/env-scope";
 import { hashPassword } from "@/modules/auth/core/password";
 import { getPlatformAssistantDefaults } from "@/modules/ai-core/assistant-defaults-db";
 
@@ -64,7 +65,8 @@ function kbSlug(value: string): string {
 }
 
 function makeCollectionName(kbId: string, name: string): string {
-  return `kb_${kbId.replace(/-/g, "").slice(0, 8)}_${kbSlug(name)}`;
+  // Environment scoping — see knowledge-bases/core/db.ts makeCollectionName.
+  return applyQdrantCollectionPrefix(`kb_${kbId.replace(/-/g, "").slice(0, 8)}_${kbSlug(name)}`);
 }
 
 function generatePassword(): string {

@@ -227,35 +227,35 @@ CREATE INDEX IF NOT EXISTS mcp_platform_audit_log_created_idx
 -- tenant scoping in every query; RLS plus the role revokes below keep these
 -- tenant-owned tables unreachable for anon/authenticated request roles.
 
-ALTER TABLE public.org_mcp_connections ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.org_mcp_tools ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.org_mcp_agent_grants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.mcp_tool_usage_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.org_mcp_overrides ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.org_mcp_audit_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.mcp_platform_audit_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.mcp_platform_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_mcp_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_mcp_tools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_mcp_agent_grants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mcp_tool_usage_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_mcp_overrides ENABLE ROW LEVEL SECURITY;
+ALTER TABLE org_mcp_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mcp_platform_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mcp_platform_settings ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON public.org_mcp_connections FROM anon;
-    REVOKE ALL ON public.org_mcp_tools FROM anon;
-    REVOKE ALL ON public.org_mcp_agent_grants FROM anon;
-    REVOKE ALL ON public.mcp_tool_usage_log FROM anon;
-    REVOKE ALL ON public.org_mcp_overrides FROM anon;
-    REVOKE ALL ON public.org_mcp_audit_log FROM anon;
-    REVOKE ALL ON public.mcp_platform_audit_log FROM anon;
-    REVOKE ALL ON public.mcp_platform_settings FROM anon;
+    REVOKE ALL ON org_mcp_connections FROM anon;
+    REVOKE ALL ON org_mcp_tools FROM anon;
+    REVOKE ALL ON org_mcp_agent_grants FROM anon;
+    REVOKE ALL ON mcp_tool_usage_log FROM anon;
+    REVOKE ALL ON org_mcp_overrides FROM anon;
+    REVOKE ALL ON org_mcp_audit_log FROM anon;
+    REVOKE ALL ON mcp_platform_audit_log FROM anon;
+    REVOKE ALL ON mcp_platform_settings FROM anon;
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON public.org_mcp_connections FROM authenticated;
-    REVOKE ALL ON public.org_mcp_tools FROM authenticated;
-    REVOKE ALL ON public.org_mcp_agent_grants FROM authenticated;
-    REVOKE ALL ON public.mcp_tool_usage_log FROM authenticated;
-    REVOKE ALL ON public.org_mcp_overrides FROM authenticated;
-    REVOKE ALL ON public.org_mcp_audit_log FROM authenticated;
-    REVOKE ALL ON public.mcp_platform_audit_log FROM authenticated;
-    REVOKE ALL ON public.mcp_platform_settings FROM authenticated;
+    REVOKE ALL ON org_mcp_connections FROM authenticated;
+    REVOKE ALL ON org_mcp_tools FROM authenticated;
+    REVOKE ALL ON org_mcp_agent_grants FROM authenticated;
+    REVOKE ALL ON mcp_tool_usage_log FROM authenticated;
+    REVOKE ALL ON org_mcp_overrides FROM authenticated;
+    REVOKE ALL ON org_mcp_audit_log FROM authenticated;
+    REVOKE ALL ON mcp_platform_audit_log FROM authenticated;
+    REVOKE ALL ON mcp_platform_settings FROM authenticated;
   END IF;
 END $$;

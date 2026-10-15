@@ -118,6 +118,11 @@ COPY workers ./workers
 COPY tsconfig.json ./tsconfig.json
 COPY tsconfig.worker.json ./tsconfig.worker.json
 
+# Operator scripts (embedding-egress probe etc.) — node builtins only, so
+# they run in this image with zero extra dependencies:
+#   docker compose exec clara-worker node scripts/probe-embedding-egress.mjs
+COPY scripts ./scripts
+
 USER pwuser
 
 # worker-entry starts the automatic document ingest poller, then loads the

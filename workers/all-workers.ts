@@ -16,7 +16,7 @@
  */
 
 import { Worker, type Job } from "bullmq";
-import { redisConnection } from "../src/modules/queue/redis";
+import { bullmqQueueOptions, redisConnection } from "../src/modules/queue/redis";
 import type { CrawlJobData } from "../src/modules/queue/index";
 import type { UrlRetryJobData } from "../src/modules/queue/index";
 import { crawlWebsite } from "../src/modules/ingest/crawlers/web-crawler";
@@ -132,7 +132,7 @@ async function processCrawlJob(job: Job<CrawlJobData>): Promise<void> {
 }
 
 const crawlWorker = new Worker<CrawlJobData>("clara-crawl", processCrawlJob, {
-  connection: redisConnection, concurrency: CRAWL_CONCURRENCY,
+  ...bullmqQueueOptions(), concurrency: CRAWL_CONCURRENCY,
 });
 crawlWorker.on("completed", (j: Job<CrawlJobData>) => console.log(`[crawl-worker] Job ${j.id} completed`));
 crawlWorker.on("failed", (j: Job<CrawlJobData> | undefined, e: Error) =>
@@ -246,7 +246,7 @@ async function processRetryJob(job: Job<UrlRetryJobData>): Promise<void> {
 }
 
 const retryWorker = new Worker<UrlRetryJobData>("clara-retry", processRetryJob, {
-  connection: redisConnection, concurrency: RETRY_CONCURRENCY,
+  ...bullmqQueueOptions(), concurrency: RETRY_CONCURRENCY,
 });
 retryWorker.on("completed", (j: Job<UrlRetryJobData>) => console.log(`[retry-worker] Job ${j.id} completed`));
 retryWorker.on("failed", (j: Job<UrlRetryJobData> | undefined, e: Error) =>
