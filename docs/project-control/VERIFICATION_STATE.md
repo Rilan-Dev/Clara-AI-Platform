@@ -17,6 +17,15 @@
 
 ---
 
+## KB INGEST EMBEDDING FIX — BATCH-CONTRACT DEGRADATION — 2026-10-16
+
+- Source changes committed to `feature/ai-core-from-doable-source`: gemini.ts embedBatch count-mismatch degradation to sequential singles (per-model, process-lifetime, loud operator log); resetEmbeddingBatchDiagnosticsForTests test hook; probe-embedding-egress.mjs new BATCH(3)/BATCH(20) live contract stages and Qdrant /readyz + /collections stage; gemini.relay.integration.test.ts count-mismatch regression (alignment, remembered degradation, sequential-only in-flight).
+- Sandbox verification: vitest targeted 10/10 (relay integration 6, embed batches 2, ingest pipeline 2); ai-core sweep 91/91; extended probe smoke-tested against a local mock that reproduces the production quirk exactly (HTTP 200 with 1 embedding for N requests) — BATCH stages correctly report CONTRACT BROKEN, Qdrant stages correctly list kb_* collections, verdict explains the automatic degradation.
+- Wire-format evidence captured for BOTH @google/genai 1.43.0 (sandbox node_modules) and 2.28.0 (package-lock/Docker): identical well-formed batchEmbedContents requests; the count mismatch therefore originates at the live endpoint for gemini-embedding-2-preview, not in our serialization.
+- NOT verified: production deployment, live-key BATCH stage verdict, end-to-end document ingest (owner must pull + docker compose up -d --build + Retry both failed documents + run the probe in clara-worker). No production PASS claimed.
+
+---
+
 ## IMPLEMENTATION-ONLY UPDATE — 2026-10-16 — SONNER + ORGANISATION NOTIFICATIONS
 
 - Source changes committed: per-toast hover width expansion; organization notification center; organization status and announcement Sonner notifications; dismissible announcement controls; org topbar integration.

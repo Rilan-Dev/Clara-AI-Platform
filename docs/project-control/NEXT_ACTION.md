@@ -18,6 +18,20 @@
 
 ---
 
+## KB INGEST EMBEDDING — BATCH-CONTRACT DEGRADATION FIX — 2026-10-16
+
+Production evidence round (owner curls + rebuilt 6cbece5a stack): the connect-timeout storm is FIXED (egress probe round-trips Gemini in ~600ms, single-connection), but ingest now fails deterministically with a NEW signature: "Embedding failed (gemini/gemini-embedding-2-preview @ generativelanguage.googleapis.com): Embedding provider returned 1 vectors for 20 inputs" — on BOTH the worker container and the backend in-process poller, every retry.
+
+Root cause (verified by wire-level capture of both @google/genai 1.43.0 AND the package-lock-pinned 2.28.0 against a local relay): the SDK serialises `contents: string[]` into a fully documented, well-formed `POST {model}:batchEmbedContents` carrying one EmbedContentRequest per text (per-request model/taskType/outputDimensionality), and parses the response `embeddings[]` verbatim — so neither the transport, nor the request shape, nor SDK version drift (sandbox node_modules 1.43.0 vs Docker 2.28.0) explains the failure. The live Google endpoint itself answers HTTP 200 with ONE embedding for a 20-request batch while a 1-request batch (platform embedding-default test, 1536-dim) and the singular `:embedContent` probe round-trip fine — a model-side multi-request batch-contract quirk of gemini-embedding-2-preview. The platform's embedBatch hard-failed on the count mismatch and aborted the whole document.
+
+Fix (gemini.ts embedBatch): a count mismatch is no longer fatal — the partial response is DISCARDED (which texts the returned vectors map to is unknowable), the model is recorded in a module-level broken-batch-contract set, and every text is re-embedded as a SEQUENTIAL single request — the exact shape every verified-working path already uses. Degradation is remembered per model for the process lifetime (a restart re-probes batching); the documented size-cap halving split is unchanged; usage metering aggregates per call; singles now fail loudly on empty vectors.
+
+Probe parity (scripts/probe-embedding-egress.mjs): new BATCH stage live-tests the one-embedding-per-request contract (3-text and 20-text batches) against the real key inside the container, and a new Qdrant stage checks QDRANT_URL (/readyz + /collections, kb_* listing) — the second production document failed with "[vector-store] getCollection failed: fetch failed", which the Qdrant stage now pinpoints in one command.
+
+Verification: targeted suites 10/10 pass in sandbox (gemini.relay.integration 6 incl. the new count-mismatch degradation regression with order/alignment + remembered-degradation + maxInFlight=1 assertions; vector-store-kb.embed 2; ingest-pipeline.local 2); ai-core sweep 91/91. Smoke-tested the extended probe end to end against a local mock reproducing the exact production quirk (BATCH stages report "CONTRACT BROKEN — 1 embedding(s) for 20 requests"; Qdrant stages list kb_* collections). NOT yet deployed: owner must pull + rebuild + retry both failed documents; run `docker compose exec clara-worker node scripts/probe-embedding-egress.mjs` to confirm the BATCH stage verdict on the live key.
+
+---
+
 ## SONNER + ORGANISATION NOTIFICATIONS — 2026-10-16
 
 - Updated `src/components/ui/sonner.tsx`: each hovered toast smoothly grows within viewport bounds; non-hovered titles/descriptions remain one-line clamped. Long content wraps safely in the expanded toast.

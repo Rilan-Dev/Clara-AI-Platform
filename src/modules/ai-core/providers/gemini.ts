@@ -24,6 +24,18 @@ function geminiHttpOptions(): { httpOptions?: { baseUrl: string } } {
   }
 }
 
+/**
+ * Models whose MULTI-REQUEST batchEmbedContents contract is broken on the
+ * live Google API: the endpoint answers HTTP 200 but embeds only a subset of
+ * the requests (observed in production, deterministic across containers:
+ * gemini-embedding-2-preview returned 1 embedding for 20 inputs while a
+ * 1-request batch embeds fine — so the request wire format is valid and the
+ * model, not the transport, is the problem). Keyed by model, module-level:
+ * provider instances are recreated per batch, so instance state cannot carry
+ * the degradation. Process-lifetime only — a restart re-probes batching.
+ */
+const modelsWithBrokenBatchContract = new Set<string>();
+
 export class GeminiProvider implements LLMProvider {
   private config: ProviderConfig;
   private ai: GoogleGenAI;
@@ -152,6 +164,8 @@ export class GeminiProvider implements LLMProvider {
   async embedBatch(texts: string[], options?: EmbedOptions): Promise<number[][]> {
     if (texts.length === 0) return [];
 
+    const model = this.getEmbeddingModelName();
+
     // ONE HTTP round-trip for the whole batch. The @google/genai SDK maps
     // `contents: string[]` onto POST {model}:batchEmbedContents — a single
     // request carrying every text, with config.taskType and
@@ -166,36 +180,81 @@ export class GeminiProvider implements LLMProvider {
     // ~900ms while every ingest batch died with ConnectTimeoutError (20s per
     // attempt, 20 connections at once) — a connection burst the deployment's
     // network drops. One connection per batch matches the profile that works.
-    try {
+    if (texts.length > 1 && !modelsWithBrokenBatchContract.has(model)) {
+      try {
+        const result = await this.ai.models.embedContent({
+          model,
+          contents: texts,
+          config: {
+            taskType: "RETRIEVAL_DOCUMENT",
+            ...this.embeddingOutputDimensionality(),
+          },
+        });
+        const embeddings = result.embeddings ?? [];
+        if (embeddings.length === texts.length) {
+          reportEmbeddingUsage(texts, [result], options);
+          return embeddings.map((e) => e.values ?? []);
+        }
+        // COUNT MISMATCH — the provider embedded only a subset of the
+        // requests (production signature: "Embedding provider returned 1
+        // vectors for 20 inputs", deterministic while a 1-request batch of
+        // the same model embeds fine — so this is a provider/model quirk,
+        // not transport and not our request shape). The partial response
+        // cannot be trusted for alignment: which texts the returned vectors
+        // correspond to is unknowable, so the whole attempt is discarded.
+        // Degrade THIS model to sequential single-request embeds for the
+        // life of the process — the exact shape every verified-working path
+        // (platform embedding-default test, egress probe, embedText) uses —
+        // and fall through to the sequential loop below.
+        modelsWithBrokenBatchContract.add(model);
+        console.error(
+          `[gemini] ${model} returned ${embeddings.length} embedding(s) for ${texts.length} request(s) — ` +
+            `multi-request batches are unreliable for this model on this endpoint; degrading to sequential ` +
+            `single-text embeds for the life of this process (a restart re-probes batching).`,
+        );
+      } catch (err) {
+        // Defensive split for undocumented per-batch caps (payload size /
+        // request count): halve SEQUENTIALLY — never reintroduce the parallel
+        // fan-out this method exists to avoid — until the leaf call surfaces
+        // the provider's real error when size is not the problem.
+        if (texts.length > 1 && isBatchSizeError(err)) {
+          const mid = Math.floor(texts.length / 2);
+          const left = await this.embedBatch(texts.slice(0, mid), options);
+          const right = await this.embedBatch(texts.slice(mid), options);
+          return [...left, ...right];
+        }
+        throw err;
+      }
+    }
+
+    // Sequential single-request embeds — one request per text, in input
+    // order, at most one in flight (undici keep-alive reuses the socket).
+    // Slower than a true batch, but it is the only shape verified to work
+    // end-to-end on every deployment so far, and it never fans out.
+    const vectors: number[][] = [];
+    const perTextResults: Array<{ metadata?: { billableCharacterCount?: number } }> = [];
+    for (let i = 0; i < texts.length; i++) {
       const result = await this.ai.models.embedContent({
-        model: this.getEmbeddingModelName(),
-        contents: texts,
+        model,
+        contents: texts[i],
         config: {
           taskType: "RETRIEVAL_DOCUMENT",
           ...this.embeddingOutputDimensionality(),
         },
       });
-      reportEmbeddingUsage(texts, [result], options);
-      const embeddings = result.embeddings ?? [];
-      if (embeddings.length !== texts.length) {
+      const vector = result.embeddings?.[0]?.values ?? [];
+      if (!Array.isArray(vector) || vector.length === 0) {
         throw new Error(
-          `Embedding provider returned ${embeddings.length} vectors for ${texts.length} inputs`
+          `Embedding provider returned an empty vector for input ${i + 1}/${texts.length}`,
         );
       }
-      return embeddings.map((e) => e.values ?? []);
-    } catch (err) {
-      // Defensive split for undocumented per-batch caps (payload size /
-      // request count): halve SEQUENTIALLY — never reintroduce the parallel
-      // fan-out this method exists to avoid — until the leaf call surfaces
-      // the provider's real error when size is not the problem.
-      if (texts.length > 1 && isBatchSizeError(err)) {
-        const mid = Math.floor(texts.length / 2);
-        const left = await this.embedBatch(texts.slice(0, mid), options);
-        const right = await this.embedBatch(texts.slice(mid), options);
-        return [...left, ...right];
-      }
-      throw err;
+      vectors.push(vector);
+      perTextResults.push(result);
     }
+    // WS-1.1: one aggregated usage event for the whole call (per-text
+    // billableCharacterCount when present, else the character-sum estimate).
+    reportEmbeddingUsage(texts, perTextResults, options);
+    return vectors;
   }
 
   getProviderName(): string {
@@ -272,10 +331,11 @@ export class GeminiProvider implements LLMProvider {
  * at ~4 characters per token — the documented industry heuristic. Estimated
  * values are flagged in the metadata so dashboards can label them.
  *
- * `results` is either one response per text (embedText path) or a single
- * response for the whole batch (embedBatch's one-request contract): a lone
- * response for many texts reports the batch total when the backend provides
- * billable characters, else the char-sum estimate.
+ * `results` is either one response per text (embedText path and embedBatch's
+ * sequential-singles fallback) or a single response for the whole batch
+ * (embedBatch's one-request fast path): a lone response for many texts
+ * reports the batch total when the backend provides billable characters,
+ * else the char-sum estimate.
  */
 function reportEmbeddingUsage(
   texts: string[],
@@ -320,4 +380,13 @@ function isBatchSizeError(err: unknown): boolean {
 /** Gemini Flash models accept thinkingBudget 0 (thinking off); Pro does not. */
 export function geminiThinkingCanBeDisabled(model: string): boolean {
   return /gemini-2\.5-flash/i.test(model.trim());
+}
+
+/**
+ * Test hook: forget recorded per-model batch-contract degradations so each
+ * test starts from the real fast path (module state otherwise persists
+ * across tests in the same file — exactly like across batches in a process).
+ */
+export function resetEmbeddingBatchDiagnosticsForTests(): void {
+  modelsWithBrokenBatchContract.clear();
 }

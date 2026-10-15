@@ -34,7 +34,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { GeminiProvider } from "./gemini";
+import { GeminiProvider, resetEmbeddingBatchDiagnosticsForTests } from "./gemini";
 import { describeNetworkError } from "@/lib/egress";
 
 /** Captured request + canned Google batchEmbedContents response. */
@@ -49,6 +49,12 @@ type RelayCapture = {
 type RelayOptions = {
   /** Distinct vector per request index (order-preservation proof). */
   vectorForIndex?: (index: number) => number[];
+  /** Distinct vector per request TEXT (alignment proof for single calls). */
+  vectorForText?: (text: string) => number[];
+  /** How many embeddings to return for a call carrying N requests. Default:
+   * N (the documented Google contract). Set to a constant to reproduce the
+   * production quirk ("1 vectors for 20 inputs"). */
+  respondWith?: (requestCount: number) => number;
   /** Reject multi-request batches with this status + message (size-cap sim). */
   rejectBatchWith?: { status: number; message: string };
 };
@@ -82,16 +88,26 @@ function startRelay(captures: RelayCapture[], opts: RelayOptions = {}): Promise<
         body,
       });
 
-      const requestCount = Array.isArray(body.requests) ? body.requests.length : 0;
+      const requests = (Array.isArray(body.requests) ? body.requests : []) as Array<
+        { content?: { parts?: Array<{ text?: string }> } }
+      >;
+      const requestCount = requests.length;
+      const responseCount = opts.respondWith ? opts.respondWith(requestCount) : requestCount;
       if (opts.rejectBatchWith && requestCount > 1) {
         res.writeHead(opts.rejectBatchWith.status, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: { code: opts.rejectBatchWith.status, message: opts.rejectBatchWith.message } }));
       } else {
         res.writeHead(200, { "content-type": "application/json" });
         // Google batchEmbedContents response shape: one embedding per request,
-        // same order as the requests — give each a distinct vector.
+        // same order as the requests — give each a distinct vector. With
+        // respondWith() < requestCount this reproduces the production quirk
+        // (only the first K requests come back embedded).
         res.end(JSON.stringify({
-          embeddings: Array.from({ length: requestCount }, (_, i) => ({ values: vectorForIndex(i) })),
+          embeddings: Array.from({ length: responseCount }, (_, i) => ({
+            values: opts.vectorForText
+              ? opts.vectorForText(requests[i]?.content?.parts?.[0]?.text ?? "")
+              : vectorForIndex(i),
+          })),
         }));
       }
       inFlight -= 1;
@@ -119,6 +135,7 @@ describe("GEMINI_BASE_URL relay integration (real @google/genai SDK)", () => {
 
   beforeEach(() => {
     for (const key of envKeys) delete process.env[key];
+    resetEmbeddingBatchDiagnosticsForTests();
     cleanup = [];
   });
 
@@ -258,6 +275,59 @@ describe("GEMINI_BASE_URL relay integration (real @google/genai SDK)", () => {
     // Order preserved through the split, and every request ran sequentially —
     // the fallback must never reintroduce the parallel fan-out.
     expect(vectors).toEqual([[0, 1], [0, 1]]);
+    expect(maxInFlight()).toBe(1);
+  });
+
+  it("survives a provider that returns fewer embeddings than requests — degrades to sequential singles (production: '1 vectors for 20 inputs')", async () => {
+    const captures: RelayCapture[] = [];
+    const { server, baseUrl, maxInFlight } = await startRelay(captures, {
+      // The production quirk, reproduced exactly: however many texts are
+      // batched, the endpoint answers HTTP 200 with ONE embedding (for the
+      // first request). Deterministic, transport healthy, single-text
+      // calls fine — only the MULTI-request contract is broken.
+      respondWith: (requestCount) => (requestCount > 1 ? 1 : requestCount),
+      // Vector derived from the embedded text — proves each sequential
+      // single call's result lands on the RIGHT text (alignment, not count).
+      vectorForText: (text) => [text.length, 1],
+    });
+    cleanup.push(() => server.close());
+
+    process.env.GEMINI_BASE_URL = baseUrl;
+    process.env.GEMINI_EMBEDDING_DIMENSION = "1536";
+
+    const provider = new GeminiProvider({
+      provider: "gemini",
+      apiKey: "relay-test-key",
+      embeddingModel: "gemini-embedding-2-preview",
+    });
+
+    // Phase 1 — the whole-batch attempt mismatches (1 embedding for 3
+    // requests), is DISCARDED (partial data cannot be aligned), and every
+    // text is re-embedded as a single request. Before this fix the exact
+    // production signature aborted the document:
+    //   "Embedding provider returned 1 vectors for 20 inputs".
+    const texts = ["alpha chunk", "beta chunk", "gamma chunk"];
+    const vectors = await provider.embedBatch(texts);
+    expect(vectors).toEqual(texts.map((t) => [t.length, 1]));
+
+    // 1 doomed batch attempt + 3 single-request re-embeds — and the batch
+    // attempt carried all 3 texts (the one-round-trip contract).
+    expect(captures).toHaveLength(4);
+    expect((captures[0].body.requests as unknown[])).toHaveLength(3);
+    for (const single of captures.slice(1)) {
+      expect((single.body.requests as unknown[])).toHaveLength(1);
+    }
+
+    // Phase 2 — the degradation is REMEMBERED per model: the next
+    // multi-text batch skips the broken batch endpoint entirely.
+    const more = ["delta chunk", "epsilon chunk"];
+    const moreVectors = await provider.embedBatch(more);
+    expect(moreVectors).toEqual(more.map((t) => [t.length, 1]));
+    expect(captures).toHaveLength(6); // + 2 singles, no new batch attempt
+    expect((captures[4].body.requests as unknown[])).toHaveLength(1);
+    expect((captures[5].body.requests as unknown[])).toHaveLength(1);
+
+    // Never a parallel fan-out: one request in flight at a time throughout.
     expect(maxInFlight()).toBe(1);
   });
 
