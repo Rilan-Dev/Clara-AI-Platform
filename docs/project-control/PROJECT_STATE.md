@@ -1,3 +1,13 @@
+## CURRENT STATE UPDATE — 2026-10-16 — GEMINI MODEL CATALOGUE AUDIT
+
+[architect-reviewed source change] Runtime embedding resolution no longer fabricates selectable bootstrap entries from static metadata when the configured platform default is absent from enabled vendor-live governance rows. Stale/unavailable defaults emit a warning incident and remain unavailable rather than silently substituting an unadvertised model.
+
+- Commit: `8b1d64d2bb06764342205040cf00918c864abebb`
+- Status: Gemini live-catalogue audit IN PROGRESS; regression coverage and remaining consumer review are still pending.
+- No tests, type-check, build, live API, CI/Vercel, or Gate execution was awaited.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-16 — SONNER + ORGANISATION NOTIFICATIONS
 
 - Implemented smooth per-toast hover expansion with viewport-constrained growth; non-hovered toast messages remain compact.
