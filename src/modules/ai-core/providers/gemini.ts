@@ -152,24 +152,50 @@ export class GeminiProvider implements LLMProvider {
   async embedBatch(texts: string[], options?: EmbedOptions): Promise<number[][]> {
     if (texts.length === 0) return [];
 
-    // The new SDK doesn't have a direct batchEmbedContents method on models,
-    // so we use Promise.all with individual embedContent calls for now.
-    // For large batches, consider chunking.
-    const results = await Promise.all(
-      texts.map((text) =>
-        this.ai.models.embedContent({
-          model: this.getEmbeddingModelName(),
-          contents: text,
-          config: {
-            taskType: "RETRIEVAL_DOCUMENT",
-            ...this.embeddingOutputDimensionality(),
-          },
-        })
-      )
-    );
-    // WS-1.1: batch usage aggregated across per-call responses.
-    reportEmbeddingUsage(texts, results, options);
-    return results.map((r) => r.embeddings?.[0]?.values ?? []);
+    // ONE HTTP round-trip for the whole batch. The @google/genai SDK maps
+    // `contents: string[]` onto POST {model}:batchEmbedContents — a single
+    // request carrying every text, with config.taskType and
+    // config.outputDimensionality applied to EACH embedded request, and
+    // embeddings[] returned in input order (verified against the SDK's wire
+    // serialization in gemini.relay.integration.test.ts).
+    //
+    // This replaces Promise.all(texts.map(embedContent)) — N simultaneous
+    // TCP connects to generativelanguage.googleapis.com. That fan-out was the
+    // production root cause for "document extractions and embeddings not
+    // working": the same host completed a single-connection embedding test in
+    // ~900ms while every ingest batch died with ConnectTimeoutError (20s per
+    // attempt, 20 connections at once) — a connection burst the deployment's
+    // network drops. One connection per batch matches the profile that works.
+    try {
+      const result = await this.ai.models.embedContent({
+        model: this.getEmbeddingModelName(),
+        contents: texts,
+        config: {
+          taskType: "RETRIEVAL_DOCUMENT",
+          ...this.embeddingOutputDimensionality(),
+        },
+      });
+      reportEmbeddingUsage(texts, [result], options);
+      const embeddings = result.embeddings ?? [];
+      if (embeddings.length !== texts.length) {
+        throw new Error(
+          `Embedding provider returned ${embeddings.length} vectors for ${texts.length} inputs`
+        );
+      }
+      return embeddings.map((e) => e.values ?? []);
+    } catch (err) {
+      // Defensive split for undocumented per-batch caps (payload size /
+      // request count): halve SEQUENTIALLY — never reintroduce the parallel
+      // fan-out this method exists to avoid — until the leaf call surfaces
+      // the provider's real error when size is not the problem.
+      if (texts.length > 1 && isBatchSizeError(err)) {
+        const mid = Math.floor(texts.length / 2);
+        const left = await this.embedBatch(texts.slice(0, mid), options);
+        const right = await this.embedBatch(texts.slice(mid), options);
+        return [...left, ...right];
+      }
+      throw err;
+    }
   }
 
   getProviderName(): string {
@@ -245,6 +271,11 @@ export class GeminiProvider implements LLMProvider {
  * computed from billable characters when present and otherwise estimated
  * at ~4 characters per token — the documented industry heuristic. Estimated
  * values are flagged in the metadata so dashboards can label them.
+ *
+ * `results` is either one response per text (embedText path) or a single
+ * response for the whole batch (embedBatch's one-request contract): a lone
+ * response for many texts reports the batch total when the backend provides
+ * billable characters, else the char-sum estimate.
  */
 function reportEmbeddingUsage(
   texts: string[],
@@ -253,12 +284,37 @@ function reportEmbeddingUsage(
 ): void {
   if (!options?.onUsage || texts.length === 0) return;
   let chars = 0;
-  for (let i = 0; i < texts.length; i++) {
-    const billable = results[i]?.metadata?.billableCharacterCount;
-    chars += billable ?? texts[i]?.length ?? 0;
+  if (results.length === 1 && texts.length > 1) {
+    chars = results[0]?.metadata?.billableCharacterCount ?? sumTextLengths(texts);
+  } else {
+    for (let i = 0; i < texts.length; i++) {
+      chars += results[i]?.metadata?.billableCharacterCount ?? texts[i]?.length ?? 0;
+    }
   }
   if (chars <= 0) return;
   options.onUsage({ promptTokens: Math.ceil(chars / 4), completionTokens: 0 });
+}
+
+function sumTextLengths(texts: string[]): number {
+  let total = 0;
+  for (const text of texts) total += text?.length ?? 0;
+  return total;
+}
+
+/**
+ * 4xx responses that indicate the SINGLE batch request itself is too big
+ * (payload size / request count) rather than the content being invalid.
+ * Triggers the sequential split fallback in embedBatch.
+ */
+function isBatchSizeError(err: unknown): boolean {
+  const e = err as { status?: unknown; message?: string };
+  const status = typeof e?.status === "number" ? e.status : null;
+  const message = String(e?.message ?? "").toLowerCase();
+  if (status === 413) return true;
+  if (status === 400 || status === 422) {
+    return /too (large|many|long)|exceeds?\b|limit|maximum|payload|batch size/.test(message);
+  }
+  return false;
 }
 
 /** Gemini Flash models accept thinkingBudget 0 (thinking off); Pro does not. */

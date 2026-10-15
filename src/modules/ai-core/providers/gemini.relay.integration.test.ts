@@ -1,23 +1,33 @@
 /**
  * src/modules/ai-core/providers/gemini.relay.integration.test.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * LOCAL INTEGRATION test of the GEMINI_BASE_URL relay path — no external
- * network, no mocks of the SDK itself.
+ * LOCAL INTEGRATION test of the GEMINI_BASE_URL relay path and the
+ * single-request embedBatch contract — no external network, no mocks of the
+ * SDK itself.
  *
  * Why this exists: real deployments sit on networks where
  * generativelanguage.googleapis.com is unreachable (connect-timeout —
  * ISP/region/DPI-level blocks; the ingest worker then fails every document
  * with "the embedding provider is unreachable from this server"). The
  * platform's remediation is GEMINI_BASE_URL: point Gemini traffic at an HTTPS
- * relay the deployment CAN reach. This test proves that path with the REAL
- * @google/genai SDK HTTP stack (v1.43): a local node:http server plays the
- * relay, and the provider must round-trip embeddings through it with the
- * exact request contract Google expects — the SDK batches every embedContent
- * call into a POST {model}:batchEmbedContents request carrying
- * x-goog-api-key, per-request taskType and outputDimensionality.
+ * relay the deployment CAN reach. These tests prove that path with the REAL
+ * @google/genai SDK HTTP stack: a local node:http server plays the relay, and
+ * the provider must round-trip embeddings through it with the exact request
+ * contract Google expects — the SDK batches every embedContent call into a
+ * POST {model}:batchEmbedContents request carrying x-goog-api-key,
+ * per-request taskType and outputDimensionality.
  *
- * If this test passes, "deploy a relay + set GEMINI_BASE_URL" is a verified
- * fix — the only remaining variable on a blocked network is the relay itself.
+ * The embedBatch tests are ALSO the regression proof for the production root
+ * cause of "document extractions and embeddings not working": the old
+ * implementation fired texts.map(embedContent) under Promise.all — N
+ * simultaneous TCP connects to the vendor host. On the deployment's network
+ * a single-connection embedding test succeeded in ~900ms while every ingest
+ * batch died with ConnectTimeoutError (20s × retries, 20 connections at
+ * once). embedBatch must keep the whole batch on ONE HTTP request / ONE
+ * connection — asserted here at the socket level, not just the request level.
+ *
+ * If these tests pass, "deploy a relay + set GEMINI_BASE_URL" is a verified
+ * fix — and ingest can no longer self-DOS a burst-sensitive network.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -35,29 +45,70 @@ type RelayCapture = {
   body: Record<string, unknown>;
 };
 
-const VECTOR = [0.042, -0.017, 0.5, 0.25];
+/** Relay behaviour knobs for the tests below. */
+type RelayOptions = {
+  /** Distinct vector per request index (order-preservation proof). */
+  vectorForIndex?: (index: number) => number[];
+  /** Reject multi-request batches with this status + message (size-cap sim). */
+  rejectBatchWith?: { status: number; message: string };
+};
 
-function startRelay(captures: RelayCapture[], vector: number[] = VECTOR) {
+type RelayHandle = {
+  server: http.Server;
+  baseUrl: string;
+  captures: RelayCapture[];
+  sockets: () => number;
+  maxInFlight: () => number;
+};
+
+function startRelay(captures: RelayCapture[], opts: RelayOptions = {}): Promise<RelayHandle> {
+  let openSockets = 0;
+  let inFlight = 0;
+  let peakInFlight = 0;
+  const vectorForIndex = opts.vectorForIndex ?? (() => [0.042, -0.017, 0.5, 0.25]);
+
   const server = http.createServer((req, res) => {
+    inFlight += 1;
+    peakInFlight = Math.max(peakInFlight, inFlight);
     const chunks: Buffer[] = [];
     req.on("data", (c: Buffer) => chunks.push(c));
     req.on("end", () => {
       const raw = Buffer.concat(chunks).toString("utf-8");
+      const body: Record<string, unknown> = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
       captures.push({
         method: req.method ?? "?",
         url: req.url ?? "?",
         headers: req.headers,
-        body: raw ? (JSON.parse(raw) as Record<string, unknown>) : {},
+        body,
       });
-      res.writeHead(200, { "content-type": "application/json" });
-      // Google batchEmbedContents response shape (one embedding per request).
-      res.end(JSON.stringify({ embeddings: [{ values: vector }] }));
+
+      const requestCount = Array.isArray(body.requests) ? body.requests.length : 0;
+      if (opts.rejectBatchWith && requestCount > 1) {
+        res.writeHead(opts.rejectBatchWith.status, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: { code: opts.rejectBatchWith.status, message: opts.rejectBatchWith.message } }));
+      } else {
+        res.writeHead(200, { "content-type": "application/json" });
+        // Google batchEmbedContents response shape: one embedding per request,
+        // same order as the requests — give each a distinct vector.
+        res.end(JSON.stringify({
+          embeddings: Array.from({ length: requestCount }, (_, i) => ({ values: vectorForIndex(i) })),
+        }));
+      }
+      inFlight -= 1;
     });
   });
-  return new Promise<{ server: http.Server; baseUrl: string }>((resolve) => {
+  server.on("connection", () => { openSockets += 1; });
+
+  return new Promise<RelayHandle>((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       const { port } = server.address() as AddressInfo;
-      resolve({ server, baseUrl: `http://127.0.0.1:${port}` });
+      resolve({
+        server,
+        baseUrl: `http://127.0.0.1:${port}`,
+        captures,
+        sockets: () => openSockets,
+        maxInFlight: () => peakInFlight,
+      });
     });
   });
 }
@@ -91,7 +142,7 @@ describe("GEMINI_BASE_URL relay integration (real @google/genai SDK)", () => {
     });
 
     const vector = await provider.embedText("policies document chunk");
-    expect(vector).toEqual(VECTOR);
+    expect(vector).toEqual([0.042, -0.017, 0.5, 0.25]);
     expect(captures).toHaveLength(1);
 
     // The request contract a relay must forward to Google verbatim. The SDK
@@ -108,9 +159,83 @@ describe("GEMINI_BASE_URL relay integration (real @google/genai SDK)", () => {
     expect(content.parts?.[0]?.text).toBe("policies document chunk");
   });
 
-  it("embedBatch fans out to the relay and preserves vector order", async () => {
+  it("embedBatch sends ONE batchEmbedContents request for every text and preserves vector order", async () => {
     const captures: RelayCapture[] = [];
-    const { server, baseUrl } = await startRelay(captures);
+    const { server, baseUrl } = await startRelay(captures, {
+      // Vector for request i is [i, 1] — asserts the response order matches
+      // the input order, not a reshuffle.
+      vectorForIndex: (i) => [i, 1],
+    });
+    cleanup.push(() => server.close());
+
+    process.env.GEMINI_BASE_URL = baseUrl;
+    process.env.GEMINI_EMBEDDING_DIMENSION = "1536";
+
+    const provider = new GeminiProvider({
+      provider: "gemini",
+      apiKey: "relay-test-key",
+      embeddingModel: "gemini-embedding-2-preview",
+    });
+
+    const texts = ["alpha chunk", "beta chunk", "gamma chunk"];
+    const vectors = await provider.embedBatch(texts);
+
+    // The production fix: the WHOLE batch rides one HTTP round-trip (was: one
+    // round-trip per text under Promise.all — the connection-burst that made
+    // ingest fail while single-connection tests succeeded).
+    expect(captures).toHaveLength(1);
+    const call = captures[0];
+    expect(call.url).toContain(":batchEmbedContents");
+    expect(call.url).not.toContain("generativelanguage.googleapis.com");
+
+    const requests = call.body.requests as Array<Record<string, unknown>>;
+    expect(requests).toHaveLength(texts.length);
+    for (let i = 0; i < texts.length; i++) {
+      expect(requests[i].taskType).toBe("RETRIEVAL_DOCUMENT");
+      expect(requests[i].outputDimensionality).toBe(1536);
+      const content = requests[i].content as { parts?: Array<{ text?: string }> };
+      expect(content.parts?.[0]?.text).toBe(texts[i]);
+    }
+
+    expect(vectors).toEqual(texts.map((_, i) => [i, 1]));
+  });
+
+  it("embedBatch of 20 chunks (default EMBED_BATCH_SIZE) opens exactly ONE TCP connection", async () => {
+    const captures: RelayCapture[] = [];
+    const { server, baseUrl, sockets } = await startRelay(captures);
+    cleanup.push(() => server.close());
+
+    process.env.GEMINI_BASE_URL = baseUrl;
+    process.env.GEMINI_EMBEDDING_DIMENSION = "1536";
+
+    const provider = new GeminiProvider({
+      provider: "gemini",
+      apiKey: "relay-test-key",
+      embeddingModel: "gemini-embedding-2-preview",
+    });
+
+    // A full ingest batch — the exact shape the KB ingest worker sends. The
+    // old implementation opened 20 sockets at once against the vendor host;
+    // that burst is what production networks dropped (ConnectTimeoutError ×20
+    // while a lone embedding test call succeeded in ~900ms).
+    const texts = Array.from({ length: 20 }, (_, i) => `chunk text ${i} of the policies document`);
+    const vectors = await provider.embedBatch(texts);
+
+    expect(vectors).toHaveLength(20);
+    expect(captures).toHaveLength(1);
+    expect((captures[0].body.requests as unknown[])).toHaveLength(20);
+    // Socket-level regression assertion: ONE connection for the whole batch.
+    expect(sockets()).toBe(1);
+  });
+
+  it("embedBatch splits SEQUENTIALLY when the batch request exceeds a size cap", async () => {
+    const captures: RelayCapture[] = [];
+    const { server, baseUrl, maxInFlight } = await startRelay(captures, {
+      vectorForIndex: (i) => [i, 1],
+      // Simulate an undocumented per-batch cap: any request carrying more
+      // than one text is rejected as too large.
+      rejectBatchWith: { status: 400, message: "request batch too large: exceeds the per-call limit" },
+    });
     cleanup.push(() => server.close());
 
     process.env.GEMINI_BASE_URL = baseUrl;
@@ -123,15 +248,17 @@ describe("GEMINI_BASE_URL relay integration (real @google/genai SDK)", () => {
     });
 
     const vectors = await provider.embedBatch(["alpha chunk", "beta chunk"]);
-    expect(vectors).toHaveLength(2);
-    expect(vectors[0]).toEqual(VECTOR);
-    expect(vectors[1]).toEqual(VECTOR);
-    // One HTTP round-trip per embedContent call (each a 1-request batch).
-    expect(captures).toHaveLength(2);
-    for (const call of captures) {
-      expect(call.url).toContain(":batchEmbedContents");
-      expect(call.url).not.toContain("generativelanguage.googleapis.com");
-    }
+
+    // First attempt (2 texts) rejected → halved → two single-text calls.
+    expect(captures).toHaveLength(3);
+    expect(captures[0].body.requests).toHaveLength(2);
+    expect(captures[1].body.requests).toHaveLength(1);
+    expect(captures[2].body.requests).toHaveLength(1);
+
+    // Order preserved through the split, and every request ran sequentially —
+    // the fallback must never reintroduce the parallel fan-out.
+    expect(vectors).toEqual([[0, 1], [0, 1]]);
+    expect(maxInFlight()).toBe(1);
   });
 
   it("a dead relay fails fast and the error names the RELAY host, not Google", async () => {

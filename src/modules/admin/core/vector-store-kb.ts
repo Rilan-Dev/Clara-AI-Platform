@@ -202,7 +202,7 @@ async function embedBatchWithRetry(
     const detail = embeddingFailureDetail(err);
     const hint =
       /timed out|timeout|econnrefused|enotfound|eai_again|fetch failed|connection error|not supported|cannot reach/i.test(detail)
-        ? " — the embedding provider is unreachable from this server. Check outbound network access (firewall/DNS/region restrictions), set HTTPS_PROXY to route through an egress proxy, or set GEMINI_BASE_URL to a reachable relay, then retry from the knowledge base's index settings."
+        ? " — the embedding provider is unreachable from this server. Check outbound network access (firewall/DNS/region restrictions), set HTTPS_PROXY to route through an egress proxy, or set GEMINI_BASE_URL to a reachable relay; run scripts/probe-embedding-egress.mjs inside the deployment to pinpoint the failing layer, then retry from the knowledge base's index settings."
         : "";
     throw new Error(`Embedding failed (${providerDesc}): ${detail}${hint}`);
   }
