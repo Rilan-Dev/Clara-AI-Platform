@@ -45,3 +45,4 @@ Run focused executable typecheck/tests for the new route and vector-store module
 - Added opt-in Qdrant integration coverage for organization/account filtering and scoped deletion.
 - Tests/typecheck/lint/build and live Qdrant execution remain unrun; no PASS claimed. The ai-comms-agent adapter is still unbound because ISS-026 remains FIX-01-owned/open.
 - Corrected hash-input separators to actual NUL delimiters for deterministic point IDs and model-key hashing, avoiding ambiguous concatenation of identifier parts. This is source-reviewed only; tests/typecheck remain unrun.
+- Follow-up: added `contentHash` to Clara semantic search hits so the host can reject stale vector candidates during authoritative SQL revalidation. Not runtime-verified.
