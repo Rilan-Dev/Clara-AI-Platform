@@ -76,14 +76,14 @@ function tenantAccountFilter(orgId: string, accountIds: string[]) {
 export async function upsertEmailVectors(input: {
   metadata: EmailVectorMetadata;
   chunks: EmailVectorChunk[];
-}): Promise<{ upserted: number; removedStale: number }> {
+}): Promise<{ upserted: number; staleCleanupApplied: boolean }> {
   const { metadata, chunks } = input;
   const { config, collection } = await embeddingContext(metadata.orgId);
   const client = getQdrantClient();
 
   if (chunks.length === 0) {
     await deleteEmailMessageVectors(metadata.orgId, metadata.accountId, metadata.messageId);
-    return { upserted: 0, removedStale: 0 };
+    return { upserted: 0, staleCleanupApplied: true };
   }
 
   const vectors = await embedBatches(
@@ -96,6 +96,7 @@ export async function upsertEmailVectors(input: {
     vector: vectors[index],
     payload: {
       ...metadata,
+      sourceId: chunk.sourceId,
       chunkIndex: chunk.chunkIndex,
       chunk: chunk.text,
       indexedAt: new Date().toISOString(),
@@ -117,7 +118,7 @@ export async function upsertEmailVectors(input: {
     },
   });
 
-  return { upserted: points.length, removedStale: -1 };
+  return { upserted: points.length, staleCleanupApplied: true };
 }
 
 export async function updateEmailVectorMetadata(input: {
