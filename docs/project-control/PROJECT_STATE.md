@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-16 — SONNER + ORGANISATION NOTIFICATIONS
+
+- Implemented smooth per-toast hover expansion with viewport-constrained growth; non-hovered toast messages remain compact.
+- Organisation workspace now has a notification bell and dropdown sourced from organisation onboarding status and platform announcements. Status/announcement events are surfaced through Sonner; dismissible announcements persist their dismissed state per org; status banners can be closed for the session.
+- Commits: `8476e1003f6727ef5d7294642f5553c8206a146a`, `3957bdd84000b6c5cd86ff6f3715981c729ec7f1`, `2f4d8bbc69c269b313cbb76527d07bff8cf0d34b`, `3d5453afdc514479a6d1ac836381361ed03195b9`, `b37fd82a47c1c9f1daad2184b973dfe5a75e339d`.
+- Implementation committed directly to `feature/ai-core-from-doable-source` through GitHub file commits. No tests/build/browser/CI/Vercel/Gate verification was run or awaited.
+- Next: continue live Gemini model-catalogue audit from NEXT_ACTION.md.
+
+---
+
 ## SONNER TOAST UX — RESPONSIVE BOTTOM STACK — 2026-10-16
 
 Global Sonner notifications now use bottom-center placement, an expanded stack with up to five visible notifications, and viewport-aware toast sizing for phone through desktop widths. Long error text continues to wrap safely and individual toasts expand on hover. Commits: `35be473c9a744a36c13d3a88a24688765ac62c40`, `2aea322552891bb1313e39902dfecf2aba2ae52c`. Browser/build/CI/Vercel/Gate verification was not run or awaited; no visual PASS claimed.
