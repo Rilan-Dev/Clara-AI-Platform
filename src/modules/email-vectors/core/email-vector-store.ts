@@ -17,7 +17,7 @@ export type EmailVectorMetadata = {
   accountId: string;
   messageId: string;
   sourceId: string;
-  receivedAt: string;
+  receivedAt: string | null;
   sender?: string;
   subject?: string;
   labels?: string[];
@@ -31,7 +31,7 @@ export type EmailVectorHit = {
   accountId: string;
   messageId: string;
   sourceId: string;
-  receivedAt: string;
+  receivedAt?: string;
   sender?: string;
   subject?: string;
   labels?: string[];
@@ -239,7 +239,7 @@ export async function searchEmailVectors(input: {
       accountId: String(payload.accountId),
       messageId: String(payload.messageId),
       sourceId: String(payload.sourceId),
-      receivedAt: String(payload.receivedAt),
+      ...(typeof payload.receivedAt === "string" ? { receivedAt: payload.receivedAt } : {}),
       ...(typeof payload.sender === "string" ? { sender: payload.sender } : {}),
       ...(typeof payload.subject === "string" ? { subject: payload.subject } : {}),
       ...(Array.isArray(payload.labels) ? { labels: payload.labels.filter((v): v is string => typeof v === "string") } : {}),
