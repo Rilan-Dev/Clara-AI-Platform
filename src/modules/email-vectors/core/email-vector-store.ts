@@ -199,7 +199,7 @@ export async function updateEmailVectorMetadata(input: {
   orgId: string;
   accountId: string;
   messageId: string;
-  metadata: { sender?: string; subject?: string; labels?: string[]; receivedAt?: string; sourceId?: string };
+  metadata: { sender?: string | null; subject?: string | null; labels?: string[] | null; receivedAt?: string | null; sourceId?: string };
 }): Promise<void> {
   const client = getQdrantClient();
   const collections = await collectionsForOrg(input.orgId);
