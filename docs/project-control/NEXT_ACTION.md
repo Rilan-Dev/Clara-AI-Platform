@@ -1,3 +1,15 @@
+# OWNER-REQUESTED UI CHANGE — LIVE NAVBAR NOTIFICATION CENTER — 2026-10-15
+
+- Replaced the large inline platform-health alert banner with a notification bell in the global top-right navbar for platform admins, including an active-issue count badge and a dropdown listing each issue with its priority and direct action link.
+- Health notifications now refresh automatically every 30 seconds and on window focus without reloading the page. New incidents and escalations trigger Sonner notifications; resolved incidents trigger a short informational toast.
+- Sonner priority behavior: warnings auto-dismiss after 8 seconds; critical incidents are presented as **Risk** and use an infinite duration with a close button, so they remain until explicitly closed or the incident is resolved. The notification center itself continues listing active incidents until the server reports recovery.
+- Removed the old “Remind tomorrow” / “Don’t show again” banner controls so a critical issue cannot be hidden persistently by local suppression.
+- Source commits: `550449f4bde71d04977ffd26af5faad0659e2167` (notification center), `cfbf75807a6c386e2c17fc8edf5d6bb8a83f69e9` (navbar placement), `872e1fd137f8485e748050fba23f18fab89827f5` (remove inline banner), `a1f32c17ee31a268e7407ed23cd6f9d3f5e392d7` (surface current risks on initial load).
+- No tests, type-check, build, CI, Vercel, Gate, or live-browser verification was run or awaited. No PASS is claimed.
+- **Next implementation:** continue the authorized live model-catalogue audit in this branch: replace remaining selectable static Gemini model lists/defaults with live governance rows and capability filters, keeping static metadata only for pricing/vector compatibility.
+
+---
+
 ## DEV-01 CONTINUATION — EMBEDDING PROVIDER POLICY REGRESSION SOURCE — 2026-10-14
 
 - Extracted the embedding-only provider choice into `src/modules/ai-core/embedding-provider-selection.ts`; `resolve.ts` now delegates to this pure policy helper.
