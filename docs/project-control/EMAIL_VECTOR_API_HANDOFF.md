@@ -48,3 +48,12 @@ The API is not yet production verified. No typecheck, lint, unit test execution,
 3. Update the ai-comms-agent adapter contract to call this endpoint, but keep the adapter and shared Chat/realtime-voice retrieval disconnected until FIX-01 closes ISS-026.
 4. Once ISS-026 is closed, bind the existing PostgreSQL outbox to this API, start the vector sync loop, then implement shared PostgreSQL + Qdrant retrieval with authoritative SQL revalidation and citations.
 5. OPS-01 owns live infrastructure, initial ingestion, isolation runtime evidence, and p50/p95 latency/correctness/freshness acceptance.
+
+
+
+## Follow-up source additions — 2026-10-16
+
+- The API now accepts a nullable received timestamp for valid provider messages that lack one.
+- Upsert accepts contentHash, metadataHash, and per-chunk contentHash. When stored content hash, chunk indices, and per-chunk hashes match, the implementation updates payload metadata without embedding again. If content/chunk identity differs, it re-embeds and upserts.
+- ai-comms-agent now has an unbound adapter draft at `apps/worker/src/knowledge/clara-email-vector-adapter.ts` on its own feature branch/PR #23. The adapter is intentionally not activated because ISS-026 remains open and Clara API checks are pending.
+- These are additional source edits only; executable tests/typecheck/build and live Qdrant checks remain unrun. A local clone attempt could not resolve github.com in this execution environment, so no local commands were executed.
