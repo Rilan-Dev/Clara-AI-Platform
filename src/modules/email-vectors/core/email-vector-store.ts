@@ -89,10 +89,15 @@ export async function upsertEmailVectors(input: {
   chunks: EmailVectorChunk[];
 }): Promise<{ upserted: number; staleCleanupApplied: boolean }> {
   const { metadata, chunks } = input;
+  if (chunks.length === 0) {
+    await deleteEmailMessageVectors(metadata.orgId, metadata.accountId, metadata.messageId);
+    return { upserted: 0, staleCleanupApplied: true };
+  }
+
   const { config, collection } = await embeddingContext(metadata.orgId);
   const client = getQdrantClient();
 
-  if (chunks.length > 0 && metadata.contentHash && metadata.metadataHash &&
+  if (metadata.contentHash && metadata.metadataHash &&
       chunks.every((chunk) => typeof chunk.contentHash === "string" && chunk.contentHash.length === 64)) {
     const existing = await client.scroll(collection, {
       filter: {
@@ -132,11 +137,6 @@ export async function upsertEmailVectors(input: {
       });
       return { upserted: 0, staleCleanupApplied: true };
     }
-  }
-
-  if (chunks.length === 0) {
-    await deleteEmailMessageVectors(metadata.orgId, metadata.accountId, metadata.messageId);
-    return { upserted: 0, staleCleanupApplied: true };
   }
 
   const vectors = await embedBatches(
