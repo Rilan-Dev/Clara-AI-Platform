@@ -1,3 +1,14 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-16 — GEMINI CATALOGUE AUDIT CORRECTIONS
+
+[architect-verified] Gemini live catalogue source now refuses partial pagination before upsert/reconciliation. Focused regression source covers static metadata enrichment without static availability, failed discovery preserving last-known rows, successful empty discovery reconciling stale rows, and pagination truncation preserving existing rows.
+
+- Implementation: `e70860232a726a849c89f191135be0d360a99ece`
+- Regression source: `51b0162c5dcedc054dccbd09e26ffafe234f4964`
+- Executable verification remains deferred; no test/CI/Vercel/Gate PASS claimed.
+- Continue with the next authorized catalogue/runtime task from NEXT_ACTION.md; do not block on external verification.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-16 — LIVE MODEL CATALOGUE AUDIT
 
 [architect source review] Runtime model selection now independently filters rows by provider, capability, enabled flag, `vendor_live` provenance, and model kind. Regression source was updated to assert stale embedding defaults fail closed when discovery returns bootstrap-only or no rows, while a valid vendor-live row wins over rows with mismatched provider/capability/kind, disabled state, or bootstrap provenance.
