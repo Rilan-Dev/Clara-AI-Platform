@@ -1,3 +1,13 @@
+## GEMINI LIVE MODEL CATALOGUE — STALE EMBEDDING DEFAULT FAIL-CLOSED — 2026-10-16
+
+- Source correction: `src/modules/ai-core/resolve.ts` no longer re-injects a configured Gemini/OpenAI embedding default from static metadata when it is absent from the enabled vendor-live governance rows. Static model metadata is for pricing/dimensions only; it cannot establish current availability.
+- A stale or undiscoverable configured embedding default now emits a degraded runtime incident and is not selected. Effective embedding choices remain restricted to enabled `vendor_live` rows, avoiding silent model substitution and unadvertised-model use.
+- Commit: `8b1d64d2bb06764342205040cf00918c864abebb`.
+- No tests, type-check, build, live vendor API, CI, Vercel, or Gate was run or awaited. No PASS claimed.
+- **Next implementation:** continue the Gemini catalogue audit by adding/finishing focused regression coverage for provider/capability/kind filtering, stale default + failed discovery behavior, and pricing/vector-dimension metadata remaining enrichment-only; review the live sync's failure/reconciliation boundaries before marking the audit complete.
+
+---
+
 ## SONNER + ORGANISATION NOTIFICATIONS — 2026-10-16
 
 - Updated `src/components/ui/sonner.tsx`: each hovered toast smoothly grows within viewport bounds; non-hovered titles/descriptions remain one-line clamped. Long content wraps safely in the expanded toast.
