@@ -90,3 +90,7 @@ All delete filters include the organization, and message/account operations incl
 - The global bearer secret is a service-to-service trust boundary, not a substitute for mailbox grant checks. Consider per-caller HMAC signatures or scoped service credentials before exposing this API to any caller other than the trusted worker.
 - No live Qdrant operations, build, typecheck, lint, or tests have been run for this implementation. Do not mark it production-ready based on source changes alone.
 - The ai-comms-agent outbox adapter and sync loop are intentionally not connected yet. Bind only after ISS-026 is closed and the adapter can supply a freshly authorized account allowlist for retrieval.
+
+## Metadata clearing and Qdrant integration coverage
+
+For upsert and metadata-only updates, an explicitly supplied null/empty value clears a previously stored optional payload field; omission means the field is not being updated. This distinction prevents stale sender/subject/labels from surviving source metadata changes. The endpoint enforces the 2 MB body limit in UTF-8 bytes. An opt-in Qdrant integration test checks the real server's organization + explicit allowed-account filter and account-scoped deletion semantics when QDRANT_INTEGRATION_URL is configured (optional QDRANT_INTEGRATION_API_KEY). The test has been authored but not executed in the current work session.
