@@ -1,3 +1,14 @@
+## SONNER + ORGANISATION NOTIFICATIONS — 2026-10-16
+
+- Updated `src/components/ui/sonner.tsx`: each hovered toast smoothly grows within viewport bounds; non-hovered titles/descriptions remain one-line clamped. Long content wraps safely in the expanded toast.
+- Added `src/components/admin/OrganizationNotificationCenter.tsx`, wired into the org topbar. It surfaces org onboarding/payment/email-verification status and active platform announcements in a bell dropdown with active-count badge, links, and dismiss controls where allowed.
+- Updated `src/components/admin/OrganizationStatusBanner.tsx`: onboarding/status and announcements are surfaced through Sonner; announcements respect their `dismissible` setting and can be dismissed persistently per organization; status banner can be closed for the current session.
+- Commits: `8476e1003f6727ef5d7294642f5553c8206a146a` (Sonner hover sizing), `3957bdd84000b6c5cd86ff6f3715981c729ec7f1` (org status/announcement toasts and dismiss), `2f4d8bbc69c269b313cbb76527d07bff8cf0d34b` (org notification center), `3d5453afdc514479a6d1ac836381361ed03195b9` (topbar integration), `b37fd82a47c1c9f1daad2184b973dfe5a75e339d` (avoid duplicate toasts).
+- No tests, browser checks, type-check, build, CI, Vercel, or Gate was run or awaited. Visual/runtime behavior is not verified; no PASS claimed.
+- **Next implementation:** resume the previously authorized live Gemini model-catalogue audit: selectable defaults must come from live governance rows filtered by provider, capability, and kind; static price/dimension data stays metadata only; stale defaults fail closed when discovery fails; add focused regression coverage for filters, stale defaults, discovery failures, pricing, and dimensions.
+
+---
+
 ## SONNER TOAST UX — RESPONSIVE BOTTOM STACK — 2026-10-16
 
 - Global Sonner notifications now anchor at the bottom-center on desktop and mobile, show up to five stacked notifications, and expand the stack by default so active notifications remain visible.
