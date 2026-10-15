@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-16 — LIVE MODEL CATALOGUE AUDIT
+
+[architect source review only] The runtime selector now enforces provider + capability + enabled + vendor_live + kind filters on the returned row set. Focused regression source now covers stale configured defaults, bootstrap-only discovery, empty discovery, incident emission, and mixed/mis-scoped row rejection.
+
+- Commits: `7edb8ef23bf56a2cb4708b6df038e6e3b29f94c8`, `3e657cd364ba557e899d4455a1d778bcff2b1116`.
+- No tests, type-check, build, live provider discovery, CI, Vercel, or Gate execution was run or awaited.
+- No PASS is claimed. Catalogue audit is not complete; remaining work is static metadata enrichment regression and sync/reconciliation failure-path coverage.
+
+---
+
 ## SOURCE-ONLY UPDATE — 2026-10-16 — GEMINI STALE EMBEDDING DEFAULT
 
 - Reviewed and changed `src/modules/ai-core/resolve.ts`: static model metadata no longer creates a synthetic enabled embedding option when the configured platform default is missing from enabled vendor-live governance rows. A stale default emits a degraded runtime incident.
