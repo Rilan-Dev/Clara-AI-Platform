@@ -215,8 +215,22 @@ async function syncGemini(): Promise<boolean> {
         items.push({ providerId: "gemini", capability: "realtime_voice", kind: "realtime", modelId: id, displayName: model.displayName ?? id, metadata: { supportedGenerationMethods: methods, inputTokenLimit: model.inputTokenLimit ?? null, outputTokenLimit: model.outputTokenLimit ?? null, description: model.description ?? null } });
       }
     }
-    pageToken = body.nextPageToken ?? "";
-    if (!pageToken) break;
+    const nextPageToken = body.nextPageToken ?? "";
+    if (!nextPageToken) {
+      pageToken = "";
+      break;
+    }
+    // Never reconcile a partial catalogue as authoritative. If pagination
+    // exceeds the safety bound, fail discovery before upserts or stale-row
+    // disabling; the caller records a degraded incident and last-known rows
+    // remain selectable.
+    if (page === 19) {
+      throw new Error("Gemini model catalogue exceeded the 20-page discovery limit; refusing partial reconciliation.");
+    }
+    if (nextPageToken === pageToken) {
+      throw new Error("Gemini model catalogue returned a repeated page token; refusing partial reconciliation.");
+    }
+    pageToken = nextPageToken;
   }
   const groups = new Map<string, Set<string>>();
   for (const item of items) {
