@@ -32,9 +32,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast box-border w-[calc(100vw-1.5rem)] min-w-0 max-w-[min(28rem,calc(100vw-1.5rem))] sm:w-[min(28rem,calc(100vw-2rem))] overflow-hidden break-words [overflow-wrap:anywhere] group-hover:overflow-visible group-hover:z-50 group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          title: "line-clamp-1 overflow-hidden break-words [overflow-wrap:anywhere] group-hover:line-clamp-none group-hover:overflow-visible",
-          description: "group-[.toast]:text-muted-foreground line-clamp-1 overflow-hidden break-words [overflow-wrap:anywhere] transition-[max-height] duration-150 group-hover:line-clamp-none group-hover:overflow-visible",
+            "group toast box-border w-[calc(100vw-1.5rem)] min-w-0 max-w-[min(28rem,calc(100vw-1.5rem))] sm:w-[min(28rem,calc(100vw-2rem))] overflow-hidden break-words [overflow-wrap:anywhere] transition-[width,max-width,transform,box-shadow] duration-200 ease-out hover:!w-[calc(100vw-1rem)] hover:!max-w-[min(38rem,calc(100vw-1rem))] sm:hover:!w-[min(38rem,calc(100vw-2rem))] hover:z-50 hover:shadow-xl group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+          title: "line-clamp-1 overflow-hidden break-words [overflow-wrap:anywhere] transition-[max-height] duration-200 group-hover:line-clamp-none group-hover:overflow-visible",
+          description: "group-[.toast]:text-muted-foreground line-clamp-1 overflow-hidden break-words [overflow-wrap:anywhere] transition-[max-height] duration-200 group-hover:line-clamp-none group-hover:overflow-visible",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
         },
