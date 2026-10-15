@@ -21,9 +21,9 @@ export type EmailVectorMetadata = {
   contentHash?: string;
   metadataHash?: string;
   receivedAt: string | null;
-  sender?: string;
-  subject?: string;
-  labels?: string[];
+  sender?: string | null;
+  subject?: string | null;
+  labels?: string[] | null;
 };
 
 export type EmailVectorHit = {
