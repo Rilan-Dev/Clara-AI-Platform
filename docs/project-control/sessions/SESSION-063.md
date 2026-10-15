@@ -37,3 +37,10 @@ Source authored and inspected through GitHub file retrieval. No executable tests
 ## Exact next action
 
 Run focused executable typecheck/tests for the new route and vector-store module, correct source issues found, then add Qdrant integration coverage. Keep the ai-comms-agent outbox adapter and user-facing retrieval disconnected until FIX-01 closes ISS-026. After closure, bind the existing outbox and build shared PostgreSQL + Qdrant retrieval. OPS-01 owns live infra and acceptance evidence.
+
+## Follow-up source review — 2026-10-16
+
+- Fixed the API request-size limit to count UTF-8 bytes.
+- Allowed explicit nullable metadata clears so metadata-only updates do not preserve stale optional values.
+- Added opt-in Qdrant integration coverage for organization/account filtering and scoped deletion.
+- Tests/typecheck/lint/build and live Qdrant execution remain unrun; no PASS claimed. The ai-comms-agent adapter is still unbound because ISS-026 remains FIX-01-owned/open.
