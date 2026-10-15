@@ -28,3 +28,11 @@ Source commits are recorded in `docs/project-control/ISSUES.md`, `docs/project-c
 ## 2026-10-10 — OAuth setup follow-up
 
 Provider console instructions live in the pure `src/modules/integrations/oauth-setup-guides.ts` helper with regression source. Unknown IDs should not produce guessed provider links. The OAuth API may expose `credentialSource` and `secretConfigured` readiness only; never return secret bytes. Keep environment fallback deferred until credential precedence/rotation/audit semantics are designed. Tests authored in `oauth-setup-guides.test.ts` have not run because this execution environment has no checkout and GitHub DNS is unavailable. I-096 remains open.
+
+
+## 2026-10-16 — KB ingest embedding: batch-contract fix lifecycle (clobber + recovery)
+
+- Incident: the batch-contract degradation fix (embedBatch count-mismatch → sequential singles) was pushed as c40d266c at 2026-10-15 22:30 UTC, force-pushed off the branch by a stale-checkout push, and never deployed (the owner's redeploy predated the push; every Docker layer was cached). Owner evidence — old probe output without BATCH/QDRANT stages, the hard-fail "1 vectors for 20 inputs" signature, fully-cached build, containers left "Running" — proved the running image was pre-fix; the fix itself was never falsified.
+- Recovery: rebased onto 977489ef as bfc7b816, preserving the parallel stale-default/ai-catalog work and their probe improvement (`body.embedding.values` parsing); restored the GEMINI_EMBEDDING_MODEL env override their reformat had dropped; probe now prints a build marker ("probe build: v3 …"). Pushed fast-forward only.
+- Standing rule: never force-push feature/ai-core-from-doable-source; fetch + rebase before every push; verify the deployed artifact (git SHA → non-cached `COPY src` layer → probe v3 banner) before judging any fix.
+- Open: production verification pending — owner gated deploy + Retry both documents (PoliciesEn001 embedding; SDAIA NDMO needs the probe's QDRANT stage verdict for its "[vector-store] getCollection failed" error). OpenAI key 401 and slow first-hop DNS (~4 s) are OPS-01 items, not blockers.

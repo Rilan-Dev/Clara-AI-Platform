@@ -195,6 +195,10 @@ async function probeEndpoint({ label, baseUrl, apiKey, embedRequest }) {
 console.log(line("═"));
 console.log("\x1b[1mClara AI — embedding egress probe\x1b[0m");
 console.log(new Date().toISOString());
+// Build marker: output WITHOUT this line is a pre-v3 image — the
+// batch-contract degradation fix and the BATCH/QDRANT stages are absent,
+// and a "still failing" verdict from such an image says nothing about the fix.
+console.log("probe build: v3 — stages: endpoint egress · batch-contract · qdrant (embedBatch degradation fix present)");
 console.log(line("═"));
 console.log(`egress connect timeout : ${CONNECT_TIMEOUT_MS}ms (EGRESS_CONNECT_TIMEOUT_MS)`);
 console.log(`proxy configured        : ${proxies.length ? proxies.map((k) => `${k}=${process.env[k]}`).join(", ") : "none"}`);

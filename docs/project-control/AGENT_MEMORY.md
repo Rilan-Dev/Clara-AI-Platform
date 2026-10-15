@@ -230,3 +230,15 @@ Inspected Doable source: `services/api/src/integrations/oauth2.ts`, `services/ap
 - `npm install` warned that current Node v20.20.0 is below multiple package engines; observed strictest requirement is `machina >=22.22`, with Vitest 5 requiring Node 22.12+ and other packages requiring Node 22+. Treat Node 22.22+ as the candidate supported baseline, and align local, Docker, and deployment runtimes before relying on tests/runtime evidence.
 - npm audit reported 37 vulnerabilities (5 low, 7 moderate, 23 high, 2 critical); no audit fix was run. Do not use `npm audit fix --force` without reviewing breaking updates.
 - @types/ws was installed locally, but manifest/lockfile commit is not yet confirmed. Next: owner checks `git status --short`, commits only intended dependency changes, and continue the existing organization-owned MCP plan. No tests/build/runtime/CI/deployment PASS is implied by type-check PASS.
+
+
+### FIX-01 / Sentinel — 2026-10-16 — no-op deploy + force-push clobber (KB ingest embedding)
+
+- **Date/session:** 2026-10-16 / task-a-round4
+- **Agent:** FIX-01 / Sentinel
+- **Issue/symptom:** After `git pull && docker compose up -d --build`, KB ingest still failed with the exact pre-fix signature ("Embedding provider returned 1 vectors for 20 inputs") — was read as "the fix did not work".
+- **Root cause:** Two independent events. (1) The redeploy was a NO-OP: `git pull` printed "Already up to date." (it ran before the fix was pushed), every Docker source layer was CACHED (`COPY src ./src`), and compose did not recreate the containers — the image remained 6cbece5a. (2) The pushed fix c40d266c was then silently dropped from the branch by a force-push from a stale checkout (owner's a9e5b8e3 export-qdrant, then the stale-default/ai-catalog session on top → 977489ef), so even a fresh pull would not have contained it.
+- **Failed approach:** Judging a remediation by post-deploy symptoms without verifying the deployed artifact actually contains the fix; treating "Already up to date." + cached layers as a successful deploy of new code.
+- **Remedy:** Rebase the clobbered fix onto the new head (preserve the other session's work; keep their semantic probe improvement `body.embedding.values`; restore the GEMINI_EMBEDDING_MODEL env override the clobbering reformat had dropped), push with a normal fast-forward, and add a probe build marker so any probe output self-identifies its build.
+- **Prevention:** (a) NEVER force-push the shared feature branch; always `git fetch` + rebase/merge before pushing — a pushed commit is invisible to sessions on stale checkouts and force-push destroys it silently. (b) Deployment verification gate before judging any fix: `git log --oneline -1` shows the fix SHA; the Docker build shows `COPY src ./src` NOT cached (containers "Started", not "Running"); the in-container probe prints its build marker and the new stages. (c) Diagnostic scripts should print a build/capability marker line so stale images are self-evident.
+- **Related record:** EVT-FIX-20261016-01; commits c40d266c (clobbered) → bfc7b816 (recovered); scripts/probe-embedding-egress.mjs v3 marker.

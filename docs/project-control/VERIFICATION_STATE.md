@@ -1,3 +1,12 @@
+## KB INGEST EMBEDDING — CLOBBER + RECOVERY VERIFICATION — 2026-10-16
+
+- Evidence the deployed image was pre-fix: owner probe output (2026-10-15T23:21:23Z) contains NO batch-contract/Qdrant stages and no v3 marker; the Docker build log shows `CACHED … COPY src ./src` and `CACHED … COPY . ./` for every source layer with the worker/backend containers left "Running"; `git pull` printed "Already up to date." (local and remote both at 6cbece5a at pull time — before the 22:30:17 UTC fix push). The persistent error string is the pre-fix hard-fail, which cannot occur under the degradation fix.
+- Branch forensics: `git fetch` reported `+ c40d266c...977489ef feature/ai-core-from-doable-source (forced update)` — the pushed fix was replaced by history containing a9e5b8e3 (pushed from a stale checkout) plus the stale-default/ai-catalog commits; 6cbece5a is an ancestor of 977489ef, c40d266c is not.
+- Recovery verified in sandbox: the fix rebased onto 977489ef as bfc7b816 (+ probe-marker commit on top); the branch delta vs origin is exactly the fix's files; their resolve.ts is untouched; both agents' suites green (15/15 targeted incl. resolve-embedding-default 5/5; ai-core sweep 90/90); probe v3 marker prints on a live run.
+- NOT verified: production deployment of the recovered fix, live-key BATCH stage verdict, end-to-end document ingest. No production PASS is claimed until the owner's gated deploy + Retry evidence arrives.
+
+---
+
 ## CURRENT AUTHORITATIVE VERIFICATION STATE — 2026-10-16 — LIVE MODEL CATALOGUE AUDIT
 
 [architect source review only] The runtime selector now enforces provider + capability + enabled + vendor_live + kind filters on the returned row set. Focused regression source now covers stale configured defaults, bootstrap-only discovery, empty discovery, incident emission, and mixed/mis-scoped row rejection.

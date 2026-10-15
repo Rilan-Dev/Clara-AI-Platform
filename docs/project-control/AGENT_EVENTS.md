@@ -1,3 +1,14 @@
+### EVT-FIX-20261016-01 — 2026-10-16
+- **Agent/session:** FIX-01 / Sentinel / task-a-round4
+- **Type:** CORRECTION + LESSON (branch-history loss + no-op deploy)
+- **Summary:** The embedBatch batch-contract degradation fix (c40d266c, pushed 2026-10-15 22:30 UTC) was silently removed from `feature/ai-core-from-doable-source` by a force-push from a stale local checkout (owner's export-qdrant a9e5b8e3, then the stale-default/ai-catalog session landing on top — head 977489ef). Independently, the owner's redeploy (`git pull && docker compose up -d --build`) ran BEFORE the fix was pushed: "Already up to date." + every Docker source layer CACHED + containers not recreated, so the running image stayed at 6cbece5a and ingest kept failing with the pre-fix signature "Embedding provider returned 1 vectors for 20 inputs". FIX-01 rebased the fix onto 977489ef (preserving the stale-default/ai-catalog work and their probe improvement), added a probe build marker (v3 banner), and pushed with a normal fast-forward push — no other session's work was discarded.
+- **Impact:** cross-agent: every agent pushing to the shared feature branch MUST fetch + rebase/merge first and MUST NOT force-push; a pushed commit is invisible to sessions working from stale checkouts, and force-push destroys it silently.
+- **Owner:** FIX-01
+- **Suggested next action:** Owner deploys through the verification gate: `git log --oneline -2` shows the fix commit (bfc7b816 embedBatch degradation + probe-marker commit on top) → Docker build shows `COPY src ./src` NOT cached → in-container probe prints "probe build: v3" and the BATCH/QDRANT stages → Retry both failed documents.
+- **Related records:** commits c40d266c (clobbered) → bfc7b816 (recovered); docs/project-control/NEXT_ACTION.md and VERIFICATION_STATE.md 2026-10-16 entries; AGENT_MEMORY.md FIX-01 lesson 2026-10-16.
+
+---
+
 ### EVT-DEV-002 — 2026-10-09
 - **Agent/session:** DEV-01 / SESSION-DEV-20261009-02
 - **Type:** CORRECTION

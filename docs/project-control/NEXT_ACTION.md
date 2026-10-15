@@ -1,3 +1,14 @@
+## KB INGEST EMBEDDING — FIX CLOBBERED BY FORCE-PUSH + NO-OP DEPLOY — RECOVERED — 2026-10-16
+
+- Symptom recurrence explained: the owner redeploy ("Already up to date." + ALL Docker layers cached → containers not recreated) ran BEFORE the fix landed on GitHub, and the fix commit c40d266c was subsequently force-pushed off the branch by a stale-checkout push (owner's a9e5b8e3 export-qdrant + the stale-default/ai-catalog session → head 977489ef). The running image was 6cbece5a the whole time — the probe output WITHOUT BATCH/QDRANT stages and the hard-fail "1 vectors for 20 inputs" signature are pre-fix behavior, NOT a failure of the fix.
+- Recovery: c40d266c rebased onto 977489ef as bfc7b816 (their resolve.ts catalogue filtering and probe `embedding.values` parsing preserved; GEMINI_EMBEDDING_MODEL env override restored; no other session's work discarded). Merged-branch verification: 15/15 targeted (relay integration 6, embed batches 2, ingest pipeline 2, resolve-embedding-default 5) + ai-core sweep 90/90.
+- The probe now prints `probe build: v3 — stages: endpoint egress · batch-contract · qdrant` — any probe output WITHOUT that line is a pre-fix image and says nothing about the fix.
+- Branch rule recorded (EVT-FIX-20261016-01, AGENT_MEMORY.md): NEVER force-push feature/ai-core-from-doable-source; always fetch + rebase before pushing.
+- **Owner deploy gate — all three must hold before judging the fix:** (1) `git log --oneline -2` shows the embedBatch fix commit (bfc7b816) and/or the probe-marker commit on top; (2) the Docker build shows `COPY src ./src` NOT cached and the worker/backend containers "Started" (not "Running"); (3) `docker compose exec clara-worker node scripts/probe-embedding-egress.mjs` prints the v3 build marker plus the BATCH(3)/BATCH(20) and Qdrant stages. Then Retry BOTH documents (PoliciesEn001; SDAIA NDMO — its "[vector-store] getCollection failed" needs the QDRANT stage verdict from inside the worker). Expect a one-time `[gemini] … degrading to sequential single-text embeds` log line, then batches 1/15 → 15/15; with this host's ~1-5 s per embed, 295 chunks ≈ 5-25 minutes — do not interrupt the run.
+- OPS-01 (not blockers for ingest): OpenAI key invalid (HTTP 401, sk-proj-…B6YA — replace or disable the OpenAI provider); first-hop DNS resolution ~4 s on this host.
+
+---
+
 ## GEMINI LIVE MODEL CATALOGUE — FILTERING + STALE DEFAULT REGRESSIONS — 2026-10-16
 
 - Runtime source now explicitly filters vendor-live rows by expected provider, capability, enabled state, catalogue source, and kind before model selection. This guards against malformed/mis-scoped rows even if a registry adapter returns a mixed result set.
