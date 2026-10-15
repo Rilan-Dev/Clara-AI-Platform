@@ -34,6 +34,7 @@ export type EmailVectorHit = {
   accountId: string;
   messageId: string;
   sourceId: string;
+  contentHash?: string;
   receivedAt?: string;
   sender?: string;
   subject?: string;
@@ -273,7 +274,7 @@ export async function searchEmailVectors(input: {
   const results = await getQdrantClient().search(collection, {
     vector: queryVector,
     limit: input.limit,
-    with_payload: ["orgId", "accountId", "messageId", "sourceId", "receivedAt", "sender", "subject", "labels", "chunk"],
+    with_payload: ["orgId", "accountId", "messageId", "sourceId", "contentHash", "receivedAt", "sender", "subject", "labels", "chunk"],
     filter: tenantAccountFilter(input.orgId, input.allowedAccountIds),
   });
   return results.flatMap((hit) => {
@@ -287,6 +288,7 @@ export async function searchEmailVectors(input: {
       accountId: String(payload.accountId),
       messageId: String(payload.messageId),
       sourceId: String(payload.sourceId),
+      ...(typeof payload.contentHash === "string" ? { contentHash: payload.contentHash } : {}),
       ...(typeof payload.receivedAt === "string" ? { receivedAt: payload.receivedAt } : {}),
       ...(typeof payload.sender === "string" ? { sender: payload.sender } : {}),
       ...(typeof payload.subject === "string" ? { subject: payload.subject } : {}),
