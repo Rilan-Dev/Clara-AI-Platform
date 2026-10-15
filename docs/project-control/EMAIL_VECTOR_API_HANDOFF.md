@@ -64,3 +64,4 @@ The API is not yet production verified. No typecheck, lint, unit test execution,
 - Upsert and metadata-update now accept explicit null/empty sender, subject, labels, and receivedAt values where supported, allowing stale Qdrant payload metadata to be cleared. Field absence still means leave that field unchanged.
 - Added opt-in Qdrant integration coverage at src/modules/email-vectors/core/qdrant-filter.integration.test.ts for organization + allowed-account filtering and scoped deletion. Configure QDRANT_INTEGRATION_URL and optionally QDRANT_INTEGRATION_API_KEY to run it.
 - No tests/typecheck/lint/build/live Qdrant call were run in this work session. Do not mark the PR verified or production-ready.
+- Corrected hash-input separators to actual NUL delimiters for deterministic point IDs and model-key hashing, avoiding ambiguous concatenation of identifier parts. This is source-reviewed only; tests/typecheck remain unrun.
