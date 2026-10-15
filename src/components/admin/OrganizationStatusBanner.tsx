@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, Clock3, MailCheck, X } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 type BannerState =
   | "ready"
@@ -36,6 +37,7 @@ type StatusResponse = {
 };
 
 const DISMISS_KEY_PREFIX = "clara:org-status-banner:";
+const ANNOUNCEMENT_DISMISS_KEY_PREFIX = "clara:org-announcement-dismissed:";
 
 function tone(state: BannerState) {
   if (state === "payment_pending" || state === "payment_review") {
@@ -85,6 +87,7 @@ function mobileMessage(status: StatusResponse) {
 export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [dismissedAnnouncements, setDismissedAnnouncements] = useState<string[]>([]);
   const [statusDismissed, setStatusDismissed] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
@@ -96,7 +99,19 @@ export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
     fetch("/api/platform/announcements", { cache: "no-store" })
       .then(async (res) => res.ok ? (await res.json()) as { announcements?: Announcement[] } : null)
       .then((data) => {
-        if (!cancelled) setAnnouncements(data?.announcements ?? []);
+        if (!cancelled) {
+          const incoming = data?.announcements ?? [];
+          setAnnouncements(incoming);
+          setDismissedAnnouncements(incoming.filter((item) => item.dismissible && window.localStorage.getItem(ANNOUNCEMENT_DISMISS_KEY_PREFIX + orgId + ":" + item.id) === "1").map((item) => item.id));
+          for (const item of incoming) {
+            const toastKey = "clara:org-announcement-toast:" + orgId + ":" + item.id;
+            if (window.sessionStorage.getItem(toastKey) !== "1") {
+              window.sessionStorage.setItem(toastKey, "1");
+              const notify = item.severity === "critical" || item.severity === "warning" ? toast.warning : item.severity === "success" ? toast.success : toast.info;
+              notify(item.title, { description: item.message, duration: item.severity === "critical" ? Infinity : 8000 });
+            }
+          }
+        }
       })
       .catch(() => undefined);
 
@@ -105,6 +120,12 @@ export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
       .then((data) => {
         if (cancelled || !data || data.state === "ready") return;
         setStatus(data);
+        const toastKey = "clara:org-status-toast:" + orgId + ":" + data.state;
+        if (window.sessionStorage.getItem(toastKey) !== "1") {
+          window.sessionStorage.setItem(toastKey, "1");
+          const notify = ["payment_failed", "payment_cancelled", "subscription_required"].includes(data.state) ? toast.error : ["payment_pending", "payment_review", "payment_required", "email_verification_required"].includes(data.state) ? toast.warning : toast.info;
+          notify(data.title ?? "Organisation notice", { description: data.message ?? mobileMessage(data), duration: Infinity });
+        }
         const key = DISMISS_KEY_PREFIX + orgId + ":" + data.state;
         setStatusDismissed(window.sessionStorage.getItem(key) === "1");
       })
@@ -115,7 +136,7 @@ export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
     };
   }, [orgId]);
 
-  if (!orgId || ((!status || statusDismissed) && announcements.length === 0)) return null;
+  if (!orgId || ((!status || statusDismissed) && announcements.every((item) => dismissedAnnouncements.includes(item.id)))) return null;
 
   const dismiss = () => {
     if (!status) return;
@@ -142,7 +163,12 @@ export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
     }
   }
 
-  const visibleAnnouncements = status ? announcements : announcements.slice(0, 3);
+  const visibleAnnouncements = (status ? announcements : announcements.slice(0, 3)).filter((item) => !dismissedAnnouncements.includes(item.id));
+  const dismissAnnouncement = (item: Announcement) => {
+    if (!item.dismissible) return;
+    window.localStorage.setItem(ANNOUNCEMENT_DISMISS_KEY_PREFIX + orgId + ":" + item.id, "1");
+    setDismissedAnnouncements((current) => current.includes(item.id) ? current : [...current, item.id]);
+  };
 
   return (
     <>
@@ -226,6 +252,16 @@ export function OrganizationStatusBanner({ orgId }: { orgId: string | null }) {
                 <span className="hidden sm:inline">{item.action_label}</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
+            )}
+            {item.dismissible && (
+              <button
+                type="button"
+                onClick={() => dismissAnnouncement(item)}
+                aria-label={"Dismiss announcement: " + item.title}
+                className="shrink-0 rounded-md p-1.5 opacity-60 transition-opacity hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>
