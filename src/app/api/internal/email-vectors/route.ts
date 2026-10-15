@@ -67,8 +67,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             !nonEmptyString(metadata.accountId, 256) ||
             !nonEmptyString(metadata.messageId, 512) ||
             !nonEmptyString(metadata.sourceId, 512) ||
-            !nonEmptyString(metadata.receivedAt, 80) ||
-            !Number.isFinite(Date.parse(metadata.receivedAt)) ||
+            !(metadata.receivedAt === null || (nonEmptyString(metadata.receivedAt, 80) && Number.isFinite(Date.parse(metadata.receivedAt)))) ||
             !Array.isArray(chunks) || chunks.length > 200) {
           return errorResponse("Invalid metadata or chunks", 400);
         }
