@@ -1,3 +1,14 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-16 — LIVE MODEL CATALOGUE AUDIT
+
+[architect source review] Runtime model selection now independently filters rows by provider, capability, enabled flag, `vendor_live` provenance, and model kind. Regression source was updated to assert stale embedding defaults fail closed when discovery returns bootstrap-only or no rows, while a valid vendor-live row wins over rows with mismatched provider/capability/kind, disabled state, or bootstrap provenance.
+
+- Runtime commit: `7edb8ef23bf56a2cb4708b6df038e6e3b29f94c8`
+- Regression commit: `3e657cd364ba557e899d4455a1d778bcff2b1116`
+- Verification: source review only; tests/build/CI/Vercel/Gates not run or awaited.
+- Audit remains IN PROGRESS; static pricing/vector-dimension enrichment and catalogue sync/reconciliation failure-path review remain open.
+
+---
+
 ## CURRENT STATE UPDATE — 2026-10-16 — GEMINI MODEL CATALOGUE AUDIT
 
 [architect-reviewed source change] Runtime embedding resolution no longer fabricates selectable bootstrap entries from static metadata when the configured platform default is absent from enabled vendor-live governance rows. Stale/unavailable defaults emit a warning incident and remain unavailable rather than silently substituting an unadvertised model.
