@@ -32,17 +32,19 @@ All operations are JSON POST requests with an action property.
     "messageId": "provider-message-id",
     "sourceId": "stable-source-id",
     "receivedAt": "2026-10-16T10:00:00.000Z",
+    "contentHash": "64-character-sha256-content-hash",
+    "metadataHash": "64-character-sha256-metadata-hash",
     "sender": "sender@example.com",
     "subject": "Invoice",
     "labels": ["INBOX"]
   },
   "chunks": [
-    { "chunkIndex": 0, "sourceId": "stable-source-id", "text": "Email body chunk..." }
+    { "chunkIndex": 0, "sourceId": "stable-source-id", "contentHash": "64-character-sha256-chunk-hash", "text": "Email body chunk..." }
   ]
 }
 ~~~
 
-Point IDs are deterministic for orgId + accountId + messageId + chunkIndex. Upsert uses the tenant's resolved embedding configuration and a dedicated model-specific email collection. It upserts current chunks then deletes stale chunk indices for the same organization/account/message. An empty chunk list deletes all vectors for that message. The response reports upserted and staleCleanupApplied; it does not claim a server-reported exact stale-point count.
+Point IDs are deterministic for orgId + accountId + messageId + chunkIndex. Upsert uses the tenant's resolved embedding configuration and a dedicated organization/model-specific email collection. receivedAt may be null when the provider message has no reliable timestamp. Provide 64-character SHA-256 contentHash and metadataHash values, plus a per-chunk contentHash, to enable the metadata-only fast path: when stored content hash, chunk indices, and chunk hashes match, Clara updates payload metadata without re-embedding. If content or chunk identity differs, Clara embeds and upserts the chunks. It upserts current chunks then deletes stale chunk indices for the same organization/account/message. An empty chunk list deletes all vectors for that message. The response reports upserted and staleCleanupApplied; it does not claim a server-reported exact stale-point count.
 
 ### Semantic search
 
@@ -70,7 +72,7 @@ The Qdrant query filter requires both orgId and an account ID in allowedAccountI
 }
 ~~~
 
-Supported fields: sender, subject, labels, receivedAt, sourceId. The operation does not re-embed email content.
+Supported fields: sender, subject, labels, receivedAt, sourceId. The operation does not re-embed email content. The upsert operation also has a hash-aware metadata-only fast path when the current indexed content is unchanged.
 
 ### Delete and purge
 
