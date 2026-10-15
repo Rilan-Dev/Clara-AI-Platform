@@ -42,7 +42,7 @@ export type EmailVectorHit = {
 
 function stablePointId(orgId: string, accountId: string, messageId: string, chunkIndex: number): string {
   const bytes = createHash("sha256")
-    .update([orgId, accountId, messageId, String(chunkIndex)].join("\\0"))
+    .update([orgId, accountId, messageId, String(chunkIndex)].join("\0"))
     .digest()
     .subarray(0, 16);
   // RFC 4122 UUID variant/version bits; Qdrant accepts UUID point IDs.
@@ -58,7 +58,7 @@ async function embeddingContext(orgId: string): Promise<{ config: ProviderConfig
   const provider = ProviderFactory.getProvider(config);
   const dimension = provider.getEmbeddingDimension();
   const modelKey = createHash("sha256")
-    .update([config.provider, config.embeddingModel ?? "", String(dimension)].join("\\0"))
+    .update([config.provider, config.embeddingModel ?? "", String(dimension)].join("\0"))
     .digest("hex")
     .slice(0, 12);
   const providerKey = String(config.provider).toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 16);
