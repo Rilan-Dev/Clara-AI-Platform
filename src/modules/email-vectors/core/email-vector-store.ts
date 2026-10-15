@@ -10,6 +10,7 @@ export type EmailVectorChunk = {
   text: string;
   chunkIndex: number;
   sourceId: string;
+  contentHash?: string;
 };
 
 export type EmailVectorMetadata = {
@@ -17,6 +18,8 @@ export type EmailVectorMetadata = {
   accountId: string;
   messageId: string;
   sourceId: string;
+  contentHash?: string;
+  metadataHash?: string;
   receivedAt: string | null;
   sender?: string;
   subject?: string;
@@ -89,6 +92,48 @@ export async function upsertEmailVectors(input: {
   const { config, collection } = await embeddingContext(metadata.orgId);
   const client = getQdrantClient();
 
+  if (chunks.length > 0 && metadata.contentHash && metadata.metadataHash &&
+      chunks.every((chunk) => typeof chunk.contentHash === "string" && chunk.contentHash.length === 64)) {
+    const existing = await client.scroll(collection, {
+      filter: {
+        must: [
+          { key: "orgId", match: { value: metadata.orgId } },
+          { key: "accountId", match: { value: metadata.accountId } },
+          { key: "messageId", match: { value: metadata.messageId } },
+        ],
+      },
+      limit: 250,
+      with_payload: ["chunkIndex", "contentHash", "chunkContentHash"],
+      with_vector: false,
+    });
+    const existingPoints = existing.points as Array<{ payload?: Record<string, unknown> | null }>;
+    const existingIndices = existingPoints.map((point) => Number(point.payload?.chunkIndex)).sort((a, b) => a - b);
+    const nextIndices = chunks.map((chunk) => chunk.chunkIndex).sort((a, b) => a - b);
+    const sameContent = existingPoints.length === chunks.length &&
+      existingPoints.every((point) => point.payload?.contentHash === metadata.contentHash) &&
+      JSON.stringify(existingIndices) === JSON.stringify(nextIndices) &&
+      chunks.every((chunk) => existingPoints.some((point) =>
+        Number(point.payload?.chunkIndex) === chunk.chunkIndex &&
+        point.payload?.chunkContentHash === chunk.contentHash
+      ));
+    if (sameContent) {
+      const { sourceId: ignoredSourceId, ...metadataPayload } = metadata;
+      void ignoredSourceId;
+      await client.setPayload(collection, {
+        wait: true,
+        payload: { ...metadataPayload, indexedAt: new Date().toISOString() },
+        filter: {
+          must: [
+            { key: "orgId", match: { value: metadata.orgId } },
+            { key: "accountId", match: { value: metadata.accountId } },
+            { key: "messageId", match: { value: metadata.messageId } },
+          ],
+        },
+      });
+      return { upserted: 0, staleCleanupApplied: true };
+    }
+  }
+
   if (chunks.length === 0) {
     await deleteEmailMessageVectors(metadata.orgId, metadata.accountId, metadata.messageId);
     return { upserted: 0, staleCleanupApplied: true };
@@ -105,6 +150,9 @@ export async function upsertEmailVectors(input: {
     payload: {
       ...metadata,
       sourceId: chunk.sourceId,
+      contentHash: metadata.contentHash,
+      metadataHash: metadata.metadataHash,
+      chunkContentHash: chunk.contentHash,
       chunkIndex: chunk.chunkIndex,
       chunk: chunk.text,
       indexedAt: new Date().toISOString(),
