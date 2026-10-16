@@ -611,8 +611,21 @@ async function syncElevenLabs(): Promise<boolean> {
           metadata: { category: voice.category ?? null, verifiedLanguages: voice.verified_languages ?? [] },
         });
       }
-      nextPageToken = body.next_page_token ?? "";
-      if (!body.has_more || !nextPageToken) break;
+      const discoveredNextPageToken = body.next_page_token ?? "";
+      if (!body.has_more || !discoveredNextPageToken) {
+        nextPageToken = "";
+        break;
+      }
+      // Voice discovery is authoritative only when every page is accounted
+      // for. Never upsert partial TTS/STS/voice results or disable last-known
+      // voice rows after a repeated token or a truncated 100-page response.
+      if (discoveredNextPageToken === nextPageToken) {
+        throw new Error("ElevenLabs voice catalogue returned a repeated page token; refusing partial reconciliation.");
+      }
+      if (page === 99) {
+        throw new Error("ElevenLabs voice catalogue exceeded the 100-page discovery limit; refusing partial reconciliation.");
+      }
+      nextPageToken = discoveredNextPageToken;
     }
   }
 
