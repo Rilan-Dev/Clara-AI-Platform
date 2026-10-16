@@ -24,9 +24,15 @@ vi.mock("@/modules/platform-health/core/incidents", () => ({
   recordRuntimeIncident: vi.fn(async (incident: Record<string, unknown>) => { mocks.incidents.push(incident); }),
 }));
 
-import { syncLiveProviderCatalog } from "./live-catalog";
 
-describe("Gemini live catalogue reconciliation", () => {
+
+async function syncCatalogFreshModule(): Promise<void> {
+  vi.resetModules();
+  const { syncLiveProviderCatalog } = await import("./live-catalog");
+  await syncCatalogFreshModule();
+}
+
+describe("Live provider catalogue reconciliation", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.execute.mockResolvedValue(undefined);
@@ -50,7 +56,7 @@ describe("Gemini live catalogue reconciliation", () => {
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     });
 
-    await syncLiveProviderCatalog();
+    await syncCatalogFreshModule();
 
     const geminiUpserts = mocks.execute.mock.calls.filter(([sql]) =>
       String(sql).includes("INSERT INTO platform_ai_provider_models") &&
@@ -69,7 +75,7 @@ describe("Gemini live catalogue reconciliation", () => {
   it("preserves last-known Gemini rows when discovery fails", async () => {
     mocks.fetch.mockRejectedValue(new Error("vendor unavailable"));
 
-    await syncLiveProviderCatalog();
+    await syncCatalogFreshModule();
 
     expect(mocks.execute.mock.calls.some(([sql, params]) =>
       String(sql).includes("SET enabled = FALSE") && params?.[0] === "gemini",
@@ -87,12 +93,50 @@ describe("Gemini live catalogue reconciliation", () => {
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     });
 
-    await syncLiveProviderCatalog();
+    await syncCatalogFreshModule();
 
     expect(mocks.execute.mock.calls.some(([sql, params]) =>
       String(sql).includes("SET enabled = FALSE") &&
       params?.[0] === "gemini" && params?.[3] instanceof Array && params[3].length === 0,
     )).toBe(true);
+  });
+
+  it("preserves ElevenLabs rows when voice pagination repeats a token", async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.SARVAM_API_KEY;
+    process.env.ELEVENLABS_API_KEY = "test-elevenlabs-key";
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (String(url).includes("/v1/models")) return new Response("[]", { status: 200 });
+      if (String(url).includes("/v2/voices")) {
+        const token = new URL(String(url)).searchParams.get("next_page_token") ?? "";
+        return new Response(JSON.stringify({ voices: [{ voice_id: token || "voice-first" }], has_more: true, next_page_token: "repeat-token" }), { status: 200 });
+      }
+      return new Response("[]", { status: 200 });
+    });
+    await syncCatalogFreshModule();
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("INSERT INTO platform_ai_provider_models") && params?.[0] === "elevenlabs")).toBe(false);
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "elevenlabs")).toBe(false);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:elevenlabs", healthy: false }));
+  });
+
+  it("preserves ElevenLabs rows when voice pagination reaches its page limit", async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.SARVAM_API_KEY;
+    process.env.ELEVENLABS_API_KEY = "test-elevenlabs-key";
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (String(url).includes("/v1/models")) return new Response("[]", { status: 200 });
+      if (String(url).includes("/v2/voices")) {
+        const token = new URL(String(url)).searchParams.get("next_page_token") ?? "";
+        return new Response(JSON.stringify({ voices: [{ voice_id: token || "voice-first" }], has_more: true, next_page_token: "page-" + (token || "first") }), { status: 200 });
+      }
+      return new Response("[]", { status: 200 });
+    });
+    await syncCatalogFreshModule();
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("INSERT INTO platform_ai_provider_models") && params?.[0] === "elevenlabs")).toBe(false);
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "elevenlabs")).toBe(false);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:elevenlabs", healthy: false }));
   });
 
   it("does not upsert or disable stale rows when Gemini pagination exceeds its safety limit", async () => {
@@ -107,7 +151,7 @@ describe("Gemini live catalogue reconciliation", () => {
       return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     });
 
-    await syncLiveProviderCatalog();
+    await syncCatalogFreshModule();
 
     expect(mocks.execute.mock.calls.some(([sql, params]) =>
       String(sql).includes("INSERT INTO platform_ai_provider_models") && params?.[0] === "gemini",
