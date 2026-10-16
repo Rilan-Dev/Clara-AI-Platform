@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-16 — SARVAM CATALOGUE FAILURE SEMANTICS
+
+[architect source review] Sarvam chat discovery now distinguishes a successful empty catalogue from failure of both supported endpoints. Successful empty discovery is authoritative; failed discovery retains the curated baseline and skips stale chat-row disabling, while recording a degraded provider incident.
+
+- Commits: `d9aca70e90708fbf9ce9dfb431d0877143215864`, `e478b0818586b4502e97fd82bb119631514e54e1`.
+- Executable verification remains deferred; no tests/CI/Vercel/Gate PASS claimed.
+- **Next:** audit ElevenLabs voice pagination response-shape validation and reconciliation ordering within the same catalogue scope.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-16 — CROSS-PROVIDER CATALOGUE PAGINATION HARDENING
 
 [architect source review] OpenAI model discovery and ElevenLabs voice discovery now fail closed on incomplete pagination. Repeated/missing OpenAI cursors and 20-page truncation, plus repeated ElevenLabs voice cursors and 100-page truncation, abort before the provider's catalogue upsert/reconciliation boundary. Regression source asserts last-known rows remain untouched and a degraded incident is recorded.
