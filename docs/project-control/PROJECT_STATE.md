@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-16 — CATALOGUE RESPONSE-SHAPE HARDENING
+
+[architect source review] Gemini/OpenAI model discovery and ElevenLabs voice discovery now validate pagination response shapes and fail closed before writes/reconciliation when responses are malformed or incomplete. Gemini token cycles, OpenAI cursor/page limits, ElevenLabs repeated/missing cursors/page limits, and Sarvam failed-vs-empty discovery semantics have regression source coverage.
+
+- Latest commits: `b1b020be3a4ccfe27d9ac5fda1e9ed83b3f48d3c`, `ae7a050e278f5a2bec4f882ff60c25e65a840cb6`, `fbd595f16920dae522490525b335bd7c9e678284`, `23eae79dc676768e7dc3fd3320a62dd499cf1042`.
+- Executable verification remains deferred; no tests/CI/Vercel/Gate PASS claimed.
+- **Next:** review sync coordinator incident/status semantics for partial provider success vs health reporting.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-16 — SARVAM CATALOGUE FAILURE SEMANTICS
 
 [architect source review] Sarvam chat discovery now distinguishes a successful empty catalogue from failure of both supported endpoints. Successful empty discovery is authoritative; failed discovery retains the curated baseline and skips stale chat-row disabling, while recording a degraded provider incident.
