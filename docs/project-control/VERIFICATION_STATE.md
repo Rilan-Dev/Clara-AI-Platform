@@ -1,3 +1,12 @@
+## SOURCE REVIEW UPDATE — CATALOGUE RESPONSE-SHAPE HARDENING — 2026-10-16
+
+[architect source review only] OpenAI/Gemini model discovery and ElevenLabs voice discovery now reject malformed response shapes and incomplete continuation state before upsert/reconciliation. Regression source covers malformed HTTP-200 pages, pagination truncation/repetition, missing continuation cursors, and Sarvam failed-versus-empty discovery.
+
+- Commits: `b1b020be3a4ccfe27d9ac5fda1e9ed83b3f48d3c`, `ae7a050e278f5a2bec4f882ff60c25e65a840cb6`, `fbd595f16920dae522490525b335bd7c9e678284`, `23eae79dc676768e7dc3fd3320a62dd499cf1042`.
+- No executable tests, type-check, build, live vendor requests, CI, Vercel, or Gate execution occurred. No PASS is claimed.
+
+---
+
 ## SOURCE REVIEW UPDATE — SARVAM CATALOGUE FAILURE BOUNDARY — 2026-10-16
 
 [architect source review only] Sarvam sync now distinguishes a successful empty model list from endpoint failure. If both supported endpoints fail, chat reconciliation is skipped so last-known vendor-discovered rows are preserved; the sync reports a degraded incident. Focused regression source covers failed and successful-empty cases.
