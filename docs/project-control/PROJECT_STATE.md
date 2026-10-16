@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-16 — FOCUSED CATALOGUE SOURCE AUDIT COMPLETE
+
+[architect source review] Completed the authorized focused review of cross-provider discovery/reconciliation boundaries: Gemini/OpenAI pagination and response-shape validation, ElevenLabs voice pagination/response-shape validation, Sarvam failed-vs-empty discovery, and provider-specific incident status handling. Partial/malformed discovery is rejected before the affected provider's authoritative reconciliation; last-known rows are preserved. Coordinator review found provider failures isolated and reported as unhealthy, without blocking independent provider tasks.
+
+- Regression source added for the reviewed failure boundaries; no executable verification was run or awaited.
+- No test/type-check/build/live vendor API/CI/Vercel/Gate PASS is claimed.
+- **Next:** continue with the next authorized catalogue/runtime task recorded in `docs/project-control/NEXT_ACTION.md`. This focused audit does not close the wider live-model-catalogue workstream or authorize unrelated scope.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-16 — CATALOGUE RESPONSE-SHAPE HARDENING
 
 [architect source review] Gemini/OpenAI model discovery and ElevenLabs voice discovery now validate pagination response shapes and fail closed before writes/reconciliation when responses are malformed or incomplete. Gemini token cycles, OpenAI cursor/page limits, ElevenLabs repeated/missing cursors/page limits, and Sarvam failed-vs-empty discovery semantics have regression source coverage.
