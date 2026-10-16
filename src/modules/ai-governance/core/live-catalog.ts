@@ -145,11 +145,32 @@ function classifyOpenAIModel(id: string): Array<{ capability: Capability; kind: 
 async function syncOpenAI(): Promise<boolean> {
   const apiKey = key("OPENAI_API_KEY");
   if (!apiKey) return false;
-  const body = (await jsonFetch("https://api.openai.com/v1/models", {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  })) as { data?: Array<{ id: string; owned_by?: string }> };
+  const discoveredModels: Array<{ id: string; owned_by?: string }> = [];
+  let after = "";
+  for (let page = 0; page < 20; page += 1) {
+    const qs = new URLSearchParams({ limit: "100" });
+    if (after) qs.set("after", after);
+    const body = (await jsonFetch("https://api.openai.com/v1/models?" + qs, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    })) as {
+      data?: Array<{ id: string; owned_by?: string }>;
+      has_more?: boolean;
+      last_id?: string;
+    };
+    const pageModels = body.data ?? [];
+    discoveredModels.push(...pageModels);
+    if (!body.has_more) break;
+    const nextAfter = body.last_id ?? pageModels.at(-1)?.id ?? "";
+    if (!nextAfter || nextAfter === after) {
+      throw new Error("OpenAI model catalogue returned an invalid/repeated pagination cursor; refusing partial reconciliation.");
+    }
+    if (page === 19) {
+      throw new Error("OpenAI model catalogue exceeded the 20-page discovery limit; refusing partial reconciliation.");
+    }
+    after = nextAfter;
+  }
   const items: CatalogItem[] = [];
-  for (const model of body.data ?? []) {
+  for (const model of discoveredModels) {
     for (const slot of classifyOpenAIModel(model.id)) {
       items.push({
         providerId: "openai",
