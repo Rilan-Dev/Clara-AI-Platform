@@ -29,7 +29,7 @@ vi.mock("@/modules/platform-health/core/incidents", () => ({
 async function syncCatalogFreshModule(): Promise<void> {
   vi.resetModules();
   const { syncLiveProviderCatalog } = await import("./live-catalog");
-  await syncCatalogFreshModule();
+  await syncLiveProviderCatalog();
 }
 
 describe("Live provider catalogue reconciliation", () => {
@@ -99,6 +99,41 @@ describe("Live provider catalogue reconciliation", () => {
       String(sql).includes("SET enabled = FALSE") &&
       params?.[0] === "gemini" && params?.[3] instanceof Array && params[3].length === 0,
     )).toBe(true);
+  });
+
+  it("preserves OpenAI rows when model pagination repeats its cursor", async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.SARVAM_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (String(url).includes("api.openai.com/v1/models")) {
+        return new Response(JSON.stringify({ data: [{ id: "gpt-test" }], has_more: true, last_id: "cursor-fixed" }), { status: 200 });
+      }
+      return new Response("[]", { status: 200 });
+    });
+    await syncCatalogFreshModule();
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("INSERT INTO platform_ai_provider_models") && params?.[0] === "openai")).toBe(false);
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "openai")).toBe(false);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:openai", healthy: false }));
+  });
+
+  it("preserves OpenAI rows when model pagination exceeds the page limit", async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.SARVAM_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (String(url).includes("api.openai.com/v1/models")) {
+        const after = new URL(String(url)).searchParams.get("after") ?? "";
+        return new Response(JSON.stringify({ data: [{ id: "gpt-" + (after || "first") }], has_more: true, last_id: "cursor-" + (after || "first") }), { status: 200 });
+      }
+      return new Response("[]", { status: 200 });
+    });
+    await syncCatalogFreshModule();
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("INSERT INTO platform_ai_provider_models") && params?.[0] === "openai")).toBe(false);
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "openai")).toBe(false);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:openai", healthy: false }));
   });
 
   it("preserves ElevenLabs rows when voice pagination repeats a token", async () => {
