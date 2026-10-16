@@ -1,3 +1,14 @@
+## LIVE MODEL CATALOGUE — SARVAM DISCOVERY FAILURE BOUNDARY — 2026-10-16
+
+- Sarvam chat discovery now treats the first successful endpoint response as authoritative even when it contains zero rows; it only falls back from `/v2/models` to `/v1/models` when the preferred endpoint errors.
+- When both endpoints fail, the sync keeps its curated baseline but does not disable last-known vendor-discovered chat rows, and the provider is reported degraded rather than healthy.
+- Added regression source for both failed discovery preserving prior rows and successful-empty discovery reconciling stale chat rows.
+- Commits: `d9aca70e90708fbf9ce9dfb431d0877143215864` (runtime), `e478b0818586b4502e97fd82bb119631514e54e1` (regressions).
+- No tests, type-check, build, live vendor API, CI, Vercel, or Gate was run or awaited. No executable PASS is claimed.
+- **Next implementation:** continue the existing catalogue/runtime review by auditing ElevenLabs voice pagination response-shape validation and provider reconciliation ordering. Preserve last-known rows whenever the vendor response is malformed or incomplete.
+
+---
+
 ## LIVE MODEL CATALOGUE — OPENAI + ELEVENLABS PAGINATION FAIL-CLOSED — 2026-10-16
 
 - Continued the authorized catalogue/runtime review beyond Gemini: OpenAI model discovery now follows cursor pagination and refuses missing/repeated cursors or a still-present page at the 20-page bound before any upsert/stale-row reconciliation.
