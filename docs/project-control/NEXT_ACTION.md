@@ -1,3 +1,14 @@
+## LIVE MODEL CATALOGUE — MALFORMED RESPONSE + PAGINATION BOUNDARIES — 2026-10-16
+
+- Extended fail-closed page-shape validation to OpenAI and Gemini. OpenAI pages must contain a model array, a boolean `has_more`, and non-empty model IDs. Gemini pages must contain a models array and a correctly typed optional page token; token cycles are detected across the entire discovery run.
+- Extended ElevenLabs voice page validation: `voices` must be an array, `has_more` must be boolean, and a page claiming more results must provide a non-empty next-page token. Invalid or incomplete responses abort before catalogue upsert/reconciliation.
+- Added focused regression source for malformed HTTP-200 OpenAI/Gemini responses and missing ElevenLabs continuation cursors, in addition to pagination limit/repetition and Sarvam discovery-failure cases.
+- Commits: `b1b020be3a4ccfe27d9ac5fda1e9ed83b3f48d3c` (ElevenLabs validation), `ae7a050e278f5a2bec4f882ff60c25e65a840cb6` (OpenAI/Gemini validation), `fbd595f16920dae522490525b335bd7c9e678284` (ElevenLabs regression), `23eae79dc676768e7dc3fd3320a62dd499cf1042` (OpenAI/Gemini regressions).
+- No tests, type-check, build, live vendor API, CI, Vercel, or Gate was run or awaited. No executable PASS is claimed.
+- **Next implementation:** finish the bounded cross-provider catalogue audit by reviewing the sync coordinator's incident/status semantics and ensuring a partially successful provider sync cannot be reported healthy. Then record whether the authorized catalogue source audit is complete; do not infer runtime verification or project-wide phase closure.
+
+---
+
 ## LIVE MODEL CATALOGUE — SARVAM DISCOVERY FAILURE BOUNDARY — 2026-10-16
 
 - Sarvam chat discovery now treats the first successful endpoint response as authoritative even when it contains zero rows; it only falls back from `/v2/models` to `/v1/models` when the preferred endpoint errors.
