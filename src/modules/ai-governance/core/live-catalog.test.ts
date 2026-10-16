@@ -101,6 +101,32 @@ describe("Live provider catalogue reconciliation", () => {
     )).toBe(true);
   });
 
+  it("preserves discovered Sarvam chat rows when both discovery endpoints fail", async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.SARVAM_API_KEY = "test-sarvam-key";
+    mocks.fetch.mockImplementation(async () => new Response("unavailable", { status: 503 }));
+    await syncCatalogFreshModule();
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "sarvam" && params?.[1] === "chat" && params?.[2] === "chat")).toBe(false);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:sarvam", healthy: false }));
+  });
+
+  it("treats a successful empty Sarvam discovery as authoritative", async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.SARVAM_API_KEY = "test-sarvam-key";
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (String(url).includes("/v2/models")) return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      return new Response("[]", { status: 200 });
+    });
+    await syncCatalogFreshModule();
+    expect(mocks.fetch.mock.calls.some(([url]) => String(url).includes("/v1/models"))).toBe(false);
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "sarvam" && params?.[1] === "chat" && params?.[2] === "chat")).toBe(true);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:sarvam", healthy: true }));
+  });
+
   it("preserves OpenAI rows when model pagination repeats its cursor", async () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.SARVAM_API_KEY;
