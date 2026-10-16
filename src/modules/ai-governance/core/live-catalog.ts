@@ -638,7 +638,16 @@ async function syncElevenLabs(): Promise<boolean> {
         has_more?: boolean;
         next_page_token?: string;
       };
-      for (const voice of body.voices ?? []) {
+      if (
+        !body ||
+        typeof body !== "object" ||
+        !Array.isArray(body.voices) ||
+        typeof body.has_more !== "boolean" ||
+        (body.next_page_token !== undefined && typeof body.next_page_token !== "string")
+      ) {
+        throw new Error("ElevenLabs voice catalogue returned a malformed page; refusing partial reconciliation.");
+      }
+      for (const voice of body.voices) {
         if (!voice.voice_id) continue;
         voiceItems.push({
           providerId: "elevenlabs",
@@ -650,9 +659,12 @@ async function syncElevenLabs(): Promise<boolean> {
         });
       }
       const discoveredNextPageToken = body.next_page_token ?? "";
-      if (!body.has_more || !discoveredNextPageToken) {
+      if (!body.has_more) {
         nextPageToken = "";
         break;
+      }
+      if (!discoveredNextPageToken) {
+        throw new Error("ElevenLabs voice catalogue omitted its next-page token while more pages remain; refusing partial reconciliation.");
       }
       // Voice discovery is authoritative only when every page is accounted
       // for. Never upsert partial TTS/STS/voice results or disable last-known
