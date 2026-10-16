@@ -72,6 +72,28 @@ describe("Live provider catalogue reconciliation", () => {
     expect(geminiUpserts.length).toBe(2);
   });
 
+  it("preserves Gemini rows when a successful HTTP response has a malformed page shape", async () => {
+    mocks.fetch.mockImplementation(async (url: string) => String(url).includes("generativelanguage.googleapis.com")
+      ? new Response(JSON.stringify({}), { status: 200 })
+      : new Response("[]", { status: 200 }));
+    await syncCatalogFreshModule();
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("INSERT INTO platform_ai_provider_models") && params?.[0] === "gemini")).toBe(false);
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "gemini")).toBe(false);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:gemini", healthy: false }));
+  });
+
+  it("preserves OpenAI rows when a successful HTTP response has a malformed page shape", async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.SARVAM_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    mocks.fetch.mockImplementation(async () => new Response(JSON.stringify({ object: "list" }), { status: 200 }));
+    await syncCatalogFreshModule();
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("INSERT INTO platform_ai_provider_models") && params?.[0] === "openai")).toBe(false);
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "openai")).toBe(false);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:openai", healthy: false }));
+  });
+
   it("preserves last-known Gemini rows when discovery fails", async () => {
     mocks.fetch.mockRejectedValue(new Error("vendor unavailable"));
 
