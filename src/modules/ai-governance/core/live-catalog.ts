@@ -157,7 +157,14 @@ async function syncOpenAI(): Promise<boolean> {
       has_more?: boolean;
       last_id?: string;
     };
-    const pageModels = body.data ?? [];
+    if (
+      !body || typeof body !== "object" || !Array.isArray(body.data) ||
+      typeof body.has_more !== "boolean" ||
+      body.data.some((model) => !model || typeof model.id !== "string" || model.id.length === 0)
+    ) {
+      throw new Error("OpenAI model catalogue returned a malformed page; refusing partial reconciliation.");
+    }
+    const pageModels = body.data;
     discoveredModels.push(...pageModels);
     if (!body.has_more) break;
     const nextAfter = body.last_id ?? pageModels.at(-1)?.id ?? "";
@@ -213,6 +220,7 @@ async function syncGemini(): Promise<boolean> {
   if (!apiKey) return false;
   const items: CatalogItem[] = [];
   let pageToken = "";
+  const seenPageTokens = new Set<string>();
   for (let page = 0; page < 20; page++) {
     const qs = new URLSearchParams({ pageSize: "1000" });
     if (pageToken) qs.set("pageToken", pageToken);
@@ -222,7 +230,14 @@ async function syncGemini(): Promise<boolean> {
       models?: Array<{ name?: string; displayName?: string; description?: string; inputTokenLimit?: number; outputTokenLimit?: number; supportedGenerationMethods?: string[]; temperature?: number; topP?: number; topK?: number }>;
       nextPageToken?: string;
     };
-    for (const model of body.models ?? []) {
+    if (
+      !body || typeof body !== "object" || !Array.isArray(body.models) ||
+      (body.nextPageToken !== undefined && typeof body.nextPageToken !== "string") ||
+      body.models.some((model) => !model || (model.name !== undefined && typeof model.name !== "string"))
+    ) {
+      throw new Error("Gemini model catalogue returned a malformed page; refusing partial reconciliation.");
+    }
+    for (const model of body.models) {
       const id = (model.name ?? "").replace(/^models\//, "");
       if (!id) continue;
       const methods = model.supportedGenerationMethods ?? [];
@@ -248,9 +263,10 @@ async function syncGemini(): Promise<boolean> {
     if (page === 19) {
       throw new Error("Gemini model catalogue exceeded the 20-page discovery limit; refusing partial reconciliation.");
     }
-    if (nextPageToken === pageToken) {
+    if (seenPageTokens.has(nextPageToken)) {
       throw new Error("Gemini model catalogue returned a repeated page token; refusing partial reconciliation.");
     }
+    seenPageTokens.add(nextPageToken);
     pageToken = nextPageToken;
   }
   const groups = new Map<string, Set<string>>();
