@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-16 — CATALOGUE RESPONSE-SHAPE HARDENING
+
+[architect source review] Cross-provider catalogue sync now treats malformed OpenAI/Gemini/ElevenLabs pages as discovery failures before any authoritative reconciliation. Existing rows are preserved for incomplete pagination; Sarvam distinguishes endpoint failure from a successful empty response.
+
+- Latest commits: `b1b020be3a4ccfe27d9ac5fda1e9ed83b3f48d3c`, `ae7a050e278f5a2bec4f882ff60c25e65a840cb6`, `fbd595f16920dae522490525b335bd7c9e678284`, `23eae79dc676768e7dc3fd3320a62dd499cf1042`.
+- Status: catalogue/runtime audit continues; executable verification is deferred.
+- **Next:** review coordinator health/incident semantics for partially successful provider syncs, then reassess the source-audit boundary without expanding unrelated scope.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-16 — SARVAM CATALOGUE FAILURE SEMANTICS
 
 [architect source review] Sarvam sync now preserves last-known vendor-discovered chat rows when both model-discovery endpoints fail, while still refreshing the platform-curated baseline and reporting provider degradation. A successful empty response from the first working endpoint is handled as an authoritative result.
