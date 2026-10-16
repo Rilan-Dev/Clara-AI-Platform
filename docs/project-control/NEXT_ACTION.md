@@ -1,3 +1,14 @@
+## LIVE MODEL CATALOGUE — OPENAI + ELEVENLABS PAGINATION FAIL-CLOSED — 2026-10-16
+
+- Continued the authorized catalogue/runtime review beyond Gemini: OpenAI model discovery now follows cursor pagination and refuses missing/repeated cursors or a still-present page at the 20-page bound before any upsert/stale-row reconciliation.
+- ElevenLabs voice discovery now refuses repeated cursors or a still-present page at the 100-page bound before writing TTS/STS/voice rows or reconciling stale rows.
+- Added focused regression source asserting partial OpenAI and ElevenLabs discovery leaves existing provider rows untouched and emits the provider-degraded incident. Test module loading was made fresh per case to avoid the module-level five-minute sync TTL coupling cases.
+- Commits: `85566ededf49b752d7cf9a04488ab43c51eb6374` (ElevenLabs guard), `2521a9d098a02f2a1b12e018253603f8beed672f` (OpenAI guard), `dc3e3a1cd3e87326725e740a4455c4240f3c8fc9` (ElevenLabs regressions), `f8a43c010f96e2027e1ae32efcfef8a427a08013` (OpenAI regressions + fresh module setup).
+- No tests, type-check, build, live vendor API, CI, Vercel, or Gate was run or awaited. No executable PASS is claimed.
+- **Next implementation:** continue the already-authorized cross-provider catalogue sync/reconciliation boundary review, prioritizing Sarvam's vendor-discovery fallback/reconciliation semantics. Keep provider credentials and runtime model availability fail-closed; do not expand into unrelated product scope.
+
+---
+
 ## GEMINI LIVE MODEL CATALOGUE — DISCOVERY/RECONCILIATION AUDIT SOURCE WORK COMPLETE — 2026-10-16
 
 - Added a hard fail-closed pagination boundary to Gemini discovery: a repeated page token or a still-present next-page token at the 20-page limit throws before any Gemini upsert or stale-row reconciliation. Partial discovery can no longer be mistaken for a complete catalogue.
