@@ -318,6 +318,8 @@ async function syncSarvam(): Promise<boolean> {
   // not resolve.
   const base = normalizeProviderBaseUrl(key("SARVAM_BASE_URL"), "https://api.sarvam.ai", "Sarvam");
   let discoveredChatIds: string[] = [];
+  let chatDiscoverySucceeded = false;
+  let chatDiscoveryError: unknown = null;
   if (apiKey) {
     for (const modelsPath of ["/v2/models", "/v1/models"]) {
       try {
@@ -325,9 +327,14 @@ async function syncSarvam(): Promise<boolean> {
           headers: { "api-subscription-key": apiKey, Authorization: `Bearer ${apiKey}` },
         })) as { data?: Array<{ id?: string; owned_by?: string }> };
         discoveredChatIds = (body.data ?? []).map((m) => m.id ?? "").filter(Boolean);
-        if (discoveredChatIds.length > 0) break;
-      } catch {
-        // try the next endpoint / fall through to the curated minimum
+        // A successful empty response is still authoritative. Fall back to
+        // the legacy endpoint only when the preferred endpoint errors.
+        chatDiscoverySucceeded = true;
+        chatDiscoveryError = null;
+        break;
+      } catch (error) {
+        chatDiscoveryError = error;
+        // Try the next documented endpoint before declaring discovery failed.
       }
     }
   }
@@ -416,11 +423,16 @@ async function syncSarvam(): Promise<boolean> {
   // contains it AND vendor discovery succeeded without it. Keyless syncs make
   // no vendor claim at all — previously-discovered rows stay enabled.
   if (apiKey) {
-    const authoritativeChatIds = new Set([
-      ...SARVAM_REALTIME_LLM_MODELS.map((m) => m.id),
-      ...discoveredChatIds,
-    ]);
-    await disableMissing("sarvam", "chat", "chat", authoritativeChatIds);
+    // Curated realtime/voice lists are platform-maintained and can be
+    // reconciled independently. Vendor-discovered chat rows may only be
+    // disabled after one discovery endpoint answered successfully.
+    if (chatDiscoverySucceeded) {
+      const authoritativeChatIds = new Set([
+        ...SARVAM_REALTIME_LLM_MODELS.map((m) => m.id),
+        ...discoveredChatIds,
+      ]);
+      await disableMissing("sarvam", "chat", "chat", authoritativeChatIds);
+    }
     await disableMissing("sarvam", "realtime_voice", "realtime", new Set(SARVAM_REALTIME_LLM_MODELS.map((m) => m.id)));
     await disableMissing("sarvam", "realtime_voice", "stt", new Set(SARVAM_REALTIME_STT_MODELS.map((m) => m.id)));
     await disableMissing("sarvam", "realtime_voice", "tts", new Set(SARVAM_TTS_MODELS.map((m) => m.id)));
@@ -438,6 +450,11 @@ async function syncSarvam(): Promise<boolean> {
   await setLiveDefault("sarvam", "voice_chat", "stt", "saaras:v3");
   await setLiveDefault("sarvam", "voice_chat", "voice", "shubh");
   await setLiveDefault("sarvam", "realtime_voice", "voice", "shubh");
+  if (apiKey && !chatDiscoverySucceeded) {
+    throw chatDiscoveryError instanceof Error
+      ? chatDiscoveryError
+      : new Error("Sarvam model catalogue discovery failed for both supported endpoints.");
+  }
   return Boolean(apiKey);
 }
 
