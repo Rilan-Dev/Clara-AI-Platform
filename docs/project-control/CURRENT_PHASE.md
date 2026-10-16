@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-16 — SARVAM CATALOGUE FAILURE SEMANTICS
+
+[architect source review] Sarvam sync now preserves last-known vendor-discovered chat rows when both model-discovery endpoints fail, while still refreshing the platform-curated baseline and reporting provider degradation. A successful empty response from the first working endpoint is handled as an authoritative result.
+
+- Commits: `d9aca70e90708fbf9ce9dfb431d0877143215864`, `e478b0818586b4502e97fd82bb119631514e54e1`.
+- Status: live model catalogue/runtime audit continues; executable verification is deferred.
+- **Next:** review ElevenLabs pagination response shape and pre-write reconciliation guarantees. No unrelated scope expansion.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-16 — CROSS-PROVIDER CATALOGUE PAGINATION HARDENING
 
 [architect source review] Catalogue discovery now explicitly refuses partial pagination for Gemini, OpenAI, and ElevenLabs voices before upsert/reconciliation. This prevents an incomplete response from being treated as authoritative and disabling last-known models/voices.
