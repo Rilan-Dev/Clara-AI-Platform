@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-16 — CROSS-PROVIDER CATALOGUE PAGINATION HARDENING
+
+[architect source review] OpenAI model discovery and ElevenLabs voice discovery now fail closed on incomplete pagination. Repeated/missing OpenAI cursors and 20-page truncation, plus repeated ElevenLabs voice cursors and 100-page truncation, abort before the provider's catalogue upsert/reconciliation boundary. Regression source asserts last-known rows remain untouched and a degraded incident is recorded.
+
+- Commits: `85566ededf49b752d7cf9a04488ab43c51eb6374`, `2521a9d098a02f2a1b12e018253603f8beed672f`, `dc3e3a1cd3e87326725e740a4455c4240f3c8fc9`, `f8a43c010f96e2027e1ae32efcfef8a427a08013`.
+- Executable verification remains deferred; no tests/CI/Vercel/Gate PASS claimed.
+- **Next:** continue bounded cross-provider catalogue sync/reconciliation review with Sarvam vendor-discovery fallback and reconciliation semantics.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-16 — GEMINI CATALOGUE AUDIT CORRECTIONS
 
 [architect-verified] Gemini live catalogue source now refuses partial pagination before upsert/reconciliation. Focused regression source covers static metadata enrichment without static availability, failed discovery preserving last-known rows, successful empty discovery reconciling stale rows, and pagination truncation preserving existing rows.
