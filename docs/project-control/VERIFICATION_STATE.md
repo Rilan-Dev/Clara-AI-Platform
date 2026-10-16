@@ -1,3 +1,13 @@
+## SOURCE REVIEW UPDATE — OPENAI + ELEVENLABS CATALOGUE PAGINATION — 2026-10-16
+
+[architect source review only] OpenAI model listing now detects invalid/repeated pagination cursors and page-limit truncation before upsert or stale-row reconciliation. ElevenLabs voice listing now detects repeated cursors and page-limit truncation at the same pre-write boundary. Focused regression source checks both incomplete-discovery paths preserve provider rows and record degraded incidents.
+
+- Commits: `85566ededf49b752d7cf9a04488ab43c51eb6374`, `2521a9d098a02f2a1b12e018253603f8beed672f`, `dc3e3a1cd3e87326725e740a4455c4240f3c8fc9`, `f8a43c010f96e2027e1ae32efcfef8a427a08013`.
+- Classification: source-level review + regression source only. No executable tests, type-check, build, live vendor requests, CI, Vercel, or Gate execution occurred.
+- No executable PASS or phase closure is inferred.
+
+---
+
 ## SOURCE REVIEW UPDATE — GEMINI LIVE CATALOGUE AUDIT — 2026-10-16
 
 [architect-verified] Source changes address the requested catalogue audit items: metadata enrichment is tested separately from availability, pagination truncation/repeated-token responses fail before Gemini writes or reconciliation, failed discovery does not disable last-known rows, and a successful empty response is authoritative for stale-row disabling.
