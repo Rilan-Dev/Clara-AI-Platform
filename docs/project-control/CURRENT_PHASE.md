@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-16 — CROSS-PROVIDER CATALOGUE PAGINATION HARDENING
+
+[architect source review] Catalogue discovery now explicitly refuses partial pagination for Gemini, OpenAI, and ElevenLabs voices before upsert/reconciliation. This prevents an incomplete response from being treated as authoritative and disabling last-known models/voices.
+
+- Latest commits: `85566ededf49b752d7cf9a04488ab43c51eb6374`, `2521a9d098a02f2a1b12e018253603f8beed672f`, `dc3e3a1cd3e87326725e740a4455c4240f3c8fc9`, `f8a43c010f96e2027e1ae32efcfef8a427a08013`.
+- Status: catalogue/runtime audit continues; executable tests and external verification were not run or awaited.
+- **Next:** review Sarvam vendor-discovery fallback/reconciliation semantics within the existing catalogue scope. No unrelated feature expansion.
+
+---
+
 # DEV-01 UPDATE — ELEVENLABS PREVIEW LIVE MODEL SELECTION — 2026-10-12
 
 - `src/modules/voice-core/api/elevenlabs/voices.ts` now resolves preview TTS against live vendor-discovered `voice_chat/tts` rows. It rejects stale explicitly requested IDs and selects the cheapest known-price available model when no model is supplied.
