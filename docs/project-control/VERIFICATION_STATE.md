@@ -1,3 +1,12 @@
+## SOURCE REVIEW UPDATE — FOCUSED LIVE CATALOGUE AUDIT COMPLETE — 2026-10-16
+
+[architect source review only] Reviewed the provider pagination and response-shape failure boundaries for Gemini, OpenAI, and ElevenLabs; Sarvam successful-empty versus failed discovery; and per-provider coordinator incident semantics. Added regression source for malformed/incomplete discovery and last-known-row preservation. Coordinator source review found provider tasks isolated and provider discovery exceptions reported as unhealthy.
+
+- No executable tests, type-check, build, live vendor request, CI, Vercel, or Gate execution occurred. No PASS is claimed.
+- The focused source audit is complete, but the wider live-model-catalogue workstream remains open. Continue only with the next authorized catalogue/runtime task from `NEXT_ACTION.md`.
+
+---
+
 ## SOURCE REVIEW UPDATE — CATALOGUE RESPONSE-SHAPE HARDENING — 2026-10-16
 
 [architect source review only] OpenAI/Gemini model discovery and ElevenLabs voice discovery now reject malformed response shapes and incomplete continuation state before upsert/reconciliation. Regression source covers malformed HTTP-200 pages, pagination truncation/repetition, missing continuation cursors, and Sarvam failed-versus-empty discovery.
