@@ -1,3 +1,14 @@
+## LIVE MODEL CATALOGUE — BOUNDED SOURCE AUDIT COMPLETE — 2026-10-16
+
+- Source-reviewed the sync coordinator after the provider-level pagination/schema fixes. Each provider runs in an isolated task; discovery exceptions are recorded as provider-specific unhealthy incidents, and one provider's failure does not prevent the other provider tasks from running. Keyless providers do not generate a false healthy vendor-contact claim.
+- OpenAI and Gemini malformed pages, pagination cursor/limit failures, ElevenLabs malformed/repeated/missing-cursor/limit failures, and Sarvam failed-versus-successful-empty discovery now fail closed before unsafe stale-row reconciliation. Focused regression source exists for these boundaries.
+- No further coordinator defect was identified in this bounded source review.
+- Latest source commits: `b1b020be3a4ccfe27d9ac5fda1e9ed83b3f48d3c`, `ae7a050e278f5a2bec4f882ff60c25e65a840cb6`, `fbd595f16920dae522490525b335bd7c9e678284`, `23eae79dc676768e7dc3fd3320a62dd499cf1042`; prior provider-boundary commits are recorded immediately below in this file.
+- No tests, type-check, build, live vendor API, CI, Vercel, or Gate was run or awaited. No executable PASS is claimed.
+- **Disposition:** this focused live-catalogue source audit is complete. The wider live-model-catalogue workstream remains open for the next authorized catalogue/runtime task recorded in this file. This is not project-wide phase closure and does not authorize unrelated scope.
+
+---
+
 ## LIVE MODEL CATALOGUE — MALFORMED RESPONSE + PAGINATION BOUNDARIES — 2026-10-16
 
 - Extended fail-closed page-shape validation to OpenAI and Gemini. OpenAI pages must contain a model array, a boolean `has_more`, and non-empty model IDs. Gemini pages must contain a models array and a correctly typed optional page token; token cycles are detected across the entire discovery run.
