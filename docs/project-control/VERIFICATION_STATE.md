@@ -1,3 +1,12 @@
+## SOURCE REVIEW UPDATE — SARVAM CATALOGUE FAILURE BOUNDARY — 2026-10-16
+
+[architect source review only] Sarvam sync now distinguishes a successful empty model list from endpoint failure. If both supported endpoints fail, chat reconciliation is skipped so last-known vendor-discovered rows are preserved; the sync reports a degraded incident. Focused regression source covers failed and successful-empty cases.
+
+- Commits: `d9aca70e90708fbf9ce9dfb431d0877143215864`, `e478b0818586b4502e97fd82bb119631514e54e1`.
+- No executable tests, type-check, build, live vendor requests, CI, Vercel, or Gate execution occurred. No PASS is claimed.
+
+---
+
 ## SOURCE REVIEW UPDATE — OPENAI + ELEVENLABS CATALOGUE PAGINATION — 2026-10-16
 
 [architect source review only] OpenAI model listing now detects invalid/repeated pagination cursors and page-limit truncation before upsert or stale-row reconciliation. ElevenLabs voice listing now detects repeated cursors and page-limit truncation at the same pre-write boundary. Focused regression source checks both incomplete-discovery paths preserve provider rows and record degraded incidents.
