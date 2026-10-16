@@ -162,6 +162,22 @@ describe("Live provider catalogue reconciliation", () => {
     expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:openai", healthy: false }));
   });
 
+  it("preserves ElevenLabs rows when a page claims more results without a cursor", async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.SARVAM_API_KEY;
+    process.env.ELEVENLABS_API_KEY = "test-elevenlabs-key";
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (String(url).includes("/v1/models")) return new Response("[]", { status: 200 });
+      if (String(url).includes("/v2/voices")) return new Response(JSON.stringify({ voices: [{ voice_id: "voice-first" }], has_more: true }), { status: 200 });
+      return new Response("[]", { status: 200 });
+    });
+    await syncCatalogFreshModule();
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("INSERT INTO platform_ai_provider_models") && params?.[0] === "elevenlabs")).toBe(false);
+    expect(mocks.execute.mock.calls.some(([sql, params]) => String(sql).includes("SET enabled = FALSE") && params?.[0] === "elevenlabs")).toBe(false);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:elevenlabs", healthy: false }));
+  });
+
   it("preserves ElevenLabs rows when voice pagination repeats a token", async () => {
     delete process.env.GEMINI_API_KEY;
     delete process.env.OPENAI_API_KEY;
