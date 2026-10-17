@@ -94,3 +94,6 @@ backups/.env*
 *.env.v1
 *.env.v2
 *.env.v3
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
