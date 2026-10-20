@@ -496,6 +496,33 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   const realtimeModel = chooseLiveModel(realtimeCandidate, liveRealtimeRows, getAllowedValues(orgSettings?.allowedRealtimeModels, provider));
   const transcriptionModel = chooseLiveModel(transcriptionCandidate, liveTranscriptionRows, null);
 
+  // The provider gate above uses modelId:null to establish platform/plan
+  // availability before model resolution. A published/legacy agent can still
+  // select a vendor-live model excluded by today's plan model exceptions.
+  // Recheck the actual model used for this surface, not just its provider.
+  // A public embed may be text-only, so it must not require realtime voice.
+  const selectedModelGates: Array<{
+    capability: "chat" | "realtime_voice";
+    modelId: string;
+  }> = [];
+  if (input.surface !== "rag-embedding" && chatModel) {
+    selectedModelGates.push({ capability: "chat", modelId: chatModel });
+  }
+  if (input.surface === "realtime" && provider !== "sarvam" && realtimeModel) {
+    selectedModelGates.push({ capability: "realtime_voice", modelId: realtimeModel });
+  }
+  for (const selection of selectedModelGates) {
+    const modelGate = await validateAgentAISelection({
+      organizationId: orgId,
+      provider,
+      capability: selection.capability,
+      modelId: selection.modelId,
+    });
+    if (!modelGate.ok) {
+      throw new AIConfigResolutionError(modelGate.reason);
+    }
+  }
+
   // ── WS-0.4 runtime self-heal ─────────────────────────────────────────────
   // Legacy rows can still carry a chat model id in the embedding field (the
   // reported defect: gpt-4o-2024-08-06 configured as the embedding model).
