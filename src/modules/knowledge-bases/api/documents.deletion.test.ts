@@ -80,7 +80,7 @@ describe("document delete integrity", () => {
     const response = await deleteDocumentHandler(request(), "kb-1", "doc-1");
 
     expect(response.status).toBe(500);
-    expect(mocks.deleteDocumentChunks).toHaveBeenCalledWith("kb-collection", "doc-1");
+    expect(mocks.deleteDocumentChunks).toHaveBeenCalledWith("kb-collection", "doc-1", "kb-1");
     expect(mocks.deleteDocument).not.toHaveBeenCalled();
     expect(mocks.writeAuditLog).not.toHaveBeenCalled();
   });
@@ -100,7 +100,7 @@ describe("document delete integrity", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ deleted: true });
-    expect(mocks.deleteDocumentChunks).toHaveBeenCalledWith("kb-collection", "doc-1");
+    expect(mocks.deleteDocumentChunks).toHaveBeenCalledWith("kb-collection", "doc-1", "kb-1");
     expect(mocks.deleteDocument).toHaveBeenCalledOnce();
     expect(mocks.deleteDocumentChunks.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.deleteDocument.mock.invocationCallOrder[0],
