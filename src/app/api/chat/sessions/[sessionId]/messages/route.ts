@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { requireAuth } from "@/modules/auth/core/rbac";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { pool } from "@/lib/db";
 
 type Params = { params: Promise<{ sessionId: string }> };
@@ -42,12 +42,18 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       return NextResponse.json({ error: "messages array with at least one valid message is required" }, { status: 400 });
     }
 
-    const session = await pool.query<{ id: string; title: string }>(
-      "SELECT id, title FROM chat_sessions WHERE id = $1 AND user_id = $2",
+    const session = await pool.query<{ id: string; title: string; kb_id: string | null }>(
+      "SELECT id, title, kb_id FROM chat_sessions WHERE id = $1 AND user_id = $2",
       [sessionId, auth.user.id],
     );
     if (session.rowCount === 0) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+    const sessionKbId = session.rows[0].kb_id;
+    if (sessionKbId) {
+      // Ownership of the session does not authorize use of a KB after
+      // membership or permissions have been revoked.
+      await requireKbPermission(auth, sessionKbId, "kb:read");
     }
 
     // Insert messages; client message ids are the primary key, so a duplicate
@@ -78,7 +84,7 @@ export async function POST(req: NextRequest, { params }: Params): Promise<NextRe
       }
     }
 
-    await pool.query("UPDATE chat_sessions SET updated_at = now() WHERE id = $1", [sessionId]);
+    await pool.query("UPDATE chat_sessions SET updated_at = now() WHERE id = $1 AND user_id = $2", [sessionId, auth.user.id]);
 
     return NextResponse.json({ success: true, persisted: valid.length }, { status: 201 });
   } catch (err) {
