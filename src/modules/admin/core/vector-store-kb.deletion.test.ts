@@ -91,6 +91,49 @@ describe("deleteDocumentChunks fail-closed behavior", () => {
     expect(mocks.deletePoints).not.toHaveBeenCalled();
   });
 
+  it("rejects when the live delete succeeds but the reindex mirror fails", async () => {
+    mocks.getActiveReindexJob.mockResolvedValueOnce({
+      sourceCollection: "kb-live-reindex",
+      targetCollection: "kb-reindex-target",
+    });
+    mocks.deletePoints
+      .mockResolvedValueOnce({ status: "completed" })
+      .mockRejectedValueOnce(new Error("reindex target unavailable"));
+
+    await expect(
+      deleteDocumentChunks("kb-live-reindex", "doc-5", "kb-5"),
+    ).rejects.toThrow("reindex target unavailable");
+
+    expect(mocks.deletePoints).toHaveBeenNthCalledWith(1, "kb-live-reindex", {
+      wait: true,
+      filter: { must: [{ key: "documentId", match: { value: "doc-5" } }] },
+    });
+    expect(mocks.deletePoints).toHaveBeenNthCalledWith(2, "kb-reindex-target", {
+      wait: true,
+      filter: { must: [{ key: "documentId", match: { value: "doc-5" } }] },
+    });
+  });
+
+  it("also removes reindex target chunks when the live collection never existed", async () => {
+    mocks.createPayloadIndex.mockRejectedValueOnce(new Error("live collection missing"));
+    mocks.getCollection.mockRejectedValueOnce(
+      Object.assign(new Error("Not found: Collection \"kb-missing-live\" doesn't exist"), { status: 404 }),
+    );
+    mocks.getActiveReindexJob.mockResolvedValueOnce({
+      sourceCollection: "kb-missing-live",
+      targetCollection: "kb-existing-target",
+    });
+
+    await expect(
+      deleteDocumentChunks("kb-missing-live", "doc-6", "kb-6"),
+    ).resolves.toBeUndefined();
+
+    expect(mocks.deletePoints).toHaveBeenCalledWith("kb-existing-target", {
+      wait: true,
+      filter: { must: [{ key: "documentId", match: { value: "doc-6" } }] },
+    });
+  });
+
   it("completes normally when the collection confirms the deletion", async () => {
     await expect(
       deleteDocumentChunks("kb-delete-success", "doc-3"),
