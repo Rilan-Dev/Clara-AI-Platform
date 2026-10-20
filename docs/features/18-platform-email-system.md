@@ -1,6 +1,6 @@
 # 18 — Platform Email System
 
-> Clara AI Platform feature documentation · Domain: `lib/email*` + `/api/platform/email*` · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `lib/email*` + `/api/platform/email*` · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

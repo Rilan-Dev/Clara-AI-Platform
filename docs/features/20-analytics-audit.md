@@ -1,6 +1,6 @@
 # 20 — Analytics, Audit & Usage Metering
 
-> Clara AI Platform feature documentation · Domain: `/api/analytics/*` + audit + events (usage spine) · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `/api/analytics/*` + audit + events (usage spine) · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

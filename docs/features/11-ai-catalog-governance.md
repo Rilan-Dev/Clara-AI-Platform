@@ -1,6 +1,6 @@
 # 11 — AI Catalog & Governance
 
-> Clara AI Platform feature documentation · Domain: `ai-governance` · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `ai-governance` · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

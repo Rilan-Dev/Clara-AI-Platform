@@ -1,6 +1,6 @@
 # 23 — Integrations, MCP & WhatsApp
 
-> Clara AI Platform feature documentation · Domain: `integrations` (36 files) + `mcp` (7 files) + WhatsApp routes · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `integrations` (36 files) + `mcp` (7 files) + WhatsApp routes · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

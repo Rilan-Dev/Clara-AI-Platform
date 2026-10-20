@@ -1,6 +1,6 @@
 # 06 — Document Ingestion Pipeline
 
-> Clara AI Platform feature documentation · Domain: `ingest` + `admin/core/ingest` + worker/queue routes · Base: `feature/ai-core-from-doable-source @ 1adb80bf` (includes ingest-integrity fixes PR #299)
+> Clara AI Platform feature documentation · Domain: `ingest` + `admin/core/ingest` + worker/queue routes · Base: `feature/ai-core-from-doable-source @ 031279b4` (includes ingest-integrity fixes PR #299)
 
 ## 1. Definition & Purpose
 

@@ -1,6 +1,6 @@
 # 16 — Voice AI: OpenAI Realtime, Telephony & Metering
 
-> Clara AI Platform feature documentation · Domain: `voice-core/realtime` + `phone` + realtime routes · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `voice-core/realtime` + `phone` + realtime routes · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

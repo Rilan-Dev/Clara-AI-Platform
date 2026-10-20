@@ -1,6 +1,6 @@
 # 24 — Quotas, Limits, Security & Observability
 
-> Clara AI Platform feature documentation · Domain: `lib/{quota,rate-limit,redact,net-trace}` + `security/*` + CSP · Base: `feature/ai-core-from-doable-source @ 1adb80bf` (net-trace wiring is UNCOMMITTED local work)
+> Clara AI Platform feature documentation · Domain: `lib/{quota,rate-limit,redact,net-trace}` + `security/*` + CSP · Base: `feature/ai-core-from-doable-source @ 031279b4` (net-trace wiring is UNCOMMITTED local work)
 
 ## 1. Definition & Purpose
 

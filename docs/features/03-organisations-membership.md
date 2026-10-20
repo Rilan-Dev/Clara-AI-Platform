@@ -1,6 +1,6 @@
 # 03 — Organisations & Membership
 
-> Clara AI Platform feature documentation · Domain: `organisations` · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `organisations` · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

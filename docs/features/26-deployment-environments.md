@@ -1,6 +1,6 @@
 # 26 — Deployment, Environments & Infrastructure
 
-> Clara AI Platform feature documentation · Domain: docker-compose, Dockerfiles, deploy/nginx, Vercel, `lib/env-scope`, migrations runner · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: docker-compose, Dockerfiles, deploy/nginx, Vercel, `lib/env-scope`, migrations runner · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 
@@ -52,6 +52,7 @@ The deployment story: a Docker Compose stack (backend, worker, RabbitMQ bridge, 
 ## 8. Environment Variables
 
 - `CLARA_ENV` (development|production), `DATABASE_URL`, `QDRANT_URL/API_KEY`, `REDIS_URL`, `RABBITMQ_*`, `GEMINI/OPENAI/ELEVENLABS/SARVAM_*`, `NET_TRACE*` — see `.env.example` (sectioned) and `docs/deployment/environments.md`.
+- Self-hosted ops (`.env.example` "Self-hosted (VPS / Docker) operations" section): `LOCAL_CRON_ENABLED` + `CRON_SECRET` drive `src/lib/local-cron.ts` (`startLocalCron:87`) — the vercel.json schedules re-run over loopback on VPS/Docker deployments (Feature 25), so onboarding reminders and health sweeps fire identically in both hosting models.
 
 ## 9. Tests
 

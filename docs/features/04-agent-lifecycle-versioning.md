@@ -1,6 +1,6 @@
 # 04 — Agent Lifecycle & Versioning
 
-> Clara AI Platform feature documentation · Domain: `agent-versioning` + agent routes · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `agent-versioning` + agent routes · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 
@@ -12,6 +12,7 @@ An agent is the tenant's configurable AI assistant: system prompt, AI model choi
 - **Branches** — `createBranch:122` forks a configuration line; `listBranches:75`, `setBranchArchived:150`; a branch can be reviewed (`reviewMergeHandler`, api/handlers.ts:261) and merged (`executeMergeHandler:272`) back into main.
 - **Publish & deploy** — `getPublishReviewHandler:290` runs pre-flight checks, `publishHandler:305` promotes a version, `rollbackHandler:322` restores the previous deployment, `listDeploymentsHandler:338` + `getActiveDeployment:397` / `insertDeployment:419` record what is live. KB collections are snapshotted per deployment (`getActiveDeploymentKbCollection:465`, migration `047_agent_deployment_kb_snapshots.sql`).
 - **Default-update flow** — when platform assistant defaults change, `checkDefaultUpdateHandler:352` / `applyDefaultUpdateHandler:364` let an agent adopt them consciously.
+- **System prompt generation** — `POST /api/agents/[agentId]/system-prompt/generate` → `generateSystemPromptHandler` (`src/modules/assistant/api/system-prompt-generator.ts:183`) AI-drafts a system prompt from the agent's KB: `classifyKnowledge:113` picks/validates a template (`PROMPT_TEMPLATES:33` in `assistant/core/prompt-templates.ts` — customer support, clinical, org policy… or "Let AI decide"), `buildGenerationPrompt:144` assembles the generation prompt with optional admin notes; the UI (`src/components/admin/SystemPromptGenerator.tsx` — "Generate from knowledge base" dialog + `SystemPromptPreview.tsx`) shows the draft with sampled-document count and template reason, and NOTHING is written to the agent prompt without an explicit Replace / Append.
 - **Workspace context** — `getWorkspaceContextHandler:64` assembles draft + versions + KB bindings for the workspace UI; snapshots (`/config/snapshots`, restore) give point-in-time config recovery.
 - **Handlers index** — `src/modules/agent-versioning/api/handlers.ts:64-364` maps 1:1 onto the routes below.
 
@@ -22,6 +23,7 @@ An agent is the tenant's configurable AI assistant: system prompt, AI model choi
 - Version configs are immutable once saved; edits happen on the draft.
 - KB binding at publish time is snapshotted so later KB edits cannot silently change a live agent's index (per-deployment collection).
 - Agent status lifecycle: `draft → published → archived` (`organisations/core/models.ts:23`).
+- AI-generated prompts are suggestions only — generation never auto-writes the agent prompt; Replace/Append is an explicit admin action (the result carries `documentsSampled` + template reason for review).
 
 ## 4. Data Model
 

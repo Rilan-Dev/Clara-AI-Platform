@@ -1,6 +1,6 @@
 # 15 — Voice AI: Sarvam Realtime
 
-> Clara AI Platform feature documentation · Domain: `voice-core` (Sarvam provider) + `/api/voice/sarvam/*` · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `voice-core` (Sarvam provider) + `/api/voice/sarvam/*` · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

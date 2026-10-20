@@ -1,6 +1,6 @@
 # 25 — Background Jobs & Messaging
 
-> Clara AI Platform feature documentation · Domain: `queue` + `cloud-jobs` + `events` (outbox) + worker routes + RabbitMQ bridge · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `queue` + `cloud-jobs` + `events` (outbox) + worker routes + RabbitMQ bridge · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 
@@ -13,7 +13,7 @@ The asynchronous backbone: BullMQ/Redis job queues for ingest/crawl/scrape/retry
 - **Cloud transport** — `src/modules/cloud-jobs/queue.ts`: `CLOUD_JOB_TOPICS:21`, `CloudJobKind:28`, `CloudQueueTransport:36` ("vercel" | "local"), `cloudQueueTransport:38` (env switch), `enqueueCloudJob:72`; handlers `handlers.ts`: `handleIngestMessage:23`, `handleCrawlMessage:31`, `handleRetryMessage:38`, `handleScrapeMessage:47`, dispatcher `dispatchCloudJob:82`, `unwrapPayload:15`; processors `process-crawl.ts:20`, `process-retry.ts:29`.
 - **Event outbox** — `src/modules/events/outbox-db.ts`: `insertOutboxEvent:14`, `claimOutboxEvents:46`, `markOutboxPublished:85`, `markOutboxFailed:96`; internal routes `/api/internal/outbox` (+ `[id]/published`, `[id]/failed`) drive the publisher loop; migration `025_event_outbox.sql`.
 - **RabbitMQ bridge** — `services/rabbitmq-bridge/` (Docker service `clara-rabbitmq-bridge`): `index.mjs` consumer, `topology.mjs` exchanges/queues/DLQ, `replay-dlq.mjs` dead-letter replay tool; design docs `docs/superpowers/{specs,plans}/2026-09-13-rabbitmq-dlq*`.
-- **Cron** — Feature 21 sweeps run on schedule (Vercel cron / compose): ai-health, whatsapp health/briefings, onboarding reminders, expiry sweep (Feature 17).
+- **Cron** — Feature 21 sweeps run on schedule (Vercel cron / compose): ai-health, whatsapp health/briefings, onboarding reminders, expiry sweep (Feature 17). On self-hosted deployments (VPS / Docker / `npm start`) the same schedules run via `src/lib/local-cron.ts`: `configuredCronJobs:80` reads `vercel.json` as the single source of truth, `cronMatches:57` evaluates expressions in UTC (Vercel-compatible), and `startLocalCron:87` invokes the same routes over loopback with the same `Authorization: Bearer $CRON_SECRET` header Vercel sends — `LOCAL_CRON_ENABLED=false` disables it when an external scheduler is used. Without it, self-hosted deployments silently never sent onboarding reminders or ran the health sweep.
 
 ## 3. Business Rules
 

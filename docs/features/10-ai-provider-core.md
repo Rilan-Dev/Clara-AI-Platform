@@ -1,6 +1,6 @@
 # 10 — AI Provider Core (Multi-LLM Abstraction)
 
-> Clara AI Platform feature documentation · Domain: `ai-core` · Base: `feature/ai-core-from-doable-source @ 1adb80bf` (gemini.ts/openai.ts carry uncommitted NET_TRACE per-vendor-call wiring)
+> Clara AI Platform feature documentation · Domain: `ai-core` · Base: `feature/ai-core-from-doable-source @ 031279b4` (gemini.ts/openai.ts carry uncommitted NET_TRACE per-vendor-call wiring)
 
 ## 1. Definition & Purpose
 

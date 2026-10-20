@@ -1,6 +1,6 @@
 # 19 — Language & Multilingual AI
 
-> Clara AI Platform feature documentation · Domain: `language-core` + `rag` cross-lingual + translate routes · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `language-core` + `rag` cross-lingual + translate routes · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 
@@ -54,6 +54,7 @@ Clara is multilingual by design: Sarvam-backed translate / transliterate / langu
 - Agent language configuration: `src/app/(admin)/orgs/[id]/agents/[agentId]/config/page.tsx`.
 - Translation UX is transparent to chatters (streamed translated answers); widget `src/app/embed/widget/page.tsx`.
 - Platform console: `src/app/(admin)/settings/ai/page.tsx` (multilingual test probe).
+- First-message translation: `src/components/admin/FirstMessageTranslator.tsx` — the language chip under the admin "First message" editor; opens a searchable language menu (assistant languages first, then all supported), translates the typed message for review, and replaces the first message only on an explicit click ("Language settings" deep-links to the Language card).
 
 ## 8. Environment Variables
 

@@ -2,8 +2,8 @@
 
 > Complete feature definition set: every feature's purpose, business logic, business rules, data model, API surface, core module files (with line anchors), UI references, environment variables, tests, and cross-links.
 >
-> **Base:** `feature/ai-core-from-doable-source @ 1adb80bf` (+ uncommitted local NET_TRACE observability work, marked per-doc).
-> **Generated:** 2026-10-20. Line anchors are exact at this commit; re-run `scripts/gather-feature-inventory.sh` after major changes to refresh them.
+> **Base:** `feature/ai-core-from-doable-source @ 031279b4` (+ uncommitted local NET_TRACE observability work, marked per-doc).
+> **Generated:** 2026-10-20, gap-audit extended same day (features 27-30 added after a full codebase re-sweep). Line anchors are exact at this commit; re-run `scripts/gather-feature-inventory.sh` after major changes to refresh them.
 
 ## Feature Matrix
 
@@ -35,11 +35,17 @@
 | 24 | Quotas, Limits, Security & Observability | `lib/*`, `security` | 029 | [24-quotas-limits-security.md](./24-quotas-limits-security.md) |
 | 25 | Background Jobs & Messaging | `queue`, `cloud-jobs`, `events` | 025 | [25-background-jobs-messaging.md](./25-background-jobs-messaging.md) |
 | 26 | Deployment & Environments | compose, nginx, `lib/env-scope` | 001-075 (runner) | [26-deployment-environments.md](./26-deployment-environments.md) |
+| 27 | Agent Conversation Experience | `features/agent-conversation`, `app/agents`, `app/preview` | — (consumes 04/08/13) | [27-agent-conversation-experience.md](./27-agent-conversation-experience.md) |
+| 28 | Public Website & Growth | `features/platform`, `(platform)` pages | 048, 049, 050 | [28-public-website-growth.md](./28-public-website-growth.md) |
+| 29 | AI Platform Runtime & Console | `ai-platform-core`, `components/admin/ai-platform` | 069-073 (MCP) | [29-ai-platform-runtime.md](./29-ai-platform-runtime.md) |
+| 30 | Workspace & Onboarding | `features/workspace`, `organisations/core/workspace.ts` | 048-050, 052 | [30-workspace-onboarding.md](./30-workspace-onboarding.md) |
 
 ## Platform at a Glance
 
-- **Scale:** 244 API route files · 26 module domains (318 non-test module files) · 75 SQL migrations · 250 test files · 67 UI pages · 106 feature-UI components.
-- **Request lifecycle:** Auth (01) → RBAC/org guard (02/03) → agent config resolution from the ACTIVE deployment (04) → quota admission (24) → grounding retrieval over KB collections (05-09) → provider call through the abstraction (10) → streamed NDJSON answer with citations (08) → usage event + audit row (20) → incident capture on failure (21).
+- **Scale:** 244 API route files · 26 module domains (318 non-test module files) + a 5-group `src/features/` UI layer (admin, agent-conversation 4.1k lines, embed, platform 3.4k lines, workspace) · 75 SQL migrations · 250 test files · 67 UI pages · 106 feature-UI components.
+- **Request lifecycle:** Auth (01) → RBAC/org guard (02/03) → agent config resolution from the ACTIVE deployment (04) → quota admission (24) → grounding retrieval over KB collections (05-09) → provider call through the abstraction (10) → streamed NDJSON answer with citations (08) → rendered by the end-user conversation layer (27) → usage event + audit row (20) → incident capture on failure (21).
+- **Acquisition path:** visitor → landing/demos (28) → signup + email verification (28/01) → pricing + checkout (28/17) → onboarding gate + reminders (30) → daily workspace chat (30/27).
+- **AI capability path:** tenant context (29 execution context) → adapter registry (29) → unified tool runtime (29) → rag_search / MCP / integration tools (29/23) → bounded agentic loop (29), flag-gated per environment.
 - **Voice path:** same spine with realtime engines (14-16) and per-second metering.
 - **Async path:** upload → BullMQ/cloud queue → worker pipeline (25) → Qdrant (06).
 - **Money path:** plan catalog → checkout/webhook → entitlements + quotas (17 → 11 → 24).

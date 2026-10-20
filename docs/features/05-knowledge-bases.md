@@ -1,6 +1,6 @@
 # 05 — Knowledge Bases
 
-> Clara AI Platform feature documentation · Domain: `knowledge-bases` + `admin` KB core + `/api/kbs` · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `knowledge-bases` + `admin` KB core + `/api/kbs` · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 
@@ -25,7 +25,7 @@ A Knowledge Base (KB) is the tenant's container of knowledge: uploaded documents
 - Reprocessing is idempotent per document (status machine pending → processing → ready/failed, recoverable via Retry).
 - KBs bound to a published agent deployment are snapshotted (Feature 04) — live edits affect drafts, not the pinned deployment collection.
 - Deletion integrity is Qdrant-state-aware (FIX-01 @ ac7d945f): the document record is preserved when the vector collection is unavailable, delete is permitted only when Qdrant confirms the collection never existed, reindex mirrors are removed on document deletion, and scrape rollback deletes are scoped to the exact KB — never a cross-KB sweep.
-- Chunk mutations are document-bound and validated (FIX-01 @ 1adb80bf): edits are bound to the owning document (cross-document chunk edits rejected), chunk indices are explicitly number-typed with clobbering prevented, and creation metadata is validated before any Qdrant write — malformed indices/payloads are rejected outright.
+- Chunk mutations are document-bound and validated (FIX-01 @ 031279b4): edits are bound to the owning document (cross-document chunk edits rejected), chunk indices are explicitly number-typed with clobbering prevented, and creation metadata is validated before any Qdrant write — malformed indices/payloads are rejected outright. Archived KBs (`status !== "active"`) are read-only for manual chunk creation/edits while cleanup paths remain available (`68720d97`/`86ff9eeb`, tests `9bbaea54`/`4ab92769`), and single-chunk reindex mirror deletion fails closed preserving the live point (`ff9f6771`, trusted KB identity bound into point deletion `e0d987c8`).
 
 ## 4. Data Model
 

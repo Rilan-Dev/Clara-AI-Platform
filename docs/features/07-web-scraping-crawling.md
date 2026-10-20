@@ -1,6 +1,6 @@
 # 07 — Web Scraping & Crawling
 
-> Clara AI Platform feature documentation · Domain: `ingest/crawlers` + `/api/kbs/[kbId]/scrape` + crawl queue · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `ingest/crawlers` + `/api/kbs/[kbId]/scrape` + crawl queue · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

@@ -1,6 +1,6 @@
 # 13 — Embeddable Widget & Public Demo
 
-> Clara AI Platform feature documentation · Domain: `embed` + `/api/embed/*` + `public/embed/clara.js` · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `embed` + `/api/embed/*` + `public/embed/clara.js` · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

@@ -1,6 +1,6 @@
 # 17 — Payments & Subscriptions
 
-> Clara AI Platform feature documentation · Domain: `billing` + `/api/subscriptions/*` + webhooks · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `billing` + `/api/subscriptions/*` + webhooks · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

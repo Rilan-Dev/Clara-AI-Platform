@@ -1,6 +1,6 @@
 # 02 — Identity, RBAC & Policies
 
-> Clara AI Platform feature documentation · Domain: `auth` core + `api/policies` · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `auth` core + `api/policies` · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

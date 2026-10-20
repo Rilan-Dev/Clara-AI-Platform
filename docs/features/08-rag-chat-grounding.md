@@ -1,6 +1,6 @@
 # 08 — RAG Chat & Grounding
 
-> Clara AI Platform feature documentation · Domain: `assistant` + `rag` · Base: `feature/ai-core-from-doable-source @ 1adb80bf` (chat.ts carries the uncommitted NET_TRACE observability wiring)
+> Clara AI Platform feature documentation · Domain: `assistant` + `rag` · Base: `feature/ai-core-from-doable-source @ 031279b4` (chat.ts carries the uncommitted NET_TRACE observability wiring)
 
 ## 1. Definition & Purpose
 

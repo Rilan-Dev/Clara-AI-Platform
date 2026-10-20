@@ -1,6 +1,6 @@
 # 14 — Voice AI: ElevenLabs
 
-> Clara AI Platform feature documentation · Domain: `voice-core` (ElevenLabs provider) + `/api/voice/elevenlabs/*` + `/api/admin/elevenlabs/*` · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `voice-core` (ElevenLabs provider) + `/api/voice/elevenlabs/*` + `/api/admin/elevenlabs/*` · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

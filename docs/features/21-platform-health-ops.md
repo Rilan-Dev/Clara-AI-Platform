@@ -1,6 +1,6 @@
 # 21 — Platform Health, Incidents & Operations
 
-> Clara AI Platform feature documentation · Domain: `platform-health` + services-status + notifications + cron · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `platform-health` + services-status + notifications + cron · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 

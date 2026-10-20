@@ -1,6 +1,6 @@
 # 12 — AI Settings & Model Defaults
 
-> Clara AI Platform feature documentation · Domain: `organisations` (AI settings) + platform defaults · Base: `feature/ai-core-from-doable-source @ 1adb80bf`
+> Clara AI Platform feature documentation · Domain: `organisations` (AI settings) + platform defaults · Base: `feature/ai-core-from-doable-source @ 031279b4`
 
 ## 1. Definition & Purpose
 
