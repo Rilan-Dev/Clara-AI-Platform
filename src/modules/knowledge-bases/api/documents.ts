@@ -310,7 +310,7 @@ export async function deleteDocumentHandler(
       // cleaning up its Qdrant points.
       return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
     }
-    await deleteDocumentChunks(kb.qdrantCollection, docId);
+    await deleteDocumentChunks(kb.qdrantCollection, docId, kbId);
     await deleteDocument(docId);
     // WS-1.4: mutation audit — destructive action on tenant content.
     void writeAuditLog({
