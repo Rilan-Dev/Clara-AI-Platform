@@ -99,7 +99,7 @@ export async function DELETE(req: NextRequest, { params }: Params): Promise<Next
     if (originalIndex === null) {
       return NextResponse.json({ error: "Chunk not found" }, { status: 404 });
     }
-    await deleteChunk(kb.qdrantCollection, chunkId);
+    await deleteChunk(kb.qdrantCollection, chunkId, kbId);
     return NextResponse.json({ deleted: true, pointId: chunkId });
   } catch (err) {
     if (err instanceof NextResponse) return err;
