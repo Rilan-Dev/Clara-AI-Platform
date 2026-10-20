@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { requireAuth } from "@/modules/auth/core/rbac";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { pool } from "@/lib/db";
 
 type Params = { params: Promise<{ sessionId: string }> };
@@ -32,6 +32,13 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
     );
     if (session.rowCount === 0) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    const sessionKbId = session.rows[0].kb_id;
+    if (sessionKbId) {
+      // User ownership alone is insufficient if organization membership
+      // has been revoked since the conversation was saved.
+      await requireKbPermission(auth, sessionKbId, "kb:read");
     }
 
     const messages = await pool.query<{
