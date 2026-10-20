@@ -41,6 +41,9 @@ export async function PATCH(req: NextRequest, { params }: Params): Promise<NextR
 
     const kb = await getKnowledgeBaseById(kbId);
     if (!kb) return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+    if (kb.status !== "active") {
+      return NextResponse.json({ error: "Knowledge base is archived" }, { status: 400 });
+    }
     const doc = await getDocumentById(docId);
     if (!doc || doc.kbId !== kbId) {
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
