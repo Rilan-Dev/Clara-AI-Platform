@@ -545,17 +545,25 @@ export async function listDocumentChunks(
   return chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
 }
 
-/** Delete a single Qdrant point by its UUID point ID. */
+/**
+ * Delete one KB-owned point from the live collection and any active reindex
+ * target. Caller must pass its already authorized KB id; collection metadata
+ * may be missing during embedding-index repair and is not an auth authority.
+ *
+ * Mirror first and fail closed: if the target is unavailable, keep the live
+ * point so an operator can safely retry instead of returning false success
+ * and reviving removed content after reindex promotion.
+ */
 export async function deleteChunk(
   collectionName: string,
-  pointId: string
+  pointId: string,
+  kbId: string,
 ): Promise<void> {
   const client = getQdrantClient();
-  await client.delete(collectionName, { wait: true, points: [pointId] });
-  const kbId = (await getCollectionEmbedding(collectionName).catch(() => null))?.kbId;
   await dualWrite(kbId, collectionName, async (job) => {
     await client.delete(job.targetCollection, { wait: true, points: [pointId] });
-  });
+  }, { strict: true });
+  await client.delete(collectionName, { wait: true, points: [pointId] });
 }
 
 /**
