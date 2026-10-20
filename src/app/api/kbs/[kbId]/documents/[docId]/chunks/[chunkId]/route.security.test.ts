@@ -54,6 +54,7 @@ describe("document-chunk mutation authorization", () => {
     mocks.requireKbPermission.mockResolvedValue(undefined);
     mocks.getKnowledgeBaseById.mockResolvedValue({
       id: "kb-owned",
+      status: "active",
       qdrantCollection: "kb-shared-collection",
     });
     mocks.getDocumentById.mockResolvedValue({
@@ -156,6 +157,35 @@ describe("document-chunk mutation authorization", () => {
 
     expect(response.status).toBe(409);
     expect(mocks.updateChunk).not.toHaveBeenCalled();
+  });
+
+  it("rejects editing chunks of an archived KB before Qdrant access", async () => {
+    mocks.getKnowledgeBaseById.mockResolvedValueOnce({
+      id: "kb-owned",
+      status: "archived",
+      qdrantCollection: "kb-shared-collection",
+    });
+
+    const response = await PATCH(request("PATCH", { text: "Changed" }), params);
+
+    expect(response.status).toBe(400);
+    expect(mocks.retrieve).not.toHaveBeenCalled();
+    expect(mocks.updateChunk).not.toHaveBeenCalled();
+  });
+
+  it("still allows deliberate cleanup from an archived KB", async () => {
+    mocks.getKnowledgeBaseById.mockResolvedValueOnce({
+      id: "kb-owned",
+      status: "archived",
+      qdrantCollection: "kb-shared-collection",
+    });
+
+    const response = await DELETE(request("DELETE"), params);
+
+    expect(response.status).toBe(200);
+    expect(mocks.deleteChunk).toHaveBeenCalledWith(
+      "kb-shared-collection", "point-id", "kb-owned",
+    );
   });
 
   it("preserves valid deletion of a point owned by the document", async () => {
