@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
-import { requireAuth } from "@/modules/auth/core/rbac";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { pool } from "@/lib/db";
 
 /**
@@ -20,6 +20,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     await ensureMigrated();
     const auth = await requireAuth(req);
     const kbId = req.nextUrl.searchParams.get("kbId");
+    if (kbId) {
+      // Revoked or cross-tenant KB access cannot be used to list sessions.
+      await requireKbPermission(auth, kbId, "kb:read");
+    }
 
     const result = await pool.query<{
       id: string; kb_id: string | null; title: string;
@@ -56,12 +60,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const body = (await req.json().catch(() => ({}))) as { kbId?: string; title?: string };
 
     if (body.kbId) {
-      // Verify the KB exists (and the user can chat with it) before creating
-      // a session scoped to it.
-      const kb = await pool.query("SELECT id FROM knowledge_bases WHERE id = $1", [body.kbId]);
-      if (kb.rowCount === 0) {
-        return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
-      }
+      // A KB's existence is not authorization: require current membership
+      // and read permission before binding a saved conversation to it.
+      await requireKbPermission(auth, body.kbId, "kb:read");
     }
 
     const title = (body.title ?? "").trim().slice(0, 80) || "New conversation";
