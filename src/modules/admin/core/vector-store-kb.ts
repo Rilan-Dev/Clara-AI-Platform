@@ -636,7 +636,24 @@ export async function deleteDocumentChunks(
   const client = getQdrantClient();
   // A failed Qdrant delete must reject. Callers must not discard the source
   // record and report success while its old vectors remain searchable.
-  await ensureDocumentIdIndex(collectionName);
+  try {
+    await ensureDocumentIdIndex(collectionName);
+  } catch (indexError) {
+    // A document may have failed before the KB collection was ever created.
+    // Only a *second*, explicit Qdrant collection lookup confirming absence
+    // allows deletion of that source record; outages and index errors fail closed.
+    try {
+      await client.getCollection(collectionName);
+    } catch (lookupError) {
+      const status = (lookupError as { status?: number }).status;
+      const message = qdrantErrorMessage(lookupError);
+      if (status === 404 && /collection.*(?:not found|does not exist|doesn't exist)/i.test(message)) {
+        console.log(`[vs-kb] no collection "${collectionName}" to delete chunks from`);
+        return;
+      }
+    }
+    throw indexError;
+  }
   const filter = { must: [{ key: "documentId", match: { value: documentId } }] };
   try {
     await client.delete(collectionName, { wait: true, filter });
