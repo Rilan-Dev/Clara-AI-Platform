@@ -2,10 +2,11 @@
  * POST /api/phone/log — internal route to update call log from phone-stream.mjs
  */
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthorizedPhoneInternal } from "@/modules/phone/core/internal-auth";
 import { updateCallLog } from "@/modules/phone/core/db";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  if (req.headers.get("x-phone-internal") !== "1") {
+  if (!isAuthorizedPhoneInternal(req.headers)) {
     return NextResponse.json({ error: "Internal only" }, { status: 403 });
   }
   try {

@@ -11,6 +11,7 @@
  *             maxCallDurationSec, kbName }
  */
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthorizedPhoneInternal } from "@/modules/phone/core/internal-auth";
 import { policyFromResolvedConfig, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { ensureMigrated }            from "@/lib/db/migrate";
 import { getAssistantConfigByKb, getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
@@ -32,15 +33,9 @@ import {
 } from "@/modules/assistant/api/openai-realtime";
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Only allow calls from localhost (phone-stream.mjs runs server-side)
-  const forwarded = req.headers.get("x-forwarded-for");
-  const realIp    = req.headers.get("x-real-ip") ?? "";
-  const isInternal = req.headers.get("x-phone-internal") === "1";
-  const remoteIp  = forwarded?.split(",")[0]?.trim() ?? realIp;
-  const isLocal   = isInternal ||
-    remoteIp === "127.0.0.1" || remoteIp === "::1" || remoteIp === "::ffff:127.0.0.1";
-
-  if (!isLocal) {
+  // Do not trust x-phone-internal or client-supplied X-Forwarded-For as
+  // proof of localhost. Phone bridge calls must supply the server secret.
+  if (!isAuthorizedPhoneInternal(req.headers)) {
     return NextResponse.json({ error: "Internal route only" }, { status: 403 });
   }
 

@@ -333,6 +333,7 @@ export class CallHandler {
         headers: { "Content-Type": "application/json",
           // Use a special internal header — phone calls bypass embed key auth
           "x-phone-internal": "1",
+          "x-phone-secret": process.env.PHONE_INTERNAL_SECRET?.trim() || process.env.CRON_SECRET?.trim() || "",
           "x-kb-id": this.kbId },
         body: JSON.stringify({ query, limit: 5 }),
         signal: ctrl.signal,

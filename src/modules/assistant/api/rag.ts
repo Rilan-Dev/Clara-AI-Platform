@@ -10,8 +10,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDocumentById } from "@/modules/admin/core";
-import { searchHybrid } from "@/modules/admin/core/hybrid-search";
 import { groundClaraContext, groundingServerTiming } from "@/modules/rag/grounding";
 import { admissionDeniedResponse } from "@/lib/quota-admission";
 import type { ProviderConfig } from "@/modules/ai-core/types";
@@ -90,25 +88,16 @@ export async function postRagSearch(
     }
 
     if (body.documentId) {
-      const documentRecord = await getDocumentById(body.documentId);
-      if (!documentRecord) {
-        return NextResponse.json({ error: "Document not found" }, { status: 404 });
-      }
-
-      const results = await searchHybrid(documentRecord.collectionName, query, Math.min(Number(body.topK ?? 6), 20));
-      const context = results
-        .map((doc, i) => `[S${i + 1}] ${doc.title}\n${doc.snippet}`.trim())
-        .join("\n\n");
-
-      return NextResponse.json({
-        context,
-        sources: results,
-        document: { id: documentRecord.id, title: documentRecord.title },
-      });
+      // Legacy document_catalog entries have no tenant/KB ownership.
+      // Looking one up by public ID would disclose unscoped Qdrant content.
+      return NextResponse.json(
+        { error: "Document-only RAG search is no longer available; provide an authorized kbId." },
+        { status: 410 },
+      );
     }
 
     return NextResponse.json(
-      { error: "Provide either kbId (recommended) or documentId (legacy)" },
+      { error: "Provide a knowledge base ID" },
       { status: 400 },
     );
   } catch (error) {

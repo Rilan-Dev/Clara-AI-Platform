@@ -18,6 +18,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const body = await req.json();
     body.kbId = validation.ctx.kbId;
+    // Public API keys and published-session tokens must never select the
+    // unpublished KB draft, even if the caller supplies scope: "draft".
+    // Only the authenticated /api/rag/search route authorizes draft access.
+    body.scope = "live";
 
     // Demo RAG must use the same Platform Admin -> Demo provider as Demo chat
     // and voice. Previously this endpoint resolved the KB's normal AI policy,

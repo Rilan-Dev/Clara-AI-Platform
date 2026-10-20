@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { pool } from "@/lib/db";
 import {
   getOrgDailyUsage,
@@ -183,10 +184,15 @@ async function getOrgUsageSummary(orgId: string): Promise<UsageSummary> {
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
-export async function GET(_req: NextRequest, { params }: Props): Promise<NextResponse> {
+export async function GET(req: NextRequest, { params }: Props): Promise<NextResponse> {
   try {
     await ensureMigrated();
     const { kbId } = await params;
+
+    // Usage reports contain API-key identifiers and organization-wide
+    // subscription analytics. A KB id alone does not authorize disclosure.
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "kb:read");
 
     const kb = await getKnowledgeBaseById(kbId);
     if (!kb) return NextResponse.json({ error: "KB not found" }, { status: 404 });
@@ -217,6 +223,7 @@ export async function GET(_req: NextRequest, { params }: Props): Promise<NextRes
       summary,  // org-wide totals
     });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[api-keys/usage] GET:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

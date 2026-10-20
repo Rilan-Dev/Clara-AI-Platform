@@ -5,6 +5,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { isAuthorizedPhoneInternal } from "@/modules/phone/core/internal-auth";
 import {
   validateEmbedRequest,
   buildCorsHeaders,
@@ -71,14 +72,20 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
 
-    const isInternal = req.headers.get("x-phone-internal") === "1";
-    const internalKbId = req.headers.get("x-kb-id") ?? "";
+    const requestedInternal = req.headers.has("x-phone-internal") || req.headers.has("x-kb-id");
+    const internalKbId = req.headers.get("x-kb-id")?.trim() ?? "";
+
+    // A caller-supplied phone flag is not authentication. A forged internal
+    // request must never fall through to an unscoped KB search.
+    if (requestedInternal && (!internalKbId || !isAuthorizedPhoneInternal(req.headers))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     let kbId: string;
     let providerOverride: ProviderConfig | undefined;
     // let isDemo = false;
 
-    if (isInternal && internalKbId) {
+    if (requestedInternal) {
       kbId = internalKbId;
     } else {
       const validation = await validateEmbedRequest(req);

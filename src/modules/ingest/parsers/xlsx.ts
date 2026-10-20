@@ -26,11 +26,15 @@ export class XlsxParser implements DocumentParser {
         const lines: string[] = [`[Sheet: ${sheetName}]`];
 
         for (const row of rows) {
+          // Empty cells are meaningful positions in a spreadsheet. Filtering
+          // them shifts later values into the wrong columns (e.g. a missing
+          // owner can appear to be an amount). Trim only trailing empty cells.
           const cells = (row as unknown[])
-            .map((cell) => String(cell ?? '').trim())
-            .filter((cell) => cell !== '');
-          if (cells.length > 0) {
-            lines.push(cells.join('\t'));
+            .map((cell) => String(cell ?? '').trim());
+          let lastNonEmpty = cells.length - 1;
+          while (lastNonEmpty >= 0 && cells[lastNonEmpty] === '') lastNonEmpty--;
+          if (lastNonEmpty >= 0) {
+            lines.push(cells.slice(0, lastNonEmpty + 1).join('\t'));
           }
         }
 
