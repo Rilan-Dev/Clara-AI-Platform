@@ -12,4 +12,5 @@ if (body.chunkIndex !== undefined && (typeof body.chunkIndex !== "number" || !Nu
   return NextResponse.json({ error: "chunkIndex must be a non-negative integer" }, { status: 400 });
 }
 const existing = await listDocumentChunks(kb.qdrantCollection, docId);
-const chunkIndex = body.chunkIndex ?? (existing.length ? Math.max(...existing.map(c => c.chunkIndex)) + 1 : 0);const pointId=await addChunk(kb.qdrantCollection,body.text.trim(),chunkIndex,{kbId,documentId:docId,title:doc.title,originalFilename:doc.originalFilename});return NextResponse.json({pointId,chunkIndex,text:body.text.trim()},{status:201});}catch(err){if(err instanceof NextResponse)return err;return NextResponse.json({error:(err as Error).message},{status:500});}}
+const requestedIndex: number | undefined = typeof body.chunkIndex === "number" ? body.chunkIndex : undefined;
+const chunkIndex = requestedIndex ?? (existing.length ? Math.max(...existing.map(c => c.chunkIndex)) + 1 : 0);const pointId=await addChunk(kb.qdrantCollection,body.text.trim(),chunkIndex,{kbId,documentId:docId,title:doc.title,originalFilename:doc.originalFilename});return NextResponse.json({pointId,chunkIndex,text:body.text.trim()},{status:201});}catch(err){if(err instanceof NextResponse)return err;return NextResponse.json({error:(err as Error).message},{status:500});}}
