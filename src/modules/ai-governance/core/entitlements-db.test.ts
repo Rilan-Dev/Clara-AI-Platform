@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   models: {} as Record<string, Row[]>,
   providerMatrixConfigured: true,
   capabilityMatrixConfigured: true,
+  modelMatrixConfigured: false,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -24,6 +25,7 @@ vi.mock("@/lib/db", () => ({
       return [{
         capability_matrix_configured: state.capabilityMatrixConfigured,
         provider_matrix_configured: state.providerMatrixConfigured,
+        model_matrix_configured: state.modelMatrixConfigured,
       }];
     }
     if (sql.includes("FROM plan_ai_capabilities")) return state.capabilities[String(params?.[0])] ?? [];
@@ -75,6 +77,7 @@ beforeEach(() => {
   state.models = {};
   state.providerMatrixConfigured = true;
   state.capabilityMatrixConfigured = true;
+  state.modelMatrixConfigured = false;
 });
 
 describe("resolvePlanAIEntitlements", () => {
@@ -201,6 +204,25 @@ describe("resolvePlanAIEntitlements", () => {
       openai: false, gemini: false, sarvam: false, elevenlabs: false,
     });
     expect(result.capabilities.voice_chat).toBe(true);
+  });
+
+  it("denies missing capabilities and providers when only model-exception rows exist globally", async () => {
+    state.subscriptions = [{
+      plan_id: "starter", plan_name: "Starter", voice_enabled: true,
+      sub_status: "active", current_period_end: new Date(Date.now() + 86_400_000).toISOString(),
+    }];
+    state.providerMatrixConfigured = false;
+    state.capabilityMatrixConfigured = false;
+    state.modelMatrixConfigured = true;
+    state.providers = { free: [], starter: [], pro: [] };
+    state.capabilities = { free: [], starter: [], pro: [] };
+    state.models.starter = [{ m_provider: "sarvam", m_capability: "chat", m_kind: "chat", m_model: "sarvam-model", m_allowed: false }];
+
+    const result = await resolvePlanAIEntitlements("org-1");
+    expect(result.capabilities.chat).toBe(false);
+    expect(result.capabilities.voice_chat).toBe(false);
+    expect(result.allowedProviders.sarvam).toBe(false);
+    expect(result.allowedProviders.openai).toBe(false);
   });
 
   it("retains bounded pre-migration capability fallbacks only while all matrices are empty", async () => {
