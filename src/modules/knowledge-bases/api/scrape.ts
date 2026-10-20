@@ -67,7 +67,7 @@ async function rollbackSessionDocuments(kbId: string, sessionId: string): Promis
 
   for (const doc of docs) {
     if (kb) {
-      await deleteDocumentChunks(kb.qdrantCollection, doc.id);
+      await deleteDocumentChunks(kb.qdrantCollection, doc.id, kbId);
     }
     await deleteDocument(doc.id);
   }
