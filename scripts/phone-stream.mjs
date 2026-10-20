@@ -149,7 +149,7 @@ async function fetchPhoneSession(kbId, provider) {
   try {
     const res = await fetch(`${BASE}/api/phone/session`, {
       method:  "POST",
-      headers: { "Content-Type": "application/json", "x-phone-internal": "1" },
+      headers: { "Content-Type": "application/json", "x-phone-internal": "1", "x-phone-secret": process.env.PHONE_INTERNAL_SECRET?.trim() || process.env.CRON_SECRET?.trim() || "" },
       body:    JSON.stringify({ kbId, provider }),
     });
     if (!res.ok) {
@@ -170,7 +170,7 @@ async function fetchRagContext(kbId, query) {
   try {
     const res = await fetch(`${BASE}/api/embed/search`, {
       method:  "POST",
-      headers: { "Content-Type": "application/json", "x-phone-internal": "1", "x-kb-id": kbId },
+      headers: { "Content-Type": "application/json", "x-phone-internal": "1", "x-phone-secret": process.env.PHONE_INTERNAL_SECRET?.trim() || process.env.CRON_SECRET?.trim() || "", "x-kb-id": kbId },
       body:    JSON.stringify({ query, limit: 5 }),
     });
     if (!res.ok) return "";
@@ -185,7 +185,7 @@ async function logCallEnd(callSid, updates) {
   try {
     await fetch(`${BASE}/api/phone/log`, {
       method:  "POST",
-      headers: { "Content-Type": "application/json", "x-phone-internal": "1" },
+      headers: { "Content-Type": "application/json", "x-phone-internal": "1", "x-phone-secret": process.env.PHONE_INTERNAL_SECRET?.trim() || process.env.CRON_SECRET?.trim() || "" },
       body:    JSON.stringify({ callSid, ...updates }),
     });
   } catch { /* ignore */ }
