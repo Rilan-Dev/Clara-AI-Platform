@@ -87,8 +87,16 @@ export async function upsertPhoneConfig(
   return rowToConfig(rows[0]);
 }
 
-export async function deletePhoneConfig(id: string): Promise<void> {
-  await pool.query(`DELETE FROM phone_call_configs WHERE id = $1`, [id]);
+/**
+ * Delete only a phone configuration belonging to the authorized KB.
+ * Keep both identifiers in one SQL statement to avoid a read/delete race.
+ */
+export async function deletePhoneConfig(id: string, kbId: string): Promise<boolean> {
+  const result = await pool.query(
+    `DELETE FROM phone_call_configs WHERE id = $1 AND kb_id = $2`,
+    [id, kbId],
+  );
+  return (result.rowCount ?? 0) > 0;
 }
 
 export async function insertCallLog(data: {
