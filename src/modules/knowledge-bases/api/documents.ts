@@ -304,7 +304,13 @@ export async function deleteDocumentHandler(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
     const kb = await getKnowledgeBaseById(kbId);
-    if (kb) await deleteDocumentChunks(kb.qdrantCollection, docId);
+    if (!kb) {
+      // Keep the source record when its vector collection cannot be resolved.
+      // Otherwise the document vanishes from the UI with no way to retry
+      // cleaning up its Qdrant points.
+      return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+    }
+    await deleteDocumentChunks(kb.qdrantCollection, docId);
     await deleteDocument(docId);
     // WS-1.4: mutation audit — destructive action on tenant content.
     void writeAuditLog({
