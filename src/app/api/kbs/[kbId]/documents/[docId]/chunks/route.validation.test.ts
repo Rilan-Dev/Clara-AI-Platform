@@ -45,6 +45,7 @@ describe("KB chunk creation input integrity", () => {
     mocks.requireKbPermission.mockResolvedValue(undefined);
     mocks.getKnowledgeBaseById.mockResolvedValue({
       id: "kb-1",
+      status: "active",
       qdrantCollection: "kb-collection",
     });
     mocks.getDocumentById.mockResolvedValue({
@@ -55,6 +56,20 @@ describe("KB chunk creation input integrity", () => {
     });
     mocks.listDocumentChunks.mockResolvedValue([{ chunkIndex: 6 }, { chunkIndex: 3 }]);
     mocks.addChunk.mockResolvedValue("point-created");
+  });
+
+  it("prevents chunk creation in an archived KB", async () => {
+    mocks.getKnowledgeBaseById.mockResolvedValueOnce({
+      id: "kb-1",
+      status: "archived",
+      qdrantCollection: "kb-collection",
+    });
+
+    const response = await POST(request({ text: "New information" }), params);
+
+    expect(response.status).toBe(400);
+    expect(mocks.listDocumentChunks).not.toHaveBeenCalled();
+    expect(mocks.addChunk).not.toHaveBeenCalled();
   });
 
   it("rejects malformed chunk indices without reading or writing existing vectors", async () => {
