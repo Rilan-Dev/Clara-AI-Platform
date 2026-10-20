@@ -372,16 +372,21 @@ export async function setUrlInclusion(
 
 /** Batch toggle include/exclude for multiple URL IDs. */
 export async function batchSetUrlInclusion(
+  kbId: string,
   urlIds: string[],
   included: boolean
 ): Promise<number> {
   if (urlIds.length === 0) return 0;
   const newStatus = included ? "pending" : "excluded";
-  const placeholders = urlIds.map((_, i) => `$${i + 3}`).join(", ");
+  const placeholders = urlIds.map((_, i) => `${i + 4}`).join(", ");
+  // Scope the UPDATE itself, not just a preceding read, to prevent a batch
+  // of URL IDs from mutating another KB's scrape session.
   const result = await execute(
     `UPDATE scrape_urls SET included = $1, status = $2
-     WHERE id IN (${placeholders}) AND status NOT IN ('scraping', 'completed')`,
-    [included, newStatus, ...urlIds]
+     WHERE id IN (${placeholders})
+       AND session_id IN (SELECT id FROM scrape_sessions WHERE kb_id = $3)
+       AND status NOT IN ('scraping', 'completed')`,
+    [included, newStatus, kbId, ...urlIds]
   );
   return typeof result === "number" ? result : 0;
 }
