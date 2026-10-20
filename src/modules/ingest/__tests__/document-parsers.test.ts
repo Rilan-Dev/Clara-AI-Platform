@@ -67,6 +67,22 @@ describe('document ingestion validation', () => {
     ).rejects.toThrow(/Invalid DOCX/i);
   });
 
+  it('preserves empty spreadsheet cells so later values remain in their original columns', async () => {
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['Invoice', 'Owner', 'Amount'],
+      ['INV-001', '', 250],
+      ['INV-002', 'Alice', 300],
+    ]);
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Invoices');
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    const parsed = await parseDocumentFromBuffer(buffer, 'invoices.xlsx');
+    expect(parsed.text).toContain('Invoice\tOwner\tAmount');
+    expect(parsed.text).toContain('INV-001\t\t250');
+    expect(parsed.text).toContain('INV-002\tAlice\t300');
+  });
+
   it('keeps working XLSX ingestion as a real binary parser', async () => {
     const workbook = XLSX.utils.book_new();
     const sheet = XLSX.utils.aoa_to_sheet([
