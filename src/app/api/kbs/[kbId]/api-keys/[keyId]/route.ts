@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { revokeApiKey, updateApiKey, getApiKeyById } from "@/modules/embed/core/api-keys-db";
 
 type Props = { params: Promise<{ kbId: string; keyId: string }> };
@@ -12,6 +13,8 @@ export async function PATCH(req: NextRequest, { params }: Props): Promise<NextRe
   try {
     await ensureMigrated();
     const { kbId, keyId } = await params;
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "kb:update");
 
     const existing = await getApiKeyById(keyId);
     if (!existing || existing.kbId !== kbId) {
@@ -34,15 +37,18 @@ export async function PATCH(req: NextRequest, { params }: Props): Promise<NextRe
 
     return NextResponse.json({ key: updated });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[api-keys] PATCH:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Props): Promise<NextResponse> {
+export async function DELETE(req: NextRequest, { params }: Props): Promise<NextResponse> {
   try {
     await ensureMigrated();
     const { kbId, keyId } = await params;
+    const auth = await requireAuth(req);
+    await requireKbPermission(auth, kbId, "kb:update");
 
     const existing = await getApiKeyById(keyId);
     if (!existing || existing.kbId !== kbId) {
@@ -52,6 +58,7 @@ export async function DELETE(_req: NextRequest, { params }: Props): Promise<Next
     await revokeApiKey(keyId);
     return NextResponse.json({ success: true });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[api-keys] DELETE:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
