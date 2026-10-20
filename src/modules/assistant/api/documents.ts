@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 
 import {
   getDocumentById,
@@ -13,6 +14,10 @@ type OverviewRequestPayload = {
 
 export async function postDocumentOverview(request: NextRequest) {
   try {
+    // Legacy document_catalog has no organization owner; only platform admins
+    // may retrieve overviews until these sources are migrated into tenant KBs.
+    const auth = await requireAuth(request);
+    await requireSuperAdmin(auth);
     const body = (await request.json()) as OverviewRequestPayload;
     const documentId =
       typeof body.documentId === "string" ? body.documentId : undefined;
@@ -124,6 +129,7 @@ export async function postDocumentOverview(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof NextResponse) return error;
     const message =
       error instanceof Error ? error.message : "Failed to generate overview.";
     return NextResponse.json({ error: message }, { status: 500 });
