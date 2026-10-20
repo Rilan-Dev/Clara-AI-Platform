@@ -52,6 +52,7 @@ export async function GET(req: NextRequest, { params }: Props): Promise<NextResp
       },
     });
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[api-keys] GET:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest, { params }: Props): Promise<NextRes
       { status: 201 }
     );
   } catch (err) {
+    if (err instanceof NextResponse) return err;
     console.error("[api-keys] POST:", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
