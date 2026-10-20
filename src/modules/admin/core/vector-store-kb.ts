@@ -372,6 +372,7 @@ async function dualWrite(
   kbId: string | null | undefined,
   liveCollection: string,
   write: (job: ReindexJob) => Promise<void>,
+  options: { strict?: boolean } = {},
 ): Promise<void> {
   if (!kbId) return;
   try {
@@ -379,6 +380,9 @@ async function dualWrite(
     if (!job || job.targetCollection === liveCollection || job.sourceCollection !== liveCollection) return;
     await write(job);
   } catch (err) {
+    // Inserts can be reconciled by the reindexer, but destructive writes
+    // cannot be silently skipped: a stale chunk could return after cutover.
+    if (options.strict) throw err;
     console.warn(`[vs-kb] re-index mirror write failed for kb=${kbId}:`, (err as Error).message);
   }
 }
@@ -631,30 +635,43 @@ export async function addChunk(
  */
 export async function deleteDocumentChunks(
   collectionName: string,
-  documentId: string
+  documentId: string,
+  kbId?: string,
 ): Promise<void> {
   const client = getQdrantClient();
+  const filter = { must: [{ key: "documentId", match: { value: documentId } }] };
+
+  const deleteFromReindexTarget = async () => {
+    const resolvedKbId = kbId ?? (await getCollectionEmbedding(collectionName).catch(() => null))?.kbId;
+    await dualWrite(resolvedKbId, collectionName, async (job) => {
+      await ensureDocumentIdIndex(job.targetCollection);
+      await client.delete(job.targetCollection, { wait: true, filter });
+    }, { strict: true });
+  };
+
   // A failed Qdrant delete must reject. Callers must not discard the source
   // record and report success while its old vectors remain searchable.
   try {
     await ensureDocumentIdIndex(collectionName);
   } catch (indexError) {
     // A document may have failed before the KB collection was ever created.
-    // Only a *second*, explicit Qdrant collection lookup confirming absence
-    // allows deletion of that source record; outages and index errors fail closed.
+    // Only a second explicit Qdrant lookup confirming absence permits deletion.
     try {
       await client.getCollection(collectionName);
     } catch (lookupError) {
       const status = (lookupError as { status?: number }).status;
       const message = qdrantErrorMessage(lookupError);
       if (status === 404 && /collection.*(?:not found|does not exist|doesn't exist)/i.test(message)) {
-        console.log(`[vs-kb] no collection "${collectionName}" to delete chunks from`);
+        // Even when the live collection is absent, an in-progress reindex
+        // target may contain stale points for this document.
+        await deleteFromReindexTarget();
+        console.log(`[vs-kb] no live collection "${collectionName}" to delete chunks from`);
         return;
       }
     }
     throw indexError;
   }
-  const filter = { must: [{ key: "documentId", match: { value: documentId } }] };
+
   try {
     await client.delete(collectionName, { wait: true, filter });
   } catch (err) {
@@ -662,9 +679,5 @@ export async function deleteDocumentChunks(
     throw err;
   }
   console.log(`[vs-kb] deleted chunks for documentId="${documentId}" from "${collectionName}"`);
-  const kbId = (await getCollectionEmbedding(collectionName).catch(() => null))?.kbId;
-  await dualWrite(kbId, collectionName, async (job) => {
-    await ensureDocumentIdIndex(job.targetCollection);
-    await client.delete(job.targetCollection, { wait: true, filter });
-  });
+  await deleteFromReindexTarget();
 }
