@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createPayloadIndex: vi.fn(),
+  getCollection: vi.fn(),
   deletePoints: vi.fn(),
   getCollectionEmbedding: vi.fn(),
   getActiveReindexJob: vi.fn(),
@@ -15,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./vector-store", () => ({
   getQdrantClient: () => ({
     createPayloadIndex: mocks.createPayloadIndex,
+    getCollection: mocks.getCollection,
     delete: mocks.deletePoints,
   }),
   ensureCollectionExists: vi.fn(),
@@ -37,6 +39,7 @@ describe("deleteDocumentChunks fail-closed behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.createPayloadIndex.mockResolvedValue(undefined);
+    mocks.getCollection.mockResolvedValue({ config: { params: { vectors: { size: 3 } } } });
     mocks.deletePoints.mockResolvedValue({ status: "completed" });
     mocks.getCollectionEmbedding.mockResolvedValue(null);
     mocks.getActiveReindexJob.mockResolvedValue(null);
@@ -61,6 +64,30 @@ describe("deleteDocumentChunks fail-closed behavior", () => {
     await expect(
       deleteDocumentChunks("kb-index-failure", "doc-2"),
     ).rejects.toThrow("index unavailable");
+    expect(mocks.deletePoints).not.toHaveBeenCalled();
+  });
+
+  it("permits deletion of a document whose Qdrant collection never existed", async () => {
+    mocks.createPayloadIndex.mockRejectedValueOnce(new Error("index failed: no collection"));
+    mocks.getCollection.mockRejectedValueOnce(
+      Object.assign(new Error("Not found: Collection \"kb-never-created\" doesn't exist!"), { status: 404 }),
+    );
+
+    await expect(
+      deleteDocumentChunks("kb-never-created", "doc-unindexed"),
+    ).resolves.toBeUndefined();
+
+    expect(mocks.getCollection).toHaveBeenCalledWith("kb-never-created");
+    expect(mocks.deletePoints).not.toHaveBeenCalled();
+  });
+
+  it("does not confuse a Qdrant outage with a missing collection", async () => {
+    mocks.createPayloadIndex.mockRejectedValueOnce(new Error("Qdrant timeout"));
+    mocks.getCollection.mockRejectedValueOnce(Object.assign(new Error("Service unavailable"), { status: 503 }));
+
+    await expect(
+      deleteDocumentChunks("kb-outage", "doc-4"),
+    ).rejects.toThrow("Qdrant timeout");
     expect(mocks.deletePoints).not.toHaveBeenCalled();
   });
 
