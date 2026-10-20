@@ -634,17 +634,20 @@ export async function deleteDocumentChunks(
   documentId: string
 ): Promise<void> {
   const client = getQdrantClient();
+  // A failed Qdrant delete must reject. Callers must not discard the source
+  // record and report success while its old vectors remain searchable.
+  await ensureDocumentIdIndex(collectionName);
+  const filter = { must: [{ key: "documentId", match: { value: documentId } }] };
   try {
-    await ensureDocumentIdIndex(collectionName);
-    const filter = { must: [{ key: "documentId", match: { value: documentId } }] };
     await client.delete(collectionName, { wait: true, filter });
-    console.log(`[vs-kb] deleted chunks for documentId="${documentId}" from "${collectionName}"`);
-    const kbId = (await getCollectionEmbedding(collectionName).catch(() => null))?.kbId;
-    await dualWrite(kbId, collectionName, async (job) => {
-      await ensureDocumentIdIndex(job.targetCollection);
-      await client.delete(job.targetCollection, { wait: true, filter });
-    });
   } catch (err) {
-    console.warn(`[vs-kb] could not delete chunks for documentId=${documentId}:`, (err as Error).message);
+    console.error(`[vs-kb] could not delete chunks for documentId=${documentId}:`, (err as Error).message);
+    throw err;
   }
+  console.log(`[vs-kb] deleted chunks for documentId="${documentId}" from "${collectionName}"`);
+  const kbId = (await getCollectionEmbedding(collectionName).catch(() => null))?.kbId;
+  await dualWrite(kbId, collectionName, async (job) => {
+    await ensureDocumentIdIndex(job.targetCollection);
+    await client.delete(job.targetCollection, { wait: true, filter });
+  });
 }
