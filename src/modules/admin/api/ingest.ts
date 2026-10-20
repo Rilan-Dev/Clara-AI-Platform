@@ -1,6 +1,7 @@
 import { Buffer } from "node:buffer";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 
 import {
   chunkText,
@@ -15,6 +16,10 @@ import {
 
 export async function postIngest(request: NextRequest) {
   try {
+    // The legacy catalog creates global, unowned Qdrant collections.
+    // A token's presence is not authority to ingest arbitrary documents/URLs.
+    const auth = await requireAuth(request);
+    await requireSuperAdmin(auth);
     const formData = await request.formData();
     const titleEntry = formData.get("title");
     const urlEntry = formData.get("url");
@@ -155,6 +160,7 @@ export async function postIngest(request: NextRequest) {
       document: record,
     });
   } catch (error) {
+    if (error instanceof NextResponse) return error;
     console.error(error);
     const message =
       error instanceof Error ? error.message : "Unexpected ingestion error.";
