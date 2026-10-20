@@ -16,6 +16,20 @@ export class RecursiveCharacterTextSplitter implements TextChunker {
     return this.splitText(text, this.separators);
   }
 
+  /**
+   * Overlap is optional context, not new source content. Align it to the next
+   * whitespace boundary so search chunks never begin with a fragment of a
+   * previous word solely because of the configured overlap length.
+   */
+  private overlapSuffix(text: string): string {
+    if (this.chunkOverlap <= 0) return "";
+    const start = Math.max(0, text.length - this.chunkOverlap);
+    if (start === 0) return text;
+    const tail = text.slice(start);
+    const boundary = tail.search(/\s/u);
+    return boundary < 0 ? "" : tail.slice(boundary + 1).trimStart();
+  }
+
   private splitText(text: string, separators: string[]): string[] {
     const finalChunks: string[] = [];
     
@@ -47,8 +61,7 @@ export class RecursiveCharacterTextSplitter implements TextChunker {
         if (currentChunk) {
           finalChunks.push(currentChunk);
           // Start new chunk with overlap
-          const overlapStart = Math.max(0, currentChunk.length - this.chunkOverlap);
-          currentChunk = currentChunk.substring(overlapStart) + separator + split;
+          currentChunk = this.overlapSuffix(currentChunk) + separator + split;
           
           // If the new chunk is still too large, we need to split it further
           if (currentChunk.length > this.chunkSize) {
