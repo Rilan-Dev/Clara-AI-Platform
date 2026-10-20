@@ -162,7 +162,7 @@ describe("document-chunk mutation authorization", () => {
     const response = await DELETE(request("DELETE"), params);
 
     expect(response.status).toBe(200);
-    expect(mocks.deleteChunk).toHaveBeenCalledWith("kb-shared-collection", "point-id");
+    expect(mocks.deleteChunk).toHaveBeenCalledWith("kb-shared-collection", "point-id", "kb-owned");
     expect(mocks.requireKbPermission).toHaveBeenCalledWith(
       expect.anything(),
       "kb-owned",
