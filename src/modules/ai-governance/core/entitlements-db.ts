@@ -96,7 +96,8 @@ async function loadPlanEntitlements(plan: Plan): Promise<PlanAIEntitlements> {
     ),
     query<Row>(
       `SELECT EXISTS (SELECT 1 FROM plan_ai_capabilities) AS capability_matrix_configured,
-              EXISTS (SELECT 1 FROM plan_ai_provider_entitlements) AS provider_matrix_configured`,
+              EXISTS (SELECT 1 FROM plan_ai_provider_entitlements) AS provider_matrix_configured,
+              EXISTS (SELECT 1 FROM plan_ai_model_entitlements) AS model_matrix_configured`,
     ),
   ]);
 
@@ -113,8 +114,10 @@ async function loadPlanEntitlements(plan: Plan): Promise<PlanAIEntitlements> {
   const matrixConfigured =
     Boolean(matrixState[0]?.capability_matrix_configured) ||
     Boolean(matrixState[0]?.provider_matrix_configured) ||
+    Boolean(matrixState[0]?.model_matrix_configured) ||
     capabilityRows.length > 0 ||
-    providerRows.length > 0;
+    providerRows.length > 0 ||
+    modelRows.length > 0;
   if (!("chat" in capabilities)) capabilities.chat = !matrixConfigured;
   if (!("voice_chat" in capabilities)) capabilities.voice_chat = !matrixConfigured && plan.voiceEnabled;
   if (!("realtime_voice" in capabilities)) capabilities.realtime_voice = !matrixConfigured && plan.voiceEnabled;
