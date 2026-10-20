@@ -33,7 +33,7 @@ vi.mock("@/modules/knowledge-bases/core/analytics-db", () => ({
   logUsageEvent: vi.fn(),
 }));
 
-import { deleteDocumentChunks } from "./vector-store-kb";
+import { deleteDocumentChunks, deleteChunk } from "./vector-store-kb";
 
 describe("deleteDocumentChunks fail-closed behavior", () => {
   beforeEach(() => {
@@ -140,5 +140,80 @@ describe("deleteDocumentChunks fail-closed behavior", () => {
     ).resolves.toBeUndefined();
 
     expect(mocks.deletePoints).toHaveBeenCalledTimes(1);
+  });
+});
+
+
+describe("deleteChunk single-point reindex consistency", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.deletePoints.mockResolvedValue({ status: "completed" });
+    mocks.getActiveReindexJob.mockResolvedValue(null);
+    mocks.getCollectionEmbedding.mockResolvedValue(null);
+  });
+
+  it("deletes from the live KB when no reindex job exists", async () => {
+    await expect(deleteChunk("kb-live", "point-1", "kb-trusted")).resolves.toBeUndefined();
+
+    expect(mocks.getActiveReindexJob).toHaveBeenCalledWith("kb-trusted");
+    expect(mocks.deletePoints).toHaveBeenCalledTimes(1);
+    expect(mocks.deletePoints).toHaveBeenCalledWith("kb-live", {
+      wait: true,
+      points: ["point-1"],
+    });
+    expect(mocks.getCollectionEmbedding).not.toHaveBeenCalled();
+  });
+
+  it("deletes the active target before confirming live-point deletion", async () => {
+    mocks.getActiveReindexJob.mockResolvedValueOnce({
+      sourceCollection: "kb-live",
+      targetCollection: "kb-reindex-target",
+    });
+
+    await expect(deleteChunk("kb-live", "point-2", "kb-trusted")).resolves.toBeUndefined();
+
+    expect(mocks.deletePoints).toHaveBeenNthCalledWith(1, "kb-reindex-target", {
+      wait: true, points: ["point-2"],
+    });
+    expect(mocks.deletePoints).toHaveBeenNthCalledWith(2, "kb-live", {
+      wait: true, points: ["point-2"],
+    });
+  });
+
+  it("rejects a failed mirror delete while leaving the live point untouched", async () => {
+    mocks.getActiveReindexJob.mockResolvedValueOnce({
+      sourceCollection: "kb-live",
+      targetCollection: "kb-reindex-target",
+    });
+    mocks.deletePoints.mockRejectedValueOnce(new Error("target Qdrant unavailable"));
+
+    await expect(deleteChunk("kb-live", "point-3", "kb-trusted"))
+      .rejects.toThrow("target Qdrant unavailable");
+
+    expect(mocks.deletePoints).toHaveBeenCalledTimes(1);
+    expect(mocks.deletePoints).not.toHaveBeenCalledWith("kb-live", expect.anything());
+  });
+
+  it("rejects a reindex lookup failure instead of skipping potential mirror deletion", async () => {
+    mocks.getActiveReindexJob.mockRejectedValueOnce(new Error("reindex database unavailable"));
+
+    await expect(deleteChunk("kb-live", "point-4", "kb-trusted"))
+      .rejects.toThrow("reindex database unavailable");
+
+    expect(mocks.deletePoints).not.toHaveBeenCalled();
+  });
+
+  it("propagates live Qdrant deletion failure after successfully clearing the target", async () => {
+    mocks.getActiveReindexJob.mockResolvedValueOnce({
+      sourceCollection: "kb-live",
+      targetCollection: "kb-reindex-target",
+    });
+    mocks.deletePoints.mockResolvedValueOnce({ status: "completed" })
+      .mockRejectedValueOnce(new Error("live Qdrant unavailable"));
+
+    await expect(deleteChunk("kb-live", "point-5", "kb-trusted"))
+      .rejects.toThrow("live Qdrant unavailable");
+
+    expect(mocks.deletePoints).toHaveBeenCalledTimes(2);
   });
 });
