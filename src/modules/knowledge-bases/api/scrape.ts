@@ -65,6 +65,9 @@ async function rollbackSessionDocuments(kbId: string, sessionId: string): Promis
     listRollbackDocumentsForSession(sessionId),
   ]);
 
+  if (!kb && docs.length > 0) {
+    throw new Error("Knowledge base not found: cannot verify deletion of scraped vectors");
+  }
   for (const doc of docs) {
     if (kb) {
       await deleteDocumentChunks(kb.qdrantCollection, doc.id, kbId);
