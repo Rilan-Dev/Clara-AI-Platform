@@ -31,6 +31,7 @@ import {
   startReindex,
 } from "@/modules/knowledge-bases/core/reindex";
 import { findMultilingualModel, getMultilingualSettings } from "@/modules/ai-core/multilingual-embeddings";
+import { publicKnowledgeProcessingError } from "@/modules/knowledge-bases/core/public-processing-error";
 
 /** How long a status poll may spend advancing a running job. */
 const POLL_BUDGET_MS = 6_000;
@@ -89,7 +90,15 @@ async function statusFor(kbId: string, orgId: string, canWrite: boolean) {
       languages: model?.languages ?? null,
       elevenLabsModel: model?.elevenLabsModel ?? null,
     },
-    job: latest ? toJob(latest) : null,
+    job: latest
+      ? {
+          ...toJob(latest),
+          errorMessage: publicKnowledgeProcessingError(
+            latest.error_message == null ? null : String(latest.error_message),
+            "reindex",
+          ),
+        }
+      : null,
     retiredIndexes: retired[0]?.count ?? 0,
     orgDefaultIndex: isEmbeddingIndexKind(orgDefault?.default_embedding_index) ? orgDefault!.default_embedding_index : "standard",
   };
