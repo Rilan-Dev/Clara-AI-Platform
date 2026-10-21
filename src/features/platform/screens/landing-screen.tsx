@@ -9,6 +9,7 @@ import {
   MessageSquare, Cpu, Building2, Play, ExternalLink,
 } from "lucide-react";
 import { apiUrl } from "@/lib/runtime";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 
 const DemoVoiceSection = lazy(() => import("@/features/platform/components/DemoVoiceSection"));
 
@@ -102,6 +103,7 @@ function AnimatedStat({ value, label }: { value: string; label: string }) {
 
 export default function LandingPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const features = usePlatformFeatures();
 
   useEffect(() => {
     fetch(apiUrl("/api/subscriptions/plans"))
@@ -217,12 +219,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Live Voice Demo Section ─────────────────────────────────────── */}
-      <Suspense fallback={<div className="h-[560px] sm:h-[760px]" />}>
-        <div className="z-0">
-          <DemoVoiceSection />
-        </div>
-      </Suspense>
+      {/* The landing demo is a widget surface, not the native voice feature. */}
+      {features.embeddableWidget && (
+        <Suspense fallback={<div className="h-[560px] sm:h-[760px]" />}>
+          <div className="z-0">
+            <DemoVoiceSection />
+          </div>
+        </Suspense>
+      )}
 
       {/* ── Stats ───────────────────────────────────────────────────────── */}
       <Section className="py-10 sm:py-20 px-4 sm:px-6 border-y border-border relative z-10">
@@ -248,7 +252,7 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {FEATURES.map((f, i) => (
+            {FEATURES.filter((f) => features.embeddableWidget || f.title !== "Embeddable Anywhere").map((f, i) => (
               <motion.div
                 key={f.title}
                 initial={{ opacity: 0, y: 30 }}
