@@ -14,13 +14,13 @@ The platform-health system is the owner's "capture issues, notify the platform a
 - **Notifications console** — `/api/admin/notifications` (+ `/retry`) — queued notification driver with retry (Feature 18 queue).
 - **Runtime flags** — `/api/platform/runtime-flags` + `src/lib/runtime-flags.ts`: `RuntimeFlag:12`, `RuntimeFlagGroup:24`, `describeRuntimeFlags:43` — operator-visible feature switches (env-derived, grouped).
 - **Cron sweeps** — `/api/cron/ai-health` (route line 114) provider availability; `/api/cron/whatsapp-connection-health` (line 42) WhatsApp session health (`068_whatsapp_connection_health.sql`); `/api/cron/whatsapp-daily-briefings`; `/api/cron/onboarding-reminders` (lifecycle mails).
-- **Health endpoint** — `/api/health` (route line 25) — liveness for edge/monitors.
+- **Knowledge embedding incidents** — failed re-index requests already call `recordEmbeddingRuntimeFailure`; failed document ingest now calls it for quota/provider errors after internal failure recording. That pathway uses the platform-admin incident/notification layer, not organisation portal JSON. Gemini quota/billing restoration and delivery verification belong to OPS-01 [issue #300](https://github.com/Rilan-Dev/Clara-AI-Platform/issues/300).\n- **Health endpoint** — `/api/health` (route line 25) — liveness for edge/monitors.
 
 ## 3. Business Rules
 
 - Runtime incidents are recorded independently of any proposed NET_TRACE logging feature (Feature 24); vendor health requires the platform incident reporter.
 - Incidents are rate-limited per key (no alert storms) and always DB-persisted even when email fails.
-- Org-facing surfaces never render incident internals — banners/emails target super-admins only (the standing visibility policy).
+- Org-facing surfaces must not render incident internals; provider errors are converted to fixed, actionable messages at the KB API response boundaries (Features 05/06/24). Platform-admin incident logging and attempted notifications remain separate from tenant-visible status.
 - Watchdogs reset on success streaks (a single failure after long health is recorded but doesn't keep an incident open falsely).
 - Services-status is honest about "not configured" vs "down" — never fabricates green.
 
@@ -60,7 +60,7 @@ The platform-health system is the owner's "capture issues, notify the platform a
 
 ## 9. Tests
 
-- platform-health module suites, services-status shape tests, notification retry tests (locate current test files in the module directories; the old generated inventory is not committed).
+- platform-health module suites, services-status shape tests, notification retry tests, and the authored `src/modules/knowledge-bases/worker/ingest-worker.incident.test.ts` provider-failure regression source. Test execution and live notification delivery remain unverified.
 
 ## 10. Cross-links
 
