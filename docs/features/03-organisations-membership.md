@@ -62,7 +62,7 @@ The organisation is Clara's tenant boundary: every agent, knowledge base, phone 
 
 ## 9. Tests
 
-- `src/modules/organisations/core/agent-ai-types.test.ts` and org module suites (see `scripts/feature-doc/tests.txt`).
+- `src/modules/organisations/core/agent-ai-types.test.ts` and org module suites (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
