@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getEmbedWidgetHeaders, getSecurityHeaders } from "./security/csp";
+import { featureForPath, isPlatformFeatureEnabled } from "./lib/feature-availability";
 
 function buildAllowedOrigins(): Set<string> {
   const origins = new Set<string>();
@@ -89,6 +90,24 @@ export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get("origin");
   const isApiRoute = pathname.startsWith("/api/");
+  // The same enforcement covers preflight, public iframe/script URLs, direct
+  // navigation and authenticated management APIs, before auth or any handler
+  // can read/write settings or call external providers.
+  const gatedFeature = featureForPath(pathname);
+  if (gatedFeature && !isPlatformFeatureEnabled(gatedFeature)) {
+    const response = pathname.startsWith("/api/")
+      ? NextResponse.json(
+          { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
+          { status: 404 },
+        )
+      : new NextResponse("This feature is not available in this environment.", {
+          status: 404,
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        });
+    response.headers.set("Cache-Control", "private, no-store");
+    return addSecurityHeaders(response);
+  }
+
   const isEmbedWidgetRoute =
     pathname === "/embed/widget" || pathname.startsWith("/embed/widget/") ||
     pathname === "/embed/widget-preview" || pathname.startsWith("/embed/widget-preview/") ||
