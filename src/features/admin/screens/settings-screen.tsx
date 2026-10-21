@@ -20,10 +20,12 @@ import { useAuth } from "@/modules/admin-ui/hooks";
 import {
   ACCOUNT_PAGE,
   ADMIN_SETTINGS_PAGES,
+  availableSettingsPages,
   groupSettingsPages,
   type SettingsPage,
   type SettingsSection,
 } from "@/features/admin/settings-nav";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 
 // ── Section model ────────────────────────────────────────────────────────────
 // The page list, labels and grouping live in settings-nav.ts — shared with
@@ -42,9 +44,10 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   const { user, loading } = useAuth();
   const isSuperAdmin = user?.isSuperAdmin ?? false;
   const [showProfile, setShowProfile] = useState(false);
+  const features = usePlatformFeatures();
   const router = useRouter();
 
-  const sections  = isSuperAdmin ? ADMIN_SETTINGS_SECTIONS : ORG_SETTINGS_SECTIONS;
+  const sections = isSuperAdmin ? availableSettingsPages(ADMIN_SETTINGS_SECTIONS, features) : ORG_SETTINGS_SECTIONS;
   const active    = sections.find((s) => s.id === section) ?? sections[0];
 
   // Steer users away from sections that do not belong to their role:
