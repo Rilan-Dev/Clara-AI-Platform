@@ -423,7 +423,10 @@ export async function reprocessDocumentHandler(
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[documents] reprocess:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json(
+      { error: "The document could not be retried right now. Please try again later or contact support." },
+      { status: 500 },
+    );
   }
 }
 
@@ -503,7 +506,7 @@ export async function reprocessAllDocumentsHandler(
           documentId: doc.id,
           title: doc.title,
           status: "failed",
-          error: (err as Error).message,
+          error: publicKnowledgeProcessingError((err as Error).message, "document") ?? "The document could not be retried.",
         });
       }
     }
@@ -531,7 +534,10 @@ export async function reprocessAllDocumentsHandler(
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[documents] reprocess-all:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json(
+      { error: "The documents could not be retried right now. Please try again later or contact support." },
+      { status: 500 },
+    );
   }
 }
 
