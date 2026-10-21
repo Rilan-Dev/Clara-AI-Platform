@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const query = vi.fn();
 const resolveOrgPlanLimits = vi.fn();
@@ -11,6 +11,7 @@ vi.mock("@/modules/integrations/registry", () => ({ listIntegrations }));
 vi.mock("@/modules/integrations/runtime/runner-core", () => ({ getIntegrationActions }));
 
 describe("integration availability plan entitlement", () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
     vi.stubEnv("CLARA_ENV", "development");
     vi.clearAllMocks();
