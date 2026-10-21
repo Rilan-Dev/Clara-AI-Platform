@@ -18,7 +18,7 @@ The platform-health system is the owner's "capture issues, notify the platform a
 
 ## 3. Business Rules
 
-- Failure capture is ALWAYS-ON and independent of any debug flag (NET_TRACE only adds success/verbose rows — Feature 24).
+- Runtime incidents are recorded independently of any proposed NET_TRACE logging feature (Feature 24); vendor health requires the platform incident reporter.
 - Incidents are rate-limited per key (no alert storms) and always DB-persisted even when email fails.
 - Org-facing surfaces never render incident internals — banners/emails target super-admins only (the standing visibility policy).
 - Watchdogs reset on success streaks (a single failure after long health is recorded but doesn't keep an incident open falsely).
@@ -56,11 +56,11 @@ The platform-health system is the owner's "capture issues, notify the platform a
 
 ## 8. Environment Variables
 
-- Cron auth secrets (`set_cron_secret.py` lineage), incident email recipient vars, `NET_TRACE*` (Feature 24) for verbose evidence.
+- Cron auth secrets (`set_cron_secret.py` lineage), incident email recipient vars. NET_TRACE verbose evidence is not available on the current committed branch.
 
 ## 9. Tests
 
-- platform-health module suites, services-status shape tests, notification retry tests (see `scripts/feature-doc/tests.txt`).
+- platform-health module suites, services-status shape tests, notification retry tests (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
