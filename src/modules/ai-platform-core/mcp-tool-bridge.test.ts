@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import {
   isMcpToolAllowlisted,
   buildMcpToolDefinition,
@@ -44,6 +44,8 @@ function createRuntime() {
 }
 
 describe("MCP tool bridge", () => {
+  beforeEach(() => vi.stubEnv("CLARA_ENV", "development"));
+
   it("creates deterministic bounded tool names", () => {
     // Short identities stay short; the bound is an upper limit of 63
     // (55-char base slice + '_' + ≤7-char collision hash: a uint32 in
@@ -183,7 +185,8 @@ describe("MCP tool bridge", () => {
   it("honors the default-off flag", () => {
     expect(isMcpEnabled({ ENABLE_MCP: undefined })).toBe(false);
     expect(isMcpEnabled({ ENABLE_MCP: "false" })).toBe(false);
-    expect(isMcpEnabled({ ENABLE_MCP: "true" })).toBe(true);
+    expect(isMcpEnabled({ CLARA_ENV: "development", ENABLE_MCP: "true" })).toBe(true);
+    expect(isMcpEnabled({ CLARA_ENV: "production", ENABLE_MCP: "true" })).toBe(false);
   });
 
   it("keeps the runtime builder default-off", async () => {
