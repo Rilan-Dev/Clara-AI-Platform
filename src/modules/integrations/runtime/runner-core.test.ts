@@ -50,6 +50,7 @@ vi.mock("./xray.js", () => ({
 
 describe("integration runner action allowlist", () => {
   beforeEach(() => {
+    vi.stubEnv("CLARA_ENV", "development");
     vi.clearAllMocks();
     getIntegration.mockReturnValue({
       id: "example",
