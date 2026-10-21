@@ -55,7 +55,7 @@ Web scraping lets a tenant grow a KB from live web content instead of uploads: p
 
 ## 9. Tests
 
-- Crawler/robots regression suites under `src/modules/ingest/__tests__/` (see `scripts/feature-doc/tests.txt`).
+- Crawler/robots regression suites under `src/modules/ingest/__tests__/` (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
