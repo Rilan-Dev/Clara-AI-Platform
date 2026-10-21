@@ -12,6 +12,7 @@ vi.mock("@/modules/integrations/runtime/runner-core", () => ({ getIntegrationAct
 
 describe("integration availability plan entitlement", () => {
   beforeEach(() => {
+    vi.stubEnv("CLARA_ENV", "development");
     vi.clearAllMocks();
     getIntegrationActions.mockResolvedValue([{ name: "list_repos" }]);
     listIntegrations.mockReturnValue([
