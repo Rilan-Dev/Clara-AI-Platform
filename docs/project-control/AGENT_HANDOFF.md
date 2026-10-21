@@ -47,3 +47,14 @@ Cross-agent handoff register. A handoff transfers context, not authority.
 - **Stop condition:** stop after the two bounded corrections; no unrelated product work, Vercel setting changes, migration bypasses, or reproducibility weakening.
 - **Status:** OPEN
 
+### HANDOFF-DEV-20261022-OPS01-FEATURE-FLAGS — 2026-10-22
+- **From:** DEV-01 / SESSION-DEV-20261022-FEATURE-FLAGS-01
+- **To:** OPS-01 / Shipwright
+- **Reason:** Optional Feature 13 (Embeddable Widget) and Feature 23 (Integrations/MCP/WhatsApp) now have per-app-process enable/disable switches, but actual production/development deployment setup and live smoke checks are operations work.
+- **Repository state:** `Rilan-Dev/Clara-AI-Platform`, `feature/ai-core-from-doable-source`; source feature policy `3a651654`, middleware `5418fc46`, tools `928290d1`, runner `fe8a5abb`, AI console `954a2261`; see DEV-01 WORKLOG.
+- **Work completed:** Source gating defaults production disabled/development enabled, independent per-stack env overrides `CLARA_FEATURE_EMBEDDABLE_WIDGET` and `CLARA_FEATURE_INTEGRATIONS`; UI hiding, API/preflight 404, OAuth/webhook/cron gating, cached-tool invocation guard, pure regression source and .env/deployment documentation. No production configuration changed.
+- **Remaining work:** Under explicit operational authorization, configure *separate* prod/dev process envs and existing PG schema/Redis/Qdrant/queue isolation; verify both stacks' `GET /api/features`, direct disabled-feature POST/OPTIONS, admin nav and active developer OAuth/MCP/WhatsApp connection flows using test data only; test shared native chat/KB/phone remain available. Establish check results without changing credentials/production connections.
+- **Evidence/records:** `docs/project-control/agents/DEV-01/WORKLOG.md`, `docs/project-control/NEXT_ACTION.md`; `docs/deployment/environments.md`; `src/lib/feature-availability.test.ts`, `src/middleware.features.test.ts`, MCP/integration runner suites (all NOT RUN).
+- **Authorization:** Product source implementation authorized by owner. Production deployment or credential changes **not authorized by this handoff**; obtain OPS approval before acting.
+- **Stop condition:** Once controlled dual-environment verification and deployment checks have results; route source failures to DEV-01/FIX-01 as appropriate. Never weaken production isolation or wait repeatedly for CI/Vercel.
+- **Status:** OPEN — OPS-01 operational acceptance pending.
