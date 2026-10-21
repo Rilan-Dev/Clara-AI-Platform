@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
+import { publicKnowledgeProcessingError } from "@/modules/knowledge-bases/core/public-processing-error";
 import { query } from "@/lib/db";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
@@ -262,7 +263,12 @@ export async function listDocumentsHandler(req: NextRequest, kbId: string): Prom
     const auth = await requireAuth(req);
     await requireKbPermission(auth, kbId, "document:read");
     const docs = await listDocuments(kbId);
-    return NextResponse.json(docs);
+    // Keep raw failure diagnostics stored for platform operations, never return
+    // them to organisation-facing document APIs.
+    return NextResponse.json(docs.map((doc) => ({
+      ...doc,
+      errorMessage: publicKnowledgeProcessingError(doc.errorMessage, "document"),
+    })));
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
@@ -283,7 +289,19 @@ export async function getDocumentHandler(
       return NextResponse.json({ error: "Document not found" }, { status: 404 });
     }
     const job = await getDocumentJobStatus(docId);
-    return NextResponse.json({ ...doc, job });
+    return NextResponse.json({
+      ...doc,
+      errorMessage: publicKnowledgeProcessingError(doc.errorMessage, "document"),
+      // This status response never needs the original ingest file payload:
+      // preserve it server-side for Retry but omit it from the response.
+      job: job
+        ? {
+            ...job,
+            filePayload: undefined,
+            errorMessage: publicKnowledgeProcessingError(job.errorMessage, "document"),
+          }
+        : null,
+    });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
