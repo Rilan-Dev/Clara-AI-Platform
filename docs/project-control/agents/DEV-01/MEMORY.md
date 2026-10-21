@@ -128,3 +128,11 @@ Secrets, tokens, passwords, private keys, or sensitive personal data.
 - Do not assume 768 dimensions for an unknown Gemini embedding model. Use a confirmed compatibility dimension or explicit operator configuration; otherwise fail closed to protect Qdrant collections.
 - Registry counts and workspace inventories must not present migration seed rows as vendor-available models.
 - Do not wait/poll CI/Vercel; source commits do not constitute test/runtime PASS.
+
+## 2026-10-22 — Environment-owned optional feature switches
+- The existing `resolveClaraEnv()` already encodes `CLARA_ENV` and NODE_ENV precedence. New optional product families must use server-only, per-deployment process flags, not persisted org configuration, shared tables or `NEXT_PUBLIC_*` compiled into reusable JS. Default production disabled / development enabled can be independently overridden but should never change other deployments.
+- UI hiding without server enforcement is insufficient: middleware needs to deny API/page/widget/webhook/preflight entrypoints before handlers, while direct services and tools must guard separately to stop headless workers, OAuth callbacks and pre-registered actions. Keep native `/api/chat`, published agent API, phone/voice, KB ingestion and billing out of owned-feature path families.
+- Reuse one uncached read-only status response for all client navigation: settings sidebar, KB tabs, published agent setup links and admin tool console. Fail closed during status loading; preserve selection keyboard navigation when filtering tabs.
+- Feature 23 still requires existing `ENABLE_MCP`, per-tenant authorization, OAuth connection readiness, plan limits and allowlists. A family flag never grants additional permissions.
+- When tests previously assumed integrations always existed, stub `CLARA_ENV=development` explicitly and restore it after each case. Test both negative request/runner paths and cached tool invocation, not only the policy utility. Do not claim runtime PASS until executed.
+- Relevant session: SESSION-DEV-20261022-FEATURE-FLAGS-01; exact source commits and open verification tracked in DEV-01 WORKLOG. OPS-01 owns the actual independent production/development environment rollout.
