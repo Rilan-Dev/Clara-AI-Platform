@@ -26,7 +26,7 @@ export function buildIntegrationActionTool(): ToolDefinition {
     },
     async execute(raw, context: PlatformExecutionContext) {
       if (!isPlatformFeatureEnabled("integrations")) {
-        throw new ToolExecutionError("TOOL_NOT_AVAILABLE", "Integrations are not enabled in this environment.");
+        throw new ToolExecutionError("UNKNOWN_TOOL", "Integrations are not enabled in this environment.");
       }
       const input = raw as { integrationId:string; actionName:string; props:Record<string,unknown> };
       await assertIntegrationCapability(context, input.integrationId);
