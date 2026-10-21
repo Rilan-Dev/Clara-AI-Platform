@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   registry: null as Record<string, unknown> | null,
   governanceResult: { ok: true } as { ok: boolean; reason?: string },
   blockedModelId: null as string | null,
+  blockedProvider: null as string | null,
 }));
 
 vi.mock("@/modules/organisations/core/db", () => ({
@@ -38,23 +39,25 @@ vi.mock("@/modules/agent-versioning/core/db", () => ({
   getActiveDeploymentKbCollection: vi.fn(async () => null),
 }));
 vi.mock("@/modules/ai-governance/core/resolver", () => ({
-  validateAgentAISelection: vi.fn(async (input: { modelId?: string | null }) =>
-    mocks.blockedModelId && input.modelId === mocks.blockedModelId
-      ? { ok: false, reason: `Model ${input.modelId} is not available on the Starter plan.` }
-      : mocks.governanceResult),
+  validateAgentAISelection: vi.fn(async (input: { provider: string; modelId?: string | null }) =>
+    mocks.blockedProvider && input.provider === mocks.blockedProvider
+      ? { ok: false, reason: `Provider ${input.provider} is not available on the Starter plan.` }
+      : mocks.blockedModelId && input.modelId === mocks.blockedModelId
+        ? { ok: false, reason: `Model ${input.modelId} is not available on the Starter plan.` }
+        : mocks.governanceResult),
 }));
 vi.mock("@/modules/ai-governance/core/registry-db", () => ({
   getPlatformAIRegistry: vi.fn(async () => mocks.registry),
   // Resolution only accepts vendor-live catalogue rows; the selected chat
   // model must be discoverable or "No chat model is configured" fires.
   listProviderModels: vi.fn(async (provider: string, capability: string) =>
-    provider === "sarvam" && capability === "chat"
+    capability === "chat" && (provider === "sarvam" || provider === "openai")
       ? [{
-          providerId: "sarvam",
+          providerId: provider,
           capability: "chat",
           kind: "chat",
-          modelId: "sarvam-105b",
-          displayName: "Sarvam 105B",
+          modelId: provider === "sarvam" ? "sarvam-105b" : "gpt-4o",
+          displayName: provider === "sarvam" ? "Sarvam 105B" : "GPT-4o",
           enabled: true,
           isDefault: true,
           metadata: { catalogSource: "vendor_live" },
@@ -105,6 +108,7 @@ describe("resolveAIConfig subscription authority", () => {
     };
     mocks.governanceResult = { ok: true };
     mocks.blockedModelId = null;
+    mocks.blockedProvider = null;
   });
 
   it("does not reject a plan-entitled Sarvam selection because a legacy org allow-list is stale", async () => {
@@ -112,6 +116,56 @@ describe("resolveAIConfig subscription authority", () => {
 
     expect(result.provider).toBe("sarvam");
     expect(result.chatModel).toBe("sarvam-105b");
+  });
+
+  it("preserves an entitled platform default when an earlier registry provider is also allowed", async () => {
+    // Legacy org provider list does not define availability or precedence.
+    mocks.orgSettings = { ...(mocks.orgSettings ?? {}), defaultProvider: null };
+    mocks.registry = {
+      ...(mocks.registry ?? {}),
+      providers: [
+        {
+          providerId: "openai", displayName: "OpenAI",
+          enabled: true, configured: true,
+          capabilities: [{ capability: "chat", supported: true }],
+        },
+        {
+          providerId: "sarvam", displayName: "Sarvam",
+          enabled: true, configured: true,
+          capabilities: [{ capability: "chat", supported: true }],
+        },
+      ],
+      defaults: [{ capability: "chat", providerId: "sarvam", modelId: "sarvam-105b" }],
+    };
+
+    const result = await resolveAIConfig({ orgId: "org-1", surface: "chat" });
+    expect(result.provider).toBe("sarvam");
+    expect(result.chatModel).toBe("sarvam-105b");
+  });
+
+  it("falls back to an entitled provider when the platform default is denied by the current plan", async () => {
+    mocks.orgSettings = { ...(mocks.orgSettings ?? {}), defaultProvider: null };
+    mocks.blockedProvider = "sarvam";
+    mocks.registry = {
+      ...(mocks.registry ?? {}),
+      providers: [
+        {
+          providerId: "openai", displayName: "OpenAI",
+          enabled: true, configured: true,
+          capabilities: [{ capability: "chat", supported: true }],
+        },
+        {
+          providerId: "sarvam", displayName: "Sarvam",
+          enabled: true, configured: true,
+          capabilities: [{ capability: "chat", supported: true }],
+        },
+      ],
+      defaults: [{ capability: "chat", providerId: "sarvam", modelId: "sarvam-105b" }],
+    };
+
+    const result = await resolveAIConfig({ orgId: "org-1", surface: "chat" });
+    expect(result.provider).toBe("openai");
+    expect(result.chatModel).toBe("gpt-4o");
   });
 
   it("denies a vendor-live chat model excluded by the current plan even if its provider is allowed", async () => {
