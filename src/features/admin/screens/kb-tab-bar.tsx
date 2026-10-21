@@ -22,11 +22,18 @@ export function isKbTab(value: string | null): value is KbTab {
   return KB_TABS.some((t) => t.id === value);
 }
 
-export function KbTabBar({ value, onChange }: { value: KbTab; onChange: (tab: KbTab) => void }) {
+export function KbTabBar({ value, onChange, embeddableWidgetEnabled = true }: {
+  value: KbTab;
+  onChange: (tab: KbTab) => void;
+  embeddableWidgetEnabled?: boolean;
+}) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
+  const visibleTabs = embeddableWidgetEnabled
+    ? KB_TABS
+    : KB_TABS.filter((tab) => tab.id !== "deploy" && tab.id !== "design");
 
   function onKeyDown(e: React.KeyboardEvent, index: number) {
-    const last = KB_TABS.length - 1;
+    const last = visibleTabs.length - 1;
     const next =
       e.key === "ArrowRight" ? (index === last ? 0 : index + 1)
       : e.key === "ArrowLeft" ? (index === 0 ? last : index - 1)
@@ -36,7 +43,7 @@ export function KbTabBar({ value, onChange }: { value: KbTab; onChange: (tab: Kb
     if (next === null) return;
     e.preventDefault();
     refs.current[next]?.focus();
-    onChange(KB_TABS[next].id);
+    onChange(visibleTabs[next].id);
   }
 
   return (
@@ -45,7 +52,7 @@ export function KbTabBar({ value, onChange }: { value: KbTab; onChange: (tab: Kb
       aria-label="Knowledge base sections"
       className="flex gap-1 rounded-xl bg-muted/50 p-1 border border-border w-fit max-w-full overflow-x-auto scrollbar-none rail-fade-r md:[mask-image:none] md:[-webkit-mask-image:none]"
     >
-      {KB_TABS.map((item, index) => {
+      {visibleTabs.map((item, index) => {
         const selected = value === item.id;
         return (
           <button
