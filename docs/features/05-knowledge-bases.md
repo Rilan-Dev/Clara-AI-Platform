@@ -66,7 +66,7 @@ A Knowledge Base (KB) is the tenant's container of knowledge: uploaded documents
 
 ## 9. Tests
 
-- `src/modules/admin/core/vector-store-kb.deletion.test.ts` (fail-closed deletion), `src/modules/admin/core/embed-api-key-db.test.ts`, KB module suites (see `scripts/feature-doc/tests.txt`).
+- `src/modules/admin/core/vector-store-kb.deletion.test.ts` (fail-closed deletion), `src/modules/admin/core/embed-api-key-db.test.ts`, KB module suites (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
