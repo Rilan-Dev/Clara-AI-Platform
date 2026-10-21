@@ -35,6 +35,7 @@ import { VersionBadge, WorkspaceButton, timeAgo } from "@/components/admin/ai-pl
 import { useAuth, useKbs } from "@/modules/admin-ui/hooks";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 
 export default function AgentPublishScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
@@ -437,18 +438,21 @@ export default function AgentPublishScreen() {
 /** Embed keys, widget design and phone live per knowledge base; link straight
  *  to them from the place people go right after publishing. */
 function ChannelLinks({ orgId, agentId }: { orgId: string; agentId: string }) {
+  const features = usePlatformFeatures();
   const { kbs, loading } = useKbs(agentId);
   if (!orgId || loading || kbs.length === 0) return null;
   const links = [
-    { tab: "deploy", label: "Embed & API keys", hint: "Keys, allowed sites and copy-paste snippets" },
-    { tab: "design", label: "Widget design", hint: "Colours, launcher, layout and branding" },
-    { tab: "phone",  label: "Phone",         hint: "Connect a phone number to this assistant" },
+    ...(features.embeddableWidget ? [
+      { tab: "deploy", label: "Embed & API keys", hint: "Keys, allowed sites and copy-paste snippets" },
+      { tab: "design", label: "Widget design", hint: "Colours, launcher, layout and branding" },
+    ] : []),
+    { tab: "phone", label: "Phone", hint: "Connect a phone number to this assistant" },
   ];
   return (
     <section className="rounded-2xl border border-border bg-card p-5 shadow-sm xl:col-span-2" aria-labelledby="publish-channels">
-      <h2 id="publish-channels" className="text-sm font-semibold text-foreground">Put it on your website</h2>
+      <h2 id="publish-channels" className="text-sm font-semibold text-foreground">{features.embeddableWidget ? "Connect your channels" : "Phone calls"}</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Each knowledge base has its own embed keys, widget look and phone line.
+        {features.embeddableWidget ? "Each knowledge base has its own embed keys, widget look and phone line." : "Connect a phone number to the published assistant."}
       </p>
       <ul className="mt-4 space-y-3">
         {kbs.map((kb) => (
