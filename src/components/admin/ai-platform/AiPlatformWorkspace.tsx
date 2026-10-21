@@ -263,8 +263,9 @@ export function AiPlatformWorkspace({
               <div>
                 <h2 className="font-semibold">Ready for hands-on verification</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Start with Integrations to inspect the new trust boundary, then inspect the
-                  Unified Tool Runtime and provider surfaces. Runtime execution is not yet authorized.
+                  {features.integrations
+                    ? "Inspect Integrations and the Unified Tool Runtime before attempting controlled tool execution."
+                    : "Inspect the Unified Tool Runtime and provider surfaces. Integration execution is disabled in this environment."}
                 </p>
               </div>
               {features.integrations && <button
