@@ -58,7 +58,7 @@ AI settings are the resolution chain that decides, for any given request, WHICH 
 
 ## 9. Tests
 
-- `src/modules/organisations/core/agent-ai-types.test.ts`, ai-settings suites, defaults versioning tests (see `scripts/feature-doc/tests.txt`).
+- `src/modules/organisations/core/agent-ai-types.test.ts`, ai-settings suites, defaults versioning tests (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
