@@ -14,7 +14,8 @@ The platform-health system is the owner's "capture issues, notify the platform a
 - **Notifications console** — `/api/admin/notifications` (+ `/retry`) — queued notification driver with retry (Feature 18 queue).
 - **Runtime flags** — `/api/platform/runtime-flags` + `src/lib/runtime-flags.ts`: `RuntimeFlag:12`, `RuntimeFlagGroup:24`, `describeRuntimeFlags:43` — operator-visible feature switches (env-derived, grouped).
 - **Cron sweeps** — `/api/cron/ai-health` (route line 114) provider availability; `/api/cron/whatsapp-connection-health` (line 42) WhatsApp session health (`068_whatsapp_connection_health.sql`); `/api/cron/whatsapp-daily-briefings`; `/api/cron/onboarding-reminders` (lifecycle mails).
-- **Knowledge embedding incidents** — failed re-index requests already call `recordEmbeddingRuntimeFailure`; failed document ingest now calls it for quota/provider errors after internal failure recording. That pathway uses the platform-admin incident/notification layer, not organisation portal JSON. Gemini quota/billing restoration and delivery verification belong to OPS-01 [issue #300](https://github.com/Rilan-Dev/Clara-AI-Platform/issues/300).\n- **Health endpoint** — `/api/health` (route line 25) — liveness for edge/monitors.
+- **Knowledge embedding incidents** — failed re-index requests already call `recordEmbeddingRuntimeFailure`; failed document ingest now calls it for quota/provider errors after internal failure recording. That pathway uses the platform-admin incident/notification layer, not organisation portal JSON. Gemini quota/billing restoration and delivery verification belong to OPS-01 [issue #300](https://github.com/Rilan-Dev/Clara-AI-Platform/issues/300).
+- **Health endpoint** — `/api/health` (route line 25) — liveness for edge/monitors.
 
 ## 3. Business Rules
 
