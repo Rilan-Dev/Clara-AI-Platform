@@ -408,3 +408,14 @@ Multiple sessions may be ACTIVE simultaneously. Session records are coordination
 - Baseline: owner reported 33 errors in 15 files after the Stripe shadowing correction, down from 44 errors in 19 files.
 - Changes: narrow dependency API/type compatibility fixes. Official @types/ws remains pending because no package-manager-generated dependency/lock update was available in this pass.
 - Next: owner pulls latest branch and supplies fresh npm run type-check output. No CI/Vercel wait.
+
+### SESSION-DEV-20261022-FEATURE-FLAGS-01 — 2026-10-22
+- **Agent:** DEV-01 / Forge
+- **Owner authorization:** New task to develop completely environment-local runtime/UI/API disablement for Feature 13 (Embeddable Widget) and Feature 23 (Integrations/MCP/WhatsApp) while retaining functional development behavior and protecting production. No production changes, infrastructure work, or other agent role ownership.
+- **Branch/ref:** `feature/ai-core-from-doable-source`; began at `a1d2ae230fb3368f88e29f2735d686946f7f1088`, latest relevant source commit `954a2261f0e4cd0fbeac205097a4c0075f870f99`. GitHub connector direct source commits; no alternate branch or force-push.
+- **Recovery:** Shared architecture/project state, CHAT_CONTINUITY, NEXT_ACTION/CURRENT_PHASE, AGENT_MEMORY/EVENTS/SESSIONS/HANDOFF/BACKLOG, DEV-01 role-local memory/worklog, verification records and relevant feature docs/source inspected.
+- **State:** SOURCE_IMPLEMENTED / VERIFICATION_NOT_RUN. Production defaults off; development defaults on using per-process server flags; optional per-stack overrides, fail-closed request middleware including OPTIONS, no-store UI availability, sidebar/settings/landing/KB/publish/AI console hiding, super-admin status, and direct integration/MCP tool runtime gates. Feature ownership is narrow; native chat/voice/RAG/KB/billing untouched.
+- **Tests:** Feature-policy, route middleware and navigation fixtures authored; existing MCP/integration tests adjusted to explicit dev env; added direct runner and prebuilt MCP invocation denial regression. Not executed, no runtime/deployment PASS.
+- **Records:** `docs/project-control/agents/DEV-01/WORKLOG.md`, `MEMORY.md`, central AGENT_EVENTS and NEXT_ACTION; `docs/deployment/environments.md`, Feature 13/23 and .env.example.
+- **Dependencies:** OPS-01 must configure and verify separate dev/prod environments and deployment; no CI/Vercel polling. Bug reports with reproducible failure go to FIX-01.
+- **Next DEV-01:** When local checkout exists, run focused Vitest suites and type-check once, fix targeted failures. Reassess any additional owned surfaces only with concrete route evidence; avoid unrelated scope.
