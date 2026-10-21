@@ -1,9 +1,9 @@
 # Clara AI Platform — Feature Documentation
 
-> Complete feature definition set: every feature's purpose, business logic, business rules, data model, API surface, core module files (with line anchors), UI references, environment variables, tests, and cross-links.
+> Feature-domain reference covering purpose, business rules, data model, API surfaces, implementation paths, UI, environment variables, tests, and related features. This catalogue is not proof that every path or feature is deployed or verified.
 >
-> **Base:** `feature/ai-core-from-doable-source @ 031279b4` (+ uncommitted local NET_TRACE observability work, marked per-doc).
-> **Generated:** 2026-10-20, gap-audit extended same day (features 27-30 added after a full codebase re-sweep). Line anchors are exact at this commit; re-run `scripts/gather-feature-inventory.sh` after major changes to refresh them.
+> **Original documentation baseline (historical):** `feature/ai-core-from-doable-source @ 031279b4`. The active branch has changed since this snapshot; the original line-number anchors and counts require source-level revalidation.
+> **Index audit:** 2026-10-22 — all 30 indexed feature files are present and retain the common ten-section structure. The former inventory generator `scripts/gather-feature-inventory.sh` and `scripts/feature-doc/*` snapshot files are **not part of this branch**. Run `node scripts/check-feature-docs.mjs` to verify index completeness, sequence, structure and relative links; verify code anchors against current source separately.
 
 ## Feature Matrix
 
@@ -42,7 +42,7 @@
 
 ## Platform at a Glance
 
-- **Scale:** 244 API route files · 26 module domains (318 non-test module files) + a 5-group `src/features/` UI layer (admin, agent-conversation 4.1k lines, embed, platform 3.4k lines, workspace) · 75 SQL migrations · 250 test files · 67 UI pages · 106 feature-UI components.
+- **Historical scale snapshot (2026-10-20, not recomputed for current HEAD):** 244 API route files · 26 module domains · 75 SQL migrations · 250 test files · 67 UI pages · 106 feature-UI components. These figures must not be used as current build/deployment evidence.
 - **Request lifecycle:** Auth (01) → RBAC/org guard (02/03) → agent config resolution from the ACTIVE deployment (04) → quota admission (24) → grounding retrieval over KB collections (05-09) → provider call through the abstraction (10) → streamed NDJSON answer with citations (08) → rendered by the end-user conversation layer (27) → usage event + audit row (20) → incident capture on failure (21).
 - **Acquisition path:** visitor → landing/demos (28) → signup + email verification (28/01) → pricing + checkout (28/17) → onboarding gate + reminders (30) → daily workspace chat (30/27).
 - **AI capability path:** tenant context (29 execution context) → adapter registry (29) → unified tool runtime (29) → rag_search / MCP / integration tools (29/23) → bounded agentic loop (29), flag-gated per environment.
@@ -60,13 +60,13 @@
 
 ## Known In-Flight / Open Items (2026-10-20)
 
-- **NET_TRACE observability** — fully implemented + tested locally (38 tests), uncommitted per owner directive; live-try bundle in sandbox `download/net-trace-local-bundle/`. Doc 24.
+- **NET_TRACE observability — NOT PRESENT IN THIS BRANCH:** the original inventory described local-only source and 38 tests. `src/lib/net-trace.ts` and the related NET_TRACE test files are not committed; this must not be treated as a deployed or indexed feature. See [Feature 24](./24-quotas-limits-security.md) for the implemented controls.
 - **Edge streaming** — production OpenResty edge buffers `/api/chat` NDJSON (Task C benchmark evidence: sources==firstToken==total); fix = apply the repo nginx `proxy_buffering off; gzip off` pattern to the edge's `/api/chat` location. Doc 26.
-- **Retry queue (owner-side)** — PoliciesEn001 + SDAIA NDMO document retries; email-KB (ab69cf61) chat grounding re-verification; 429 RetryInfo-aware backoff go/no-go. Docs 06, 10.
+- **Embedding provider quota — OPS-01 [issue #300](https://github.com/Rilan-Dev/Clara-AI-Platform/issues/300):** Gemini 429s blocked knowledge re-index and document ingestion. The KB API error-presentation and admin-incident source corrections are committed; provider quota/billing recovery and deployment verification remain operational work. See [Features 05](./05-knowledge-bases.md), [06](./06-document-ingestion.md), and [21](./21-platform-health-ops.md).
 - **Free-tier RPM ceiling** — 3/4 concurrent chat capacity measured (4th gracefully degraded) — billing upgrade on the Gemini key is the root fix. Docs 10, 17.
 
 ## How to Keep These Docs Alive
 
-1. After significant commits, re-run `bash scripts/gather-feature-inventory.sh` (sandbox) — regenerates route/module/UI/test/anchor inventories.
-2. Update the affected feature doc's line anchors (each doc cites its anchors inline).
-3. New feature → copy the doc template (10 sections) and add a matrix row here.
+1. Run `node scripts/check-feature-docs.mjs` and `node --test scripts/check-feature-docs.test.mjs` after index edits to detect missing, orphaned, duplicate or malformed feature docs and broken relative document links.
+2. Verify each implementation reference and any legacy `:line` anchor against **current** code before updating it. The old `031279b4` anchors are historical, not automatically refreshed by this checker.
+3. For a newly implemented feature domain, use the same ten-section template, add one sequential matrix row here, and link related feature documents. Do not index local-only or uncommitted work as implemented.
