@@ -57,7 +57,7 @@ The integrations plane connects Clara agents to the outside world: org-owned and
 
 ## 9. Tests
 
-- integration-policy regression sources (identity requirements, sanitization, expired status, error taxonomy), MCP client/service/metering suites (see `scripts/feature-doc/tests.txt`).
+- integration-policy regression sources (identity requirements, sanitization, expired status, error taxonomy), MCP client/service/metering suites (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
