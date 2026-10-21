@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+
+beforeEach(() => vi.stubEnv("CLARA_ENV", "development"));
+afterEach(() => vi.unstubAllEnvs());
 
 const query = vi.fn();
 const runAction = vi.fn();
