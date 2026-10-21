@@ -10,7 +10,8 @@ import {
   Plus, Rocket, BookOpen, Wrench, GitBranch, MessageCircleQuestion, PlugZap, Cable,
 } from "lucide-react";
 import { useAgents, useAuth } from "@/modules/admin-ui/hooks";
-import { ADMIN_SETTINGS_PAGES, groupSettingsPages } from "@/features/admin/settings-nav";
+import { ADMIN_SETTINGS_PAGES, availableSettingsPages, groupSettingsPages } from "@/features/admin/settings-nav";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 import { ProfileMenu } from "@/components/admin/ProfileMenu";
 import { OrganizationStatusBanner } from "@/components/admin/OrganizationStatusBanner";
 import { PlatformHealthAlertBanner } from "@/components/admin/PlatformHealthAlertBanner";
@@ -61,7 +62,7 @@ function orgSettingsNav(orgId: string | null): SettingsNavItem[] {
 // directly from the sidebar (they used to be horizontal tabs; moving them
 // into the rail keeps every screen focused on one job: monitor → build →
 // team → money). "Settings" stays personal (account) in its own group.
-function orgWorkspaceNav(orgId: string, role: string | null | undefined) {
+function orgWorkspaceNav(orgId: string, role: string | null | undefined, integrationsEnabled: boolean) {
   const base = `/orgs/${orgId}`;
   const orgRole = role as OrgRole | null;
   const canInvite = hasOrgCapability(orgRole, "inviteMembers");
@@ -69,7 +70,7 @@ function orgWorkspaceNav(orgId: string, role: string | null | undefined) {
   return [
     { href: base, icon: LayoutDashboard, label: "Dashboard", exact: true },
     { href: `${base}/agents`, icon: Bot, label: "Agents", exact: false },
-    { href: `${base}/integrations`, icon: PlugZap, label: "Integrations", exact: false },
+    ...(integrationsEnabled ? [{ href: `${base}/integrations`, icon: PlugZap, label: "Integrations", exact: false }] : []),
     ...(canInvite ? [{ href: `${base}/members`, icon: Users, label: "Members", exact: false }] : []),
     ...(canBilling ? [{ href: `${base}/billing`, icon: CreditCard, label: "Billing", exact: false }] : []),
   ];
@@ -79,7 +80,7 @@ function orgWorkspaceNav(orgId: string, role: string | null | undefined) {
  * group (they briefly lived in a one-bar workspace navbar). The rail shows
  * them whenever an agent is open; on the agents index the rail lists the
  * org's agents themselves instead. */
-function agentSectionNav(orgId: string, agentId: string, role: string | null | undefined) {
+function agentSectionNav(orgId: string, agentId: string, role: string | null | undefined, integrationsEnabled: boolean) {
   const base = `/orgs/${orgId}/agents/${agentId}`;
   const canEdit = hasOrgCapability(role as OrgRole | null, "editAgent");
   const canKnowledge = hasOrgCapability(role as OrgRole | null, "manageKnowledge");
@@ -89,9 +90,11 @@ function agentSectionNav(orgId: string, agentId: string, role: string | null | u
       { href: `${base}/config`,    icon: Bot,                    label: "Agent",   exact: false },
       { href: `${base}/faq`,       icon: MessageCircleQuestion,  label: "FAQ",      exact: false },
       { href: `${base}/tools`,     icon: Wrench,                 label: "Capabilities", exact: false },
-      { href: `${base}/integrations`, icon: PlugZap,              label: "Integrations", exact: false },
-      { href: `${base}/mcp`,       icon: Cable,                  label: "MCP Tools", exact: false },
-      { href: `${base}/messaging`, icon: MessageCircleQuestion, label: "Messaging", exact: false },
+      ...(integrationsEnabled ? [
+        { href: `${base}/integrations`, icon: PlugZap, label: "Integrations", exact: false },
+        { href: `${base}/mcp`, icon: Cable, label: "MCP Tools", exact: false },
+        { href: `${base}/messaging`, icon: MessageCircleQuestion, label: "Messaging", exact: false },
+      ] : []),
       { href: `${base}/versions`,  icon: GitBranch,              label: "Branches", exact: false },
       { href: `${base}/publish`,   icon: Rocket,                 label: "Publish",  exact: false },
     ] : []),
@@ -138,6 +141,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router     = useRouter();
   const [moreOpen, setMoreOpen] = useState(false); // mobile "More" bottom sheet
   const [branchName, setBranchName] = useState("Main");
+  const features = usePlatformFeatures();
 
   // Settings dropdown state — auto-expands while on any settings page; the
   // manual toggle persists while browsing elsewhere.
@@ -241,14 +245,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // its identity + configuration groups are added below in the same rail —
   // never as a second sidebar. On the agents index the rail lists the org's
   // agents themselves (ElevenLabs layout).
-  const orgNav = primaryOrgId ? orgWorkspaceNav(primaryOrgId, primaryOrgRole) : [];
+  const orgNav = primaryOrgId ? orgWorkspaceNav(primaryOrgId, primaryOrgRole, features.integrations) : [];
   const agentRoute = pathname.match(/^\/orgs\/([^/]+)\/agents\/([^/]+)/);
   const activeAgentOrgId = agentRoute?.[1] ?? null;
   const activeAgentId = agentRoute?.[2] ?? null;
   const onAgentsIndex =
     !isAdmin && Boolean(primaryOrgId) && pathname === `/orgs/${primaryOrgId}/agents`;
   const nav = isAdmin ? ADMIN_NAV : orgNav;
-  const settingsNav = isAdmin ? SETTINGS_NAV : orgSettingsNav(primaryOrgId);
+  const settingsNav = isAdmin
+    ? SETTINGS_NAV.filter((item) => availableSettingsPages(ADMIN_SETTINGS_PAGES, features).some((p) => p.href === item.href))
+    : orgSettingsNav(primaryOrgId);
   // Org users only have Account left — a one-item dropdown would be noise, so
   // render their Settings as a plain link to /settings/account.
   const singleSettingsLink = settingsNav.length === 1 ? settingsNav[0] : null;
@@ -342,7 +348,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               />
 
               <nav className="space-y-0.5" aria-label="Agent sections">
-                {agentSectionNav(activeAgentOrgId, activeAgentId, primaryOrgRole).map((item) => {
+                {agentSectionNav(activeAgentOrgId, activeAgentId, primaryOrgRole, features.integrations).map((item) => {
                   const active = item.exact
                     ? pathname === item.href
                     : pathname === item.href || pathname.startsWith(item.href + "/");
