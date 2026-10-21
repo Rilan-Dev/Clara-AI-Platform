@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 import { query } from "@/lib/db";
 import { resolveOrgPlanLimits } from "@/lib/plan-guard";
 import { listIntegrations } from "@/modules/integrations/registry";
@@ -21,6 +22,7 @@ export function buildIntegrationAvailabilityTool(): ToolDefinition {
       requireSessionId: false,
     },
     async execute(raw, context: PlatformExecutionContext) {
+      if (!isPlatformFeatureEnabled("integrations")) return [];
       // Availability is identity-scoped: never use a placeholder agent ID or
       // allow a shared connection to substitute for missing caller provenance.
       if (!context.userId || !context.agentId) return [];
