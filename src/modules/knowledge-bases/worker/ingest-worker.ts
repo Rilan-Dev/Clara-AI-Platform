@@ -17,6 +17,7 @@
  */
 
 import { ensureMigrated } from "@/lib/db/migrate";
+import { recordEmbeddingRuntimeFailure } from "@/modules/platform-health/core/incidents";
 import { parseDocumentFromBuffer } from "@/modules/admin/core/ingest/document-loader";
 import { chunkText } from "@/modules/admin/core/ingest/chunker";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
@@ -155,6 +156,16 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
     await withStatusWriteRetry(`job ${jobId}`, () =>
       markJobFailed(jobId, message, delaySec)
     );
+
+    // The organisation sees a safe status message. Send embedding dependency
+    // failures to the existing platform-admin incident/notification channel,
+    // not to a tenant-facing screen or email. Preserve the raw diagnostics in
+    // the internal ingest-job/document records for investigation.
+    if (/Embedding failed|RESOURCE_EXHAUSTED|quota|rate.?limit|generativelanguage|embedding provider/i.test(message)) {
+      await recordEmbeddingRuntimeFailure(err, {
+        surface: "knowledge base document ingestion",
+      });
+    }
 
     return { status: "error", error: message };
   }
