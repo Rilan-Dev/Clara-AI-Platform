@@ -1,4 +1,5 @@
 import { getIntegration } from "../registry/index";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 import { credentialVault } from "./credential-vault";
 import { buildActionContext } from "./context-builder";
 import type { RunActionParams, RunActionResult } from "./types.js";
@@ -133,6 +134,9 @@ function resolveActionAlias(integrationId: string, actionName: string): string {
 // ─── Main Runner ─────────────────────────────────────────
 
 export async function runAction(params: RunActionParams): Promise<RunActionResult> {
+  if (!isPlatformFeatureEnabled("integrations")) {
+    return failureResult(integrationError("ACTION_NOT_ALLOWED", "Integrations are not enabled in this environment."));
+  }
   const startTime = Date.now();
   const def = getIntegration(params.integrationId);
 
