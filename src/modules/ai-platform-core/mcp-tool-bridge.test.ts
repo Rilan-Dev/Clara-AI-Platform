@@ -182,6 +182,23 @@ describe("MCP tool bridge", () => {
     ).toThrow("not allowlisted");
   });
 
+  it("blocks an already registered MCP capability when its deployment disables integrations", async () => {
+    const invoke = vi.fn(async () => ({ ok: true }));
+    const resolver: McpToolResolver = {
+      async resolve() { return descriptor; },
+      invoke,
+    };
+    const tool = buildMcpToolDefinition(descriptor, policy, resolver, context);
+    const runtime = createRuntime();
+    runtime.registerTool(tool);
+    vi.stubEnv("CLARA_ENV", "production");
+
+    const result = await runtime.invoke(tool.name, { id: "abc" }, context);
+    expect(result).toMatchObject({ ok: false, error: { code: "TENANT_SCOPE_VIOLATION" } });
+    expect(invoke).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
   it("honors the default-off flag", () => {
     expect(isMcpEnabled({ ENABLE_MCP: undefined })).toBe(false);
     expect(isMcpEnabled({ ENABLE_MCP: "false" })).toBe(false);
