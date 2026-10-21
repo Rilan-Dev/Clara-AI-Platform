@@ -64,3 +64,21 @@ The embeddable widget takes a published agent to the tenant's own website: a `<s
 ## 10. Cross-links
 
 - Grounding core — **08/09**; voice — **14-16**; keys/quota — **05/24**; deployment pinning — **04**; security/error presentation — **24** (committed controls only; proposed NET_TRACE route instrumentation is absent).
+
+## Environment-controlled availability (development and production)
+
+Feature 13 is retained in source but **disabled by default in production**
+and **enabled by default in development** via the server-side
+`CLARA_FEATURE_EMBEDDABLE_WIDGET` switch (when unset, `CLARA_ENV` determines
+the default). A deployment may override it with explicit `true` or `false`
+without changing any other environment. This is not an org-level setting;
+no existing KB, integration or API-key rows are deleted by disabling it.
+
+When off, the runtime request boundary rejects widget iframe/loader/demo
+routes and `/api/embed/**`, plus widget API-key and platform demo
+configuration endpoints, before authentication, validation, provider calls or
+preflight. Admin widget settings, navigation and the public landing demo are
+hidden. Native/published agent chat and public agent configuration continue
+to work independently. The UI consumes `GET /api/features` with `no-store`
+and does not read a build-time public flag. See
+[environment-scoping guidance](../deployment/environments.md).
