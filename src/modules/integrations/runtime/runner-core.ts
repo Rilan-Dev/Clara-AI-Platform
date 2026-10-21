@@ -357,6 +357,7 @@ export async function getIntegrationActions(integrationId: string): Promise<Arra
   description: string;
   props: Record<string, unknown>;
 }>> {
+  if (!isPlatformFeatureEnabled("integrations")) return [];
   const piece = await loadPiece(integrationId);
   const def = getIntegration(integrationId);
   if (!def) return [];
