@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getIntegration = vi.fn();
 const loadPiece = vi.fn();
@@ -49,6 +49,7 @@ vi.mock("./xray.js", () => ({
 }));
 
 describe("integration runner action allowlist", () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
     vi.stubEnv("CLARA_ENV", "development");
     vi.clearAllMocks();
