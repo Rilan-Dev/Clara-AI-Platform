@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { ProvidersWorkspace } from "./ProvidersWorkspace";
 import { cn } from "@/lib/utils";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 
 type Tab = "overview" | "providers" | "tools" | "integrations" | "agent-loop" | "verification";
 
@@ -82,6 +83,8 @@ export function AiPlatformWorkspace({
   agentLoopEnabled,
 }: AiPlatformWorkspaceProps) {
   const [tab, setTab] = useState<Tab>("overview");
+  const features = usePlatformFeatures();
+  const visibleTab = !features.integrations && tab === "integrations" ? "overview" : tab;
 
   const runtimeStages = useMemo(
     () => [
@@ -89,9 +92,9 @@ export function AiPlatformWorkspace({
       { label: "Unified Tool Runtime", status: "Ready", icon: Wrench },
       { label: "OpenAI tool calling", status: toolCallingEnabled ? "Enabled" : "Default off", icon: Activity },
       { label: "Bounded agent loop", status: agentLoopEnabled ? "Enabled" : "Default off", icon: Bot },
-      { label: "Integrations I-1 contracts", status: "Implemented", icon: Plug },
+      ...(features.integrations ? [{ label: "Integrations I-1 contracts", status: "Implemented", icon: Plug }] : []),
     ],
-    [toolCallingEnabled, agentLoopEnabled],
+    [toolCallingEnabled, agentLoopEnabled, features.integrations],
   );
 
   return (
@@ -104,14 +107,14 @@ export function AiPlatformWorkspace({
                 <Brain className="h-3.5 w-3.5" />
                 AI Platform Core
               </span>
-              <StatusPill enabled={true} label="Integrations I-1 active" />
+              {features.integrations && <StatusPill enabled={true} label="Integrations I-1 active" />}
             </div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
               AI Platform workspace
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
               The control surface for Clara&apos;s provider-agnostic tool runtime and the active
-              Integrations I-1 contract foundation. Runtime execution remains explicitly gated.
+              provider and tool configuration. Optional integrations run only when enabled in this deployment.
             </p>
           </div>
 
@@ -137,7 +140,7 @@ export function AiPlatformWorkspace({
         <div className="grid grid-cols-2 border-t border-border sm:grid-cols-4">
           <div className="border-r border-border p-4 sm:p-5">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Current scope</div>
-            <div className="mt-1 font-semibold">Integrations I-1</div>
+            <div className="mt-1 font-semibold">{features.integrations ? "Integrations I-1" : "AI Platform Core"}</div>
           </div>
           <div className="border-b border-r border-border p-4 sm:border-b-0 sm:p-5">
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">First tool</div>
@@ -155,9 +158,9 @@ export function AiPlatformWorkspace({
       </header>
 
       <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-card p-1.5" aria-label="AI Platform">
-        {tabs.map((item) => {
+        {tabs.filter((item) => features.integrations || item.id !== "integrations").map((item) => {
           const Icon = item.icon;
-          const active = tab === item.id;
+          const active = visibleTab === item.id;
           return (
             <button
               key={item.id}
@@ -264,14 +267,14 @@ export function AiPlatformWorkspace({
                   Unified Tool Runtime and provider surfaces. Runtime execution is not yet authorized.
                 </p>
               </div>
-              <button
+              {features.integrations && <button
                 type="button"
                 onClick={() => setTab("integrations")}
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
               >
                 Inspect Integrations
                 <ChevronRight className="h-4 w-4" />
-              </button>
+              </button>}
             </div>
           </section>
         </div>
@@ -341,7 +344,7 @@ export function AiPlatformWorkspace({
         </div>
       )}
 
-      {tab === "integrations" && (
+      {features.integrations && visibleTab === "integrations" && (
         <div className="space-y-5">
           <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
