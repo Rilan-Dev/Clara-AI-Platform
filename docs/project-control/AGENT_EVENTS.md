@@ -421,3 +421,13 @@ The public contact page now uses shrink-safe layout wrappers, bounded card width
 - FIX-01 committed compatibility corrections for Stripe API version, DayPicker v10, Recharts v3, react-resizable-panels v4, ioredis/BullMQ option typing, pdf-parse v2 metadata, ReactMarkdown v10, test import resolution, and lazy queue typing.
 - Evidence status: source commits only; no post-change compiler output yet. Not PASS.
 - Next: pull latest branch and rerun type-check; triage only fresh residual diagnostics.
+
+### EVT-DEV-20261022-FEATURE-FLAGS-01 — 2026-10-22
+- **Agent/session:** DEV-01 / Forge / SESSION-DEV-20261022-FEATURE-FLAGS-01.
+- **Type:** OWNER-AUTHORIZED PRODUCT IMPLEMENTATION / CROSS-ENVIRONMENT ISOLATION.
+- **Symptom/root cause:** Feature 13 widget and Feature 23 integrations/MCP/WhatsApp were entangled with production routes and setup UI. Existing `CLARA_ENV` isolated databases/queues, but absent dedicated feature admission meant hiding a UI tile could not stop public endpoints, OAuth, webhooks or already-registered tools.
+- **Remedy:** Two deployment-process flags, development ON and production OFF by default, strict per-env overrides, middleware 404 gates before OPTIONS or handler, no-store client capability display, navigation/settings/KB/publish/landing/console filtering, underlying integration runner and registered MCP tool execution guards, unchanged security/tenant checks. Source commits `3a651654`, `5418fc46`, `928290d1`, `fe8a5abb`, `2ab1b507`, `74b45a8c`, `cea132ca`, `954a2261`; tests `ac606782`, `09e22f8a`, `190a8093`, `390771c0`, `a4861ce3`.
+- **Lesson:** Shared-environment toggles must be process/deployment scoped, never shared DB, NEXT_PUBLIC build state or UI-only; enforce on every credential/provider entrypoint and call-time runtime seam, keeping core endpoints operational. Disabled does not imply erased code/configuration.
+- **Verification:** GitHub source commits accepted, no executable test/typecheck/build/deploy performed; cannot claim production state. Historical CI PASS does not cover this change.
+- **Handoff:** OPS-01 controls env deployment/smoke checks; DEV-01 source-only; route independently reproduced defects to FIX-01.
+- **Next:** Bounded tests/type-check when checkout available; targeted fixes to reported errors; no CI/Vercel wait.
