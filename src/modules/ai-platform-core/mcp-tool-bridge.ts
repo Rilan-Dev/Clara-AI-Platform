@@ -326,6 +326,7 @@ export async function resolveMcpToolDefinition(
   policy: McpToolBridgePolicy,
   resolver: McpToolResolver,
 ): Promise<ToolDefinition | null> {
+  if (!isPlatformFeatureEnabled("integrations") || !isMcpEnabled()) return null;
   assertExecutionContext(request.context);
   let boundPolicy: McpToolBridgePolicy;
   try {
