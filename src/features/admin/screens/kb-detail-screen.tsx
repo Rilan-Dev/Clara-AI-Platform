@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { KbTabBar, isKbTab, type KbTab } from "@/features/admin/screens/kb-tab-bar";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 import { AlertTriangle, BookOpen, Layers3, RefreshCw } from "lucide-react";
 import { useAnalytics, useAuth, useDocuments, useKb, useOrg, useAgent } from "@/modules/admin-ui/hooks";
 import { updateKb } from "@/modules/admin-ui/api";
@@ -36,6 +37,7 @@ export default function KbDashboardPage() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
+  const features = usePlatformFeatures();
   const { data: kb, loading: kbLoading, refetch: refetchKb } = useKb(kbId);
   const agentId = kb?.agentId ?? searchParams.get("agentId");
   const { data: agent } = useAgent(agentId);
@@ -48,7 +50,10 @@ export default function KbDashboardPage() {
   // works with Back, and can be linked to from other screens.
   const router = useRouter();
   const pathname = usePathname();
-  const tab: KbTab = isKbTab(searchParams.get("tab")) ? (searchParams.get("tab") as KbTab) : "documents";
+  const requestedTab = searchParams.get("tab");
+  const tab: KbTab = isKbTab(requestedTab) &&
+    (features.embeddableWidget || (requestedTab !== "deploy" && requestedTab !== "design"))
+    ? requestedTab as KbTab : "documents";
   const selectTab = (next: KbTab) => {
     const params = new URLSearchParams(searchParams.toString());
     if (next === "documents") params.delete("tab");
@@ -209,7 +214,7 @@ export default function KbDashboardPage() {
           ))}
         </div>
 
-        <KbTabBar value={tab} onChange={selectTab} />
+        <KbTabBar value={tab} onChange={selectTab} embeddableWidgetEnabled={features.embeddableWidget} />
 
         {tab === "documents" && (
           <div className="space-y-4">
@@ -330,13 +335,13 @@ export default function KbDashboardPage() {
           </div>
         )}
 
-        {tab === "deploy" && (
+        {features.embeddableWidget && tab === "deploy" && (
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <ApiKeysManager kbId={kbId} />
           </div>
         )}
 
-        {tab === "design" && (
+        {features.embeddableWidget && tab === "design" && (
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <WidgetDesignPanel kbId={kbId} />
           </div>
@@ -434,7 +439,7 @@ export default function KbDashboardPage() {
         ))}
       </div>
 
-      <KbTabBar value={tab} onChange={selectTab} />
+      <KbTabBar value={tab} onChange={selectTab} embeddableWidgetEnabled={features.embeddableWidget} />
 
       {tab === "documents" && (
         <div className="space-y-4">
@@ -555,13 +560,13 @@ export default function KbDashboardPage() {
         </div>
       )}
 
-      {tab === "deploy" && (
+      {features.embeddableWidget && tab === "deploy" && (
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <ApiKeysManager kbId={kbId} />
         </div>
       )}
 
-      {tab === "design" && (
+      {features.embeddableWidget && tab === "design" && (
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
           <WidgetDesignPanel kbId={kbId} />
         </div>
