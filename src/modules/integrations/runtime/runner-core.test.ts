@@ -226,4 +226,17 @@ describe("integration runner action allowlist", () => {
       retryable: false,
     });
   });
+  it("never loads the provider package or credentials when integrations are disabled for production", async () => {
+    vi.stubEnv("CLARA_ENV", "production");
+    const { runAction } = await import("./runner-core.js");
+    const result = await runAction({
+      integrationId: "example", actionName: "approved_action", props: {},
+      userId: "user-1", workspaceId: "org-1", agentId: "agent-1",
+    });
+    expect(result).toMatchObject({ success: false, errorCode: "ACTION_NOT_ALLOWED" });
+    expect(loadPiece).not.toHaveBeenCalled();
+    expect(credentialGet).not.toHaveBeenCalled();
+    expect(assertIntegrationExecutionAuthorized).not.toHaveBeenCalled();
+  });
+
 });
