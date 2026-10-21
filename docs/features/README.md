@@ -58,7 +58,7 @@
 4. **Metered everything** — chat tokens, embeddings, voice seconds, language chars, MCP calls all flow into one usage-event spine that drives quotas and billing. Docs 14-20, 23, 24.
 5. **Environment isolation** — CLARA_ENV scopes schema/collections/queues structurally. Docs 25, 26.
 
-## Known In-Flight / Open Items (2026-10-20)
+## Known Open Items and Historical Context (reviewed 2026-10-22)
 
 - **NET_TRACE observability — NOT PRESENT IN THIS BRANCH:** the original inventory described local-only source and 38 tests. `src/lib/net-trace.ts` and the related NET_TRACE test files are not committed; this must not be treated as a deployed or indexed feature. See [Feature 24](./24-quotas-limits-security.md) for the implemented controls.
 - **Edge streaming** — production OpenResty edge buffers `/api/chat` NDJSON (Task C benchmark evidence: sources==firstToken==total); fix = apply the repo nginx `proxy_buffering off; gzip off` pattern to the edge's `/api/chat` location. Doc 26.
