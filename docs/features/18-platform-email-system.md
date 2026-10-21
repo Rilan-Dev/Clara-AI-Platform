@@ -57,7 +57,7 @@ The platform email system sends every transactional message — verification, we
 
 ## 9. Tests
 
-- Email template render tests, provider config status tests, notification queue tests (see `scripts/feature-doc/tests.txt`).
+- Email template render tests, provider config status tests, notification queue tests (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
