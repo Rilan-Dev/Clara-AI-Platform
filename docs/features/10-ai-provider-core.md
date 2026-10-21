@@ -1,6 +1,6 @@
 # 10 — AI Provider Core (Multi-LLM Abstraction)
 
-> Clara AI Platform feature documentation · Domain: `ai-core` · Base: `feature/ai-core-from-doable-source @ 031279b4` (gemini.ts/openai.ts carry uncommitted NET_TRACE per-vendor-call wiring)
+> Clara AI Platform feature documentation · Domain: `ai-core` · Base: `feature/ai-core-from-doable-source @ 031279b4` (NET_TRACE per-vendor-call instrumentation was local-only and is not committed on this branch)
 
 ## 1. Definition & Purpose
 
@@ -13,7 +13,7 @@ The AI Provider Core is Clara's vendor abstraction: one `LLMProvider` interface,
 - **Embeddings** — Gemini `embedText`/`embedBatch` use the single-request `batchEmbedContents` RPC (R1 fix); when a vendor returns fewer embeddings than requests (the 1-of-N count mismatch), the provider degrades to sequential single-text embeds (R2 fix, production-verified 315-chunk ingest). OpenAI `embedText`/`embedBatch` wrap `embeddings`.
 - **Retry ladder** — `vector-store-kb.ts:211` `embedBatches` retries vendor 429s with exponential backoff (1s/2s/4s, `EMBED_MAX_RETRIES`) and classifies connect-unreachable failures for fail-fast (`isUnreachableEmbeddingError:151`).
 - **Relay awareness** — Gemini egress honours `GEMINI_BASE_URL` when set (local relay); construction-time warnings surface misconfiguration.
-- **Observability (uncommitted NET_TRACE wiring)** — every vendor HTTP call site (chat streams, embeddings) emits a Network-tab-style upstream row: relay-aware URL, HTTP status auto-extracted from SDK errors, duration, attempt, compact response summary at `verbose` (see Feature 24).
+- **Observability scope:** the committed provider adapters have error logging and the platform incident path (Feature 21), but the separately described NET_TRACE network-style per-vendor instrumentation is **not present on this branch**. Do not rely on its request correlation or verbose tracing until it is committed and verified.
 
 ## 3. Business Rules
 
@@ -47,11 +47,11 @@ The AI Provider Core is Clara's vendor abstraction: one `LLMProvider` interface,
 
 ## 8. Environment Variables
 
-- `GEMINI_API_KEY`, `GEMINI_BASE_URL` (relay), `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `EMBED_MAX_RETRIES`, embedding defaults (`PLATFORM_EMBEDDING_*`, Feature 12), `NET_TRACE*` (Feature 24).
+- `GEMINI_API_KEY`, `GEMINI_BASE_URL` (relay), `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `EMBED_MAX_RETRIES`, embedding defaults (Feature 12). NET_TRACE variables belong to an uncommitted local proposal, not the current branch.
 
 ## 9. Tests
 
-- `src/modules/ai-core/providers/gemini.relay.integration.test.ts` (10 tests incl. relay + count-mismatch visibility), `src/modules/ai-core/providers/openai.net-trace.test.ts` (uncommitted, 4 tests), provider unit suites, `vector-store-kb` retry tests.
+- `src/modules/ai-core/providers/gemini.relay.integration.test.ts` (relay and embedding contract), provider unit suites, and vector-store-kb retry tests. The old NET_TRACE test file `openai.net-trace.test.ts` is absent from this branch and must not be included in executable test counts.
 
 ## 10. Cross-links
 
