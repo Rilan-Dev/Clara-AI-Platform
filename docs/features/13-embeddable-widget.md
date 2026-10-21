@@ -63,4 +63,4 @@ The embeddable widget takes a published agent to the tenant's own website: a `<s
 
 ## 10. Cross-links
 
-- Grounding core — **08/09**; voice — **14-16**; keys/quota — **05/24**; deployment pinning — **04**; observability — **24** (uncommitted route wiring).
+- Grounding core — **08/09**; voice — **14-16**; keys/quota — **05/24**; deployment pinning — **04**; security/error presentation — **24** (committed controls only; proposed NET_TRACE route instrumentation is absent).
