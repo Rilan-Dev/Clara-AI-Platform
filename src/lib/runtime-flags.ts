@@ -8,6 +8,7 @@
  */
 
 import { getRagRuntimeConfig } from "@/modules/rag/config";
+import { resolveFeatureAvailability } from "@/lib/feature-availability";
 
 export type RuntimeFlag = {
   key: string;
@@ -44,8 +45,29 @@ export function describeRuntimeFlags(env: Env = process.env): RuntimeFlagGroup[]
   const rag = getRagRuntimeConfig();
   const failMode = (raw(env, "PLAN_GUARD_FAIL_MODE") ?? "open").toLowerCase();
   const virusScan = raw(env, "VIRUS_SCAN_URL");
+  const features = resolveFeatureAvailability(env);
 
   return [
+    {
+      id: "features",
+      title: "Deployment feature availability",
+      flags: [
+        {
+          key: "CLARA_FEATURE_EMBEDDABLE_WIDGET",
+          label: "Embeddable website widget & demo",
+          value: features.embeddableWidget ? "Enabled" : "Disabled",
+          isDefault: raw(env, "CLARA_FEATURE_EMBEDDABLE_WIDGET") === undefined,
+          note: "Server-enforced for widget APIs, visitor pages and management. Defaults on only in development.",
+        },
+        {
+          key: "CLARA_FEATURE_INTEGRATIONS",
+          label: "Integrations, MCP & WhatsApp",
+          value: features.integrations ? "Enabled" : "Disabled",
+          isDefault: raw(env, "CLARA_FEATURE_INTEGRATIONS") === undefined,
+          note: "Server-enforced for management, callbacks, webhooks and tool execution. Existing MCP governance still applies.",
+        },
+      ],
+    },
     {
       id: "rag",
       title: "Retrieval (RAG)",
