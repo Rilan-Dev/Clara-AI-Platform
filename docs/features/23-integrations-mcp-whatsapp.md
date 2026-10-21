@@ -62,3 +62,28 @@ The integrations plane connects Clara agents to the outside world: org-owned and
 ## 10. Cross-links
 
 - Tool-calling execution — **08 chat** + **10 OpenAI tools**; metering spine — **20**; entitlements — **11/17**; credential hygiene — **24**; health cron — **21**.
+
+## Environment-controlled availability (development and production)
+
+Feature 23 is retained in source but **disabled by default in production**
+and **enabled by default in development** via the server-side
+`CLARA_FEATURE_INTEGRATIONS` switch (or explicit per-deployment `true`/
+`false`). It never writes shared feature-state rows or changes another
+deployment's DB schema, credentials or integration connections.
+
+When off, the request boundary rejects integrations/MCP configuration APIs,
+organisation/agent management pages, credential callbacks, WhatsApp
+webhooks/OAuth and scheduled WhatsApp routes before handlers run. Sidebar
+entries, agent tabs and platform settings cards are hidden. The unified
+tool runtime does not advertise integration tools, direct integration actions
+return a structured unavailable result, and already-built MCP/integration
+invocations re-check the environment at execution time. Native chat/voice,
+billing, core RAG and unrelated provider capabilities stay enabled.
+
+This flag is **not** a substitute for MCP security rollout: development MCP
+requires `ENABLE_MCP=true`, server connection readiness, per-plan policy
+and runtime user/tenant authorisation. Re-enabling Feature 23 restores the
+original feature code/configuration subject to those existing checks.
+Operators should keep separate .env values, isolated queues and credentials
+for production and development; see
+[environment-scoping guidance](../deployment/environments.md).
