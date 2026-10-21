@@ -13,13 +13,13 @@ The ingestion pipeline turns raw material — PDF/DOCX/XLSX/HTML/text uploads an
 - **Chunking** — `RecursiveCharacterTextSplitter` (`ingest/chunkers/recursive.ts:3`) produces overlap-aware chunks; overlap now aligns to lexical boundaries so words are never split mid-word (commit `454b740e`, tests `bc3d9e40`).
 - **Embedding & upsert** — `vector-store-kb.ts` `embedBatches:211` sends one batched request per document batch with a 429-aware retry ladder, then `upsertDocumentsKb:293` writes points; `isUnreachableEmbeddingError:151` classifies connect failures. The Gemini provider degrades to sequential single-text embeds when a vendor returns a mismatched count (production-verified degrade path — Feature 10).
 - **Queue execution** — uploads enqueue via BullMQ (`/api/queue/ingest`, `queue/index.ts`); the worker consumes (`/api/worker/ingest`, `src/modules/knowledge-bases/worker`, Docker service `clara-worker`); reindex route `/api/worker/reindex` handles embedding-default realignment.
-- **Reprocess & retry** — per-document `/reprocess` and `/reprocess-all` re-run the pipeline; failure state is surfaced with error messages in the documents list.
+- **Reprocess & retry** — per-document `/reprocess` and `/reprocess-all` re-run the pipeline. Raw provider errors are stored for platform operations but are replaced with curated document/status/retry responses before reaching organisation clients (`core/public-processing-error.ts`, `api/documents.ts`). The ingestion worker reports embedding-provider failures through `recordEmbeddingRuntimeFailure` to the platform incident system (Feature 21).
 
 ## 3. Business Rules
 
 - Fail-fast: a connect-unreachable embedding error fails the document immediately instead of grinding retries (R1 fix, commit `985e6afe`).
 - One HTTP request per batch / one connection per document (batch contract honoured; sequential degradation is the safety net — R2, commit `bfc7b816`).
-- A document is `ready` only after ALL chunks are embedded and upserted; partial states are `failed` with recoverable Retry.
+- A document is `ready` only after ALL chunks are embedded and upserted; partial states are `failed` with recoverable Retry. Failed document JSON must not expose provider quota payloads, upstream hostnames, API keys, or stored ingest file bytes (FIX-01 source correction).
 - Chunk boundaries never split words (lexical-boundary overlap rule, PR #299).
 - Spreadsheet cells keep their column positions across parsing (empty cells preserved, PR #299).
 - Virus-scan failures reject the upload; scan-unavailable is an explicit error class, not a silent pass.
@@ -63,7 +63,7 @@ The ingestion pipeline turns raw material — PDF/DOCX/XLSX/HTML/text uploads an
 
 ## 9. Tests
 
-- `src/modules/ingest/__tests__/document-parsers.test.ts` (incl. spreadsheet column alignment, `c132f72b`), `src/modules/ingest/__tests__/recursive-chunker.test.ts` (mid-word overlap guards, `bc3d9e40`), `vector-store-kb.deletion.test.ts`, `vector-store-kb` retry ladder suites.
+- `src/modules/ingest/__tests__/document-parsers.test.ts` (spreadsheet alignment), `src/modules/ingest/__tests__/recursive-chunker.test.ts` (overlap), vector-store-kb suites, `src/modules/knowledge-bases/api/documents.error-privacy.test.ts` (tenant response safety), and `src/modules/knowledge-bases/worker/ingest-worker.incident.test.ts` (admin incident emission). Newly authored regression sources have not been executed in this session.
 
 ## 10. Cross-links
 
