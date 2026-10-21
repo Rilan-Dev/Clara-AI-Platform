@@ -34,7 +34,7 @@ Retrieval quality decides answer quality. This feature is the search layer benea
 | Route | Handler anchor |
 |---|---|
 | `src/app/api/rag/search/route.ts:10` | programmatic search |
-| `src/app/api/embed/search/route.ts:70` | widget search (NET_TRACE-wired, uncommitted) |
+| `src/app/api/embed/search/route.ts:70` | widget search (no committed NET_TRACE instrumentation) |
 | `src/app/api/embed/rag/route.ts` | widget RAG context |
 
 ## 6. Core Module Files
@@ -59,7 +59,7 @@ Retrieval quality decides answer quality. This feature is the search layer benea
 
 ## 9. Tests
 
-- `src/modules/rag/grounding.test.ts`, diversify/config suites, embed search route tests (see `scripts/feature-doc/tests.txt`).
+- `src/modules/rag/grounding.test.ts`, diversify/config suites, embed search route tests (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
