@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(() => vi.unstubAllEnvs());
 import { configuredCronJobs, cronMatches } from "./local-cron";
 
 const at = (iso: string) => new Date(iso);
@@ -23,7 +25,16 @@ describe("cronMatches (UTC, like Vercel Cron)", () => {
     expect(cronMatches("* * *", at("2026-09-25T00:00:00Z"))).toBe(false);
   });
 
-  it("reads the same schedule Vercel uses", () => {
+  it("does not schedule disabled WhatsApp jobs on production but keeps unrelated health and onboarding", () => {
+    vi.stubEnv("CLARA_ENV", "production");
+    const paths = configuredCronJobs().map((job) => job.path);
+    expect(paths.some((path) => path.includes("whatsapp"))).toBe(false);
+    expect(paths).toContain("/api/platform/services-status");
+    expect(paths).toContain("/api/cron/onboarding-reminders");
+  });
+
+  it("reads the same schedule Vercel uses when integrations are enabled in development", () => {
+    vi.stubEnv("CLARA_ENV", "development");
     const paths = configuredCronJobs().map((job) => job.path);
     expect(paths).toContain("/api/platform/services-status");
     expect(paths).toContain("/api/cron/onboarding-reminders");
