@@ -12,7 +12,7 @@ The deployment story: a Docker Compose stack (backend, worker, RabbitMQ bridge, 
 - **Edge** — `deploy/nginx/nginx.conf`: TLS termination, gzip/brotli, static caching, `location /api/ { proxy_buffering off; }` for streaming (⚠️ production edge is OpenResty — the repo nginx is the reference config; the Task C benchmark proved the live edge currently BUFFERS chat streams — the known streaming fix is to apply the same `proxy_buffering off; gzip off` pattern on the OpenResty `/api/chat` location).
 - **Environment scoping** — `src/lib/env-scope.ts`: `resolveClaraEnv:45` (CLARA_ENV), `resolvePgSchema:57` (development → `clara_dev`), `resolveQdrantCollectionPrefix:78` (`dev_`), `resolveBullmqPrefix:102`, `applyQdrantCollectionPrefix:116`, `describeEnvScope:124`; documented in `docs/deployment/environments.md` — production defaults byte-identical (no prefix).
 - **Migrations** — `src/lib/db/migrations/001-075*.sql` applied by the migration runner (`src/lib/db/migrate.ts`, startup lock lineage `fix/migration-startup-lock`); Vercel deployment runs migrations at build/boot with the startup lock serializing concurrent instances.
-- **Vercel path** — Vercel-Preview / Vercel-Prod branches (deploy target branches; automatic Git deployments disabled in favor of controlled PR flow), `vercel.json`/inline config, env vars via dashboard (NET_TRACE takes effect next deployment), Functions logs for observability.
+- **Vercel path** — Vercel-Preview / Vercel-Prod branches (deploy target branches; automatic Git deployments disabled in favor of controlled PR flow), `vercel.json`/inline config, env vars via dashboard and Functions logs for operational observability. The NET_TRACE feature described in the original local draft is not committed.
 - **Health & verification** — `/api/health` (route line 25) liveness; `scripts/verify-live-stack.sh`, `scripts/poll-preview-deploy.py`, probe scripts (`probe-embedding-egress.mjs`, `test-gemini-connectivity.cjs`, `check-elevenlabs-settings.mjs`).
 
 ## 3. Business Rules
@@ -25,7 +25,7 @@ The deployment story: a Docker Compose stack (backend, worker, RabbitMQ bridge, 
 
 ## 4. Data Model
 
-- 75 migrations `001_foundation.sql` … `075_embedding_default_bootstrap.sql` (full list: `scripts/feature-doc/migrations.txt`).
+- Historical baseline: migrations through `075_embedding_default_bootstrap.sql`. The referenced generated `scripts/feature-doc/migrations.txt` does not exist in this branch; inspect `src/lib/db/migrations/` for the current migration inventory.
 
 ## 5. API Surface
 
@@ -51,7 +51,7 @@ The deployment story: a Docker Compose stack (backend, worker, RabbitMQ bridge, 
 
 ## 8. Environment Variables
 
-- `CLARA_ENV` (development|production), `DATABASE_URL`, `QDRANT_URL/API_KEY`, `REDIS_URL`, `RABBITMQ_*`, `GEMINI/OPENAI/ELEVENLABS/SARVAM_*`, `NET_TRACE*` — see `.env.example` (sectioned) and `docs/deployment/environments.md`.
+- `CLARA_ENV` (development|production), `DATABASE_URL`, `QDRANT_URL/API_KEY`, `REDIS_URL`, `RABBITMQ_*`, `GEMINI/OPENAI/ELEVENLABS/SARVAM_*` — see `.env.example` (sectioned) and `docs/deployment/environments.md`.
 - Self-hosted ops (`.env.example` "Self-hosted (VPS / Docker) operations" section): `LOCAL_CRON_ENABLED` + `CRON_SECRET` drive `src/lib/local-cron.ts` (`startLocalCron:87`) — the vercel.json schedules re-run over loopback on VPS/Docker deployments (Feature 25), so onboarding reminders and health sweeps fire identically in both hosting models.
 
 ## 9. Tests
