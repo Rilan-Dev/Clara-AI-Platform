@@ -35,7 +35,7 @@ The super-admin plane: cross-tenant statistics and revenue, user management (unl
 
 ## 5. API Surface
 
-- 40+ routes under `src/app/api/platform/**` — full list in `scripts/feature-doc/api-routes.txt`; key anchors: `stats/route.ts:7`.
+- Routes under `src/app/api/platform/` — consult the current route tree for authoritative coverage; the old generated `scripts/feature-doc/api-routes.txt` does not exist on this branch. Historical anchor: `stats/route.ts:7`.
 
 ## 6. Core Module Files
 
@@ -58,7 +58,7 @@ The super-admin plane: cross-tenant statistics and revenue, user management (unl
 
 ## 9. Tests
 
-- admin-ui / platform route suites, assistant-defaults versioning tests, announcements tests (see `scripts/feature-doc/tests.txt`).
+- admin-ui / platform route suites, assistant-defaults versioning tests, announcements tests (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
