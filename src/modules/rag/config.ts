@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 
 export type RagMode = "classic" | "hybrid" | "agentic";
 
@@ -73,7 +74,7 @@ export function getRagRuntimeConfig(options?: { requestedMode?: unknown }): RagR
   const enableGraphRag = parseBooleanEnv(getEnv("ENABLE_GRAPH_RAG"), requestedMode !== "classic");
   const enableAgentLoop = parseBooleanEnv(getEnv("ENABLE_AGENT_LOOP"), requestedMode === "agentic");
   const enableSelfEval = parseBooleanEnv(getEnv("ENABLE_SELF_EVAL"), requestedMode === "agentic");
-  const enableMcp = parseBooleanEnv(getEnv("ENABLE_MCP"), false);
+  const enableMcp = isPlatformFeatureEnabled("integrations") && parseBooleanEnv(getEnv("ENABLE_MCP"), false);
 
   let ragMode: RagMode = requestedMode;
   if (ragMode === "agentic" && !enableAgentLoop) ragMode = enableGraphRag ? "hybrid" : "classic";
