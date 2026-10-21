@@ -57,7 +57,7 @@ Authentication is the front door of the Clara AI platform: every organisation us
 
 ## 9. Tests
 
-- `src/modules/auth/**/__tests__/` — login/register/lockout/reset regression suites (see `scripts/feature-doc/tests.txt` inventory).
+- `src/modules/auth/**/__tests__/` — login/register/lockout/reset regression suites (locate current test files in the module directories; the old generated inventory is not committed inventory).
 
 ## 10. Cross-links
 
