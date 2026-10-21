@@ -120,9 +120,9 @@ describe("resolveAIConfig subscription authority", () => {
 
   it("preserves an entitled platform default when an earlier registry provider is also allowed", async () => {
     // Legacy org provider list does not define availability or precedence.
-    mocks.orgSettings = { ...mocks.orgSettings, defaultProvider: null };
+    mocks.orgSettings = { ...(mocks.orgSettings ?? {}), defaultProvider: null };
     mocks.registry = {
-      ...mocks.registry,
+      ...(mocks.registry ?? {}),
       providers: [
         {
           providerId: "openai", displayName: "OpenAI",
@@ -144,10 +144,10 @@ describe("resolveAIConfig subscription authority", () => {
   });
 
   it("falls back to an entitled provider when the platform default is denied by the current plan", async () => {
-    mocks.orgSettings = { ...mocks.orgSettings, defaultProvider: null };
+    mocks.orgSettings = { ...(mocks.orgSettings ?? {}), defaultProvider: null };
     mocks.blockedProvider = "sarvam";
     mocks.registry = {
-      ...mocks.registry,
+      ...(mocks.registry ?? {}),
       providers: [
         {
           providerId: "openai", displayName: "OpenAI",
