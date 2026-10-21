@@ -300,7 +300,7 @@ export function buildMcpToolDefinition(
       requireSessionId: false,
     },
     async execute(input, context) {
-      if (!isPlatformFeatureEnabled("integrations") || !isMcpEnabled()) {
+      if (!isPlatformFeatureEnabled("integrations")) {
         throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", "MCP is disabled in this environment.");
       }
       assertExecutionContext(context);
@@ -326,7 +326,7 @@ export async function resolveMcpToolDefinition(
   policy: McpToolBridgePolicy,
   resolver: McpToolResolver,
 ): Promise<ToolDefinition | null> {
-  if (!isPlatformFeatureEnabled("integrations") || !isMcpEnabled()) return null;
+  if (!isPlatformFeatureEnabled("integrations")) return null;
   assertExecutionContext(request.context);
   let boundPolicy: McpToolBridgePolicy;
   try {
