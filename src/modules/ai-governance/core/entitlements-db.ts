@@ -95,7 +95,9 @@ async function loadPlanEntitlements(plan: Plan): Promise<PlanAIEntitlements> {
       [plan.planId],
     ),
     query<Row>(
-      `SELECT EXISTS (SELECT 1 FROM plan_ai_provider_entitlements) AS matrix_configured`,
+      `SELECT EXISTS (SELECT 1 FROM plan_ai_capabilities) AS capability_matrix_configured,
+              EXISTS (SELECT 1 FROM plan_ai_provider_entitlements) AS provider_matrix_configured,
+              EXISTS (SELECT 1 FROM plan_ai_model_entitlements) AS model_matrix_configured`,
     ),
   ]);
 
@@ -106,16 +108,22 @@ async function loadPlanEntitlements(plan: Plan): Promise<PlanAIEntitlements> {
     }
   }
 
-  // Legacy fallback for installations that have not populated the capability
-  // matrix yet. Once any plan provider matrix exists, missing provider rows
-  // deny access instead of silently granting a provider omitted from a plan.
-  if (!("chat" in capabilities)) capabilities.chat = true;
-  if (!("voice_chat" in capabilities)) capabilities.voice_chat = plan.voiceEnabled;
-  if (!("realtime_voice" in capabilities)) capabilities.realtime_voice = plan.voiceEnabled;
+  // Legacy compatibility exists only before EITHER entitlement matrix has
+  // been seeded. Once either matrix is active, an incomplete/missing row
+  // must never grant access through an old plan.voice_enabled flag.
+  const matrixConfigured =
+    Boolean(matrixState[0]?.capability_matrix_configured) ||
+    Boolean(matrixState[0]?.provider_matrix_configured) ||
+    Boolean(matrixState[0]?.model_matrix_configured) ||
+    capabilityRows.length > 0 ||
+    providerRows.length > 0 ||
+    modelRows.length > 0;
+  if (!("chat" in capabilities)) capabilities.chat = !matrixConfigured;
+  if (!("voice_chat" in capabilities)) capabilities.voice_chat = !matrixConfigured && plan.voiceEnabled;
+  if (!("realtime_voice" in capabilities)) capabilities.realtime_voice = !matrixConfigured && plan.voiceEnabled;
 
   const allowedProviders: PlanAIEntitlements["allowedProviders"] = {};
-  const providerMatrixConfigured = Boolean(matrixState[0]?.matrix_configured);
-  if (providerRows.length > 0 || providerMatrixConfigured) {
+  if (matrixConfigured) {
     // Explicit matrix mode is default-deny: a missing provider row is not an
     // entitlement. This also makes partial migrations safe.
     for (const provider of PROVIDER_IDS) allowedProviders[provider] = false;

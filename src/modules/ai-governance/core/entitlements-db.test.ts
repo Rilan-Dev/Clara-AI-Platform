@@ -9,6 +9,8 @@ const state = vi.hoisted(() => ({
   providers: {} as Record<string, Row[]>,
   models: {} as Record<string, Row[]>,
   providerMatrixConfigured: true,
+  capabilityMatrixConfigured: true,
+  modelMatrixConfigured: false,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -19,8 +21,12 @@ vi.mock("@/lib/db", () => ({
       const planId = String(params?.[0] ?? "free");
       return state.plans[planId] ? [state.plans[planId]] : [];
     }
-    if (sql.includes("SELECT EXISTS (SELECT 1 FROM plan_ai_provider_entitlements)")) {
-      return [{ matrix_configured: state.providerMatrixConfigured }];
+    if (sql.includes("AS capability_matrix_configured") && sql.includes("AS provider_matrix_configured")) {
+      return [{
+        capability_matrix_configured: state.capabilityMatrixConfigured,
+        provider_matrix_configured: state.providerMatrixConfigured,
+        model_matrix_configured: state.modelMatrixConfigured,
+      }];
     }
     if (sql.includes("FROM plan_ai_capabilities")) return state.capabilities[String(params?.[0])] ?? [];
     if (sql.includes("FROM plan_ai_provider_entitlements")) return state.providers[String(params?.[0])] ?? [];
@@ -70,6 +76,8 @@ beforeEach(() => {
   };
   state.models = {};
   state.providerMatrixConfigured = true;
+  state.capabilityMatrixConfigured = true;
+  state.modelMatrixConfigured = false;
 });
 
 describe("resolvePlanAIEntitlements", () => {
@@ -131,7 +139,9 @@ describe("resolvePlanAIEntitlements", () => {
 
   it("retains legacy compatibility only while the provider entitlement matrix is completely empty", async () => {
     state.providerMatrixConfigured = false;
+    state.capabilityMatrixConfigured = false;
     state.providers = { free: [], starter: [], pro: [] };
+    state.capabilities = { free: [], starter: [], pro: [] };
     state.subscriptions = [{
       plan_id: "starter",
       plan_name: "Starter",
@@ -149,4 +159,89 @@ describe("resolvePlanAIEntitlements", () => {
       elevenlabs: true,
     });
   });
+  it("does not grant missing voice capabilities from a stale paid-plan voice flag once the matrix is active", async () => {
+    state.subscriptions = [{
+      plan_id: "starter", plan_name: "Starter", voice_enabled: true,
+      sub_status: "active", current_period_end: new Date(Date.now() + 86_400_000).toISOString(),
+    }];
+    state.capabilities.starter = [capability("chat", true)];
+    state.providers.starter = [provider("openai", true), provider("sarvam", true)];
+
+    const result = await resolvePlanAIEntitlements("org-1");
+    expect(result.capabilities).toMatchObject({
+      chat: true,
+      voice_chat: false,
+      realtime_voice: false,
+    });
+    expect(result.allowedProviders.sarvam).toBe(true);
+  });
+
+  it("fails closed on missing chat capability rows after any entitlement matrix exists", async () => {
+    state.subscriptions = [{
+      plan_id: "starter", plan_name: "Starter", voice_enabled: true,
+      sub_status: "active", current_period_end: new Date(Date.now() + 86_400_000).toISOString(),
+    }];
+    state.capabilities.starter = [];
+    const result = await resolvePlanAIEntitlements("org-1");
+    expect(result.capabilities).toEqual({
+      chat: false,
+      voice_chat: false,
+      realtime_voice: false,
+    });
+  });
+
+  it("does not allow an unconfigured provider matrix just because the capability matrix is active", async () => {
+    state.subscriptions = [{
+      plan_id: "starter", plan_name: "Starter", voice_enabled: true,
+      sub_status: "active", current_period_end: new Date(Date.now() + 86_400_000).toISOString(),
+    }];
+    state.providerMatrixConfigured = false;
+    state.providers = { free: [], starter: [], pro: [] };
+    state.capabilityMatrixConfigured = true;
+
+    const result = await resolvePlanAIEntitlements("org-1");
+    expect(result.allowedProviders).toEqual({
+      openai: false, gemini: false, sarvam: false, elevenlabs: false,
+    });
+    expect(result.capabilities.voice_chat).toBe(true);
+  });
+
+  it("denies missing capabilities and providers when only model-exception rows exist globally", async () => {
+    state.subscriptions = [{
+      plan_id: "starter", plan_name: "Starter", voice_enabled: true,
+      sub_status: "active", current_period_end: new Date(Date.now() + 86_400_000).toISOString(),
+    }];
+    state.providerMatrixConfigured = false;
+    state.capabilityMatrixConfigured = false;
+    state.modelMatrixConfigured = true;
+    state.providers = { free: [], starter: [], pro: [] };
+    state.capabilities = { free: [], starter: [], pro: [] };
+    state.models.starter = [{ m_provider: "sarvam", m_capability: "chat", m_kind: "chat", m_model: "sarvam-model", m_allowed: false }];
+
+    const result = await resolvePlanAIEntitlements("org-1");
+    expect(result.capabilities.chat).toBe(false);
+    expect(result.capabilities.voice_chat).toBe(false);
+    expect(result.allowedProviders.sarvam).toBe(false);
+    expect(result.allowedProviders.openai).toBe(false);
+  });
+
+  it("retains bounded pre-migration capability fallbacks only while all matrices are empty", async () => {
+    state.subscriptions = [{
+      plan_id: "starter", plan_name: "Starter", voice_enabled: true,
+      sub_status: "active", current_period_end: new Date(Date.now() + 86_400_000).toISOString(),
+    }];
+    state.providerMatrixConfigured = false;
+    state.capabilityMatrixConfigured = false;
+    state.providers = { free: [], starter: [], pro: [] };
+    state.capabilities = { free: [], starter: [], pro: [] };
+
+    const result = await resolvePlanAIEntitlements("org-1");
+    expect(result.capabilities).toEqual({
+      chat: true,
+      voice_chat: true,
+      realtime_voice: true,
+    });
+    expect(result.allowedProviders.sarvam).toBe(true);
+  });
+
 });

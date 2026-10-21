@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   orgSettings: null as Record<string, unknown> | null,
   registry: null as Record<string, unknown> | null,
   governanceResult: { ok: true } as { ok: boolean; reason?: string },
+  blockedModelId: null as string | null,
 }));
 
 vi.mock("@/modules/organisations/core/db", () => ({
@@ -37,7 +38,10 @@ vi.mock("@/modules/agent-versioning/core/db", () => ({
   getActiveDeploymentKbCollection: vi.fn(async () => null),
 }));
 vi.mock("@/modules/ai-governance/core/resolver", () => ({
-  validateAgentAISelection: vi.fn(async () => mocks.governanceResult),
+  validateAgentAISelection: vi.fn(async (input: { modelId?: string | null }) =>
+    mocks.blockedModelId && input.modelId === mocks.blockedModelId
+      ? { ok: false, reason: `Model ${input.modelId} is not available on the Starter plan.` }
+      : mocks.governanceResult),
 }));
 vi.mock("@/modules/ai-governance/core/registry-db", () => ({
   getPlatformAIRegistry: vi.fn(async () => mocks.registry),
@@ -100,6 +104,7 @@ describe("resolveAIConfig subscription authority", () => {
       embeddingDefault: { providerId: "openai", modelId: "text-embedding-3-small" },
     };
     mocks.governanceResult = { ok: true };
+    mocks.blockedModelId = null;
   });
 
   it("does not reject a plan-entitled Sarvam selection because a legacy org allow-list is stale", async () => {
@@ -107,6 +112,12 @@ describe("resolveAIConfig subscription authority", () => {
 
     expect(result.provider).toBe("sarvam");
     expect(result.chatModel).toBe("sarvam-105b");
+  });
+
+  it("denies a vendor-live chat model excluded by the current plan even if its provider is allowed", async () => {
+    mocks.blockedModelId = "sarvam-105b";
+    await expect(resolveAIConfig({ orgId: "org-1", surface: "chat" }))
+      .rejects.toThrow("Model sarvam-105b is not available on the Starter plan.");
   });
 
   it("still rejects a provider denied by the live subscription governance gate", async () => {

@@ -507,7 +507,7 @@ export async function batchToggleUrlHandler(req: NextRequest, kbId: string): Pro
       return NextResponse.json(
         { error: "urlIds (array) and included (boolean) are required" }, { status: 400 }
       );
-    const count = await batchSetUrlInclusion(urlIds, included);
+    const count = await batchSetUrlInclusion(kbId, urlIds, included);
     return NextResponse.json({ updatedCount: count });
   } catch (err) {
     if (err instanceof NextResponse) return err;
