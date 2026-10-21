@@ -404,10 +404,10 @@ export async function reprocessDocumentHandler(
         await updateDocumentStatus(docId, "pending");
         const freshJob = await createIngestJob(docId, kbId, latestJob.filePayload);
         await enqueueIngestJob(freshJob.id);
-        return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: freshJob.id });
+        return NextResponse.json({ document: { ...doc, status: "pending", errorMessage: null }, jobId: freshJob.id });
       }
       await enqueueIngestJob(latestJob.id);
-      return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: latestJob.id });
+      return NextResponse.json({ document: { ...doc, status: "pending", errorMessage: null }, jobId: latestJob.id });
     }
 
     if (!latestJob.filePayload) {
@@ -419,7 +419,7 @@ export async function reprocessDocumentHandler(
     await updateDocumentStatus(docId, "pending");
     const newJob = await createIngestJob(docId, kbId, latestJob.filePayload!);
     await enqueueIngestJob(newJob.id);
-    return NextResponse.json({ document: { ...doc, status: "pending" }, jobId: newJob.id });
+    return NextResponse.json({ document: { ...doc, status: "pending", errorMessage: null }, jobId: newJob.id });
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[documents] reprocess:", err);
