@@ -323,7 +323,13 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
         modelId: null,
       }),
     })));
-    const selected = eligible.find(({ gate }) => gate.ok)?.candidate;
+    // Preserve the configured platform default when the current plan allows it.
+    // Registry order is not a preference: only fall back when that default
+    // fails the live platform/subscription gate.
+    const selected = (
+      eligible.find(({ candidate, gate }) => candidate.providerId === provider && gate.ok) ??
+      eligible.find(({ gate }) => gate.ok)
+    )?.candidate;
     const selectedProvider = selected?.providerId as AIProvider | undefined;
     if (selectedProvider && selectedProvider !== provider) {
       console.error(
