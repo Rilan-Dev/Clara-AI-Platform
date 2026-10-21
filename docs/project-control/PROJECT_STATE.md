@@ -895,3 +895,9 @@ Privacy-safe RAG timing instrumentation is committed to capture browser elapsed,
 
 
 - Removed direct GEMINI_CHAT_MODEL/GEMINI_EMBEDDING_MODEL fallbacks from GeminiProvider so environment IDs cannot bypass governance resolution; added regression source proving this boundary (commits a02e92d47982a3977b82d1d3071e507eefe2feab, ffff0cf29be92740c8709fb4bc389b3522a6e350). Tests not run.
+
+## CURRENT DEV-01 OPTIONAL FEATURES SOURCE STATE — 2026-10-22
+
+Owner-authorized DEV-01 work implements deployment-local disablement of Feature 13 (embeddable widget/demo) and Feature 23 (integrations, MCP, WhatsApp) on `feature/ai-core-from-doable-source`, without deleting source/data. Development defaults ON; production defaults OFF; server-only env keys `CLARA_FEATURE_EMBEDDABLE_WIDGET` / `CLARA_FEATURE_INTEGRATIONS` can override each independently. Central policy/middleware, no-store UI availability, optional navigation and KB/publish/landing/AI-console gating, integration runner and MCP call-time guards are committed (source starts `3a651654`, latest relevant `954a2261`). Existing app/store isolation (`CLARA_ENV`/PG schema/Qdrant/queues) and other features preserved. Documentation updated in `.env.example`, `docs/deployment/environments.md`, Feature 13/23.
+
+**Implementation state: SOURCE_COMMITTED, runtime not verified.** Regression sources authored; no focused Vitest/typecheck/build/real OAuth/WhatsApp/MCP/dev-prod requests, CI/Vercel or production deployment was executed this session. A production source push does not itself change running configuration. DEV-01 session `SESSION-DEV-20261022-FEATURE-FLAGS-01`; OPS handoff `HANDOFF-DEV-20261022-OPS01-FEATURE-FLAGS`. See `NEXT_ACTION.md` for exact tests and deployment boundaries. Do not wait on external gates; continue independent authorized work only.
