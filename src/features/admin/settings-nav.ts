@@ -187,6 +187,19 @@ export const ADMIN_SETTINGS_PAGES: SettingsPage[] = [
   },
 ];
 
+/** Filter optional features before building any settings rail or account links. */
+export function availableSettingsPages(
+  pages: SettingsPage[],
+  features: { embeddableWidget: boolean; integrations: boolean },
+): SettingsPage[] {
+  return pages.filter((page) => {
+    if (page.id === "embed") return features.embeddableWidget;
+    if (page.id === "integrations" || page.id === "mcp" || page.id === "mcpGovernance")
+      return features.integrations;
+    return true;
+  });
+}
+
 /** Pages grouped in display order, skipping empty groups. */
 export function groupSettingsPages(pages: SettingsPage[]): Array<{ group: SettingsGroup; pages: SettingsPage[] }> {
   return SETTINGS_GROUP_ORDER
