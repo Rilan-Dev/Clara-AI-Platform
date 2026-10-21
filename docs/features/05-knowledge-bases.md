@@ -13,13 +13,13 @@ A Knowledge Base (KB) is the tenant's container of knowledge: uploaded documents
 - **API keys** — `/api/kbs/[kbId]/api-keys` (issue/list/revoke) + `/usage` (per-key metering); keys authenticate the public embed/search API (`embed-api-key-db.ts` resolves landing/demo keys at `:6`, `:31`, `:58`, `:73`).
 - **AI overrides** — `/api/kbs/[kbId]/ai-overrides` set a KB-level embedding model override (migration `014_kb_ai_overrides.sql`) used by chat-triggered re-index when a KB was built on a different embedding.
 - **Analytics** — `/api/kbs/[kbId]/analytics` surfaces query counts, source usage and freshness for the KB screen.
-- **Embedding-index state** — `/api/kbs/[kbId]/embedding-index` reports/aligns each KB with the platform embedding default (the re-index migration seen in production: "realigned to the platform embedding default").
+- **Embedding-index state** — `/api/kbs/[kbId]/embedding-index` reports current/desired embedding models, progress, Resume/Cancel and old-index cleanup. Re-index preserves the existing live Qdrant collection until an atomic completion swap; failed jobs retain internal diagnostics for platform support while the organisation API returns safe messages (`src/modules/knowledge-bases/api/embedding-index.ts`, `core/reindex.ts`, `core/public-processing-error.ts`). Operational Gemini quota failure is tracked in OPS-01 issue #300.
 - **Phone binding** — `/api/kbs/[kbId]/phone` binds a phone number config so voice callers ground on this KB (Feature 16).
 - **Qdrant deletion integrity (new)** — `vector-store-kb.ts` deletion path now fails closed when Qdrant deletion errors, never masquerading as success (commit `008c6df3`, test `vector-store-kb.deletion.test.ts`).
 
 ## 3. Business Rules
 
-- Every KB maps 1:1 to a Qdrant collection; chunk reads/writes always go through the vector-store-kb layer.
+- Each KB has one **live** Qdrant collection, while re-indexing may temporarily build a separate target collection and retain an old collection for safe rollback/cleanup. Chunk reads/writes go through the vector-store-kb layer; the live index is not replaced until re-index completes.
 - KB deletion must remove both the DB rows AND the Qdrant collection — a failed Qdrant deletion is an error, not a silent partial success (fail-closed rule, 008c6df3).
 - API keys are the only unauthenticated access path and are scoped to a single KB with their own usage metering.
 - Reprocessing is idempotent per document (status machine pending → processing → ready/failed, recoverable via Retry).
@@ -66,7 +66,7 @@ A Knowledge Base (KB) is the tenant's container of knowledge: uploaded documents
 
 ## 9. Tests
 
-- `src/modules/admin/core/vector-store-kb.deletion.test.ts` (fail-closed deletion), `src/modules/admin/core/embed-api-key-db.test.ts`, KB module suites (locate current test files in the module directories; the old generated inventory is not committed).
+- `src/modules/admin/core/vector-store-kb.deletion.test.ts` (fail-closed deletion), KB domain suites, and `src/modules/knowledge-bases/api/embedding-index.error-privacy.test.ts` (re-index response redaction). These are committed regression sources; source presence is not evidence that the tests have passed.
 
 ## 10. Cross-links
 
