@@ -56,7 +56,7 @@ This feature is the platform's memory of what happened: organisation analytics (
 
 ## 9. Tests
 
-- redact tests, audit verify/reveal tests, metering suites across voice/language/MCP modules (see `scripts/feature-doc/tests.txt`).
+- redact tests, audit verify/reveal tests, metering suites across voice/language/MCP modules (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
