@@ -18,6 +18,7 @@
 
 import vercelConfig from "../../vercel.json";
 import { randomUUID } from "node:crypto";
+import { featureForPath, isPlatformFeatureEnabled } from "@/lib/feature-availability";
 
 export type CronJob = { path: string; schedule: string };
 
@@ -79,7 +80,11 @@ export function cronMatches(expression: string, date: Date): boolean {
 
 export function configuredCronJobs(): CronJob[] {
   const crons = (vercelConfig as { crons?: CronJob[] }).crons ?? [];
-  return crons.filter((job) => typeof job.path === "string" && typeof job.schedule === "string");
+  return crons.filter((job) => {
+    if (typeof job.path !== "string" || typeof job.schedule !== "string") return false;
+    const feature = featureForPath(job.path);
+    return !feature || isPlatformFeatureEnabled(feature);
+  });
 }
 
 let started = false;
