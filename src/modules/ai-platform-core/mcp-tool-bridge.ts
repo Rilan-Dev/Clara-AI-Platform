@@ -7,6 +7,7 @@
  * Tool Runtime.
  */
 import { z } from "zod";
+import { resolveFeatureAvailability, isPlatformFeatureEnabled } from "@/lib/feature-availability";
 import { assertExecutionContext } from "./execution-context";
 import type { PlatformExecutionContext, SurfaceKind } from "./contracts";
 import type { ToolDefinition } from "./tool-contracts";
@@ -105,7 +106,7 @@ function isAllowed(
 export function isMcpEnabled(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
-  return ["1", "true", "yes", "on"].includes(
+  return resolveFeatureAvailability(env).integrations && ["1", "true", "yes", "on"].includes(
     (env[MCP_TOOL_FLAG] ?? "").trim().toLowerCase(),
   );
 }
@@ -299,6 +300,9 @@ export function buildMcpToolDefinition(
       requireSessionId: false,
     },
     async execute(input, context) {
+      if (!isPlatformFeatureEnabled("integrations") || !isMcpEnabled()) {
+        throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", "MCP is disabled in this environment.");
+      }
       assertExecutionContext(context);
       if (!isAllowed(boundDescriptor, boundPolicy)) {
         throw new ToolExecutionError(
