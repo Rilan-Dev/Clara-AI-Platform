@@ -33,7 +33,7 @@ jobs:
     steps:
       - name: Trigger health scan
         env:
-          HEALTH_URL: ${{ vars.PLATFORM_HEALTH_URL || 'https://clara.rag.amazetechclans.com/api/platform/services-status' }}
+          HEALTH_URL: ${{ vars.PLATFORM_HEALTH_URL || 'https://clara.ai.amazetechclans.com/api/platform/services-status' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$CRON_SECRET" ]; then
