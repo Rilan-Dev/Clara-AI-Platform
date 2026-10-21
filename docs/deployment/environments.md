@@ -10,6 +10,50 @@ the exact rules). **Backward compatibility is absolute**: with `CLARA_ENV`
 unset (or `production`) every knob resolves to the pre-scoping behaviour —
 existing deployments are byte-identical after upgrading.
 
+
+## Optional product features (deployment-local)
+
+The feature families documented as **13 — Embeddable Widget & Public Demo**
+and **23 — Integrations, MCP & WhatsApp** have independent, server-only
+toggles. They are **not** stored in organisation tables or exposed through
+`NEXT_PUBLIC_*`. They are evaluated from the running process's environment
+on each request, so a development switch cannot mutate the production flag.
+
+| Deployment | `CLARA_FEATURE_EMBEDDABLE_WIDGET` | `CLARA_FEATURE_INTEGRATIONS` |
+|---|---|---|
+| `CLARA_ENV=development` | Enabled by default | Enabled by default |
+| `CLARA_ENV=production` or unset in a production process | Disabled by default | Disabled by default |
+| Explicit `true` / `false` | Overrides **that deployment only** | Overrides **that deployment only** |
+
+The feature flags protect public widget/demo loaders, sessions, chat/search/
+voice API routes, related API-key/configuration interfaces, integration and
+MCP management, WhatsApp callbacks/webhooks/cron triggers, and integration
+tool execution. They also hide optional navigation and landing demos using the
+uncached `GET /api/features` endpoint. Direct disabled-feature requests
+receive `404 FEATURE_DISABLED` (including preflight) and are not processed.
+Shared native chat, RAG, knowledge ingestion, public agent configuration,
+billing, voice and unrelated webhooks remain in operation.
+
+These controls preserve stored configurations, migrations and source code.
+Existing MCP execution still additionally requires `ENABLE_MCP=true`,
+authenticated identity, plan entitlement, validated connection, allowlists,
+and per-invocation authorization. Enabling the optional family never bypasses
+those checks.
+
+Configure **separate deployment .env values** (and existing PG schema,
+Qdrant/Redis/BullMQ/RabbitMQ separation). Turning a feature on/off takes
+effect in the server process; restart/redeploy that environment to update
+client views and cached tool registries. Do **not** reuse one .env across
+production and development or change production secrets/settings to exercise
+development integrations. Platform super-admins can inspect effective
+switches in System Status → Runtime flags.
+
+Regression contract: `src/lib/feature-availability.test.ts`,
+`src/middleware.features.test.ts`, and
+`src/features/admin/settings-nav.features.test.ts`. Test execution, provider
+handshakes, actual dual-stack deployment and production behavior require
+separate verification.
+
 ## The model
 
 | Store      | Development (`CLARA_ENV=development`)            | Production (default)        | Override                  |
