@@ -226,6 +226,13 @@ describe("integration runner action allowlist", () => {
       retryable: false,
     });
   });
+  it("hides provider action discovery entirely on production before loading packages", async () => {
+    vi.stubEnv("CLARA_ENV", "production");
+    const { getIntegrationActions } = await import("./runner-core.js");
+    expect(await getIntegrationActions("example")).toEqual([]);
+    expect(loadPiece).not.toHaveBeenCalled();
+  });
+
   it("never loads the provider package or credentials when integrations are disabled for production", async () => {
     vi.stubEnv("CLARA_ENV", "production");
     const { runAction } = await import("./runner-core.js");
