@@ -66,7 +66,7 @@ An agent is the tenant's configurable AI assistant: system prompt, AI model choi
 
 ## 9. Tests
 
-- `src/modules/agent-versioning/core/diff.test.ts` + module suites (see `scripts/feature-doc/tests.txt`).
+- `src/modules/agent-versioning/core/diff.test.ts` + module suites (locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
