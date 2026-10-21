@@ -56,7 +56,7 @@ Role-based access control is the authorisation backbone that decides what an aut
 
 ## 9. Tests
 
-- RBAC regression suites under `src/modules/auth/__tests__/` plus organisation module tests (`agent-ai-types.test.ts` etc. — see `scripts/feature-doc/tests.txt`).
+- RBAC regression suites under `src/modules/auth/__tests__/` plus organisation module tests (`agent-ai-types.test.ts` etc. — locate current test files in the module directories; the old generated inventory is not committed).
 
 ## 10. Cross-links
 
