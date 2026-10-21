@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 import { runAction } from "@/modules/integrations/runtime/runner-core";
 import { assertIntegrationCapability } from "./integrations/integration-policy";
 import { ToolExecutionError } from "./tool-contracts";
@@ -24,6 +25,9 @@ export function buildIntegrationActionTool(): ToolDefinition {
       requireSessionId: false,
     },
     async execute(raw, context: PlatformExecutionContext) {
+      if (!isPlatformFeatureEnabled("integrations")) {
+        throw new ToolExecutionError("TOOL_NOT_AVAILABLE", "Integrations are not enabled in this environment.");
+      }
       const input = raw as { integrationId:string; actionName:string; props:Record<string,unknown> };
       await assertIntegrationCapability(context, input.integrationId);
 
