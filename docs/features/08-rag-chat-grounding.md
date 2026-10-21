@@ -1,6 +1,6 @@
 # 08 — RAG Chat & Grounding
 
-> Clara AI Platform feature documentation · Domain: `assistant` + `rag` · Base: `feature/ai-core-from-doable-source @ 031279b4` (chat.ts carries the uncommitted NET_TRACE observability wiring)
+> Clara AI Platform feature documentation · Domain: `assistant` + `rag` · Base: `feature/ai-core-from-doable-source @ 031279b4` (NET_TRACE observability is a local-only proposal, not source in this branch)
 
 ## 1. Definition & Purpose
 
@@ -63,11 +63,11 @@ RAG chat is the product's core conversation: a user asks a question, the platfor
 
 ## 8. Environment Variables
 
-- `RAG_MODE` / runtime config (classic/hybrid/agentic), strict-retrieval flag, provider vars (Feature 10), `NET_TRACE*` observability (Feature 24, uncommitted wiring in chat.ts).
+- `RAG_MODE` / runtime config (classic/hybrid/agentic), strict-retrieval flag, provider vars (Feature 10). NET_TRACE was referenced in the original local-only draft but is not committed on this branch.
 
 ## 9. Tests
 
-- `src/modules/rag/grounding.test.ts`, assistant module suites, embed chat/search route tests, `src/lib/__tests__/net-trace.test.ts` (uncommitted, 34 tests) — see `scripts/feature-doc/tests.txt`.
+- `src/modules/rag/grounding.test.ts`, assistant module suites, and embed chat/search route regression source. The old NET_TRACE suite and `scripts/feature-doc/tests.txt` inventory do **not** exist in this branch; do not count them as tests.
 
 ## 10. Cross-links
 
