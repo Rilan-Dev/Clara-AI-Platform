@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { LiveCodeEditor }  from "@/components/admin/live-code-editor";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl }          from "@/lib/runtime";
+import { widgetDesignConfigUrl } from "@/components/admin/widget-design-config-url";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 
 
@@ -1440,7 +1441,7 @@ function CodePanel({ d, set, kbId }: {
 // Main exported component
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function WidgetDesignPanel({ kbId }: { kbId: string }) {
+export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: string }) {
   const [design, setDesign] = useState<WidgetDesign>(D);
   const [loading, setLoading] = useState(true);
   const [saving,  setSaving]  = useState(false);
@@ -1452,15 +1453,16 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
 
   // Load config from DB on mount
   useEffect(() => {
-    if (!kbId) return;
-    fetch(apiUrl(`/api/kbs/${kbId}/config`), { headers: withAuthHeaders({}) })
+    if (!agentId) return;
+    setLoading(true);
+    fetch(apiUrl(widgetDesignConfigUrl(agentId)), { headers: withAuthHeaders({}) })
       .then(r => r.json())
       .then((data: Record<string,unknown>) => {
         if (!data.error) setDesign(fromApi(data));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [kbId]);
+  }, [agentId]);
 
   // Setter — marks unsaved
   const set = useCallback(<K extends keyof WidgetDesign>(key: K, val: WidgetDesign[K]) => {
@@ -1529,7 +1531,7 @@ export function WidgetDesignPanel({ kbId }: { kbId: string }) {
         customThemeCss: design.customThemeCss || null,
         customInjectJs: design.customInjectJs || null,
       };
-      const res = await fetch(apiUrl(`/api/kbs/${kbId}/config`), {
+      const res = await fetch(apiUrl(widgetDesignConfigUrl(agentId)), {
         method: "PATCH",
         headers: withAuthHeaders({ "Content-Type":"application/json" }),
         body: JSON.stringify(body),
