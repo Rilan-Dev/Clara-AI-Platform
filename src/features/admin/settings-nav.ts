@@ -200,6 +200,19 @@ export function availableSettingsPages(
   });
 }
 
+/**
+ * A settings deep link must not be redirected while its feature flags are
+ * still loading. A resolved unavailable/denied page must redirect once.
+ */
+export function shouldRedirectSettingsSection(
+  section: SettingsSection,
+  pages: readonly SettingsPage[],
+  authReady: boolean,
+  featureReady: boolean,
+): boolean {
+  return authReady && featureReady && !pages.some((page) => page.id === section);
+}
+
 /** Pages grouped in display order, skipping empty groups. */
 export function groupSettingsPages(pages: SettingsPage[]): Array<{ group: SettingsGroup; pages: SettingsPage[] }> {
   return SETTINGS_GROUP_ORDER
