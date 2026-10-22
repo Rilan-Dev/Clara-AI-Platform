@@ -20,11 +20,13 @@ import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspa
 import { VersionBadge } from "@/components/admin/ai-platform/shared";
 import { useAuth } from "@/modules/admin-ui/hooks";
 import { cn } from "@/lib/utils";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 
 export default function AgentToolsScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
   const { user } = useAuth();
   const isAdmin = user?.isSuperAdmin ?? false;
+  const features = usePlatformFeatures();
   const { refetch: refetchCtx } = useAgentWorkspaceContext(agentId);
 
   const [draft, setDraft] = useState<AgentDraftDTO | null>(null);
@@ -107,7 +109,7 @@ export default function AgentToolsScreen() {
             disabled={isAdmin || busy || !draft}
             onToggle={(next) => void save({ ...runtime, enableRealtime: next })}
           />
-          <ToolRow
+          {features.embeddableWidget && <ToolRow
             title="Public embed"
             blurb="Allow the chat widget on external websites (embed keys are managed separately)."
             available
@@ -115,7 +117,7 @@ export default function AgentToolsScreen() {
             enabled={runtime.enablePublicEmbed}
             disabled={isAdmin || busy || !draft}
             onToggle={(next) => void save({ ...runtime, enablePublicEmbed: next })}
-          />
+          />}
         </ul>
 
         {message && <p className="mt-4 text-xs text-primary">{message}</p>}
