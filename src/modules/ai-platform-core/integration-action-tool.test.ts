@@ -20,6 +20,22 @@ vi.mock("@/modules/integrations/registry", () => ({
 vi.mock("@/modules/integrations/runtime/runner-core", () => ({ runAction }));
 
 describe("integration action tool scope propagation", () => {
+  it("denies an already-built integration action before any plan, database or provider call when feature is switched off", async () => {
+    query.mockReset();
+    runAction.mockReset();
+    const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
+    const tool = buildIntegrationActionTool();
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "false");
+
+    await expect(tool.execute(
+      { integrationId: "example", actionName: "do_work", props: {} },
+      { tenantId: "org-1", agentId: "agent-1", userId: "user-1", surface: "chat" } as never,
+    )).rejects.toMatchObject({ code: "UNKNOWN_TOOL" });
+
+    expect(query).not.toHaveBeenCalled();
+    expect(runAction).not.toHaveBeenCalled();
+  });
+
   it("rejects missing user or agent identity before querying grants", async () => {
     const { buildIntegrationActionTool } = await import("./integration-action-tool.js");
     const tool = buildIntegrationActionTool();
