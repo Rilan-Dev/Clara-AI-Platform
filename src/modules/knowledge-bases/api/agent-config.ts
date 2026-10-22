@@ -12,6 +12,8 @@ import { requireAuth, requireAgentPermission } from "@/modules/auth/core/rbac";
 import { getAgentById } from "@/modules/organisations/core/db";
 import { getAssistantConfigByAgent, putAssistantConfig, patchAssistantConfig } from "../core/db";
 import type { PutAssistantConfigInput, PatchAssistantConfigInput } from "../core/models";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
+import { preserveDisabledWidgetFieldsOnPatch, preserveDisabledWidgetFieldsOnPut } from "../core/widget-config-policy";
 
 async function guardAgent(agentId: string): Promise<NextResponse|null> {
   const agent = await getAgentById(agentId);
@@ -131,6 +133,15 @@ export async function putAgentConfigHandler(req: NextRequest, agentId: string): 
       voiceBtnRadius:Number(body.voiceBtnRadius)||10, voiceBtnActiveColor:sn(body.voiceBtnActiveColor,"#ef4444"),
       voicePanelBg:s(body.voicePanelBg), voiceWaveColor:sn(body.voiceWaveColor,"#6366f1"),
     };
+    if (!isPlatformFeatureEnabled("embeddableWidget")) {
+      const existing = await getAssistantConfigByAgent(agentId);
+      if (!preserveDisabledWidgetFieldsOnPut(input, body, existing)) {
+        return NextResponse.json(
+          { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
+          { status: 404 },
+        );
+      }
+    }
     const config = await putAssistantConfig(agentId, input);
     return NextResponse.json(config);
   } catch (err) {
@@ -245,6 +256,17 @@ export async function patchAgentConfigHandler(req: NextRequest, agentId: string)
     if (body.voicePanelBg!==undefined)         input.voicePanelBg         = s(body.voicePanelBg);
     if (body.voiceWaveColor!==undefined)       input.voiceWaveColor       = s(body.voiceWaveColor);
 
+    if (!isPlatformFeatureEnabled("embeddableWidget")) {
+      // Only the widget-design subset of this shared API is disabled: native
+      // chat/voice, persona and language updates continue to work unchanged.
+      const existing = await getAssistantConfigByAgent(agentId);
+      if (!preserveDisabledWidgetFieldsOnPatch(input, existing)) {
+        return NextResponse.json(
+          { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
+          { status: 404 },
+        );
+      }
+    }
     const config = await patchAssistantConfig(agentId, input);
     // Compatibility projection (migration Stage I): mirror the legacy write
     // into the Main-branch draft so the new versioned stores and the legacy
