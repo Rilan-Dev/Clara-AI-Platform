@@ -17,6 +17,7 @@ import { AgentVersioningError, getBranch, getDraft } from "../core/db";
 import type { AgentVersionConfig, MergeResolution } from "../core/types";
 import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 import { changesPublicEmbedPreference } from "../core/public-embed-preference";
+import { changesDisabledWidgetDesign } from "../core/widget-draft-policy";
 import {
   applyPlatformDefaultUpdate,
   archiveAgentBranch,
@@ -120,7 +121,8 @@ export async function putDraftHandler(req: NextRequest, agentId: string): Promis
       if (!existing) {
         return NextResponse.json({ error: "Branch has no draft.", code: "DRAFT_NOT_FOUND" }, { status: 404 });
       }
-      if (changesPublicEmbedPreference(existing.configuration, config)) {
+      if (changesPublicEmbedPreference(existing.configuration, config) ||
+          changesDisabledWidgetDesign(existing.configuration, config)) {
         return NextResponse.json(
           { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
           { status: 404 },
