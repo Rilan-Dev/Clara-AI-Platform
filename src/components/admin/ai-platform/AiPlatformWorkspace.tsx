@@ -20,8 +20,9 @@ import {
 import { ProvidersWorkspace } from "./ProvidersWorkspace";
 import { cn } from "@/lib/utils";
 import { usePlatformFeatures } from "@/features/admin/use-platform-features";
+import { effectiveAiPlatformTab, type AiPlatformTab } from "./tab-availability";
 
-type Tab = "overview" | "providers" | "tools" | "integrations" | "agent-loop" | "verification";
+type Tab = AiPlatformTab;
 
 type AiPlatformWorkspaceProps = {
   toolCallingEnabled: boolean;
@@ -84,7 +85,7 @@ export function AiPlatformWorkspace({
 }: AiPlatformWorkspaceProps) {
   const [tab, setTab] = useState<Tab>("overview");
   const features = usePlatformFeatures();
-  const visibleTab = !features.integrations && tab === "integrations" ? "overview" : tab;
+  const visibleTab = effectiveAiPlatformTab(tab, features.integrations);
 
   const runtimeStages = useMemo(
     () => [
@@ -181,7 +182,7 @@ export function AiPlatformWorkspace({
         })}
       </nav>
 
-      {tab === "overview" && (
+      {visibleTab === "overview" && (
         <div className="space-y-6">
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Metric value="7-A" label="Host seam" tone="success" />
@@ -281,7 +282,7 @@ export function AiPlatformWorkspace({
         </div>
       )}
 
-      {tab === "providers" && (
+      {visibleTab === "providers" && (
         <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <div className="mb-5">
             <h2 className="text-lg font-semibold">Provider control plane</h2>
@@ -293,7 +294,7 @@ export function AiPlatformWorkspace({
         </section>
       )}
 
-      {tab === "tools" && (
+      {visibleTab === "tools" && (
         <div className="space-y-5">
           <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -412,7 +413,7 @@ export function AiPlatformWorkspace({
         </div>
       )}
 
-      {tab === "agent-loop" && (
+      {visibleTab === "agent-loop" && (
         <div className="space-y-5">
           <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -466,7 +467,7 @@ export function AiPlatformWorkspace({
         </div>
       )}
 
-      {tab === "verification" && (
+      {visibleTab === "verification" && (
         <div className="space-y-5">
           <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="flex items-start gap-3">
