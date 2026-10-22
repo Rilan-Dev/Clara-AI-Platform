@@ -15,6 +15,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireAgentPermission } from "@/modules/auth/core/rbac";
 import { AgentVersioningError, getBranch, getDraft } from "../core/db";
 import type { AgentVersionConfig, MergeResolution } from "../core/types";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
+import { changesPublicEmbedPreference } from "../core/public-embed-preference";
 import {
   applyPlatformDefaultUpdate,
   archiveAgentBranch,
@@ -107,8 +109,24 @@ export async function putDraftHandler(req: NextRequest, agentId: string): Promis
     if (!config) {
       return NextResponse.json({ error: "configuration is required and must include assistant fields" }, { status: 400 });
     }
-    const { main } = await ensureAgentVersioning(agentId);
+    const { main, draft: mainDraft } = await ensureAgentVersioning(agentId);
     const branchId = typeof body.branchId === "string" ? body.branchId : main.id;
+
+    // This API also saves voice, knowledge and persona preferences. Block only
+    // real widget-pref changes; never disable unrelated agent editing and
+    // never change a stored preference just because the widget is hidden.
+    if (!isPlatformFeatureEnabled("embeddableWidget")) {
+      const existing = branchId === main.id ? mainDraft : await getDraft(agentId, branchId);
+      if (!existing) {
+        return NextResponse.json({ error: "Branch has no draft.", code: "DRAFT_NOT_FOUND" }, { status: 404 });
+      }
+      if (changesPublicEmbedPreference(existing.configuration, config)) {
+        return NextResponse.json(
+          { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
+          { status: 404 },
+        );
+      }
+    }
     const draft = await saveAgentDraft(agentId, branchId, config, auth.user.id);
     return NextResponse.json(draft);
   } catch (err) {
