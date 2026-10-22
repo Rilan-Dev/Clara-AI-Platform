@@ -341,9 +341,9 @@ export default function KbDashboardPage() {
           </div>
         )}
 
-        {features.embeddableWidget && agentId && tab === "design" && (
+        {features.embeddableWidget && kb?.agentId && tab === "design" && (
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <WidgetDesignPanel kbId={kbId} agentId={agentId} />
+            <WidgetDesignPanel kbId={kbId} agentId={kb.agentId} />
           </div>
         )}
 
@@ -566,9 +566,9 @@ export default function KbDashboardPage() {
         </div>
       )}
 
-      {features.embeddableWidget && agentId && tab === "design" && (
+      {features.embeddableWidget && kb?.agentId && tab === "design" && (
         <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <WidgetDesignPanel kbId={kbId} agentId={agentId} />
+          <WidgetDesignPanel kbId={kbId} agentId={kb.agentId} />
         </div>
       )}
 
