@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { beforeEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import {
   isMcpToolAllowlisted,
   buildMcpToolDefinition,
@@ -45,6 +45,7 @@ function createRuntime() {
 
 describe("MCP tool bridge", () => {
   beforeEach(() => vi.stubEnv("CLARA_ENV", "development"));
+  afterEach(() => vi.unstubAllEnvs());
 
   it("creates deterministic bounded tool names", () => {
     // Short identities stay short; the bound is an upper limit of 63
