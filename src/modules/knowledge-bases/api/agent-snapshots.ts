@@ -18,6 +18,8 @@ import {
   snapshotConfig,
 } from "../core/snapshots-db";
 import type { AssistantConfig, PutAssistantConfigInput } from "../core/models";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
+import { preserveDisabledWidgetFieldsOnPut } from "../core/widget-config-policy";
 
 // ── GET /api/agents/[agentId]/config/snapshots ───────────────────────────────
 
@@ -92,11 +94,10 @@ export async function restoreSnapshotHandler(
       return NextResponse.json({ error: "Snapshot not found" }, { status: 404 });
     }
 
-    // Snapshot the current config BEFORE restoring (so you can undo the restore)
+    // Read the live config before applying any saved snapshot. The current
+    // widget design must not change through this shared restore path when the
+    // widget feature has been switched off for this environment.
     const current = await getAssistantConfigByAgent(agentId);
-    if (current) {
-      await snapshotConfig(current, auth.user.id, "Pre-restore backup");
-    }
 
     // Restore: write the snapshot's config as the live config
     const s = snap.snapshot as Partial<AssistantConfig>;
@@ -134,6 +135,26 @@ export async function restoreSnapshotHandler(
       customPoweredBy:    s.customPoweredBy    ?? null,
       ...s
     } as PutAssistantConfigInput;
+
+    if (!isPlatformFeatureEnabled("embeddableWidget")) {
+      // Restoring a snapshot is not an explicit widget-edit action. Preserve
+      // all existing widget values while still restoring the persona, voice
+      // and language fields. No current config means there is no safe widget
+      // baseline to retain, so fail closed rather than revive stale styling.
+      if (!current) {
+        return NextResponse.json(
+          { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
+          { status: 404 },
+        );
+      }
+      preserveDisabledWidgetFieldsOnPut(input, {}, current);
+    }
+
+    // Backup after all validations, so a denied restore does not consume a
+    // snapshot slot or evict one of the last five versions.
+    if (current) {
+      await snapshotConfig(current, auth.user.id, "Pre-restore backup");
+    }
 
     const restoredConfig = await putAssistantConfig(agentId, input);
     return NextResponse.json({ restored: true, config: restoredConfig });
