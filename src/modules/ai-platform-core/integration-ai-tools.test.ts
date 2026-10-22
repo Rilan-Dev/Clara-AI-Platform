@@ -21,6 +21,21 @@ describe("integration availability plan entitlement", () => {
     ]);
   });
 
+  it("does not query plans, connections or registry when integrations are disabled", async () => {
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "false");
+    const { buildIntegrationAvailabilityTool } = await import("./integration-ai-tools");
+    const tool = buildIntegrationAvailabilityTool();
+    const outcome = await tool.execute({}, {
+      tenantId: "org-1", agentId: "agent-1", userId: "user-1", surface: "chat",
+    } as never);
+
+    expect(outcome).toEqual([]);
+    expect(resolveOrgPlanLimits).not.toHaveBeenCalled();
+    expect(query).not.toHaveBeenCalled();
+    expect(listIntegrations).not.toHaveBeenCalled();
+    expect(getIntegrationActions).not.toHaveBeenCalled();
+  });
+
   it("returns no capabilities before querying when caller identity is incomplete", async () => {
     const { buildIntegrationAvailabilityTool } = await import("./integration-ai-tools");
     const tool = buildIntegrationAvailabilityTool();
@@ -194,7 +209,7 @@ describe("integration availability plan entitlement", () => {
         connected: false,
         connectionStatus: "disconnected",
         actions: ["list_repos"],
-        help: "GitHub is enabled for this agent but still needs credentials connected.",
+        help: "GitHub is enabled for this agent but has no usable connection yet.",
       },
     ]);
     expect(query).toHaveBeenNthCalledWith(
