@@ -186,6 +186,34 @@ describe("MCP tool bridge", () => {
     ).toThrow("not allowlisted");
   });
 
+  it("never contacts an MCP resolver when its own rollout switch is off", async () => {
+    const resolve = vi.fn(async () => descriptor);
+    const invoke = vi.fn(async () => ({ ok: true }));
+    vi.stubEnv("ENABLE_MCP", "false");
+
+    const result = await resolveMcpToolDefinition(
+      { serverId: "demo", toolName: "lookup", context },
+      policy,
+      { resolve, invoke },
+    );
+    expect(result).toBeNull();
+    expect(resolve).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("never contacts an MCP resolver when the whole integration family is off", async () => {
+    const resolve = vi.fn(async () => descriptor);
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "false");
+
+    const result = await resolveMcpToolDefinition(
+      { serverId: "demo", toolName: "lookup", context },
+      policy,
+      { resolve, invoke: vi.fn() },
+    );
+    expect(result).toBeNull();
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
   it("blocks a previously registered MCP capability after ENABLE_MCP is turned off", async () => {
     const invoke = vi.fn(async () => ({ ok: true }));
     const resolver: McpToolResolver = {
