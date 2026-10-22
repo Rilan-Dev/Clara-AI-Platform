@@ -34,6 +34,8 @@ import { buildMergeReview, applyMerge, diffAgentConfigs } from "./diff";
 // Re-exported for the API barrel — handlers import everything from ./service.
 export { changeTagsForVersion, CHANGE_TAG_LIMIT } from "./diff";
 import { buildVersionConfigFromLive, projectDraftToLegacyStores } from "./projection";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
+import { preserveDisabledWidgetDesign } from "./widget-draft-policy";
 import type {
   AgentBranch,
   AgentDeployment,
@@ -358,18 +360,30 @@ export async function saveAgentDraft(
   if (!branch) throw new AgentVersioningError("Branch not found.", "BRANCH_NOT_FOUND");
   if (branch.isArchived) throw new AgentVersioningError("Branch is archived.", "BRANCH_ARCHIVED");
 
+  // The shared version editor is a second write path beside /config.
+  // When widget editing is disabled, keep the stored appearance unchanged
+  // while applying ordinary persona/voice/AI edits to the versioned draft.
+  let safeConfiguration = configuration;
+  if (!isPlatformFeatureEnabled("embeddableWidget")) {
+    const existing = await getDraft(agentId, branchId);
+    if (!existing) {
+      throw new AgentVersioningError("Cannot preserve disabled widget design without a draft baseline.", "DRAFT_NOT_FOUND");
+    }
+    safeConfiguration = preserveDisabledWidgetDesign(existing.configuration, configuration);
+  }
+
   const parent = await getLatestVersion(agentId, branchId);
   const draft = await putDraft({
     agentId,
     orgId: branch.orgId,
     branchId,
-    configuration,
+    configuration: safeConfiguration,
     parentVersionId: parent?.id ?? null,
     userId,
   });
 
   if (branch.isMain) {
-    await projectDraftToLegacyStores(agentId, branch.orgId, configuration);
+    await projectDraftToLegacyStores(agentId, branch.orgId, safeConfiguration);
   }
   return draft;
 }
@@ -415,11 +429,20 @@ export async function restoreVersion(
   const source = await getVersion(agentId, versionId);
   if (!source) throw new AgentVersioningError("Version not found.", "VERSION_NOT_FOUND");
 
+  let restoredConfiguration = source.configuration;
+  if (!isPlatformFeatureEnabled("embeddableWidget")) {
+    const current = await getDraft(agentId, source.branchId);
+    if (!current) {
+      throw new AgentVersioningError("Cannot restore while disabled widget design has no current baseline.", "DRAFT_NOT_FOUND");
+    }
+    restoredConfiguration = preserveDisabledWidgetDesign(current.configuration, source.configuration);
+  }
+
   const restored = await insertVersion({
     agentId,
     orgId: main.orgId,
     branchId: source.branchId,
-    configuration: source.configuration,
+    configuration: restoredConfiguration,
     changeSummary: `Restore of ${source.branchName} v${source.versionNumber}`,
     source: "restore",
     parentVersionId: source.id,
@@ -431,12 +454,12 @@ export async function restoreVersion(
     agentId,
     orgId: main.orgId,
     branchId: source.branchId,
-    configuration: source.configuration,
+    configuration: restoredConfiguration,
     parentVersionId: restored.id,
     userId,
   });
   if (source.branchId === main.id) {
-    await projectDraftToLegacyStores(agentId, main.orgId, source.configuration);
+    await projectDraftToLegacyStores(agentId, main.orgId, restoredConfiguration);
   }
   return restored;
 }
@@ -612,12 +635,15 @@ export async function executeMergeToMain(
   }
 
   const merged = applyMerge({ base, ours, theirs, resolutions });
+  const safeMerged = isPlatformFeatureEnabled("embeddableWidget")
+    ? merged
+    : preserveDisabledWidgetDesign(oursDraft?.configuration ?? ours, merged);
 
   const version = await insertVersion({
     agentId,
     orgId: main.orgId,
     branchId: main.id,
-    configuration: merged,
+    configuration: safeMerged,
     changeSummary: `Merge ${source.name} into Main`,
     source: "merge",
     parentVersionId: oursVersion?.id ?? null,
@@ -629,11 +655,11 @@ export async function executeMergeToMain(
     agentId,
     orgId: main.orgId,
     branchId: main.id,
-    configuration: merged,
+    configuration: safeMerged,
     parentVersionId: version.id,
     userId,
   });
-  await projectDraftToLegacyStores(agentId, main.orgId, merged);
+  await projectDraftToLegacyStores(agentId, main.orgId, safeMerged);
 
   return { version, review };
 }
