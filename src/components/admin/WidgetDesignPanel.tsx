@@ -1,7 +1,7 @@
 "use client";
 /**
  * WidgetDesignPanel.tsx — Complete deep widget design editor.
- * • Every property saves to DB via PATCH /api/kbs/:kbId/config
+ * • Every property saves to the owning agent via PATCH /api/agents/:agentId/config
  * • Advanced code editors are SYNCED with visual controls (generate real CSS from design state)
  * • Every control has plain-English placeholder/hint for non-technical users
  * • Live React preview reflects design instantly, no iframe collapse
@@ -1451,17 +1451,35 @@ export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: st
   const [sandbox, setSandbox] = useState(false);
   const [inlineOpen, setInlineOpen] = useState(false);
 
-  // Load config from DB on mount
+  // Read the agent-owned assistant configuration, never a removed KB route.
+  // Surface load failures instead of silently showing factory defaults as if
+  // they were the existing saved design.
   useEffect(() => {
     if (!agentId) return;
+    const controller = new AbortController();
     setLoading(true);
-    fetch(apiUrl(widgetDesignConfigUrl(agentId)), { headers: withAuthHeaders({}) })
-      .then(r => r.json())
-      .then((data: Record<string,unknown>) => {
-        if (!data.error) setDesign(fromApi(data));
+    setError(null);
+    void fetch(apiUrl(widgetDesignConfigUrl(agentId)), {
+      headers: withAuthHeaders({}),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const data = await response.json() as Record<string, unknown>;
+        if (!response.ok) throw new Error(String(data.error ?? "Could not load widget design"));
+        return data;
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!controller.signal.aborted) setDesign(fromApi(data));
+      })
+      .catch((err: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "Could not load widget design");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [agentId]);
 
   // Setter — marks unsaved
