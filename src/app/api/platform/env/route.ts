@@ -8,6 +8,7 @@ import { resetEmailTransportCache } from "@/lib/email";
 import { validateModelField } from "@/modules/ai-core/model-catalog";
 import { listProviderModels } from "@/modules/ai-governance/core/registry-db";
 import { isPlaceholderProviderBaseUrl } from "@/modules/voice-core/model-catalog";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 
 // WS-0.4: model keys that must hold a model id from the correct catalogue.
 const MODEL_FIELD_KEYS: Record<string, { field: "chat" | "embedding"; provider: "openai" | "gemini" }> = {
@@ -109,7 +110,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const settings = await getPlatformEnvSettings();
     const safe = settings
-      .filter(s => MANAGED_KEYS.has(s.key))
+      .filter(s => MANAGED_KEYS.has(s.key) &&
+        (s.key !== "NEXT_PUBLIC_LANDING_EMBED_API_KEY" || isPlatformFeatureEnabled("embeddableWidget")))
       .map(s => {
         const effective = s.value || process.env[s.key] || "";
         return {
@@ -143,6 +145,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       confirmation_token?: string;
       timestamp?: number;
     };
+
+    // This widget-only key is managed through the shared platform env route.
+    // Hiding the widget settings page must not leave token minting or a saved
+    // confirmation token able to mutate the disabled feature.
+    if (body.key === "NEXT_PUBLIC_LANDING_EMBED_API_KEY" && !isPlatformFeatureEnabled("embeddableWidget")) {
+      return NextResponse.json(
+        { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
+        { status: 404 },
+      );
+    }
 
     // Step 1 of a save: mint a short-lived HMAC confirmation token. The value
     // travels in the request body, never in the URL.
