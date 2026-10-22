@@ -300,7 +300,10 @@ export function buildMcpToolDefinition(
       requireSessionId: false,
     },
     async execute(input, context) {
-      if (!isPlatformFeatureEnabled("integrations")) {
+      // Registration-time gating is not sufficient for a long-lived or cached
+      // tool. Recheck BOTH the optional feature family and the independent
+      // MCP rollout flag before consulting any bound resolver or credentials.
+      if (!isMcpEnabled()) {
         throw new ToolExecutionError("TENANT_SCOPE_VIOLATION", "MCP is disabled in this environment.");
       }
       assertExecutionContext(context);
