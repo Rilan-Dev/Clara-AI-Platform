@@ -110,6 +110,52 @@ describe("disabled public-embed preference on shared agent draft API", () => {
     expect(mocks.saveAgentDraft).toHaveBeenCalledOnce();
   });
 
+  it("rejects a version draft that changes widget styling while production widget is off", async () => {
+    const incoming = config(true);
+    incoming.assistant.widgetTheme = "dark";
+    incoming.assistant.customInjectJs = "window.untrusted = true";
+    const response = await putDraftHandler(req(incoming), "agent-1");
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "FEATURE_DISABLED" });
+    expect(mocks.saveAgentDraft).not.toHaveBeenCalled();
+  });
+
+  it("does not reject core edits when the submitted widget values equal the stored ones", async () => {
+    const existing = config(true);
+    existing.assistant.widgetTheme = "dark";
+    existing.assistant.customInjectJs = "window.saved = true";
+    mocks.ensureAgentVersioning.mockResolvedValueOnce({
+      main: { id: "main-1" }, draft: { configuration: existing },
+    });
+    const incoming = config(true, false);
+    incoming.assistant.widgetTheme = "dark";
+    incoming.assistant.customInjectJs = "window.saved = true";
+    const response = await putDraftHandler(req(incoming), "agent-1");
+    expect(response.status).toBe(200);
+    expect(mocks.saveAgentDraft).toHaveBeenCalledOnce();
+  });
+
+  it("compares widget values with the selected branch, never the Main draft", async () => {
+    const branch = config(false);
+    branch.assistant.widgetTheme = "light";
+    mocks.getDraft.mockResolvedValueOnce({ configuration: branch });
+    const incoming = config(false);
+    incoming.assistant.widgetTheme = "dark";
+    const response = await putDraftHandler(req(incoming, "branch-2"), "agent-1");
+    expect(response.status).toBe(404);
+    expect(mocks.saveAgentDraft).not.toHaveBeenCalled();
+  });
+
+  it("allows explicit widget design changes for enabled development", async () => {
+    vi.stubEnv("CLARA_ENV", "development");
+    const incoming = config(true);
+    incoming.assistant.widgetTheme = "dark";
+    incoming.assistant.customInjectJs = "window.dev = true";
+    const response = await putDraftHandler(req(incoming), "agent-1");
+    expect(response.status).toBe(200);
+    expect(mocks.saveAgentDraft).toHaveBeenCalledOnce();
+  });
+
   it("retains the existing authorization barrier before any feature decision", async () => {
     mocks.requireAgentPermission.mockRejectedValueOnce(
       NextResponse.json({ error: "Forbidden" }, { status: 403 }),
