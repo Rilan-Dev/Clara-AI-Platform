@@ -1447,6 +1447,8 @@ export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: st
   const [saving,  setSaving]  = useState(false);
   const [saved,   setSaved]   = useState(false);
   const [error,   setError]   = useState<string|null>(null);
+  const [configLoaded, setConfigLoaded] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const [tab,     setTab]     = useState<"visual"|"code"|"preview">("visual");
   const [sandbox, setSandbox] = useState(false);
   const [inlineOpen, setInlineOpen] = useState(false);
@@ -1459,6 +1461,7 @@ export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: st
     const controller = new AbortController();
     setLoading(true);
     setError(null);
+    setConfigLoaded(false);
     void fetch(apiUrl(widgetDesignConfigUrl(agentId)), {
       headers: withAuthHeaders({}),
       signal: controller.signal,
@@ -1469,7 +1472,10 @@ export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: st
         return data;
       })
       .then((data) => {
-        if (!controller.signal.aborted) setDesign(fromApi(data));
+        if (!controller.signal.aborted) {
+          setDesign(fromApi(data));
+          setConfigLoaded(true);
+        }
       })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
@@ -1480,7 +1486,7 @@ export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: st
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [agentId]);
+  }, [agentId, reloadToken]);
 
   // Setter — marks unsaved
   const set = useCallback(<K extends keyof WidgetDesign>(key: K, val: WidgetDesign[K]) => {
@@ -1490,6 +1496,7 @@ export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: st
 
   // Save ALL fields to DB via PATCH
   const save = async () => {
+    if (!configLoaded || !agentId) return;
     setSaving(true); setError(null); setSaved(false);
     try {
       const body: Record<string,unknown> = {
@@ -1580,6 +1587,16 @@ export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: st
     </div>
   );
 
+  if (!configLoaded) return (
+    <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive">
+      <p>{error ?? "Could not load the current widget design. No changes were made."}</p>
+      <Button type="button" variant="outline" size="sm"
+        className="mt-3" onClick={() => setReloadToken((token) => token + 1)}>
+        Retry loading design
+      </Button>
+    </div>
+  );
+
   return (
     <div className="space-y-5">
 
@@ -1594,7 +1611,7 @@ export function WidgetDesignPanel({ kbId, agentId }: { kbId: string; agentId: st
         <div className="flex gap-2 flex-wrap items-center">
           <Button variant="ghost" size="sm" onClick={reset}
             className="text-muted-foreground/70 hover:text-foreground text-xs">Reset defaults</Button>
-          <Button size="sm" onClick={save} disabled={saving}
+          <Button size="sm" onClick={save} disabled={saving || !configLoaded}
             className={`text-xs px-5 ${saved?"bg-emerald-600 hover:bg-emerald-500":"bg-primary hover:bg-primary/90"} text-primary-foreground`}>
             {saving ? (
               <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin"/>Saving…</>
