@@ -44,7 +44,10 @@ function createRuntime() {
 }
 
 describe("MCP tool bridge", () => {
-  beforeEach(() => vi.stubEnv("CLARA_ENV", "development"));
+  beforeEach(() => {
+    vi.stubEnv("CLARA_ENV", "development");
+    vi.stubEnv("ENABLE_MCP", "true");
+  });
   afterEach(() => vi.unstubAllEnvs());
 
   it("creates deterministic bounded tool names", () => {
@@ -181,6 +184,40 @@ describe("MCP tool bridge", () => {
         context,
       ),
     ).toThrow("not allowlisted");
+  });
+
+  it("blocks a previously registered MCP capability after ENABLE_MCP is turned off", async () => {
+    const invoke = vi.fn(async () => ({ ok: true }));
+    const resolver: McpToolResolver = {
+      async resolve() { return descriptor; },
+      invoke,
+    };
+    const tool = buildMcpToolDefinition(descriptor, policy, resolver, context);
+    const runtime = createRuntime();
+    runtime.registerTool(tool);
+
+    // The instance was registered while MCP was enabled; an operational
+    // rollback of the independent rollout flag must stop its old handle too.
+    vi.stubEnv("ENABLE_MCP", "false");
+
+    const result = await runtime.invoke(tool.name, { id: "abc" }, context);
+    expect(result).toMatchObject({ ok: false, error: { code: "TENANT_SCOPE_VIOLATION" } });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it("allows already registered MCP tools only when both rollout controls remain enabled", async () => {
+    const invoke = vi.fn(async () => ({ ok: true }));
+    const resolver: McpToolResolver = {
+      async resolve() { return descriptor; },
+      invoke,
+    };
+    const tool = buildMcpToolDefinition(descriptor, policy, resolver, context);
+    const runtime = createRuntime();
+    runtime.registerTool(tool);
+
+    const result = await runtime.invoke(tool.name, { id: "abc" }, context);
+    expect(result.ok).toBe(true);
+    expect(invoke).toHaveBeenCalledOnce();
   });
 
   it("blocks an already registered MCP capability when its deployment disables integrations", async () => {
