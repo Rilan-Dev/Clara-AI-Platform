@@ -128,7 +128,7 @@ export function preserveDisabledWidgetFieldsOnPatch(
   input: PatchAssistantConfigInput,
   existing: AssistantConfig | null,
 ): boolean {
-  const values = input as WritableWidgetFields;
+  const values = input as unknown as WritableWidgetFields;
   for (const field of WIDGET_DESIGN_FIELDS) {
     if (values[field] !== undefined &&
         (!existing || !Object.is(values[field], existing[field]))) {
