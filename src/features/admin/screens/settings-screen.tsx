@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,11 +21,12 @@ import {
   ACCOUNT_PAGE,
   ADMIN_SETTINGS_PAGES,
   availableSettingsPages,
+  shouldRedirectSettingsSection,
   groupSettingsPages,
   type SettingsPage,
   type SettingsSection,
 } from "@/features/admin/settings-nav";
-import { usePlatformFeatures } from "@/features/admin/use-platform-features";
+import { usePlatformFeatureStatus } from "@/features/admin/use-platform-features";
 
 // ── Section model ────────────────────────────────────────────────────────────
 // The page list, labels and grouping live in settings-nav.ts — shared with
@@ -44,10 +45,15 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   const { user, loading } = useAuth();
   const isSuperAdmin = user?.isSuperAdmin ?? false;
   const [showProfile, setShowProfile] = useState(false);
-  const features = usePlatformFeatures();
+  const { features, ready: featureStatusReady } = usePlatformFeatureStatus();
   const router = useRouter();
 
-  const sections = isSuperAdmin ? availableSettingsPages(ADMIN_SETTINGS_SECTIONS, features) : ORG_SETTINGS_SECTIONS;
+  const sections = useMemo(
+    () => isSuperAdmin
+      ? availableSettingsPages(ADMIN_SETTINGS_SECTIONS, features)
+      : ORG_SETTINGS_SECTIONS,
+    [isSuperAdmin, features.embeddableWidget, features.integrations],
+  );
   const active    = sections.find((s) => s.id === section) ?? sections[0];
 
   // Steer users away from sections that do not belong to their role:
@@ -55,14 +61,18 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
   //    defaults page now; orgs tune their own agents)
   //  - organisation users have no Embed Key / Payments (platform-level tools)
   useEffect(() => {
-    if (loading || !user) return;
-    const allowed = sections.some((s) => s.id === section);
-    if (!allowed) router.replace(sections[0].href);
-  }, [loading, user, isSuperAdmin, section, sections, router]);
+    if (!user) return;
+    if (shouldRedirectSettingsSection(
+      section,
+      sections,
+      !loading,
+      !isSuperAdmin || featureStatusReady,
+    )) router.replace(sections[0].href);
+  }, [loading, user, isSuperAdmin, featureStatusReady, section, sections, router]);
 
   // While sign-in state is being checked, show a calm skeleton instead of
   // flashing the wrong view (previously admins saw the org-user page blink).
-  if (loading) return <SettingsSkeleton />;
+  if (loading || (isSuperAdmin && !featureStatusReady)) return <SettingsSkeleton />;
   if (!user) return null;
 
   // Mobile section pills — on phones the main sidebar is a hidden drawer,
@@ -150,7 +160,7 @@ export default function SettingsScreen({ section }: { section: SettingsSection }
 
         {section === "appearance" && <PlatformAppearancePanel />}
 
-        {section === "embed" && (
+        {features.embeddableWidget && section === "embed" && (
           <div className="rounded-2xl border border-border bg-card p-5 sm:p-7 shadow-sm">
             <EmbedApiKeyPanel />
           </div>
