@@ -329,7 +329,9 @@ export async function resolveMcpToolDefinition(
   policy: McpToolBridgePolicy,
   resolver: McpToolResolver,
 ): Promise<ToolDefinition | null> {
-  if (!isPlatformFeatureEnabled("integrations")) return null;
+  // Resolver discovery may contact an external MCP server even before tool
+  // registration. Honor the independent rollout switch here too.
+  if (!isMcpEnabled()) return null;
   assertExecutionContext(request.context);
   let boundPolicy: McpToolBridgePolicy;
   try {
