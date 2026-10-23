@@ -12,7 +12,12 @@ export async function GET(req: NextRequest) {
     const [orgsR, usersR, subsR, queriesR, kbsR, docsR, monthlyQueriesR, agentsR] = await Promise.all([
       query(`SELECT COUNT(*)::int AS count FROM organisations`),
       query(`SELECT COUNT(*)::int AS count FROM users`),
-      query(`SELECT COALESCE(SUM(sp.price_usd), 0)::int AS mrr, COUNT(os.id)::int AS paying_count FROM org_subscriptions os JOIN subscription_plans sp ON sp.id = os.plan_id WHERE os.status = 'active' AND sp.price_usd > 0`),
+      query(`SELECT COALESCE(SUM(COALESCE(os.price_snapshot, sp.price_usd)), 0)::int AS mrr,
+                    COUNT(os.id)::int AS paying_count
+               FROM org_subscriptions os
+               JOIN subscription_plans sp ON sp.id = os.plan_id
+              WHERE os.status = 'active'
+                AND COALESCE(os.price_snapshot, sp.price_usd) > 0`),
       query(`SELECT COUNT(*)::int AS count FROM query_events`),
       query(`SELECT COUNT(*)::int AS count FROM knowledge_bases WHERE status != 'archived'`),
       query(`SELECT COUNT(*)::int AS count FROM documents`),
