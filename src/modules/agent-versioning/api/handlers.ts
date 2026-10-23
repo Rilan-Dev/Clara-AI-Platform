@@ -52,7 +52,14 @@ function versioningErrorResponse(err: unknown): NextResponse {
   // keep their original status — never be masked as a 500.
   if (err instanceof NextResponse) return err;
   console.error("[agent-versioning]", err);
-  return NextResponse.json({ error: (err as Error).message || "Versioning operation failed" }, { status: 500 });
+  // Unexpected database, provider, serialization or infrastructure failures
+  // are operator-only diagnostics. A tenant-visible 500 must never echo an
+  // exception message containing SQL, URLs, credentials, connection targets,
+  // token values or untrusted external payloads.
+  return NextResponse.json(
+    { error: "Versioning operation failed" },
+    { status: 500, headers: { "Cache-Control": "private, no-store" } },
+  );
 }
 
 function parseConfig(value: unknown): AgentVersionConfig | null {
