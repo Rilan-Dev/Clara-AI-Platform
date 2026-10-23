@@ -81,6 +81,12 @@ describe("MCP override API feature isolation", () => {
   it("continues normal MCP override management in an explicitly enabled development environment", async () => {
     vi.stubEnv("CLARA_ENV", "development");
     vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "true");
+    mocks.query
+      .mockResolvedValueOnce([{ id: "org-1" }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{
+        connections: 0, tools_approved: 0, agent_assignments: 0, period_calls: 0,
+      }]);
     const response = await GET(request("GET"), context);
     expect(response.status).toBe(200);
     expect(mocks.query).toHaveBeenCalled();
