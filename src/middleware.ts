@@ -15,9 +15,6 @@ function buildAllowedOrigins(): Set<string> {
     const o = raw.trim();
     if (o) origins.add(o);
   }
-  if (process.env.NODE_ENV !== "production") {
-    for (const port of [3000, 3001, 3002, 3003, 5173, 4200]) origins.add(`http://localhost:${port}`);
-  }
   return origins;
 }
 
@@ -44,7 +41,8 @@ function applyEmbedCors(response: NextResponse, origin: string | null): NextResp
 
 function applyCors(response: NextResponse, origin: string | null): NextResponse {
   if (!origin) return response;
-  if (LOCALHOST_RE.test(origin) || ALLOWED_ORIGINS.has(origin)) {
+  if (ALLOWED_ORIGINS.has(origin) ||
+      (process.env.NODE_ENV !== "production" && LOCALHOST_RE.test(origin))) {
     response.headers.set("Access-Control-Allow-Origin", origin);
     for (const [k, v] of Object.entries(CORS_HEADERS)) response.headers.set(k, v);
     response.headers.set("Vary", "Origin");
