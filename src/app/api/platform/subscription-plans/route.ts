@@ -3,6 +3,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { pool, query } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { validateMcpEntitlements, recordPlatformMcpAudit } from "@/modules/mcp";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const auth = await requirePlatformAdmin(req);
     const body = await req.json() as PlanInput;
     if (!body.planId) return NextResponse.json({ error: "planId is required" }, { status: 400 });
+    // A subscription plan is a shared billing resource. Do not block edits to
+    // non-MCP fields, but reject direct attempts to change the disabled MCP
+    // feature before fetching a plan or writing versions/audit records.
+    if (body.mcpEntitlements !== undefined && !isPlatformFeatureEnabled("integrations")) {
+      return NextResponse.json(
+        { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
+        { status: 404 },
+      );
+    }
 
     const base = (await query<Record<string, unknown>>(
       "SELECT * FROM subscription_plans WHERE id = $1 LIMIT 1", [body.planId],
