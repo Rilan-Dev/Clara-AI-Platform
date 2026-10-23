@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireAgentPermission } from "@/modules/auth/core/rbac";
-import { queryOne, execute } from "@/lib/db";
+import { queryOne, withTransaction } from "@/lib/db";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 import { createApiKey } from "@/modules/embed/core/api-keys-db";
 import { getAgentById } from "@/modules/organisations/core/db";
 
@@ -30,6 +31,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
     const auth = await requireAuth(req);
     await requireAgentPermission(auth, agentId, "project:update");
 
+    // Defense in depth: middleware also rejects this feature-owned API, but
+    // direct route invocation must never mint keys on a disabled deployment.
+    if (!isPlatformFeatureEnabled("embeddableWidget")) {
+      return NextResponse.json(
+        { error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" },
+        { status: 404 },
+      );
+    }
+
     const agent = await getAgentById(agentId);
     if (!agent) {
       return NextResponse.json({ error: "Agent not found" }, { status: 404 });
@@ -48,19 +58,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
       );
     }
 
-    // At most one explore key per KB: revoke the previous mint.
-    await execute(
-      `UPDATE api_keys SET is_active = FALSE
-        WHERE kb_id = $1 AND name = $2 AND is_active`,
-      [kb.id, EXPLORE_KEY_NAME],
-    );
-
-    const created = await createApiKey({
-      kbId: kb.id,
-      orgId: agent.orgId,
-      name: EXPLORE_KEY_NAME,
-      createdBy: auth.user.id,
+    // Lock the owning KB row to serialise simultaneous rotations. Revoke and
+    // mint on the SAME PostgreSQL connection so a failed INSERT rolls back
+    // the revocation instead of permanently invalidating the last working URL.
+    // Do not reuse createApiKey's default pool connection inside this scope.
+    const created = await withTransaction(async (client) => {
+      const ownedKb = await client.query<{ id: string }>(
+        `SELECT id FROM knowledge_bases
+          WHERE id = $1 AND agent_id = $2 AND status = 'active'
+          FOR UPDATE`,
+        [kb.id, agentId],
+      );
+      if (!ownedKb.rows[0]) return null;
+      await client.query(
+        `UPDATE api_keys SET is_active = FALSE
+          WHERE kb_id = $1 AND name = $2 AND is_active`,
+        [kb.id, EXPLORE_KEY_NAME],
+      );
+      return createApiKey({
+        kbId: kb.id,
+        orgId: agent.orgId,
+        name: EXPLORE_KEY_NAME,
+        createdBy: auth.user.id,
+      }, client);
     });
+    if (!created) {
+      return NextResponse.json(
+        { error: "The knowledge base is not active or no longer belongs to this agent." },
+        { status: 404 },
+      );
+    }
 
     // Prefer the configured public origin (NEXT_PUBLIC_APP_URL — set behind
     // reverse proxies) over req.nextUrl.origin, which can surface the bind
@@ -78,6 +105,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ age
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[POST /api/agents/:id/explore-link]", err);
-    return NextResponse.json({ error: (err as Error).message || "Failed to generate explore link" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to generate explore link" }, { status: 500 });
   }
 }
