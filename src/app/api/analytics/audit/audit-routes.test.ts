@@ -98,6 +98,36 @@ describe("platform audit request scope integrity", () => {
     );
   });
 
+  it("exports user-originated Q&A as inert CSV text instead of executable spreadsheet formulas", async () => {
+    mocks.query.mockResolvedValueOnce([{
+      id: "event-1",
+      created_at: "2026-10-23T14:00:00Z",
+      org_name: "-HYPERLINK(\"https://evil.example\")",
+      kb_name: "Policy",
+      user_email: "person@example.com",
+      surface: "widget",
+      status: "completed",
+      question: '=HYPERLINK("https://evil.example","click")',
+      answer: "\t+cmd|' /C calc",
+      model: "@SUM(1,2)",
+      prompt_tokens: 8,
+      completion_tokens: 12,
+      cost_usd_micros: 100,
+      latency_ms: 90,
+      redactions: "[]",
+      cancelled: false,
+    }]);
+    const response = await exportAudit(req("/export"));
+    expect(response.status).toBe(200);
+    const csv = await response.text();
+    expect(csv).toContain("'-HYPERLINK");
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("'\t+cmd");
+    expect(csv).toContain("'@SUM");
+    expect(csv).toContain("Policy");
+    expect(csv).not.toContain(",,=HYPERLINK");
+  });
+
   it("does not perform the all-organisations verification for a supplied UUID", async () => {
     const response = await verifyAudit(req("/verify", `?orgId=${orgId}`));
     expect(response.status).toBe(200);
