@@ -58,6 +58,7 @@ export function featureForPath(pathname: string): OptionalPlatformFeature | null
     /^\/api\/orgs\/[^/]+\/(?:mcp|mcp-servers|integrations)(?:\/|$)/.test(pathname) ||
     /^\/api\/orgs\/[^/]+\/agents\/[^/]+\/(?:mcp-tools|integrations|messaging)(?:\/|$)/.test(pathname) ||
     /^\/api\/platform\/(?:integrations|mcp-servers|mcp-settings)(?:\/|$)/.test(pathname) ||
+    /^\/api\/platform\/orgs\/[^/]+\/mcp-override(?:\/|$)/.test(pathname) ||
     segment(pathname, "/settings/integrations") ||
     segment(pathname, "/settings/mcp") ||
     /^\/orgs\/[^/]+\/integrations(?:\/|$)/.test(pathname) ||
