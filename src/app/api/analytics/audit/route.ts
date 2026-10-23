@@ -22,14 +22,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
-
-function safeDateParam(val: string | null, fallback: Date): Date {
-  if (!val) return fallback;
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? fallback : d;
-}
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { AuditFilterError, parseAuditFilters } from "./filters";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
@@ -39,14 +32,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
 
-    const sp      = req.nextUrl.searchParams;
-    const toDate   = safeDateParam(sp.get("to"), new Date());
-    const fromDate = safeDateParam(sp.get("from"), new Date(Date.now() - 7 * 86400 * 1000));
-    const orgIdParam = sp.get("orgId") ?? null;
-    const orgId    = orgIdParam && UUID_RE.test(orgIdParam) ? orgIdParam : null;
-    const search   = (sp.get("q") ?? "").trim().slice(0, 120);
-    const limit    = Math.min(100, Math.max(1, parseInt(sp.get("limit") ?? "50") || 50));
-    const offset   = Math.max(0, parseInt(sp.get("offset") ?? "0") || 0);
+    const { fromDate, toDate, orgId, search, limit, offset } = parseAuditFilters(
+      req.nextUrl.searchParams,
+      new Date(),
+      { defaultLimit: 50, maxLimit: 100, withOffset: true },
+    );
 
     const where: string[] = ["qe.created_at BETWEEN $1 AND $2"];
     const params: unknown[] = [fromDate.toISOString(), toDate.toISOString()];
@@ -117,6 +107,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;
+    if (err instanceof AuditFilterError) {
+      return NextResponse.json(
+        { error: err.message, code: "INVALID_AUDIT_FILTER" },
+        { status: 400 },
+      );
+    }
     console.error("[GET /api/analytics/audit]", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
