@@ -63,8 +63,6 @@ const putRequest = () => new NextRequest("https://clara.example.test/api/agents/
 });
 
 describe("tenant-safe agent-versioning failure responses", () => {
-  let logged: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("CLARA_ENV", "development");
@@ -76,11 +74,11 @@ describe("tenant-safe agent-versioning failure responses", () => {
       draft: { configuration: { assistant: { assistantName: "Clara" } } },
     });
     mocks.saveAgentDraft.mockResolvedValue({ id: "draft-1" });
-    logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
-    logged.mockRestore();
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
@@ -95,7 +93,7 @@ describe("tenant-safe agent-versioning failure responses", () => {
     for (const privateValue of ["PG_URL", "postgres://", "secret", "db.local", "tenant"]) {
       expect(text).not.toContain(privateValue);
     }
-    expect(logged).toHaveBeenCalledWith("[agent-versioning]", internal);
+    expect(console.error).toHaveBeenCalledWith("[agent-versioning]", internal);
   });
 
   it("also redacts unexpected failures of draft retrieval", async () => {
@@ -152,7 +150,7 @@ describe("tenant-safe agent-versioning failure responses", () => {
     const response = await getDraftHandler(getRequest(), "agent-1");
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: "Versioning operation failed" });
-    expect(logged).toHaveBeenCalledWith("[agent-versioning]", internal);
+    expect(console.error).toHaveBeenCalledWith("[agent-versioning]", internal);
   });
 
   it("preserves explicit authentication or authorization response status", async () => {
