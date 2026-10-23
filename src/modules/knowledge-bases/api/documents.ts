@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { publicKnowledgeProcessingError } from "@/modules/knowledge-bases/core/public-processing-error";
+import { unexpectedKnowledgeApiError } from "./unexpected-error";
 import { query } from "@/lib/db";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
@@ -171,7 +172,7 @@ export async function uploadDocumentsHandler(
           if (!scan.clean) {
             errors.push({
               filename,
-              error: `File rejected by virus scanner${scan.signature ? ` (${scan.signature})` : ""}.`,
+              error: "File rejected by the document security scan.",
               code: "MALWARE_DETECTED",
             });
             continue;
@@ -179,7 +180,7 @@ export async function uploadDocumentsHandler(
         } catch (scanErr) {
           if (scanErr instanceof VirusScanUnavailableError) {
             return NextResponse.json(
-              { error: scanErr.message, code: "VIRUS_SCAN_UNAVAILABLE", status: 503 },
+              { error: "Document security scanning is temporarily unavailable. Please try later.", code: "VIRUS_SCAN_UNAVAILABLE", status: 503 },
               { status: 503 }
             );
           }
@@ -206,7 +207,8 @@ export async function uploadDocumentsHandler(
 
         results.push({ document: doc, jobId: job.id });
       } catch (fileErr) {
-        errors.push({ filename, error: (fileErr as Error).message, code: "UPLOAD_FAILED" });
+        console.error("[documents] upload file:", fileErr);
+        errors.push({ filename, error: "The document could not be uploaded. Please retry later.", code: "UPLOAD_FAILED" });
       }
     }
 
@@ -251,7 +253,7 @@ export async function uploadDocumentsHandler(
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[documents] upload:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "documents");
   }
 }
 
@@ -271,7 +273,7 @@ export async function listDocumentsHandler(req: NextRequest, kbId: string): Prom
     })));
   } catch (err) {
     if (err instanceof NextResponse) return err;
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "documents");
   }
 }
 
@@ -304,7 +306,7 @@ export async function getDocumentHandler(
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "documents");
   }
 }
 
@@ -342,7 +344,7 @@ export async function deleteDocumentHandler(
     return NextResponse.json({ deleted: true });
   } catch (err) {
     if (err instanceof NextResponse) return err;
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "documents");
   }
 }
 
