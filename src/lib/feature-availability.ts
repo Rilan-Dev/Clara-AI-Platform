@@ -46,6 +46,7 @@ export function featureForPath(pathname: string): OptionalPlatformFeature | null
     segment(pathname, "/embed") ||
     segment(pathname, "/settings/embed") ||
     segment(pathname, "/api/platform/demo-config") ||
+    /^\/api\/agents\/[^/]+\/explore-link(?:\/|$)/.test(pathname) ||
     /^\/api\/kbs\/[^/]+\/api-keys(?:\/|$)/.test(pathname)
   ) return "embeddableWidget";
 
