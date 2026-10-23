@@ -10,7 +10,7 @@ import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
  * as exact PostgreSQL OFFSET parameters.
  */
 function positivePageNumber(raw: string | null, fallback: number): number {
-  if (raw === null || !/^[1-9]\\d*$/.test(raw)) return fallback;
+  if (raw === null || !/^[1-9]\d*$/.test(raw)) return fallback;
   const parsed = Number(raw);
   return Number.isSafeInteger(parsed) ? parsed : fallback;
 }
