@@ -38,19 +38,31 @@ import {
   saveVersionFromDraft,
 } from "../core/service";
 
+// The DB module wraps write failures in AgentVersioningError so callers can
+// distinguish them from invalid user input. Those are *server* failures, not
+// HTTP 400 client mistakes; their diagnostics must remain in operator logs.
+const INTERNAL_VERSIONING_FAILURE_CODES = new Set([
+  "MAIN_CREATE_FAILED",
+  "BRANCH_CREATE_FAILED",
+  "VERSION_CREATE_FAILED",
+  "DRAFT_SAVE_FAILED",
+  "DEPLOYMENT_CREATE_FAILED",
+]);
+
 function versioningErrorResponse(err: unknown): NextResponse {
-  if (err instanceof AgentVersioningError) {
+  // Auth/permission failures (NextResponse thrown by the rbac layer) must
+  // keep their original status — never be masked as a 500.
+  if (err instanceof NextResponse) return err;
+  if (err instanceof AgentVersioningError && !INTERNAL_VERSIONING_FAILURE_CODES.has(err.code)) {
     const status =
-      err.code === "AGENT_NOT_FOUND" || err.code === "VERSION_NOT_FOUND" || err.code === "BRANCH_NOT_FOUND"
+      err.code === "AGENT_NOT_FOUND" || err.code === "VERSION_NOT_FOUND" ||
+      err.code === "BRANCH_NOT_FOUND" || err.code === "DRAFT_NOT_FOUND"
         ? 404
         : err.code === "MERGE_CONFLICTS_UNRESOLVED" || err.code === "PUBLISH_VALIDATION_FAILED"
           ? 409
           : 400;
     return NextResponse.json({ error: err.message, code: err.code }, { status });
   }
-  // Auth/permission failures (NextResponse thrown by the rbac layer) must
-  // keep their original status — never be masked as a 500.
-  if (err instanceof NextResponse) return err;
   console.error("[agent-versioning]", err);
   // Unexpected database, provider, serialization or infrastructure failures
   // are operator-only diagnostics. A tenant-visible 500 must never echo an
