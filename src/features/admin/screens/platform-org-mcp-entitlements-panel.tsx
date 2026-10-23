@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Cable, Loader2, RefreshCw, Trash2, ShieldCheck, Ban } from "lucide-react";
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 
 type Entitlements = {
   enabled: boolean;
@@ -63,6 +64,7 @@ function fmt(limit: unknown): string {
 }
 
 export function PlatformOrgMcpEntitlementsPanel({ orgId }: { orgId: string }) {
+  const { integrations: integrationsEnabled } = usePlatformFeatures();
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export function PlatformOrgMcpEntitlementsPanel({ orgId }: { orgId: string }) {
   const [overrideExpiry, setOverrideExpiry] = useState("");
 
   const load = useCallback(async () => {
+    if (!integrationsEnabled) return;
     setError(null);
     try {
       const response = await fetch(apiUrl(`/api/platform/orgs/${orgId}/mcp-override`), {
@@ -93,13 +96,15 @@ export function PlatformOrgMcpEntitlementsPanel({ orgId }: { orgId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [orgId]);
+  }, [orgId, integrationsEnabled]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (integrationsEnabled) void load();
+    else { setData(null); setLoading(true); }
+  }, [load, integrationsEnabled]);
 
   async function applyOverride() {
+    if (!integrationsEnabled) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -135,6 +140,7 @@ export function PlatformOrgMcpEntitlementsPanel({ orgId }: { orgId: string }) {
   }
 
   async function removeOverride() {
+    if (!integrationsEnabled) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -153,6 +159,8 @@ export function PlatformOrgMcpEntitlementsPanel({ orgId }: { orgId: string }) {
       setBusy(false);
     }
   }
+
+  if (!integrationsEnabled) return null;
 
   if (loading) {
     return (
