@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Cable, Ban, Loader2, RefreshCw } from "lucide-react";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 
 type Entitlements = {
   enabled: boolean;
@@ -69,11 +70,13 @@ function Row({ label, used, limit }: { label: string; used: number; limit: numbe
 
 export function OrgMcpUsageCard({ orgId }: { orgId: string }) {
   const router = useRouter();
+  const { integrations: integrationsEnabled } = usePlatformFeatures();
   const [data, setData] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(false);
 
   useEffect(() => {
+    if (!integrationsEnabled) return;
     let cancelled = false;
     const load = async () => {
       setLoading(true);
@@ -91,7 +94,9 @@ export function OrgMcpUsageCard({ orgId }: { orgId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [orgId, retry]);
+  }, [orgId, retry, integrationsEnabled]);
+
+  if (!integrationsEnabled) return null;
 
   if (loading) {
     return (
