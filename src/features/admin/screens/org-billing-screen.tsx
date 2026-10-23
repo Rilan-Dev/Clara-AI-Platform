@@ -26,6 +26,7 @@ import { useAuth } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { Button } from "@/components/ui/button";
 import { OrgMcpUsageCard } from "@/features/admin/screens/org-mcp-usage-card";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -142,6 +143,7 @@ export default function OrgBillingScreen() {
   const { id = "" } = useParams<{ id: string }>();
   const { user }   = useAuth();
   const isAdmin    = user?.isSuperAdmin ?? false;
+  const { integrations: integrationsEnabled } = usePlatformFeatures();
 
   const [sub, setSub]             = useState<SubData | null>(null);
   const [plans, setPlans]         = useState<Plan[]>([]);
@@ -452,10 +454,10 @@ export default function OrgBillingScreen() {
         </div>
       </div>
 
-      {/* MCP usage & entitlements (server-authoritative) */}
-      <div className="mt-4">
-        <OrgMcpUsageCard orgId={id} />
-      </div>
+      {/* Do not mount MCP usage/fetches in disabled deployments. */}
+      {integrationsEnabled && (
+        <div className="mt-4"><OrgMcpUsageCard orgId={id} /></div>
+      )}
 
       {/* Plans — mobile: horizontal swipe rail (app-style plan picker);
           desktop: the original grid. */}
