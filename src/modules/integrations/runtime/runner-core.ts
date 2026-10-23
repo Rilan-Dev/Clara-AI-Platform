@@ -358,9 +358,12 @@ export async function getIntegrationActions(integrationId: string): Promise<Arra
   props: Record<string, unknown>;
 }>> {
   if (!isPlatformFeatureEnabled("integrations")) return [];
-  const piece = await loadPiece(integrationId);
+  // A caller-controlled unknown integration must never cause package loading,
+  // metadata execution or external work before Clara's curated registry has
+  // established that the integration exists.
   const def = getIntegration(integrationId);
   if (!def) return [];
+  const piece = await loadPiece(integrationId);
 
   const actions: Array<{ name: string; displayName: string; description: string; props: Record<string, unknown> }> = [];
 
