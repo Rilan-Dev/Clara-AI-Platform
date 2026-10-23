@@ -29,6 +29,7 @@ describe("deployment feature switches at request boundary", () => {
     expect(middleware(request("/api/webhooks/whatsapp", "POST")).status).toBe(404);
     expect(middleware(request("/api/orgs/o1/mcp/servers", "PATCH")).status).toBe(404);
     expect(middleware(request("/settings/embed")).status).toBe(404);
+    expect(middleware(request("/api/agents/agent-1/explore-link", "POST")).status).toBe(404);
     expect(middleware(request("/orgs/o1/agents/a1/integrations")).status).toBe(404);
   });
 
