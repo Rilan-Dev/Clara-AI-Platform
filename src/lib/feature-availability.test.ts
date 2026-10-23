@@ -55,6 +55,8 @@ describe("feature route ownership", () => {
     ["/api/orgs/org-1/agents/agent-1/messaging/connection", "integrations"],
     ["/api/platform/integrations/catalog", "integrations"],
     ["/api/platform/mcp-settings", "integrations"],
+    ["/api/platform/orgs/org-1/mcp-override", "integrations"],
+    ["/api/platform/orgs/org-1/mcp-override/history", "integrations"],
     ["/api/webhooks/whatsapp", "integrations"],
     ["/api/cron/whatsapp-daily-briefings", "integrations"],
     ["/api/whatsapp/oauth/callback", "integrations"],
@@ -71,6 +73,7 @@ describe("feature route ownership", () => {
     "/api/agents/a-1/preview", "/api/webhooks/stripe",
     "/api/cron/ai-health", "/api/phone/session", "/orgs/org-1/agents",
     "/settings/ai", "/embed-other", "/api/embedder",
+    "/api/platform/orgs/org-1", "/api/platform/orgs/org-1/mcp-override-report",
   ])("never gates shared/non-feature route %s", (path) => {
     expect(featureForPath(path)).toBeNull();
   });
