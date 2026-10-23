@@ -48,6 +48,7 @@ describe("feature route ownership", () => {
     ["/embed/landing-demo", "embeddableWidget"], ["/settings/embed", "embeddableWidget"],
     ["/api/kbs/kb-1/api-keys/key-1", "embeddableWidget"],
     ["/api/platform/demo-config", "embeddableWidget"],
+    ["/api/agents/agent-1/explore-link", "embeddableWidget"],
     ["/api/orgs/org-1/mcp/connections", "integrations"],
     ["/api/orgs/org-1/mcp-servers", "integrations"],
     ["/api/orgs/org-1/integrations", "integrations"],
