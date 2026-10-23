@@ -1,6 +1,7 @@
 /** Tenant knowledge-base CRUD. Platform admins cannot access tenant KBs. */
 
 import { NextRequest, NextResponse } from "next/server";
+import { unexpectedKnowledgeApiError } from "./unexpected-error";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { getAgentById } from "@/modules/organisations/core/db";
 import { createKnowledgeBase, listKnowledgeBases, getKnowledgeBaseById, updateKnowledgeBase, deleteKnowledgeBase } from "../core/db";
@@ -47,7 +48,7 @@ export async function createKbHandler(req: NextRequest, agentId: string): Promis
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[kbs] createKb:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "knowledge-base");
   }
 }
 
@@ -61,7 +62,7 @@ export async function listKbsHandler(req: NextRequest, agentId: string): Promise
     return NextResponse.json(await listKnowledgeBases(agentId));
   } catch (err) {
     if (err instanceof NextResponse) return err;
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "knowledge-base");
   }
 }
 
@@ -75,7 +76,7 @@ export async function getKbHandler(req: NextRequest, kbId: string): Promise<Next
     return NextResponse.json(kb);
   } catch (err) {
     if (err instanceof NextResponse) return err;
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "knowledge-base");
   }
 }
 
@@ -90,7 +91,7 @@ export async function updateKbHandler(req: NextRequest, kbId: string): Promise<N
     return NextResponse.json(kb);
   } catch (err) {
     if (err instanceof NextResponse) return err;
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "knowledge-base");
   }
 }
 
@@ -115,6 +116,6 @@ export async function deleteKbHandler(req: NextRequest, kbId: string): Promise<N
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[kbs] deleteKb:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return unexpectedKnowledgeApiError(err, "knowledge-base");
   }
 }
