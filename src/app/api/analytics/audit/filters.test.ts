@@ -43,6 +43,7 @@ describe("platform audit request boundaries", () => {
 
   it.each([
     "from=not-a-date", "to=not-a-date", "from=",
+    "from=2026-02-30T00%3A00%3A00Z",
     "from=2026-10-24T00%3A00%3A00Z&to=2026-10-23T00%3A00%3A00Z",
   ])("rejects invalid or inverted audit date filters: %s", (query) => {
     expect(() => list(query)).toThrow(AuditFilterError);
