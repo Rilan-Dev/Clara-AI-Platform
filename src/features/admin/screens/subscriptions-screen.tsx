@@ -28,6 +28,7 @@ import {
   type PlanMcpEntitlements,
 } from "@/features/admin/screens/plan-mcp-entitlements-editor";
 import { PlatformOrgMcpEntitlementsPanel } from "@/features/admin/screens/platform-org-mcp-entitlements-panel";
+import { usePlatformFeatures } from "@/features/admin/use-platform-features";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -447,6 +448,7 @@ function NotificationPanel() {
 // ── Main Export ─────────────────────────────────────────────────────────────
 
 export default function AdminSubscriptionsScreen() {
+  const { integrations: integrationsEnabled } = usePlatformFeatures();
   const [plans,   setPlans]   = useState<Plan[]>([]);
   const [orgs,    setOrgs]    = useState<OrgSub[]>([]);
   const [loading, setLoading] = useState(true);
@@ -532,8 +534,10 @@ export default function AdminSubscriptionsScreen() {
         prioritySupport: plan.priority_support,
         features: plan.features,
         multilingualEmbeddings: plan.multilingual_embeddings,
-        mcpEntitlements: plan.mcp_entitlements ?? { ...PLAN_MCP_DISABLED },
-        mcpConfirmation: mcpConfirmation.trim().toUpperCase() || undefined,
+        ...(integrationsEnabled ? {
+          mcpEntitlements: plan.mcp_entitlements ?? { ...PLAN_MCP_DISABLED },
+          mcpConfirmation: mcpConfirmation.trim().toUpperCase() || undefined,
+        } : {}),
       };
       const r = await fetch(apiUrl("/api/platform/subscription-plans"), {
         method: "POST",
@@ -807,6 +811,7 @@ export default function AdminSubscriptionsScreen() {
           {modal?.type === "history" && (
             <BillingHistoryDrawer
               orgId={modal.orgId} orgName={modal.orgName}
+              integrationsEnabled={integrationsEnabled}
               onClose={() => setModal(null)}
             />
           )}
@@ -1010,7 +1015,7 @@ export default function AdminSubscriptionsScreen() {
                   </div>
 
                   {/* MCP plan entitlements — centralized validation on save */}
-                  {mcpConfirmRequired && (
+                  {integrationsEnabled && mcpConfirmRequired && (
                     <div role="alert" className="rounded-xl border border-amber-600/30 bg-amber-500/5 p-3 space-y-2">
                       <p className="text-xs text-amber-700">
                         Disabling MCP for this plan blocks new MCP operations for its
@@ -1026,10 +1031,12 @@ export default function AdminSubscriptionsScreen() {
                       />
                     </div>
                   )}
-                  <PlanMcpEntitlementsEditor
-                    value={editPlan.mcp_entitlements ?? { ...PLAN_MCP_DISABLED }}
-                    onChange={mcp => setEditPlan({ ...editPlan, mcp_entitlements: mcp })}
-                  />
+                  {integrationsEnabled && (
+                    <PlanMcpEntitlementsEditor
+                      value={editPlan.mcp_entitlements ?? { ...PLAN_MCP_DISABLED }}
+                      onChange={mcp => setEditPlan({ ...editPlan, mcp_entitlements: mcp })}
+                    />
+                  )}
 
                   <div className="flex gap-2 pt-4 border-t border-border/70">
                     <Button size="sm" variant="outline" onClick={() => setEditPlan(null)}>Cancel</Button>
@@ -1058,11 +1065,13 @@ export default function AdminSubscriptionsScreen() {
 
 // ── BillingHistoryDrawer (moved below main, order doesn’t matter in TS) ──────
 
-function BillingHistoryDrawer({ orgId, orgName, onClose }: {
+function BillingHistoryDrawer({ orgId, orgName, onClose, integrationsEnabled }: {
   orgId: string; orgName: string; onClose: () => void;
+  integrationsEnabled: boolean;
 }) {
   const [data, setData] = useState<{ invoices: BillingEvent[]; auditLog: AuditEntry[] } | null>(null);
   const [tab, setTab]   = useState<"invoices" | "audit" | "mcp">("invoices");
+  const visibleTab = !integrationsEnabled && tab === "mcp" ? "invoices" : tab;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -1100,10 +1109,10 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
 
         {/* Tabs */}
         <div className="flex border-b border-border shrink-0">
-          {(["invoices","audit","mcp"] as const).map(t => (
+          {(integrationsEnabled ? ["invoices","audit","mcp"] as const : ["invoices","audit"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`flex-1 text-xs font-medium py-2.5 capitalize transition-all border-b-2 -mb-px flex items-center justify-center gap-1.5
-                ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground/70 hover:text-foreground"}`}>
+                ${visibleTab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground/70 hover:text-foreground"}`}>
               {t === "invoices" ? <><Receipt className="w-3.5 h-3.5" /> Payment Events</> : t === "audit" ? <><Shield className="w-3.5 h-3.5" /> Audit Log</> : <><Cable className="w-3.5 h-3.5" /> MCP</>}
             </button>
           ))}
@@ -1111,11 +1120,11 @@ function BillingHistoryDrawer({ orgId, orgName, onClose }: {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {tab === "mcp" ? (
+          {integrationsEnabled && visibleTab === "mcp" ? (
             <PlatformOrgMcpEntitlementsPanel orgId={orgId} />
           ) : loading ? (
             <div className="flex items-center justify-center h-40 text-muted-foreground/70 text-sm">Loading…</div>
-          ) : tab === "invoices" ? (
+          ) : visibleTab === "invoices" ? (
             !data?.invoices.length ? (
               <div className="flex flex-col items-center justify-center h-40 text-muted-foreground/80 text-sm gap-2">
                 <Receipt className="w-8 h-8 opacity-30" /> No billing events yet
