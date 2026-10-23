@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 // ─── Hermetic boundaries ──────────────────────────────────────────────────────
@@ -146,6 +146,8 @@ function realtimeContext(tenantId: string, overrides?: { kbId?: string; userId?:
   });
 }
 
+afterEach(() => vi.unstubAllEnvs());
+
 beforeEach(() => {
   mockedRetrieve.mockClear();
   mockedEntitlements.mockClear();
@@ -176,6 +178,47 @@ describe("rag_search — registration on the Unified Tool Runtime", () => {
     const second = getClaraToolRuntime();
     expect(first).toBe(second);
     expect(first.hasTool(RAG_SEARCH_TOOL_NAME)).toBe(true);
+  });
+
+  it("rebuilds a cached production-off tool registry when dev integrations become available", () => {
+    vi.stubEnv("CLARA_ENV", "production");
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "false");
+    const disabled = getClaraToolRuntime();
+    expect(disabled.listTools().map((tool) => tool.name)).toEqual([RAG_SEARCH_TOOL_NAME]);
+    expect(getClaraToolRuntime()).toBe(disabled);
+
+    vi.stubEnv("CLARA_ENV", "development");
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "true");
+    const enabled = getClaraToolRuntime();
+    expect(enabled).not.toBe(disabled);
+    expect(enabled.hasTool(RAG_SEARCH_TOOL_NAME)).toBe(true);
+    expect(enabled.hasTool("integration_availability")).toBe(true);
+    expect(enabled.hasTool("integration_action")).toBe(true);
+    expect(getClaraToolRuntime()).toBe(enabled);
+  });
+
+  it("drops the optional tool catalogue again when integrations are disabled", () => {
+    vi.stubEnv("CLARA_ENV", "development");
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "true");
+    const enabled = getClaraToolRuntime();
+    expect(enabled.hasTool("integration_action")).toBe(true);
+
+    vi.stubEnv("CLARA_ENV", "production");
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "false");
+    const disabled = getClaraToolRuntime();
+    expect(disabled).not.toBe(enabled);
+    expect(disabled.listTools().map((tool) => tool.name)).toEqual([RAG_SEARCH_TOOL_NAME]);
+    expect(getClaraToolRuntime()).toBe(disabled);
+  });
+
+  it("does not cross-wire two independent deployment configurations", () => {
+    vi.stubEnv("CLARA_ENV", "production");
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "true");
+    expect(getClaraToolRuntime().hasTool("integration_action")).toBe(true);
+
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "invalid-value");
+    expect(getClaraToolRuntime().listTools().map((tool) => tool.name))
+      .toEqual([RAG_SEARCH_TOOL_NAME]);
   });
 
   it("the tool definition declares the reviewed authorization policy", () => {
