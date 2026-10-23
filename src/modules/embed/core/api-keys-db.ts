@@ -14,6 +14,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import type { PoolClient } from "pg";
 import { pool } from "@/lib/db";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -91,12 +92,12 @@ export async function createApiKey(opts: {
   allowedOrigins?: string[];
   rateLimitPerHour?: number;
   createdBy?: string;
-}): Promise<CreateApiKeyResult> {
+}, client?: PoolClient): Promise<CreateApiKeyResult> {
   const rawKey    = generateRawKey();
   const keyHash   = hashKey(rawKey);
   const keyPrefix = rawKey.slice(0, 16);
 
-  const result = await pool.query<Record<string, unknown>>(
+  const result = await (client ?? pool).query<Record<string, unknown>>(
     `INSERT INTO api_keys
        (kb_id, org_id, name, key_prefix, key_hash, allowed_origins, rate_limit_per_hour, created_by)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
