@@ -27,8 +27,11 @@ function parseAuditDate(raw: string | null, fallback: Date, name: "from" | "to")
   if (!Number.isFinite(date.getTime())) {
     throw new AuditFilterError(name + " must be a valid ISO 8601 date.");
   }
-  // JS Date normalizes impossible YYYY-MM-DD calendar dates. Reject instead.
-  if (raw.length === 10 && date.toISOString().slice(0, 10) !== raw) {
+  // JS Date normalizes impossible calendar dates, including timestamps.
+  // Validate the calendar portion in UTC without confusing a valid timezone
+  // offset with the resulting UTC date rollover.
+  const calendarPart = raw.slice(0, 10);
+  if (new Date(calendarPart + "T00:00:00Z").toISOString().slice(0, 10) !== calendarPart) {
     throw new AuditFilterError(name + " must be a valid calendar date.");
   }
   return date;
