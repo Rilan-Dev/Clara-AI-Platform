@@ -62,6 +62,14 @@ describe("integration runner action allowlist", () => {
     assertIntegrationExecutionAuthorized.mockResolvedValue(undefined);
   });
 
+  it("does not load unknown integration packages during action discovery", async () => {
+    getIntegration.mockReturnValueOnce(undefined);
+    const { getIntegrationActions } = await import("./runner-core.js");
+    expect(await getIntegrationActions("unregistered-package")).toEqual([]);
+    expect(loadPiece).not.toHaveBeenCalled();
+    expect(credentialGet).not.toHaveBeenCalled();
+  });
+
   it("does not advertise unreviewed package actions when registry matching is sparse", async () => {
     loadPiece.mockResolvedValue({
       actions: [
