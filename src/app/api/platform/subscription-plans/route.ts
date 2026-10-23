@@ -190,7 +190,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // entitlement resolver (which reads the live row, matching
     // max_integrations behavior) reflects the newest admin intent. The
     // published-version value remains the auditable snapshot.
-    if (mcpEntitlementsJson != null) {
+    if (body.mcpEntitlements !== undefined && mcpEntitlementsJson != null) {
       await query(
         `UPDATE subscription_plans SET mcp_entitlements = $1::jsonb WHERE id = $2`,
         [mcpEntitlementsJson, body.planId],
