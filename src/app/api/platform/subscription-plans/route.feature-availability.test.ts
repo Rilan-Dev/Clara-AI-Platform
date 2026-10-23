@@ -85,6 +85,18 @@ describe("shared subscription plan MCP isolation", () => {
     expect(response.status).toBe(201);
     expect(mocks.validateMcpEntitlements).toHaveBeenCalledOnce();
     expect(mocks.recordPlatformMcpAudit).toHaveBeenCalledOnce();
+    expect(mocks.query.mock.calls.some(([sql]) =>
+      (sql as string).includes("UPDATE subscription_plans SET mcp_entitlements"),
+    )).toBe(true);
+  });
+
+  it("respects an explicit disable override in development", async () => {
+    vi.stubEnv("CLARA_ENV", "development");
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "false");
+    const response = await POST(request({ mcpEntitlements: { enabled: true } }));
+    expect(response.status).toBe(404);
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.recordPlatformMcpAudit).not.toHaveBeenCalled();
   });
 
   it("honors an explicit enable override independently of production default", async () => {
