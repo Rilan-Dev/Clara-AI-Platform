@@ -78,6 +78,28 @@ describe("MCP override API feature isolation", () => {
     expect(mocks.recordPlatformMcpAudit).not.toHaveBeenCalled();
   });
 
+  it("preserves authorized development override writes and audit recording", async () => {
+    vi.stubEnv("CLARA_ENV", "development");
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "true");
+    mocks.query
+      .mockResolvedValueOnce([{ id: "org-1" }])
+      .mockResolvedValueOnce([]);
+    const response = await PUT(request("PUT"), context);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, override: { maxConnections: 2 } });
+    expect(mocks.recordPlatformMcpAudit).toHaveBeenCalledOnce();
+  });
+
+  it("preserves authorized development override deletion and audit recording", async () => {
+    vi.stubEnv("CLARA_ENV", "development");
+    vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "true");
+    mocks.query.mockResolvedValueOnce([{ org_id: "org-1" }]);
+    const response = await DELETE(request("DELETE"), context);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true });
+    expect(mocks.recordPlatformMcpAudit).toHaveBeenCalledOnce();
+  });
+
   it("continues normal MCP override management in an explicitly enabled development environment", async () => {
     vi.stubEnv("CLARA_ENV", "development");
     vi.stubEnv("CLARA_FEATURE_INTEGRATIONS", "true");
