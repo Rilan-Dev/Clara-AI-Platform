@@ -355,16 +355,25 @@ export function buildClaraToolRuntime(overrides?: {
 }
 
 let claraToolRuntime: ToolRuntime | null = null;
+let registeredIntegrationsEnabled: boolean | null = null;
 
 /**
  * The Clara application seam for the Unified Tool Runtime — the replacement
  * for the former hardcoded `claraRuntime.tools` object (PHASE-7-PLAN.md §9
- * A2: "`claraRuntime.tools` seam (replacing the hardcoded object)"). Lazily
- * initialized exactly once; registration is fail-closed.
+ * A2: "`claraRuntime.tools` seam (replacing the hardcoded object)").
+ *
+ * Preserve the singleton while the effective deployment policy is unchanged,
+ * but rebuild when the optional integrations family changes. Otherwise a
+ * cached production-off registry never acquires tools when enabled, or a
+ * cached development-on registry keeps advertising disabled tools. Existing
+ * tool handles independently check availability at invocation time.
  */
 export function getClaraToolRuntime(): ToolRuntime {
-  if (claraToolRuntime === null) {
-    claraToolRuntime = buildClaraToolRuntime();
+  const integrationsEnabled = isPlatformFeatureEnabled("integrations");
+  if (claraToolRuntime === null || registeredIntegrationsEnabled !== integrationsEnabled) {
+    const next = buildClaraToolRuntime();
+    claraToolRuntime = next;
+    registeredIntegrationsEnabled = integrationsEnabled;
   }
   return claraToolRuntime;
 }
