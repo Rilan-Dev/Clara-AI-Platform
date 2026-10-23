@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 import {
   MCP_OVERRIDE_KEYS,
   mcpOverrideSchema,
@@ -39,6 +40,9 @@ export async function GET(req: NextRequest, { params }: Params): Promise<NextRes
     await ensureMigrated();
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
+    if (!isPlatformFeatureEnabled("integrations")) {
+      return NextResponse.json({ error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" }, { status: 404 });
+    }
     const { id: orgId } = await params;
     if (!(await orgExists(orgId))) {
       return NextResponse.json({ error: "Organisation not found" }, { status: 404 });
@@ -118,6 +122,9 @@ export async function PUT(req: NextRequest, { params }: Params): Promise<NextRes
     await ensureMigrated();
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
+    if (!isPlatformFeatureEnabled("integrations")) {
+      return NextResponse.json({ error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" }, { status: 404 });
+    }
     const { id: orgId } = await params;
     if (!(await orgExists(orgId))) {
       return NextResponse.json({ error: "Organisation not found" }, { status: 404 });
@@ -198,6 +205,9 @@ export async function DELETE(req: NextRequest, { params }: Params): Promise<Next
     await ensureMigrated();
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
+    if (!isPlatformFeatureEnabled("integrations")) {
+      return NextResponse.json({ error: "This feature is not available in this environment.", code: "FEATURE_DISABLED" }, { status: 404 });
+    }
     const { id: orgId } = await params;
     const deleted = await query<{ org_id: string }>(
       `DELETE FROM org_mcp_overrides WHERE org_id = $1 RETURNING org_id`,
