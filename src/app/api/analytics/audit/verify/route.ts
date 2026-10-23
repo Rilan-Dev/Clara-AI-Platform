@@ -14,9 +14,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
+import { AuditFilterError, parseAuditOrgId } from "../filters";
 import { verifyQueryEventChain } from "@/modules/knowledge-bases/core/analytics-db";
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
@@ -24,8 +23,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
 
-    const orgIdParam = req.nextUrl.searchParams.get("orgId") ?? "";
-    const orgId = UUID_RE.test(orgIdParam) ? orgIdParam : undefined;
+    // A malformed explicit scope is never equivalent to a platform-wide scan.
+    const orgId = parseAuditOrgId(req.nextUrl.searchParams) ?? undefined;
 
     const results = await verifyQueryEventChain(orgId);
 
@@ -43,6 +42,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     });
   } catch (err) {
     if (err instanceof NextResponse) return err;
+    if (err instanceof AuditFilterError) {
+      return NextResponse.json(
+        { error: err.message, code: "INVALID_AUDIT_FILTER" },
+        { status: 400 },
+      );
+    }
     console.error("[GET /api/analytics/audit/verify]", err);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
