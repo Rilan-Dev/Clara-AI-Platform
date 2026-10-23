@@ -74,6 +74,9 @@ describe("shared subscription plan MCP isolation", () => {
     expect(mocks.query.mock.calls.some(([sql]) =>
       (sql as string).includes("INSERT INTO subscription_plan_versions"),
     )).toBe(true);
+    expect(mocks.query.mock.calls.some(([sql]) =>
+      (sql as string).includes("UPDATE subscription_plans SET mcp_entitlements"),
+    )).toBe(false);
   });
 
   it("retains MCP entitlement editing for authorized development", async () => {
