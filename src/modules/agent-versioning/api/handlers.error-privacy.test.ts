@@ -129,6 +129,32 @@ describe("tenant-safe agent-versioning failure responses", () => {
     expect(await response.json()).toEqual({ error: "Branch not found.", code: "BRANCH_NOT_FOUND" });
   });
 
+  it("maps missing draft resources to 404, not malformed-input 400", async () => {
+    mocks.ensureAgentVersioning.mockRejectedValueOnce(
+      new AgentVersioningError("Branch has no draft.", "DRAFT_NOT_FOUND"),
+    );
+    const response = await getDraftHandler(getRequest(), "agent-1");
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: "Branch has no draft.", code: "DRAFT_NOT_FOUND",
+    });
+  });
+
+  it.each([
+    "MAIN_CREATE_FAILED",
+    "BRANCH_CREATE_FAILED",
+    "VERSION_CREATE_FAILED",
+    "DRAFT_SAVE_FAILED",
+    "DEPLOYMENT_CREATE_FAILED",
+  ])("treats internal persistence failure %s as a sanitized 500", async (code) => {
+    const internal = new AgentVersioningError("Failed to save draft.", code);
+    mocks.ensureAgentVersioning.mockRejectedValueOnce(internal);
+    const response = await getDraftHandler(getRequest(), "agent-1");
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Versioning operation failed" });
+    expect(logged).toHaveBeenCalledWith("[agent-versioning]", internal);
+  });
+
   it("preserves explicit authentication or authorization response status", async () => {
     mocks.requireAgentPermission.mockRejectedValueOnce(
       NextResponse.json({ error: "Forbidden" }, { status: 403 }),
