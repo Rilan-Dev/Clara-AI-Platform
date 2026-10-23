@@ -74,7 +74,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         COALESCE(os.plan_id, 'free')  AS plan_id,
         COALESCE(sp.name, 'Free')     AS plan_name,
         COUNT(o.id)::int              AS count,
-        COALESCE(SUM(CASE WHEN sp.price_usd > 0 THEN sp.price_usd ELSE 0 END), 0)::int AS mrr
+        COALESCE(SUM(CASE
+          WHEN os.status = 'active' AND COALESCE(os.price_snapshot, sp.price_usd) > 0
+          THEN COALESCE(os.price_snapshot, sp.price_usd)
+          ELSE 0 END), 0)::int AS mrr
       FROM organisations o
       LEFT JOIN org_subscriptions os ON os.org_id = o.id AND os.status IN ('active','trialing')
       LEFT JOIN subscription_plans sp ON sp.id = os.plan_id
@@ -106,10 +109,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // ── Current totals ────────────────────────────────────────────────────
     const totals = await query<{ mrr: number; arr: number; paying_orgs: number; trial_orgs: number }>(`
       SELECT
-        COALESCE(SUM(sp.price_usd) FILTER (WHERE os.status = 'active' AND sp.price_usd > 0), 0)::int AS mrr,
-        COALESCE(SUM(sp.price_usd) FILTER (WHERE os.status = 'active' AND sp.price_usd > 0), 0)::int * 12 AS arr,
-        COUNT(*) FILTER (WHERE os.status = 'active'   AND sp.price_usd > 0)::int AS paying_orgs,
-        COUNT(*) FILTER (WHERE os.status = 'trialing' AND sp.price_usd > 0)::int AS trial_orgs
+        COALESCE(SUM(
+          CASE WHEN os.status = 'active' AND COALESCE(os.price_snapshot, sp.price_usd) > 0
+            THEN COALESCE(os.price_snapshot, sp.price_usd)
+            ELSE 0 END
+        ), 0)::int AS mrr,
+        COALESCE(SUM(
+          CASE WHEN os.status = 'active' AND COALESCE(os.price_snapshot, sp.price_usd) > 0
+            THEN COALESCE(os.price_snapshot, sp.price_usd)
+            ELSE 0 END
+        ), 0)::int * 12 AS arr,
+        COUNT(*) FILTER (WHERE os.status = 'active'
+          AND COALESCE(os.price_snapshot, sp.price_usd) > 0)::int AS paying_orgs,
+        COUNT(*) FILTER (WHERE os.status = 'trialing'
+          AND COALESCE(os.price_snapshot, sp.price_usd) > 0)::int AS trial_orgs
       FROM org_subscriptions os
       JOIN subscription_plans sp ON sp.id = os.plan_id
     `, []);
@@ -124,6 +137,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   } catch (err) {
     if (err instanceof NextResponse) return err;
     console.error("[GET /api/analytics/revenue]", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch revenue analytics" }, { status: 500 });
   }
 }
