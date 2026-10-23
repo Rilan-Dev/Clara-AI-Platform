@@ -14,13 +14,19 @@ import { query } from "@/lib/db";
 import { requireAuth, requireSuperAdmin } from "@/modules/auth/core/rbac";
 import { AuditFilterError, parseAuditFilters } from "../filters";
 
-/** RFC 4180 CSV field escaping. */
+/**
+ * RFC 4180 CSV escaping plus spreadsheet formula neutralization.
+ * Audit fields include arbitrary user prompts and model responses. A CSV
+ * opened in spreadsheet software must not execute a malicious formula.
+ */
 function csvField(value: string | number | null | undefined): string {
-  const s = value == null ? "" : String(value);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  let s = value == null ? "" : String(value);
+  if (typeof value !== "number" && /^[\u0000-\u0020]*[=+\-@]/.test(s)) {
+    s = "'" + s;
+  }
+  if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
   return s;
 }
-
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     await ensureMigrated();
