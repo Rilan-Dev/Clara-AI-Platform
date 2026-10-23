@@ -57,6 +57,55 @@ describe("deployment feature switches at request boundary", () => {
     expect(middleware(request("/api/platform/orgs/org-1/mcp-override", "OPTIONS")).status).toBe(204);
   });
 
+  it("never reflects localhost as a credentialed CORS origin in production by default", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("CLARA_ENV", "production");
+    const local = new NextRequest("https://clara.example.test/api/platform/orgs", {
+      method: "GET",
+      headers: { origin: "http://localhost:3000", authorization: "Bearer test-admin" },
+    });
+    const normal = middleware(local);
+    expect(normal.headers.get("access-control-allow-origin")).toBeNull();
+    expect(normal.headers.get("access-control-allow-credentials")).toBeNull();
+
+    // Preflight must use the same allowlist: permission to read or send
+    // credentialed requests is not granted solely by a localhost hostname.
+    const preflight = middleware(new NextRequest("https://clara.example.test/api/platform/orgs", {
+      method: "OPTIONS", headers: { origin: "http://127.0.0.1:5173" },
+    }));
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-origin")).toBeNull();
+    expect(preflight.headers.get("access-control-allow-credentials")).toBeNull();
+  });
+
+  it("preserves localhost CORS for local development only", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("CLARA_ENV", "development");
+    const res = middleware(new NextRequest("http://localhost:3000/api/platform/orgs", {
+      method: "OPTIONS", headers: { origin: "http://localhost:5173" },
+    }));
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
+    expect(res.headers.get("access-control-allow-credentials")).toBe("true");
+  });
+
+  it("never loosens disabled feature or public embed CORS decisions", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("CLARA_ENV", "production");
+    const denied = middleware(new NextRequest("https://clara.example.test/api/embed/chat", {
+      method: "OPTIONS", headers: { origin: "http://localhost:3000" },
+    }));
+    expect(denied.status).toBe(404);
+    expect(denied.headers.get("access-control-allow-origin")).toBeNull();
+    expect(denied.headers.get("access-control-allow-credentials")).toBeNull();
+
+    const publicConfig = middleware(new NextRequest("https://clara.example.test/api/public/agents/a1/config", {
+      method: "GET", headers: { origin: "https://unknown.example" },
+    }));
+    expect(publicConfig.status).toBe(200);
+    expect(publicConfig.headers.get("access-control-allow-credentials")).toBeNull();
+  });
+
   it("isolates widget and integrations overrides without changing shared APIs", () => {
     vi.stubEnv("CLARA_ENV", "development");
     vi.stubEnv("CLARA_FEATURE_EMBEDDABLE_WIDGET", "false");
