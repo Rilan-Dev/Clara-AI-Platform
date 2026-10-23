@@ -99,6 +99,30 @@ describe("KB document API provider diagnostic redaction", () => {
     expect(mocks.enqueueIngestJob).toHaveBeenCalledWith("job-1");
   });
 
+  it("redacts internal errors thrown by the document list query", async () => {
+    mocks.listDocuments.mockRejectedValueOnce(
+      new Error("postgres://private:password@db.local:5432/tenant"),
+    );
+    const response = await listDocumentsHandler(request(), "kb-1");
+    expect(response.status).toBe(500);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const text = await response.text();
+    expect(text).toContain("document request could not be completed");
+    expect(text).not.toContain("password");
+    expect(text).not.toContain("db.local");
+  });
+
+  it("redacts internal errors from single-document status polling", async () => {
+    mocks.getDocumentJobStatus.mockRejectedValueOnce(
+      new Error("Google API 429 RESOURCE_EXHAUSTED https://secret.provider.internal"),
+    );
+    const response = await getDocumentHandler(request(), "kb-1", "doc-1");
+    expect(response.status).toBe(500);
+    const text = await response.text();
+    expect(text).not.toContain("RESOURCE_EXHAUSTED");
+    expect(text).not.toContain("secret.provider");
+  });
+
   it("retains document/KB ownership checks before returning diagnostic status", async () => {
     mocks.getDocumentById.mockResolvedValueOnce({ ...document(), kbId: "kb-other" });
     const response = await getDocumentHandler(request(), "kb-1", "doc-1");
