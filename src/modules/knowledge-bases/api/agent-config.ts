@@ -15,6 +15,20 @@ import type { PutAssistantConfigInput, PatchAssistantConfigInput } from "../core
 import { isPlatformFeatureEnabled } from "@/lib/feature-availability";
 import { preserveDisabledWidgetFieldsOnPatch, preserveDisabledWidgetFieldsOnPut } from "../core/widget-config-policy";
 
+/**
+ * Keep unexpected DB/provider errors in the operator logs only. This shared
+ * configuration endpoint is called by both native agent settings and widget
+ * design, so exposing the raw exception here would leak it to org members.
+ */
+function agentConfigErrorResponse(err: unknown, method: "GET" | "PUT" | "PATCH"): NextResponse {
+  if (err instanceof NextResponse) return err;
+  console.error(`[agent-config] ${method}:`, err);
+  return NextResponse.json(
+    { error: method === "GET" ? "Unable to load agent configuration." : "Unable to save agent configuration." },
+    { status: 500, headers: { "Cache-Control": "private, no-store" } },
+  );
+}
+
 async function guardAgent(agentId: string): Promise<NextResponse|null> {
   const agent = await getAgentById(agentId);
   if (!agent) return NextResponse.json({error:"Agent not found"},{status:404});
@@ -51,8 +65,7 @@ export async function getAgentConfigHandler(_req: NextRequest, agentId: string):
     if (!config) return NextResponse.json({error:"AssistantConfig not found"},{status:404});
     return NextResponse.json(config);
   } catch (err) {
-    if (err instanceof NextResponse) return err;
-    return NextResponse.json({error:(err as Error).message},{status:500});
+    return agentConfigErrorResponse(err, "GET");
   }
 }
 
@@ -145,9 +158,7 @@ export async function putAgentConfigHandler(req: NextRequest, agentId: string): 
     const config = await putAssistantConfig(agentId, input);
     return NextResponse.json(config);
   } catch (err) {
-    if (err instanceof NextResponse) return err;
-    console.error("[agent-config] PUT:", err);
-    return NextResponse.json({error:(err as Error).message},{status:500});
+    return agentConfigErrorResponse(err, "PUT");
   }
 }
 
@@ -280,8 +291,6 @@ export async function patchAgentConfigHandler(req: NextRequest, agentId: string)
     if (!config) return NextResponse.json({error:"AssistantConfig not found"},{status:404});
     return NextResponse.json(config);
   } catch (err) {
-    if (err instanceof NextResponse) return err;
-    console.error("[agent-config] PATCH:", err);
-    return NextResponse.json({error:(err as Error).message},{status:500});
+    return agentConfigErrorResponse(err, "PATCH");
   }
 }
