@@ -49,8 +49,6 @@ const validFullConfig = {
 };
 
 describe("agent configuration API hides unexpected internal errors from organisation members", () => {
-  let logged: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("CLARA_ENV", "development");
@@ -61,11 +59,11 @@ describe("agent configuration API hides unexpected internal errors from organisa
     mocks.getAssistantConfigByAgent.mockResolvedValue({ assistantName: "Clara" });
     mocks.putAssistantConfig.mockResolvedValue({ assistantName: "Clara" });
     mocks.patchAssistantConfig.mockResolvedValue({ assistantName: "Updated Clara" });
-    logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
-    logged.mockRestore();
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
@@ -76,7 +74,7 @@ describe("agent configuration API hides unexpected internal errors from organisa
     expect(response.status).toBe(500);
     expect(await response.json()).toEqual({ error: "Unable to load agent configuration." });
     expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(logged).toHaveBeenCalledWith("[agent-config] GET:", failure);
+    expect(console.error).toHaveBeenCalledWith("[agent-config] GET:", failure);
   });
 
   it("redacts provider/backend exception details from full PUT", async () => {
