@@ -153,6 +153,49 @@ describe("tenant-safe agent-versioning failure responses", () => {
     expect(console.error).toHaveBeenCalledWith("[agent-versioning]", internal);
   });
 
+  it("fails closed on an unrecognized versioning failure code rather than echoing server diagnostics as a 400", async () => {
+    const failure = new AgentVersioningError(
+      "SQLSTATE 08006 postgres://dbuser:password@internal-db/tenant",
+      "STORAGE_DRIVER_FAILURE",
+    );
+    mocks.ensureAgentVersioning.mockRejectedValueOnce(failure);
+    const response = await getDraftHandler(getRequest(), "agent-1");
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Versioning operation failed" });
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(console.error).toHaveBeenCalledWith("[agent-versioning]", failure);
+  });
+
+  it("reports corrupt persisted version configurations as 500 rather than treating them as user validation", async () => {
+    mocks.ensureAgentVersioning.mockRejectedValueOnce(
+      new AgentVersioningError(
+        "Corrupt configuration at internal-database.cluster.local",
+        "VERSION_CONFIG_INVALID",
+      ),
+    );
+    const response = await getDraftHandler(getRequest(), "agent-1");
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: "Versioning operation failed" });
+  });
+
+  it.each([
+    ["BRANCH_EXISTS", 400],
+    ["BRANCH_NAME_RESERVED", 400],
+    ["BRANCH_ARCHIVED", 400],
+    ["PUBLISH_KB_OWNERSHIP", 400],
+    ["MERGE_CONFLICTS_UNRESOLVED", 409],
+    ["PUBLISH_VALIDATION_FAILED", 409],
+  ] as const)("preserves known actionable code %s with expected %i response", async (code, status) => {
+    const failure = new AgentVersioningError("User-actionable failure", code);
+    mocks.ensureAgentVersioning.mockRejectedValueOnce(failure);
+    const response = await getDraftHandler(getRequest(), "agent-1");
+    expect(response.status).toBe(status);
+    expect(await response.json()).toEqual({
+      error: "User-actionable failure",
+      code,
+    });
+  });
+
   it("preserves explicit authentication or authorization response status", async () => {
     mocks.requireAgentPermission.mockRejectedValueOnce(
       NextResponse.json({ error: "Forbidden" }, { status: 403 }),
