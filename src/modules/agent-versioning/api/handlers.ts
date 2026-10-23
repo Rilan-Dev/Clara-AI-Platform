@@ -38,36 +38,41 @@ import {
   saveVersionFromDraft,
 } from "../core/service";
 
-// The DB module wraps write failures in AgentVersioningError so callers can
-// distinguish them from invalid user input. Those are *server* failures, not
-// HTTP 400 client mistakes; their diagnostics must remain in operator logs.
-const INTERNAL_VERSIONING_FAILURE_CODES = new Set([
-  "MAIN_CREATE_FAILED",
-  "BRANCH_CREATE_FAILED",
-  "VERSION_CREATE_FAILED",
-  "DRAFT_SAVE_FAILED",
-  "DEPLOYMENT_CREATE_FAILED",
+// Only explicitly reviewed domain failures are safe to echo to an
+// organisation user. AgentVersioningError can also wrap corrupt persisted
+// snapshots or future storage/provider failures; unknown codes must never be
+// assumed to be a user-input 400 with an arbitrary diagnostic message.
+const VERSIONING_NOT_FOUND_CODES = new Set([
+  "AGENT_NOT_FOUND", "VERSION_NOT_FOUND", "BRANCH_NOT_FOUND", "DRAFT_NOT_FOUND",
+]);
+
+const VERSIONING_CONFLICT_CODES = new Set([
+  "MERGE_CONFLICTS_UNRESOLVED", "PUBLISH_VALIDATION_FAILED",
+]);
+
+const VERSIONING_VALIDATION_CODES = new Set([
+  "BRANCH_EXISTS", "BRANCH_NAME_RESERVED", "BRANCH_MAIN_IMMUTABLE",
+  "BRANCH_ARCHIVED", "MERGE_SELF", "MERGE_EMPTY_SOURCE", "MERGE_EMPTY_TARGET",
+  "PUBLISH_KB_OWNERSHIP", "DEFAULT_MISSING",
 ]);
 
 function versioningErrorResponse(err: unknown): NextResponse {
-  // Auth/permission failures (NextResponse thrown by the rbac layer) must
-  // keep their original status — never be masked as a 500.
+  // Existing RBAC responses carry their own statuses and are passed through.
   if (err instanceof NextResponse) return err;
-  if (err instanceof AgentVersioningError && !INTERNAL_VERSIONING_FAILURE_CODES.has(err.code)) {
-    const status =
-      err.code === "AGENT_NOT_FOUND" || err.code === "VERSION_NOT_FOUND" ||
-      err.code === "BRANCH_NOT_FOUND" || err.code === "DRAFT_NOT_FOUND"
-        ? 404
-        : err.code === "MERGE_CONFLICTS_UNRESOLVED" || err.code === "PUBLISH_VALIDATION_FAILED"
-          ? 409
-          : 400;
-    return NextResponse.json({ error: err.message, code: err.code }, { status });
+  if (err instanceof AgentVersioningError) {
+    const status = VERSIONING_NOT_FOUND_CODES.has(err.code) ? 404
+      : VERSIONING_CONFLICT_CODES.has(err.code) ? 409
+      : VERSIONING_VALIDATION_CODES.has(err.code) ? 400
+      : null;
+    if (status !== null) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status });
+    }
   }
+
+  // Includes VERSION_CONFIG_INVALID (corrupt persisted version), all known
+  // write-failure codes, and future/unrecognised failures. Never forward an
+  // unreviewed code/message from a backend exception to a tenant.
   console.error("[agent-versioning]", err);
-  // Unexpected database, provider, serialization or infrastructure failures
-  // are operator-only diagnostics. A tenant-visible 500 must never echo an
-  // exception message containing SQL, URLs, credentials, connection targets,
-  // token values or untrusted external payloads.
   return NextResponse.json(
     { error: "Versioning operation failed" },
     { status: 500, headers: { "Cache-Control": "private, no-store" } },
