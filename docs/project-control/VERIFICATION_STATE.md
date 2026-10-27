@@ -1,3 +1,12 @@
+## CURRENT VERIFICATION STATE — 2026-10-27 — TOAST STACK UX CORRECTION
+
+- Source changes were made to the shared Sonner styling and root layout position.
+- Source-level intent: bottom-right anchoring, fixed responsive card width during hover, full message reveal without forced width expansion, compact stack default.
+- Commits: `8be85cb88cf55caece569fa799fdfdc52b4f267d`, `4451c236d8cedeac2df5391dc2d02212a0e1bccd`.
+- No tests, build, browser walkthrough, CI, Vercel deployment, or Gate was run or awaited. Visual runtime behavior remains unverified; no PASS is claimed.
+
+---
+
 ## SOURCE REVIEW UPDATE — FOCUSED LIVE CATALOGUE AUDIT COMPLETE — 2026-10-16
 
 [architect source review only] Reviewed the provider pagination and response-shape failure boundaries for Gemini, OpenAI, and ElevenLabs; Sarvam successful-empty versus failed discovery; and per-provider coordinator incident semantics. Added regression source for malformed/incomplete discovery and last-known-row preservation. Coordinator source review found provider tasks isolated and provider discovery exceptions reported as unhealthy.
