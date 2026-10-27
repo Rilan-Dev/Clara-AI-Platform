@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE PHASE — 2026-10-27 — TOAST STACK UX CORRECTION
+
+[architect source change] Global Sonner notifications are positioned bottom-right. Hover keeps the card width stable and expands message visibility rather than stretching the card across the viewport; the default expanded-stack prop was removed so the compact stack remains the default.
+
+- Commits: `8be85cb88cf55caece569fa799fdfdc52b4f267d`, `4451c236d8cedeac2df5391dc2d02212a0e1bccd`.
+- Tests/build/CI/Vercel/Gates were not run or awaited.
+- **Next:** continue the next authorized item from `NEXT_ACTION.md`; do not claim a visual browser pass.
+
+---
+
 ## CURRENT AUTHORITATIVE PHASE — 2026-10-16 — FOCUSED CATALOGUE SOURCE AUDIT COMPLETE
 
 [architect source review] The current focused catalogue source audit is complete: provider discovery pagination/response validation, failed-vs-empty reconciliation, and sync coordinator incident semantics have been reviewed and hardened where source defects were identified.
