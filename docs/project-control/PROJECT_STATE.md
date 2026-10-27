@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-27 — TOAST STACK UX CORRECTION
+
+[architect source review] Shared toast notifications now anchor to the bottom-right corner. Hover no longer changes the card width from the compact stack width to a much wider panel, preventing the expansion rule from covering adjacent notifications. The title/message can still reveal their full text on hover, while cards retain a stable responsive width.
+
+- Commits: `8be85cb88cf55caece569fa799fdfdc52b4f267d`, `4451c236d8cedeac2df5391dc2d02212a0e1bccd`.
+- No executable verification is claimed.
+- **Next:** continue the next authorized implementation item from `NEXT_ACTION.md`.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-16 — FOCUSED CATALOGUE SOURCE AUDIT COMPLETE
 
 [architect source review] Completed the authorized focused review of cross-provider discovery/reconciliation boundaries: Gemini/OpenAI pagination and response-shape validation, ElevenLabs voice pagination/response-shape validation, Sarvam failed-vs-empty discovery, and provider-specific incident status handling. Partial/malformed discovery is rejected before the affected provider's authoritative reconciliation; last-known rows are preserved. Coordinator review found provider failures isolated and reported as unhealthy, without blocking independent provider tasks.
