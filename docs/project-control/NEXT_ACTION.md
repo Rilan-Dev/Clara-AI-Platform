@@ -1,3 +1,14 @@
+## TOAST NOTIFICATION PLACEMENT + HOVER EXPANSION — 2026-10-27
+
+- Corrected the shared Sonner host from bottom-center to **bottom-right**.
+- Removed the forced hover width growth that let an expanded toast overlap the stack and obscure neighboring notifications. Toast cards keep a stable responsive width; hover reveals the full title/message text and elevates the hovered card without widening the whole notification stack.
+- Removed the always-expanded stack setting so notifications return to their compact stacked presentation when not being interacted with.
+- Commits: `8be85cb88cf55caece569fa799fdfdc52b4f267d` (stable toast width / hover behavior), `4451c236d8cedeac2df5391dc2d02212a0e1bccd` (bottom-right host position).
+- No tests, build, CI, Vercel, or Gate was run or awaited.
+- **Next:** continue the next authorized implementation item in this file; if the user reports the stack still visually overlaps after browser review, refine only the Sonner stack layout/hover transitions. No verification pass is claimed.
+
+---
+
 ## LIVE MODEL CATALOGUE — BOUNDED SOURCE AUDIT COMPLETE — 2026-10-16
 
 - Source-reviewed the sync coordinator after the provider-level pagination/schema fixes. Each provider runs in an isolated task; discovery exceptions are recorded as provider-specific unhealthy incidents, and one provider's failure does not prevent the other provider tasks from running. Keyless providers do not generate a false healthy vendor-contact claim.
