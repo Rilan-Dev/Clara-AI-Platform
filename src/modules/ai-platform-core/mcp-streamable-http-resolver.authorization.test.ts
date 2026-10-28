@@ -55,6 +55,25 @@ vi.mock("./mcp-http-transport", async (importOriginal) => {
     expect(queryMock).toHaveBeenCalledTimes(3);
   });
 
+
+  it("does not discover tools when the server is disabled or has no current platform approval", async () => {
+    queryMock.mockResolvedValueOnce([]); // platform_enabled / approved-tool query returns no rows
+    const resolver = new StreamableHttpMcpToolResolver();
+    await expect(
+      resolver.resolve({ serverId: "server-1", toolName: "lookup", context }),
+    ).resolves.toBeNull();
+    expect(mcpHttpRequestMock).not.toHaveBeenCalled();
+  });
+
+  it("does not discover tools when the server is not allowed for the current plan", async () => {
+    queryMock.mockResolvedValueOnce([{ ...serverAccess, allowed_plans: ["starter"] }]);
+    const resolver = new StreamableHttpMcpToolResolver();
+    await expect(
+      resolver.resolve({ serverId: "server-1", toolName: "lookup", context }),
+    ).resolves.toBeNull();
+    expect(mcpHttpRequestMock).not.toHaveBeenCalled();
+  });
+
 });
 
 import { StreamableHttpMcpToolResolver } from "./mcp-streamable-http-resolver";
