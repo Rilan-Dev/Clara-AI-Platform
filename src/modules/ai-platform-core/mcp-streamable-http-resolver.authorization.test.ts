@@ -15,6 +15,46 @@ vi.mock("@/modules/auth/core/db", () => ({ getKbAccessContext: kbAccessMock }));
 vi.mock("./mcp-http-transport", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./mcp-http-transport")>();
   return { ...actual, mcpHttpRequest: mcpHttpRequestMock };
+
+  it("rejects invocation when the remote tool schema changes after discovery", async () => {
+    const schema = (minimum: number) => ({
+      type: "object",
+      properties: { count: { type: "integer", minimum } },
+      required: ["count"],
+      additionalProperties: false,
+    });
+    const toolPage = (inputSchema: unknown) => rpc({
+      tools: [{ name: "lookup", description: "Read one record", inputSchema }],
+    });
+    mcpHttpRequestMock.mockReset();
+    mcpHttpRequestMock
+      .mockResolvedValueOnce(rpc({ protocolVersion: "2025-03-26", serverInfo: { name: "mock", version: "1" } }))
+      .mockResolvedValueOnce({ status: 202, headers: {}, body: "" })
+      .mockResolvedValueOnce(toolPage(schema(1)))
+      .mockResolvedValueOnce(rpc({ protocolVersion: "2025-03-26", serverInfo: { name: "mock", version: "1" } }))
+      .mockResolvedValueOnce({ status: 202, headers: {}, body: "" })
+      .mockResolvedValueOnce(toolPage(schema(2)));
+    queryMock
+      .mockResolvedValueOnce([serverAccess]) // initial discovery authorization
+      .mockResolvedValueOnce([]) // connection status update
+      .mockResolvedValueOnce([serverAccess]); // invocation authorization
+
+    const resolver = new StreamableHttpMcpToolResolver();
+    const descriptor = await resolver.resolve({
+      serverId: "server-1",
+      toolName: "lookup",
+      context,
+    });
+    expect(descriptor).not.toBeNull();
+
+    await expect(
+      resolver.invoke(descriptor!, { count: 2 }, context),
+    ).rejects.toThrow("MCP tool invocation failed safely.");
+    // The changed schema is rejected before the side-effecting tools/call RPC.
+    expect(mcpHttpRequestMock).toHaveBeenCalledTimes(6);
+    expect(queryMock).toHaveBeenCalledTimes(3);
+  });
+
 });
 
 import { StreamableHttpMcpToolResolver } from "./mcp-streamable-http-resolver";
