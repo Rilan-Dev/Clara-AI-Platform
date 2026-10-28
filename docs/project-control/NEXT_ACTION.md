@@ -1,3 +1,15 @@
+## MCP STREAMABLE HTTP — DETERMINISTIC TRANSPORT REGRESSION SEAM — 2026-10-29
+
+- Continued the active MCP follow-up from `sessions/SESSION-DEV-20261011-01.md`; this is the authorized follow-on to the I-6 bridge, not a claim that CI or runtime verification passed.
+- Added injectable DNS-resolution and HTTPS-request dependencies to `mcpHttpRequest`, preserving production defaults while enabling deterministic transport-boundary regressions.
+- Added `src/modules/ai-platform-core/mcp-http-transport.test.ts` coverage for mixed public/private DNS answers rejected before socket creation, per-request DNS revalidation (simulated public-to-private change), request-size rejection before network activity, and pre-cancelled requests.
+- Commits: `b7caf9615652fff7e928040a30753f21ac831dd0` (transport seams), `45b7207d66553b668d1cddf4019f133c88d7e219` (regressions), `7f1ca90b1298490142a30229336785ae1e6d2e80` (unused type import cleanup).
+- No tests, type-check, build, CI, Vercel, Gate, live DNS, or MCP handshake was run or awaited.
+- **Next implementation:** extend deterministic transport regressions to redirect refusal, timeout/cancellation during an active request, response-size enforcement, and pinned-address lookup; then add mocked resolver/runtime authorization regressions for revoked grants and stale schemas. Keep MCP disabled until owner-authorized focused verification/live handshake; do not wait for CI/Vercel.
+- **STOP:** do not claim MCP production readiness or widen into unrelated work.
+
+---
+
 ## TOAST NOTIFICATION PLACEMENT + HOVER EXPANSION — 2026-10-27
 
 - Corrected the shared Sonner host from bottom-center to **bottom-right**.
