@@ -17,6 +17,7 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import https from "node:https";
+import type { ClientRequest, IncomingMessage } from "node:http";
 import type { IncomingHttpHeaders } from "node:http";
 import type { LookupFunction } from "node:net";
 
@@ -68,15 +69,21 @@ export function validateMcpEndpoint(raw: string): URL {
   return url;
 }
 
-async function checkedAddresses(hostname: string): Promise<Array<{ address: string; family: number }>> {
-  const addresses = await lookup(hostname, { all: true, verbatim: true });
+export type McpResolvedAddress = { address: string; family: number };
+export type McpTransportDependencies = {
+  resolveAddresses?: (hostname: string) => Promise<McpResolvedAddress[]>;
+  request?: typeof https.request;
+};
+
+async function checkedAddresses(hostname: string, resolve: (hostname: string) => Promise<McpResolvedAddress[]>): Promise<McpResolvedAddress[]> {
+  const addresses = await resolve(hostname);
   if (!addresses.length || addresses.some((entry) => !isMcpPublicIpAddress(entry.address))) {
     throw new Error("MCP endpoint DNS resolved to a non-public address.");
   }
   return addresses;
 }
 
-async function checkedAddressesWithDeadline(hostname: string, timeoutMs: number, signal?: AbortSignal): Promise<Array<{ address: string; family: number }>> {
+async function checkedAddressesWithDeadline(hostname: string, timeoutMs: number, signal: AbortSignal | undefined, resolve: (hostname: string) => Promise<McpResolvedAddress[]>): Promise<McpResolvedAddress[]> {
   if (signal?.aborted) throw new Error("MCP request cancelled.");
   let timer: ReturnType<typeof setTimeout> | undefined;
   let onAbort: (() => void) | undefined;
@@ -88,7 +95,7 @@ async function checkedAddressesWithDeadline(hostname: string, timeoutMs: number,
     : new Promise<never>(() => {});
   try {
     return await Promise.race([
-      checkedAddresses(hostname),
+      checkedAddresses(hostname, resolve),
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(() => reject(new Error("MCP DNS lookup timed out.")), timeoutMs);
       }),
@@ -111,7 +118,7 @@ export type McpHttpRequestInit = {
 export type McpHttpResponse = { status: number; headers: IncomingHttpHeaders; body: string };
 
 /** One outbound HTTPS request with the full guard set described above. */
-export async function mcpHttpRequest(url: URL, init: McpHttpRequestInit = {}): Promise<McpHttpResponse> {
+export async function mcpHttpRequest(url: URL, init: McpHttpRequestInit = {}, dependencies: McpTransportDependencies = {}): Promise<McpHttpResponse> {
   const method = init.method ?? "POST";
   const body = init.body ?? null;
   const timeoutMs = init.timeoutMs ?? MCP_REQUEST_TIMEOUT_MS;
@@ -120,7 +127,8 @@ export async function mcpHttpRequest(url: URL, init: McpHttpRequestInit = {}): P
   const signal = init.signal;
   if (signal?.aborted) throw new Error("MCP request cancelled.");
   let addresses: Array<{ address: string; family: number }>;
-  try { addresses = await checkedAddressesWithDeadline(url.hostname, timeoutMs, signal); } catch (error) {
+  const resolveAddresses = dependencies.resolveAddresses ?? (async (hostname: string) => lookup(hostname, { all: true, verbatim: true }));
+  try { addresses = await checkedAddressesWithDeadline(url.hostname, timeoutMs, signal, resolveAddresses); } catch (error) {
     if (error instanceof Error && /timed out|cancelled/i.test(error.message)) throw error;
     throw new Error("MCP endpoint DNS validation failed.");
   }
@@ -136,8 +144,9 @@ export async function mcpHttpRequest(url: URL, init: McpHttpRequestInit = {}): P
     else callback(null, pinned.address, pinned.family);
   }) as unknown as LookupFunction;
   const agent = new https.Agent({ keepAlive: false, rejectUnauthorized: true, lookup: pinnedLookup });
+  const request = dependencies.request ?? https.request;
   return new Promise((resolve, reject) => {
-    const req = https.request(url, {
+    const req = request(url, {
       method,
       headers,
       rejectUnauthorized: true,
