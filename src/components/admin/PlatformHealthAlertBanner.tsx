@@ -19,6 +19,37 @@ type HealthAlert = {
 };
 
 const POLL_INTERVAL_MS = 30_000;
+const DISMISSED_ALERTS_KEY = "clara:platform-health-alerts:dismissed:v1";
+
+function dismissedAlertIds(): Set<string> {
+  try {
+    const value = window.localStorage.getItem(DISMISSED_ALERTS_KEY);
+    const parsed: unknown = value ? JSON.parse(value) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markAlertDismissed(id: string) {
+  try {
+    const dismissed = dismissedAlertIds();
+    dismissed.add(id);
+    window.localStorage.setItem(DISMISSED_ALERTS_KEY, JSON.stringify([...dismissed]));
+  } catch {
+    // Storage may be unavailable; session-level toast de-duplication still applies.
+  }
+}
+
+function clearAlertDismissal(id: string) {
+  try {
+    const dismissed = dismissedAlertIds();
+    dismissed.delete(id);
+    window.localStorage.setItem(DISMISSED_ALERTS_KEY, JSON.stringify([...dismissed]));
+  } catch {
+    // Non-fatal: the incident remains reviewable from the notification bell.
+  }
+}
 
 function announceAlert(alert: HealthAlert) {
   const description = `${alert.message} · ${alert.actionLabel}`;
@@ -33,6 +64,7 @@ function announceAlert(alert: HealthAlert) {
       description,
       duration: Infinity,
       closeButton: true,
+      onDismiss: () => markAlertDismissed(alert.id),
       action,
     });
   } else {
@@ -41,6 +73,7 @@ function announceAlert(alert: HealthAlert) {
       description,
       duration: 8_000,
       closeButton: true,
+      onDismiss: () => markAlertDismissed(alert.id),
       action,
     });
   }
@@ -69,7 +102,8 @@ export function PlatformHealthAlertBanner() {
       if (notify) {
         for (const alert of next) {
           const old = previous.get(alert.id);
-          if (!old || (old.severity !== "critical" && alert.severity === "critical")) {
+          const isNewOrEscalated = !old || (old.severity !== "critical" && alert.severity === "critical");
+          if (isNewOrEscalated && !dismissedAlertIds().has(alert.id)) {
             announceAlert(alert);
           }
         }
@@ -83,6 +117,7 @@ export function PlatformHealthAlertBanner() {
             });
             toast.dismiss(`platform-risk:${old.id}`);
             toast.dismiss(`platform-warning:${old.id}`);
+            clearAlertDismissal(old.id);
           }
         }
       }
