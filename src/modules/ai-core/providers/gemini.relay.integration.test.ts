@@ -30,7 +30,7 @@
  * fix — and ingest can no longer self-DOS a burst-sensitive network.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
@@ -361,5 +361,154 @@ describe("GEMINI_BASE_URL relay integration (real @google/genai SDK)", () => {
     expect(network).not.toBeNull();
     expect(network?.host).toContain("127.0.0.1");
     expect(network?.host).not.toContain("generativelanguage");
+  });
+});
+
+describe("net-trace upstream rows — Gemini provider wiring (real SDK + relay)", () => {
+  // The provider layer now emits one [net-trace] upstream row per vendor call
+  // (see @/lib/net-trace): the server-side egress a browser Network tab can
+  // never show. Proven here against the REAL @google/genai HTTP stack through
+  // the same local relay — the row must name the endpoint the SDK actually
+  // hit (relay-aware URL), its HTTP status, duration, and a compact response
+  // summary that makes the production count-mismatch visible in the row.
+
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+  const envKeys = ["GEMINI_BASE_URL", "GEMINI_EMBEDDING_DIMENSION", "NET_TRACE"] as const;
+  let cleanup: (() => void)[] = [];
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (const key of envKeys) delete process.env[key];
+    resetEmbeddingBatchDiagnosticsForTests();
+    cleanup = [];
+  });
+
+  afterEach(() => {
+    for (const fn of cleanup) fn();
+    for (const key of envKeys) delete process.env[key];
+    logSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  function outputOf(spy: ReturnType<typeof vi.spyOn>): string {
+    return spy.mock.calls.map((c) => c.join(" ")).join("\n");
+  }
+
+  it("verbose: one upstream row per successful batch call, relay URL + res summary", async () => {
+    const captures: RelayCapture[] = [];
+    const { server, baseUrl } = await startRelay(captures);
+    cleanup.push(() => server.close());
+
+    process.env.GEMINI_BASE_URL = baseUrl;
+    process.env.GEMINI_EMBEDDING_DIMENSION = "1536";
+    process.env.NET_TRACE = "verbose";
+
+    const provider = new GeminiProvider({
+      provider: "gemini",
+      apiKey: "relay-test-key",
+      embeddingModel: "gemini-embedding-2-preview",
+    });
+
+    await provider.embedBatch(["alpha chunk", "beta chunk", "gamma chunk"]);
+
+    const output = outputOf(logSpy);
+    // Exactly one vendor row for the one-round-trip batch contract.
+    expect(output.match(/\[net-trace\] upstream gemini/g)).toHaveLength(1);
+    // The row names the endpoint the SDK actually hit — the RELAY, not Google.
+    expect(output).toContain(`${baseUrl}/v1beta/models/gemini-embedding-2-preview:batchEmbedContents`);
+    expect(output).toContain("→ 200");
+    expect(output).toContain("· "); // duration present
+    // Compact response summary — the Network-tab-style response preview.
+    expect(output).toContain('"embeddings":3');
+    expect(output).toContain('"requests":3');
+    // Request preview (verbose) shows the batched texts, redacted/truncated.
+    expect(output).toContain("req  ▸");
+  });
+
+  it("NET_TRACE=on: successful vendor calls stay silent (rows are verbose-only)", async () => {
+    const captures: RelayCapture[] = [];
+    const { server, baseUrl } = await startRelay(captures);
+    cleanup.push(() => server.close());
+
+    process.env.GEMINI_BASE_URL = baseUrl;
+    process.env.GEMINI_EMBEDDING_DIMENSION = "1536";
+    process.env.NET_TRACE = "on";
+
+    const provider = new GeminiProvider({
+      provider: "gemini",
+      apiKey: "relay-test-key",
+      embeddingModel: "gemini-embedding-2-preview",
+    });
+
+    await provider.embedBatch(["alpha chunk", "beta chunk"]);
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("failures are ALWAYS captured with the HTTP status — even at NET_TRACE=off (429)", async () => {
+    const captures: RelayCapture[] = [];
+    const { server, baseUrl } = await startRelay(captures, {
+      rejectBatchWith: { status: 429, message: "Resource has been exhausted (Quota exceeded)" },
+    });
+    cleanup.push(() => server.close());
+
+    process.env.GEMINI_BASE_URL = baseUrl;
+    process.env.GEMINI_EMBEDDING_DIMENSION = "1536";
+    process.env.NET_TRACE = "off";
+
+    const provider = new GeminiProvider({
+      provider: "gemini",
+      apiKey: "relay-test-key",
+      embeddingModel: "gemini-embedding-2-preview",
+    });
+
+    // The vendor call fails and the error still propagates to the retry ladder.
+    await expect(provider.embedBatch(["alpha chunk", "beta chunk"]))
+      .rejects.toThrow(/exhausted|429|fetch failed|failed/i);
+
+    const output = outputOf(errorSpy);
+    const rows = output.split("\n").filter((l) => l.includes("[net-trace] upstream gemini"));
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+    // Status extracted from the SDK's ApiError — like the red Network-tab column.
+    expect(rows.some((r) => r.includes("→ 429"))).toBe(true);
+    expect(output).toContain("cause ▸");
+    expect(output).toContain("Resource has been exhausted");
+    // The row names the relay endpoint the SDK actually hit.
+    expect(rows.some((r) => r.includes(`${baseUrl}/v1beta/models/gemini-embedding-2-preview:batchEmbedContents`))).toBe(true);
+  });
+
+  it("the production count-mismatch is visible right in the verbose row (embeddings 1 / requests 3)", async () => {
+    const captures: RelayCapture[] = [];
+    const { server, baseUrl } = await startRelay(captures, {
+      respondWith: (requestCount) => (requestCount > 1 ? 1 : requestCount),
+      vectorForText: (text) => [text.length, 1],
+    });
+    cleanup.push(() => server.close());
+
+    process.env.GEMINI_BASE_URL = baseUrl;
+    process.env.GEMINI_EMBEDDING_DIMENSION = "1536";
+    process.env.NET_TRACE = "verbose";
+
+    const provider = new GeminiProvider({
+      provider: "gemini",
+      apiKey: "relay-test-key",
+      embeddingModel: "gemini-embedding-2-preview",
+    });
+
+    const texts = ["alpha chunk", "beta chunk", "gamma chunk"];
+    await provider.embedBatch(texts);
+
+    const output = outputOf(logSpy);
+    // The DOOMED batch attempt shows HTTP 200 with the broken contract in the
+    // response summary — exactly what the Network tab would show (a green
+    // request whose body is wrong): 1 embedding for 3 requests.
+    expect(output).toContain('"embeddings":1,"requests":3');
+    // Every sequential single re-embed gets its own vendor row.
+    expect(output.match(/\[net-trace\] upstream gemini/g)).toHaveLength(4); // 1 batch + 3 singles
+    // The always-on semantic failure (degradation notice) still fires.
+    const errOutput = outputOf(errorSpy);
+    expect(errOutput).toContain("degrading to sequential");
   });
 });

@@ -1,6 +1,28 @@
-import { GoogleGenAI, type Content } from "@google/genai";
+import { GoogleGenAI, type Content, type EmbedContentResponse } from "@google/genai";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
 import { embeddingDimensionFor, findEmbeddingModel } from "../model-catalog";
+import { netTraceUpstream } from "@/lib/net-trace";
+
+/**
+ * Display base URL for [net-trace] upstream rows — relay-aware so the row
+ * shows the endpoint the SDK is actually hitting (GEMINI_BASE_URL when set,
+ * generativelanguage.googleapis.com otherwise). Silent on invalid values:
+ * construction-time geminiHttpOptions() already warned once.
+ */
+function geminiTraceBase(): string {
+  const raw = process.env.GEMINI_BASE_URL?.trim();
+  if (raw) {
+    try {
+      const url = new URL(raw);
+      if (url.protocol === "https:" || url.protocol === "http:") {
+        return url.toString().replace(/\/+$/, "");
+      }
+    } catch {
+      // fall through to the official endpoint for display purposes
+    }
+  }
+  return "https://generativelanguage.googleapis.com";
+}
 
 /**
  * Optional relay for deployments whose servers cannot reach
@@ -123,13 +145,51 @@ export class GeminiProvider implements LLMProvider {
         })
         .sendMessageStream({ message: lastUserMessage });
 
+    // [net-trace] upstream row for the vendor call the browser can never see
+    // (server-side egress): the streamGenerateContent request that opens the
+    // SSE stream. Failures (401/429/timeout) are ALWAYS captured with their
+    // HTTP status; successes print at NET_TRACE=verbose only.
+    const chatUrl = `${geminiTraceBase()}/v1beta/models/${model}:streamGenerateContent?alt=sse`;
+    const startTraced = async (disableThinking: boolean, attempt?: number) => {
+      const requestBody = {
+        model,
+        historyMessages: conversationHistory.length,
+        message: lastUserMessage,
+        ...(disableThinking ? { thinkingOff: true } : {}),
+      };
+      const startedAt = Date.now();
+      try {
+        const stream = await start(disableThinking);
+        netTraceUpstream({
+          provider: "gemini",
+          url: chatUrl,
+          status: 200,
+          durationMs: Date.now() - startedAt,
+          attempt,
+          requestBody,
+          responseBody: { stream: "opened" },
+        });
+        return stream;
+      } catch (error) {
+        netTraceUpstream({
+          provider: "gemini",
+          url: chatUrl,
+          durationMs: Date.now() - startedAt,
+          attempt,
+          requestBody,
+          error,
+        });
+        throw error;
+      }
+    };
+
     let response;
     try {
-      response = await start(thinkingOff);
+      response = await startTraced(thinkingOff);
     } catch (error) {
       // Never let the latency hint fail a turn: retry with the model default.
       if (!thinkingOff) throw error;
-      response = await start(false);
+      response = await startTraced(false, 2);
     }
 
     for await (const chunk of response) {
@@ -149,12 +209,34 @@ export class GeminiProvider implements LLMProvider {
   }
 
   async embedText(text: string, options?: EmbedOptions): Promise<number[]> {
-    const result = await this.ai.models.embedContent({
-      model: this.getEmbeddingModelName(),
-      contents: text,
-      config: {
-        taskType: "RETRIEVAL_DOCUMENT",
-        ...this.embeddingOutputDimensionality(),
+    const model = this.getEmbeddingModelName();
+    // The SDK serialises every embedContent onto POST {model}:batchEmbedContents
+    // (single- or multi-request) — the URL the Network tab would show.
+    const url = `${geminiTraceBase()}/v1beta/models/${model}:batchEmbedContents`;
+    const startedAt = Date.now();
+    let result: EmbedContentResponse;
+    try {
+      result = await this.ai.models.embedContent({
+        model,
+        contents: text,
+        config: {
+          taskType: "RETRIEVAL_DOCUMENT",
+          ...this.embeddingOutputDimensionality(),
+        },
+      });
+    } catch (error) {
+      netTraceUpstream({ provider: "gemini", url, durationMs: Date.now() - startedAt, requestBody: text, error });
+      throw error;
+    }
+    netTraceUpstream({
+      provider: "gemini",
+      url,
+      status: 200,
+      durationMs: Date.now() - startedAt,
+      requestBody: text,
+      responseBody: {
+        embeddings: result.embeddings?.length ?? 0,
+        dimension: result.embeddings?.[0]?.values?.length ?? 0,
       },
     });
     reportEmbeddingUsage([text], [result], options);
@@ -181,6 +263,8 @@ export class GeminiProvider implements LLMProvider {
     // attempt, 20 connections at once) — a connection burst the deployment's
     // network drops. One connection per batch matches the profile that works.
     if (texts.length > 1 && !modelsWithBrokenBatchContract.has(model)) {
+      const url = `${geminiTraceBase()}/v1beta/models/${model}:batchEmbedContents`;
+      const startedAt = Date.now();
       try {
         const result = await this.ai.models.embedContent({
           model,
@@ -191,6 +275,20 @@ export class GeminiProvider implements LLMProvider {
           },
         });
         const embeddings = result.embeddings ?? [];
+        // Verbose-only row, but the compact res summary makes the production
+        // contract break visible right here: {"embeddings":1,"requests":20}.
+        netTraceUpstream({
+          provider: "gemini",
+          url,
+          status: 200,
+          durationMs: Date.now() - startedAt,
+          requestBody: texts,
+          responseBody: {
+            embeddings: embeddings.length,
+            requests: texts.length,
+            dimension: embeddings[0]?.values?.length ?? 0,
+          },
+        });
         if (embeddings.length === texts.length) {
           reportEmbeddingUsage(texts, [result], options);
           return embeddings.map((e) => e.values ?? []);
@@ -213,6 +311,13 @@ export class GeminiProvider implements LLMProvider {
             `single-text embeds for the life of this process (a restart re-probes batching).`,
         );
       } catch (err) {
+        netTraceUpstream({
+          provider: "gemini",
+          url,
+          durationMs: Date.now() - startedAt,
+          requestBody: texts,
+          error: err,
+        });
         // Defensive split for undocumented per-batch caps (payload size /
         // request count): halve SEQUENTIALLY — never reintroduce the parallel
         // fan-out this method exists to avoid — until the leaf call surfaces
@@ -233,13 +338,38 @@ export class GeminiProvider implements LLMProvider {
     // end-to-end on every deployment so far, and it never fans out.
     const vectors: number[][] = [];
     const perTextResults: Array<{ metadata?: { billableCharacterCount?: number } }> = [];
+    const seqUrl = `${geminiTraceBase()}/v1beta/models/${model}:batchEmbedContents`;
     for (let i = 0; i < texts.length; i++) {
-      const result = await this.ai.models.embedContent({
-        model,
-        contents: texts[i],
-        config: {
-          taskType: "RETRIEVAL_DOCUMENT",
-          ...this.embeddingOutputDimensionality(),
+      const seqStartedAt = Date.now();
+      let result: EmbedContentResponse;
+      try {
+        result = await this.ai.models.embedContent({
+          model,
+          contents: texts[i],
+          config: {
+            taskType: "RETRIEVAL_DOCUMENT",
+            ...this.embeddingOutputDimensionality(),
+          },
+        });
+      } catch (error) {
+        netTraceUpstream({
+          provider: "gemini",
+          url: seqUrl,
+          durationMs: Date.now() - seqStartedAt,
+          requestBody: texts[i],
+          error,
+        });
+        throw error;
+      }
+      netTraceUpstream({
+        provider: "gemini",
+        url: seqUrl,
+        status: 200,
+        durationMs: Date.now() - seqStartedAt,
+        requestBody: texts[i],
+        responseBody: {
+          embeddings: result.embeddings?.length ?? 0,
+          dimension: result.embeddings?.[0]?.values?.length ?? 0,
         },
       });
       const vector = result.embeddings?.[0]?.values ?? [];

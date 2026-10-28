@@ -50,6 +50,7 @@ import { buildSystemPrompt } from "@/modules/knowledge-bases/core/config-builder
 import { finalizeQueryEvent } from "@/modules/knowledge-bases/core/analytics-db";
 import { admitQueryEvent, admissionDeniedResponse } from "@/lib/quota-admission";
 import { hit, rateLimitResponse, CHAT_RATE } from "@/lib/rate-limit";
+import { netTraceError, netTraceRequest, type NetTraceHandle } from "@/lib/net-trace";
 import { ensureMigrated } from "@/lib/db/migrate";
 import { query as dbQuery } from "@/lib/db";
 import { getAuthContext } from "@/modules/auth/core/rbac";
@@ -344,17 +345,35 @@ class ChatRetrievalError extends Error {
   }
 }
 
+/**
+ * A request-validation failure whose message is CURATED (authored by us,
+ * no internals) and therefore safe to return to org users verbatim.
+ * Everything else that reaches the outer catch is sanitized — see there.
+ */
+class PublicChatValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PublicChatValidationError";
+  }
+}
+
+/** Generic retryable message for unclassified chat handler errors. */
+const CHAT_HANDLER_PUBLIC_ERROR =
+  "The assistant could not complete the request. Please try again in a moment.";
+
 async function postChatKb(
   request: NextRequest,
   kbId: string,
   messages: ClientMessage[],
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  trace: NetTraceHandle,
 ): Promise<NextResponse> {
   await ensureMigrated();
+  trace.field("kb", kbId);
 
-  if (messages.length === 0) throw new Error("At least one message is required.");
+  if (messages.length === 0) throw new PublicChatValidationError("At least one message is required.");
   const latest = messages[messages.length - 1]!;
-  if (latest.role !== "user") throw new Error("The final message must come from the user.");
+  if (latest.role !== "user") throw new PublicChatValidationError("The final message must come from the user.");
 
   // Realtime is a transport/surface concern, not a Sarvam-only feature.
   // Keep this flag local to the KB chat path so realtime retrieval/model
@@ -379,9 +398,9 @@ async function postChatKb(
     // logged for anonymous surfaces (user_id NULL).
     getAuthContext(request).catch(() => null),
   ]);
-  if (!kb)     throw new Error("Knowledge base not found.");
-  if (!config) throw new Error("Knowledge base configuration not found.");
-  if (kb.status !== "active") throw new Error("Knowledge base is archived.");
+  if (!kb)     throw new PublicChatValidationError("Knowledge base not found.");
+  if (!config) throw new PublicChatValidationError("Knowledge base configuration not found.");
+  if (kb.status !== "active") throw new PublicChatValidationError("Knowledge base is archived.");
 
   // ── WS-1.2: atomic quota admission (org-wide, rolling 24h) ─────────────
   // ONE transaction: advisory-lock the org, resolve limits, count the window,
@@ -390,6 +409,7 @@ async function postChatKb(
   // Nothing is streamed to an over-limit org; retrieval runs alongside the
   // admission transaction (below) so the turn does not wait for both.
   const orgId = orgRows[0]?.org_id ?? null;
+  trace.field("org", orgId ?? undefined);
 
   // Phase 6.4: per-org chat rate limit — enforced BEFORE the quota admission
   // transaction so over-rate traffic never touches the advisory lock.
@@ -483,10 +503,13 @@ async function postChatKb(
   // CHAT_STRICT_RETRIEVAL=1 to restore the hard failure.
   let retrievalDegradedNotice: string | null = null;
   if (!groundingSettled.ok) {
-    console.error(
-      "[chat] retrieval failed (degrading to an ungrounded answer):",
-      groundingSettled.error instanceof Error ? groundingSettled.error.message : groundingSettled.error,
-    );
+    // Always-on issue capture with Network-tab correlation (docker/vercel
+    // logs) — replaces the bare one-line console.error; the incident recorder
+    // below still notifies the platform admin (banner + email).
+    netTraceError("chat/retrieval", groundingSettled.error, {
+      stage: "retrieval failed (degrading to an ungrounded answer)",
+      req: trace.id, org: orgId ?? undefined, kb: kbId,
+    });
     // Capture the provider/embedding failure as a platform incident so the
     // admin banner + email notification fire without anyone watching the logs.
     void recordEmbeddingRuntimeFailure(groundingSettled.error, { surface: "KB chat retrieval" });
@@ -685,9 +708,13 @@ async function postChatKb(
         } catch (err) {
           streamError = (err as Error).message;
           // Raw provider/edge errors must not reach the client (they can
-          // reference regions, keys or upstream internals) — log them, show a
-          // friendly event. The audit row keeps the error status either way.
-          console.error("[chat] stream failed:", streamError);
+          // reference regions, keys or upstream internals) — capture them
+          // Network-tab style for docker/vercel logs, show a friendly event.
+          // The audit row keeps the error status either way.
+          netTraceError("chat/stream", err, {
+            req: trace.id, org: orgId ?? undefined, kb: kbId,
+            provider: provider.getProviderName(), model: provider.getModelName("chat"),
+          });
           // A dead brain credential (401/429) must reach the platform admin
           // as an incident — banner + email — not just container logs.
           void recordBrainRuntimeFailure(err, {
@@ -726,6 +753,13 @@ async function postChatKb(
           });
           write({ type: "done" });
           controller.close();
+          // Summary row for this request in docker/vercel logs (NET_TRACE
+          // gated; the failure capture above is always on). Duration mirrors
+          // the Network tab's full stream time, not just time-to-first-byte.
+          trace.end({
+            status: 200,
+            note: streamError ? "stream-error-event" : "stream-complete",
+          });
         }
       })();
     },
@@ -734,24 +768,55 @@ async function postChatKb(
   // Retrieval stage timings in the standard Server-Timing header (devtools →
   // Network → Timing) — the streamed body's duration includes the whole answer.
   const serverTiming = groundingServerTiming(groundedResult?.timings, "rag-");
+  // x-request-id echoes the net-trace correlation id — the browser Network
+  // tab row and the docker/vercel log row share the same id.
   return new NextResponse(stream, {
     headers: serverTiming
-      ? { ...baseHeaders, "Server-Timing": `${serverTiming}, pre-llm;dur=${Date.now() - t0}` }
-      : baseHeaders,
+      ? { ...baseHeaders, "Server-Timing": `${serverTiming}, pre-llm;dur=${Date.now() - t0}`, "x-request-id": trace.id }
+      : { ...baseHeaders, "x-request-id": trace.id },
   });
 }
 
 export async function postChat(request: NextRequest): Promise<NextResponse> {
+  // One Network-tab-style trace per request (see lib/net-trace.ts): summary
+  // lines are gated by NET_TRACE, failure capture is always on. The id reuses
+  // the caller's x-request-id header and is echoed on every response, so the
+  // docker/vercel log row maps 1:1 to the browser devtools Network row.
+  const trace = netTraceRequest({
+    route: "chat",
+    url: "/api/chat",
+    headers: request.headers,
+  });
   try {
-    const body = await request.json();
-    const messages = validateMessages(body?.messages);
+    let body: Record<string, unknown>;
+    try {
+      body = (await request.json()) as Record<string, unknown>;
+    } catch {
+      throw new PublicChatValidationError("Request body must be valid JSON.");
+    }
+    let messages: ClientMessage[];
+    try {
+      messages = validateMessages(body?.messages);
+    } catch (error) {
+      throw new PublicChatValidationError(
+        error instanceof Error ? error.message : "Invalid messages payload.",
+      );
+    }
+    trace.setReqBody({
+      messages: messages.length,
+      kbId: typeof body?.kbId === "string" ? body.kbId : undefined,
+      documentId: typeof body?.documentId === "string" ? body.documentId : undefined,
+      sessionId: typeof body?.sessionId === "string" ? body.sessionId : undefined,
+      scope: typeof body?.scope === "string" ? body.scope : undefined,
+      realtimeVoice: body?.realtimeVoice === true,
+    });
 
     // ── Mode A: KB-aware chat ─────────────────────────────────────────────────
     // Accepts kbId — searches across all docs in the KB, uses KB's AssistantConfig
     // for the system prompt. This is the workspace "KB mode".
     const kbId = typeof body?.kbId === "string" ? body.kbId.trim() : undefined;
     if (kbId) {
-      return await postChatKb(request, kbId, messages, body);
+      return await postChatKb(request, kbId, messages, body, trace);
     }
 
     // ── Mode B: Legacy document-scoped chat (unchanged) ───────────────────────
@@ -772,17 +837,18 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
     const languageGuidance = buildLanguageGuidance(languagePreferences);
 
     if (messages.length === 0)
-      throw new Error("At least one message is required.");
+      throw new PublicChatValidationError("At least one message is required.");
     if (!documentId)
-      throw new Error("documentId is required to perform retrieval.");
+      throw new PublicChatValidationError("documentId is required to perform retrieval.");
 
     const latest = messages[messages.length - 1]!;
     if (latest.role !== "user")
-      throw new Error("The final message must come from the user.");
+      throw new PublicChatValidationError("The final message must come from the user.");
 
     const documentRecord = await getDocumentById(documentId);
     if (!documentRecord)
-      throw new Error("The requested document is not available.");
+      throw new PublicChatValidationError("The requested document is not available.");
+    trace.field("doc", documentRecord.id);
     // ── WS-1.2: close the Mode-B bypass ────────────────────────────────────
     // Legacy document-scoped chat previously skipped BOTH the daily request
     // quota and the query audit trail — an enforcement hole. Workspace chat
@@ -844,10 +910,10 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
     })();
     let modeBDegradedNotice: string | null = null;
     if (!modeBRetrieval.ok) {
-      console.error(
-        "[chat] document retrieval failed (degrading to an ungrounded answer):",
-        modeBRetrieval.error instanceof Error ? modeBRetrieval.error.message : modeBRetrieval.error,
-      );
+      netTraceError("chat/retrieval", modeBRetrieval.error, {
+        stage: "document retrieval failed (degrading to an ungrounded answer)",
+        req: trace.id, doc: documentRecord.id,
+      });
       // The embedding/provider failure must reach the platform admin as an
       // incident (banner + email) — not just the container log.
       void recordEmbeddingRuntimeFailure(modeBRetrieval.error, {
@@ -954,10 +1020,11 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
           void finalizeQueryEvent(modeBEventId, { answerText: friendlyFallback, status: "ok" });
           writeEvent({ type: "done" });
           controller.close();
+          trace.end({ status: 200, note: "fallback-stream" });
         },
       });
 
-      return new NextResponse(fallbackStream, { headers: baseHeaders });
+      return new NextResponse(fallbackStream, { headers: { ...baseHeaders, "x-request-id": trace.id } });
     }
 
     const stream = new ReadableStream<Uint8Array>({
@@ -1039,7 +1106,10 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
             }
           } catch (error) {
             streamFailed = true;
-            console.error("[chat] streaming error:", error);
+            netTraceError("chat/stream", error, {
+              req: trace.id, doc: documentRecord.id,
+              provider: provider.getProviderName(), model: provider.getModelName("chat"),
+            });
             // A dead brain credential (401/429) must reach the platform admin
             // as an incident — banner + email — not just container logs.
             void recordBrainRuntimeFailure(error, {
@@ -1074,32 +1144,47 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
             });
             writeEvent({ type: "done" });
             controller.close();
+            trace.end({
+              status: 200,
+              note: streamFailed ? "stream-error-event" : "stream-complete",
+            });
           }
         })();
       },
     });
 
-    return new NextResponse(stream, { headers: baseHeaders });
+    return new NextResponse(stream, { headers: { ...baseHeaders, "x-request-id": trace.id } });
   } catch (error) {
+    if (error instanceof PublicChatValidationError) {
+      // Curated validation message — safe to return to org users verbatim.
+      // Summary row only (NET_TRACE gated): routine client error, not an issue.
+      trace.end({ status: 400, resBody: { error: error.message }, note: "validation" });
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400, headers: { "x-request-id": trace.id } },
+      );
+    }
     if (error instanceof ChatRetrievalError) {
       // Retrieval/embedding provider failure — friendly 502, raw cause only
       // in the server log (mirrors /api/embed/search error hygiene). The
       // incident recorder is already called at the typed throw sites; this
       // catch is the safety net for anything that slipped through unclassified.
-      console.error("[chat] retrieval failed:", error.cause ?? error.message);
       const healed = error.cause instanceof EmbeddingBackboneBrokenError ? error.cause : null;
+      const publicMessage =
+        healed?.message ??
+        "Knowledge-base search failed. Please verify the embedding configuration and try again.";
+      trace.fail(healed?.cause ?? error.cause ?? error, {
+        status: 502,
+        resBody: { error: publicMessage },
+      });
       void recordEmbeddingRuntimeFailure(
         // Classify the ORIGINAL vendor error, not the healed public message.
         healed?.cause ?? error.cause ?? error,
         { surface: "chat retrieval" },
       );
       return NextResponse.json(
-        {
-          error:
-            healed?.message ??
-            "Knowledge-base search failed. Please verify the embedding configuration and try again.",
-        },
-        { status: 502 },
+        { error: publicMessage },
+        { status: 502, headers: { "x-request-id": trace.id } },
       );
     }
     if (error instanceof AIConfigResolutionError) {
@@ -1108,23 +1193,31 @@ export async function postChat(request: NextRequest): Promise<NextResponse> {
       // tenant") is a service-availability problem, not a malformed request:
       // return a retryable 503 with the remediation path instead of a raw
       // 400, and record the incident so the admin banner/email fires.
-      console.error("[chat] configuration resolution failed:", error.message);
+      const publicMessage =
+        `${error.message} ` +
+        `Check the provider credential/health in Settings → AI Platform → Providers, or switch this assistant's model.`;
+      trace.fail(error, { status: 503, resBody: { error: publicMessage } });
       const embeddingRelated = /embedding/i.test(error.message);
       void (embeddingRelated
         ? recordEmbeddingRuntimeFailure(error, { surface: "chat configuration" })
         : recordBrainRuntimeFailure(error, { surface: "chat configuration" }));
       return NextResponse.json(
-        {
-          error:
-            `${error.message} ` +
-            `Check the provider credential/health in Settings → AI Platform → Providers, or switch this assistant's model.`,
-        },
-        { status: 503 },
+        { error: publicMessage },
+        { status: 503, headers: { "x-request-id": trace.id } },
       );
     }
-    console.error("[chat] handler error:", error);
-    const message =
-      error instanceof Error ? error.message : "Unexpected server error.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    // Unclassified handler error (DB messages, JSON internals, provider
+    // surprises): raw internals must NEVER reach org users — the browser
+    // Network tab row shows only status + generic message + x-request-id,
+    // while the full cause chain + stack is captured server-side (always on,
+    // independent of NET_TRACE).
+    trace.fail(error, {
+      status: 400,
+      resBody: { error: CHAT_HANDLER_PUBLIC_ERROR },
+    });
+    return NextResponse.json(
+      { error: CHAT_HANDLER_PUBLIC_ERROR },
+      { status: 400, headers: { "x-request-id": trace.id } },
+    );
   }
 }

@@ -30,6 +30,7 @@ import { resolveSearchEmbedding } from "@/modules/knowledge-bases/core/embedding
 import { selfHealBrokenCollectionEmbedding } from "@/modules/knowledge-bases/core/embedding-selfheal";
 import { scoreThresholdFor } from "@/modules/ai-core/multilingual-embeddings";
 import type { ProviderConfig } from "@/modules/ai-core/types";
+import { netTraceRequest } from "@/lib/net-trace";
 
 // function demoProviderConfig(settings: Awaited<ReturnType<typeof getPlatformEnvSettings>>): ProviderConfig | null {
 //   const provider = setting(settings, "DEMO_AI_PROVIDER").toLowerCase() || process.env.DEMO_AI_PROVIDER?.trim().toLowerCase() || "openai";
@@ -69,6 +70,14 @@ export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   let corsHeaders: Record<string, string> = {};
+  // Network-tab-style trace (lib/net-trace.ts): summary rows gated by
+  // NET_TRACE, failure capture ALWAYS on; responses echo x-request-id so the
+  // docker/vercel log row maps 1:1 to the browser devtools Network row.
+  const trace = netTraceRequest({
+    route: "embed/search",
+    url: "/api/embed/search",
+    headers: req.headers,
+  });
   try {
     await ensureMigrated();
 
@@ -102,6 +111,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
 
     const limit = Math.min(Math.max(Number(body.limit ?? 6), 1), 12);
+    trace.setReqBody({ query, limit: body.limit });
+    trace.field("kb", kbId);
     const kb = await getKnowledgeBaseById(kbId);
     if (!kb) {
       return NextResponse.json({ error: "KB not found" }, { status: 404, headers: corsHeaders });
@@ -117,6 +128,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       [kbId]
     );
     const orgId = orgRows[0]?.org_id ?? null;
+    trace.field("org", orgId ?? undefined);
     const searchAdmission = await admitQueryEvent({
       orgId,
       kbId,
@@ -182,7 +194,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         scoreThreshold: scoreThresholdFor(providerConfig.provider, providerConfig.embeddingModel, 0.25),
       });
     } catch (searchErr) {
-      // Retrieval failed (e.g. embedding provider unreachable). Four duties:
+      // Retrieval failed (e.g. embedding provider unreachable). Five duties:
       // 1. Finalise the already-admitted query event so the audit trail never
       //    keeps orphaned `pending` rows (mirrors the chat route's pattern).
       // 2. Record a runtime platform-health incident so the admin banner /
@@ -193,13 +205,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       // 4. Return a friendly message — raw provider/edge errors (which can
       //    reference regions, keys or upstream internals) must not leak to
       //    public embed visitors.
-      console.error("[embed/search] retrieval failed", searchErr);
+      // 5. Capture the raw cause Network-tab style (always on, lib/net-trace)
+      //    so the docker/vercel log row carries the same detail the browser
+      //    devtools Network row would show — without exposing it to visitors.
       const healed = await selfHealBrokenCollectionEmbedding({
         kbId,
         collectionName: searchCollection,
         providerConfig,
         error: searchErr,
       }).catch(() => null);
+      const publicMessage =
+        healed?.message ??
+        "Knowledge-base search failed. Please verify the embedding configuration and try again.";
+      trace.fail(healed?.cause ?? searchErr, {
+        status: 502,
+        resBody: { error: publicMessage },
+      });
       void recordEmbeddingRuntimeFailure(healed?.cause ?? searchErr, { surface: "public embed search" });
       void finalizeQueryEvent(searchAdmission.admitted ? searchAdmission.eventId : null, {
         answerText: "",
@@ -208,12 +229,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         status: "error",
       });
       return NextResponse.json(
-        {
-          error:
-            healed?.message ??
-            "Knowledge-base search failed. Please verify the embedding configuration and try again.",
-        },
-        { status: 502, headers: corsHeaders },
+        { error: publicMessage },
+        { status: 502, headers: { ...corsHeaders, "x-request-id": trace.id } },
       );
     }
 
@@ -241,13 +258,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       documentId: r.documentId,
     }));
 
-    return NextResponse.json({ context, sources, kbId }, { headers: corsHeaders });
+    trace.end({ status: 200, resBody: { sources: sources.length } });
+    return NextResponse.json({ context, sources, kbId }, { headers: { ...corsHeaders, "x-request-id": trace.id } });
   } catch (err) {
-    console.error("[embed/search]:", err);
+    // Unclassified error — same hygiene as the chat route: raw internals
+    // only in the server log (always-on capture); visitors get a curated 500.
+    const publicMessage =
+      "Knowledge-base search failed. Please verify the embedding configuration and try again.";
+    trace.fail(err, { status: 500, resBody: { error: publicMessage } });
     void recordEmbeddingRuntimeFailure(err, { surface: "public embed search" });
     return NextResponse.json(
-      { error: "Knowledge-base search failed. Please verify the embedding configuration and try again." },
-      { status: 500, headers: corsHeaders },
+      { error: publicMessage },
+      { status: 500, headers: { ...corsHeaders, "x-request-id": trace.id } },
     );
   }
 }

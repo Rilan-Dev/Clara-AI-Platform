@@ -24,6 +24,7 @@ import {
   recentMessages,
   withChartInstructions,
 } from "@/modules/assistant/api/conversation-context";
+import { netTraceError, netTraceRequest } from "@/lib/net-trace";
 
 function publicAIErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -51,6 +52,14 @@ export async function OPTIONS(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Network-tab-style trace (lib/net-trace.ts): summary rows gated by
+  // NET_TRACE, failure capture ALWAYS on; responses echo x-request-id so the
+  // docker/vercel log row maps 1:1 to the browser devtools Network row.
+  const trace = netTraceRequest({
+    route: "embed/chat",
+    url: "/api/embed/chat",
+    headers: req.headers,
+  });
   try {
     await ensureMigrated();
 
@@ -84,6 +93,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // spoken-reply guidance, the short retrieval width and the fast-turn
     // model mode (previously only Sarvam did).
     const realtimeVoice = body.realtimeVoice === true;
+    trace.setReqBody({ messages: messages.length, sessionId: body.sessionId, realtimeVoice });
+    trace.field("kb", ctx.kbId);
+    trace.field("org", ctx.orgId);
 
     // Retrieval starts NOW, alongside the configuration lookups and quota
     // admission below, instead of after them. It reads only the KB bound to
@@ -102,9 +114,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       sessionId: body.sessionId ?? null,
       channel: realtimeVoice ? "voice" : "chat",
     }).catch((error: unknown) => {
-      console.error("[embed/chat] RAG search failed (answering without evidence)", error);
-      // The public widget degrades silently by design — the platform admin
-      // still needs to know the published assistant lost its grounding.
+      // Public widget degrades silently by design — the raw cause is still
+      // captured Network-tab style (always on) and the platform admin gets
+      // the incident banner + email from the recorder below.
+      netTraceError("embed/chat/retrieval", error, {
+        stage: "answering without evidence",
+        req: trace.id, kb: ctx.kbId,
+      });
       void recordEmbeddingRuntimeFailure(error, { surface: "Public widget chat retrieval" });
       return null;
     });
@@ -122,10 +138,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       resolved = await resolveAIConfigCached({ kbId: ctx.kbId, surface: "chat" });
     } catch (error) {
       if (error instanceof AIConfigResolutionError) {
-        console.error("[embed/chat] AI configuration rejected", error);
+        const publicMessage = publicAIErrorMessage(error);
+        trace.fail(error, { status: 503, resBody: { error: publicMessage } });
         return NextResponse.json(
-          { error: publicAIErrorMessage(error) },
-          { status: 503, headers: corsHeaders },
+          { error: publicMessage },
+          { status: 503, headers: { ...corsHeaders, "x-request-id": trace.id } },
         );
       }
       throw error;
@@ -332,7 +349,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
               }
             }
           } catch (error) {
-            console.error("[embed/chat] provider stream failed", error);
+            // Raw provider/edge errors must not reach the visitor — capture
+            // Network-tab style (always on) and show the curated event.
+            netTraceError("embed/chat/stream", error, {
+              req: trace.id, kb: ctx.kbId,
+              provider: resolved.provider, model: provider.getModelName("chat"),
+            });
             // A dead brain credential (401/429) must reach the platform admin
             // as an incident — banner + email — not just container logs.
             void recordBrainRuntimeFailure(error, {
@@ -349,6 +371,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             safeWrite({ type: "done" });
             close();
             req.signal.removeEventListener("abort", onAbort);
+            // Summary row (NET_TRACE gated) — duration mirrors the Network
+            // tab's full stream time; failures above were always captured.
+            trace.end({
+              status: 200,
+              note: streamError ? "stream-error-event" : "stream-complete",
+            });
             console.info("[realtime-latency] stream complete", {
               realtimeVoice,
               ms: Date.now() - llmStart,
@@ -372,21 +400,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     const serverTiming = groundingServerTiming(groundedResult?.timings, "rag-");
+    // x-request-id echoes the net-trace correlation id — the browser Network
+    // tab row and the docker/vercel log row share the same id.
     return new NextResponse(stream, {
       status: 200,
       headers: {
         ...corsHeaders,
         ...(serverTiming ? { "Server-Timing": `${serverTiming}, pre-llm;dur=${llmStart - t0}` } : {}),
+        "x-request-id": trace.id,
         "Content-Type": "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
         Connection: "keep-alive",
       },
     });
   } catch (error) {
-    console.error("[embed/chat] request failed", error);
+    // Unclassified error — raw internals only in the server log (always-on
+    // capture); visitors get the sanitized public message + x-request-id.
+    const publicMessage = publicAIErrorMessage(error);
+    trace.fail(error, {
+      status: error instanceof AIConfigResolutionError ? 503 : 500,
+      resBody: { error: publicMessage },
+    });
     return NextResponse.json(
-      { error: publicAIErrorMessage(error) },
-      { status: error instanceof AIConfigResolutionError ? 503 : 500, headers: { "Cache-Control": "no-store" } },
+      { error: publicMessage },
+      { status: error instanceof AIConfigResolutionError ? 503 : 500, headers: { "Cache-Control": "no-store", "x-request-id": trace.id } },
     );
   }
 }

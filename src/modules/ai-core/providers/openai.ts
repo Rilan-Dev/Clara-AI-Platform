@@ -5,6 +5,12 @@ import type {
 } from "openai/resources/chat/completions";
 import type { ChatStreamEvent, ChatToolCall, ChatToolDefinition, ToolCallingChatOptions, ToolCallingLLMProvider } from "../types";
 import { LLMProvider, ChatMessage, ChatOptions, EmbedOptions, ProviderConfig } from "../types";
+import { netTraceUpstream } from "@/lib/net-trace";
+
+/** Trace-row URL for a vendor endpoint on this client (baseURL is public). */
+function traceUrl(baseURL: string, path: string): string {
+  return `${baseURL.replace(/\/+$/, "")}/${path}`;
+}
 
 const DEFAULT_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL ?? "gpt-4o-mini";
 const DEFAULT_EMBEDDING_MODEL =
@@ -178,7 +184,37 @@ export class OpenAIProvider implements LLMProvider, ToolCallingLLMProvider {
     const effort = reasoningEffortFor(model, options.reasoningEffort);
     if (effort) request.reasoning_effort = effort;
 
-    const stream = await this.client.chat.completions.create(request);
+    // [net-trace] upstream row for the server-side egress call the browser
+    // Network tab can never show. Failures (401 invalid key, 429, timeouts)
+    // are ALWAYS captured with their HTTP status; successes verbose-only.
+    const url = traceUrl(this.client.baseURL, "chat/completions");
+    const openStream = async (attempt?: number) => {
+      const beganAt = Date.now();
+      try {
+        const stream = await this.client.chat.completions.create(request);
+        netTraceUpstream({
+          provider: "openai",
+          url,
+          status: 200,
+          durationMs: Date.now() - beganAt,
+          attempt,
+          requestBody: request,
+          responseBody: { stream: "opened" },
+        });
+        return stream;
+      } catch (error) {
+        netTraceUpstream({
+          provider: "openai",
+          url,
+          durationMs: Date.now() - beganAt,
+          attempt,
+          requestBody: request,
+          error,
+        });
+        throw error;
+      }
+    };
+    const stream = await openStream();
     const deltas: OpenAIToolCallDelta[] = [];
 
     for await (const chunk of stream) {
@@ -244,9 +280,38 @@ export class OpenAIProvider implements LLMProvider, ToolCallingLLMProvider {
     const effort = reasoningEffortFor(model, options?.reasoningEffort);
     if (effort) request.reasoning_effort = effort;
 
+    // [net-trace] upstream rows — one per vendor call (see chatStreamWithTools).
+    const url = traceUrl(this.client.baseURL, "chat/completions");
+    const openStream = async (attempt?: number) => {
+      const beganAt = Date.now();
+      try {
+        const stream = await this.client.chat.completions.create(request);
+        netTraceUpstream({
+          provider: "openai",
+          url,
+          status: 200,
+          durationMs: Date.now() - beganAt,
+          attempt,
+          requestBody: request,
+          responseBody: { stream: "opened" },
+        });
+        return stream;
+      } catch (error) {
+        netTraceUpstream({
+          provider: "openai",
+          url,
+          durationMs: Date.now() - beganAt,
+          attempt,
+          requestBody: request,
+          error,
+        });
+        throw error;
+      }
+    };
+
     let stream;
     try {
-      stream = await this.client.chat.completions.create(request);
+      stream = await openStream();
     } catch (error) {
       // A model that does not take reasoning_effort: remember it and retry
       // once without the field, so a fast-turn hint can never fail a turn.
@@ -254,7 +319,7 @@ export class OpenAIProvider implements LLMProvider, ToolCallingLLMProvider {
       if (!request.reasoning_effort || !/reasoning/i.test(message)) throw error;
       reasoningEffortRejected.add(model.trim());
       delete request.reasoning_effort;
-      stream = await this.client.chat.completions.create(request);
+      stream = await openStream(2);
     }
 
     for await (const chunk of stream) {
@@ -272,9 +337,32 @@ export class OpenAIProvider implements LLMProvider, ToolCallingLLMProvider {
 
   async embedText(text: string, options?: EmbedOptions): Promise<number[]> {
     const model = this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
-    const response = await this.client.embeddings.create({
-      input: text,
-      model,
+    const url = traceUrl(this.client.baseURL, "embeddings");
+    const requestBody = { input: text, model };
+    const startedAt = Date.now();
+    let response;
+    try {
+      response = await this.client.embeddings.create(requestBody);
+    } catch (error) {
+      netTraceUpstream({
+        provider: "openai",
+        url,
+        durationMs: Date.now() - startedAt,
+        requestBody,
+        error,
+      });
+      throw error;
+    }
+    netTraceUpstream({
+      provider: "openai",
+      url,
+      status: 200,
+      durationMs: Date.now() - startedAt,
+      requestBody,
+      responseBody: {
+        data: response.data?.length ?? 0,
+        dimension: response.data?.[0]?.embedding?.length ?? 0,
+      },
     });
 
     if (response.usage) {
@@ -295,9 +383,33 @@ export class OpenAIProvider implements LLMProvider, ToolCallingLLMProvider {
     if (texts.length === 0) return [];
 
     const model = this.config.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
-    const response = await this.client.embeddings.create({
-      input: texts,
-      model,
+    const url = traceUrl(this.client.baseURL, "embeddings");
+    const requestBody = { input: texts, model };
+    const startedAt = Date.now();
+    let response;
+    try {
+      response = await this.client.embeddings.create(requestBody);
+    } catch (error) {
+      netTraceUpstream({
+        provider: "openai",
+        url,
+        durationMs: Date.now() - startedAt,
+        requestBody,
+        error,
+      });
+      throw error;
+    }
+    netTraceUpstream({
+      provider: "openai",
+      url,
+      status: 200,
+      durationMs: Date.now() - startedAt,
+      requestBody,
+      responseBody: {
+        data: response.data?.length ?? 0,
+        requests: texts.length,
+        dimension: response.data?.[0]?.embedding?.length ?? 0,
+      },
     });
 
     if (response.usage) {
