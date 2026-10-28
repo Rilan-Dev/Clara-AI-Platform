@@ -1,3 +1,13 @@
+## PLATFORM HEALTH TOAST READABILITY + DISMISSAL — 2026-10-29
+
+- Updated the shared Sonner toast styling so titles and descriptions render in full without hover; long messages wrap and the card grows vertically while the stack can animate layout changes. Close control is anchored inside the card's upper-right with reserved text space.
+- Platform health alerts now remain until the user dismisses them, and dismissals are remembered per incident in browser local storage so 30-second polling does not repeatedly resurface a closed incident. Active incidents remain available from the existing notification-bell panel. A recovered incident clears its dismissal record, so a future recurrence can notify again.
+- Commits: `2ada4b8c8ac73d54c174128de1a579e69c7ccd57` (toast layout), `daffff899d5a2625da6becba1d68c5655d5196bf` (remember dismissals), `81757a0d0efd779dca7ed2e6c30ce1eb37f95224` (keep actionable alerts until dismissal).
+- No tests, type-check, build, CI, Vercel, or Gate was run or awaited.
+- Next implementation remains the active project-control item: source-review MCP discovery singleflight/cancellation and Chat/realtime authorization parity. Do not wait for CI/Vercel and do not claim executable verification.
+
+---
+
 ## MCP AUTHORIZATION DENIAL CASES — 2026-10-29
 
 - Extended mocked resolver regression source to cover disabled/unapproved server lookup and current-plan denial. Both paths must return unavailable before any outbound MCP transport request.
