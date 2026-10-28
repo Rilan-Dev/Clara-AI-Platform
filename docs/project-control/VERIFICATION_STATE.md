@@ -1,3 +1,12 @@
+## MCP AUTHORIZATION TEST FIXTURE UPDATE — 2026-10-29
+
+- Resolver regression fixtures now use a syntactically allowed HTTPS hostname while all network calls remain mocked; no live DNS or provider request is needed for these source cases.
+- Latest regression commits: `f7a27399fd5ae487a3dbda34cb4d76e14773eebc`, `0368a4e4bb21b4940cc8f94794d844d52b64e66f`, `80b2ea48f744bce2a347fb6a210c88c488301a48`.
+- No tests or other executable verification were run.
+- Next: finish source-level review of discovery singleflight and Chat/realtime authorization parity, then record the bounded MCP implementation status without asserting unobserved verification.
+
+---
+
 ## CURRENT VERIFICATION STATE — 2026-10-29 — MCP AUTHORIZATION FRESHNESS SOURCE REGRESSIONS
 
 - Added mock-based test source for revoked organization/agent grants and stale remote input schemas. Both cases assert refusal before side-effecting remote invocation.
