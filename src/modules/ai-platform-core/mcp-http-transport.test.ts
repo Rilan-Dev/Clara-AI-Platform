@@ -177,6 +177,7 @@ describe("MCP outbound transport dependency boundary", () => {
       { timeoutMs: 500, signal: controller.signal },
       { resolveAddresses: async () => [{ address: "8.8.8.8", family: 4 }], request },
     );
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
     controller.abort();
     await expect(pending).rejects.toThrow("MCP request cancelled");
   });
