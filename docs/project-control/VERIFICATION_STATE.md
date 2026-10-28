@@ -1,3 +1,12 @@
+## CURRENT VERIFICATION STATE — 2026-10-29 — MCP TRANSPORT SECURITY REGRESSION SOURCE
+
+- Regression source covers DNS rebinding-style revalidation, mixed public/private answer rejection, request body limits, pre-cancelled requests, active cancellation, request timeout, redirect refusal, response byte limits, and pinned lookup address.
+- Commits: `b7caf9615652fff7e928040a30753f21ac831dd0`, `45b7207d66553b668d1cddf4019f133c88d7e219`, `7f1ca90b1298490142a30229336785ae1e6d2e80`, `f6f262578ff348faf4844e32b5ef75853820fcc2`, `fddf1d33d3230e254ae514d5dcdcfead30ac95a4`, `aa2e79d5c450b5714b0ca1c9c0c50ed45a49dcb2`.
+- These are authored regression cases only. Tests, type-check, build, live DNS/MCP handshake, CI, Vercel, and Gates were not run or awaited. No PASS is claimed.
+- Next source-only work: resolver grant revocation, stale-schema enforcement, and discovery singleflight cancellation/authorization regressions.
+
+---
+
 ## CURRENT VERIFICATION STATE — 2026-10-29 — MCP TRANSPORT TEST SEAM
 
 - Source change adds injectable DNS resolution and HTTPS request dependencies to the hardened MCP transport; default production behavior remains system DNS + Node HTTPS.
