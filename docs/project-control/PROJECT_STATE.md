@@ -1,3 +1,14 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-29 — MCP TRANSPORT TEST SEAM
+
+[architect source review] The active MCP Streamable HTTP follow-up now has an injectable DNS/HTTPS boundary in the shared transport. Production defaults still use system DNS and Node HTTPS; the injection seam exists to make security regressions deterministic without live network access.
+
+- Regression source covers mixed public/private DNS rejection before socket creation, per-request DNS revalidation, oversized request rejection before network activity, and already-cancelled requests.
+- Commits: `b7caf9615652fff7e928040a30753f21ac831dd0`, `45b7207d66553b668d1cddf4019f133c88d7e219`, `7f1ca90b1298490142a30229336785ae1e6d2e80`.
+- No executable verification is claimed. The I-6 bridge source implementation is recorded complete in its plan; the broader MCP transport/runtime hardening follow-up remains active.
+- **Next:** continue deterministic transport and resolver authorization regression coverage without waiting for CI/Vercel/Gates.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-27 — TOAST STACK UX CORRECTION
 
 [architect source review] Shared toast notifications now anchor to the bottom-right corner. Hover no longer changes the card width from the compact stack width to a much wider panel, preventing the expansion rule from covering adjacent notifications. The title/message can still reveal their full text on hover, while cards retain a stable responsive width.
