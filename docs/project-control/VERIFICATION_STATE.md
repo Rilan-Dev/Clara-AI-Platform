@@ -1,3 +1,13 @@
+## CURRENT VERIFICATION STATE — 2026-10-29 — MCP TRANSPORT TEST SEAM
+
+- Source change adds injectable DNS resolution and HTTPS request dependencies to the hardened MCP transport; default production behavior remains system DNS + Node HTTPS.
+- Regression source added for mixed public/private DNS answers, simulated DNS answer change between requests, oversized request bodies, and pre-cancelled requests.
+- Commits: `b7caf9615652fff7e928040a30753f21ac831dd0`, `45b7207d66553b668d1cddf4019f133c88d7e219`, `7f1ca90b1298490142a30229336785ae1e6d2e80`.
+- Tests, type-check, build, live network, CI, Vercel, and Gates were not run or awaited. No executable PASS is claimed.
+- Remaining source-level follow-up: redirect, active timeout/cancellation, response-size, pinned-address, grant-revocation, and stale-schema regression coverage.
+
+---
+
 ## CURRENT VERIFICATION STATE — 2026-10-27 — TOAST STACK UX CORRECTION
 
 - Source changes were made to the shared Sonner styling and root layout position.
