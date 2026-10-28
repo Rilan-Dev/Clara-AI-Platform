@@ -61,7 +61,7 @@ import { StreamableHttpMcpToolResolver } from "./mcp-streamable-http-resolver";
 
 const serverAccess = {
   id: "server-1",
-  endpoint_url: "https://mcp.vendor.test/mcp",
+  endpoint_url: "https://mcp.vendor.com/mcp",
   auth_mode: "none",
   allowed_plans: ["pro"],
   tool_name: "lookup",
