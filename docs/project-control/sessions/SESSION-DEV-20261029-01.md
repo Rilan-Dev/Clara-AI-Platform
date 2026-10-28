@@ -1,3 +1,12 @@
+## MCP AUTHORIZATION DENIAL CASES — 2026-10-29
+
+- Extended mocked resolver regression source to cover disabled/unapproved server lookup and current-plan denial. Both paths must return unavailable before any outbound MCP transport request.
+- Latest test commit: `cadf110a3c6a12412261d0ce1a950cf159a519c7`.
+- No tests, type-check, build, CI, Vercel, Gate, or live MCP handshake was run or awaited.
+- Next: finish source-only review of singleflight/cancellation and Chat/realtime parity, then choose the next authorized implementation plan. MCP remains disabled pending controlled verification.
+
+---
+
 ## MCP AUTHORIZATION TEST FIXTURE UPDATE — 2026-10-29
 
 - Resolver regression fixtures now use a syntactically allowed HTTPS hostname while all network calls remain mocked; no live DNS or provider request is needed for these source cases.
