@@ -1,3 +1,14 @@
+## MCP STREAMABLE HTTP — TRANSPORT SECURITY REGRESSION COVERAGE — 2026-10-29
+
+- Added deterministic injection seams for DNS resolution and HTTPS requests in `mcpHttpRequest`; production defaults remain system DNS and Node HTTPS.
+- Added source regressions for mixed public/private DNS rejection before socket creation, DNS revalidation on each request (public answer then private answer), oversized request rejection, pre-cancelled requests, redirects, active request timeout, cancellation after request start, response-size enforcement, and socket lookup pinning to the checked IP.
+- Commits: `b7caf9615652fff7e928040a30753f21ac831dd0`, `45b7207d66553b668d1cddf4019f133c88d7e219`, `7f1ca90b1298490142a30229336785ae1e6d2e80`, `f6f262578ff348faf4844e32b5ef75853820fcc2`, `fddf1d33d3230e254ae514d5dcdcfead30ac95a4`, `aa2e79d5c450b5714b0ca1c9c0c50ed45a49dcb2`.
+- No tests, type-check, build, CI, Vercel, Gate, live DNS, or MCP handshake was run or awaited; regression source is not executable PASS evidence.
+- **Next implementation:** add deterministic resolver/runtime regressions for revoked organization/agent grants and stale tool schemas; review discovery singleflight cancellation/authorization behavior. Keep MCP disabled pending owner-authorized focused verification and controlled live handshake.
+- **STOP:** no production readiness claim or unrelated scope expansion.
+
+---
+
 ## MCP STREAMABLE HTTP — DETERMINISTIC TRANSPORT REGRESSION SEAM — 2026-10-29
 
 - Continued the active MCP follow-up from `sessions/SESSION-DEV-20261011-01.md`; this is the authorized follow-on to the I-6 bridge, not a claim that CI or runtime verification passed.
