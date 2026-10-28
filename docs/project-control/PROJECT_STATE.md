@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-29 — MCP AUTHORIZATION FRESHNESS SOURCE REGRESSIONS
+
+[architect source review] Added isolated mocked resolver regressions for authorization revocation and stale remote schema. When current grant lookup returns no access, invocation is rejected before a further remote request. When a rediscovered tool schema differs from the discovered descriptor, invocation fails before the side-effecting call.
+
+- Commits: `f7a27399fd5ae487a3dbda34cb4d76e14773eebc`, `0368a4e4bb21b4940cc8f94794d844d52b64e66f`.
+- No executable verification is claimed. I-6 bridge implementation remains complete per its bounded plan; the wider MCP resolver/runtime hardening follow-up remains active.
+- **Next:** review discovery singleflight behavior under parallel requests and cancellation, then review Chat/realtime parity.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-29 — MCP TRANSPORT SECURITY REGRESSION SOURCE
 
 [architect source review] The shared MCP HTTP transport now exposes injectable DNS and HTTPS boundaries with production defaults preserved. Regression source covers mixed public/private DNS answers, DNS revalidation between requests, request size, pre-cancelled and active cancellation, active timeout, redirect refusal, response-size enforcement, and pinning the socket lookup to the validated IP.
