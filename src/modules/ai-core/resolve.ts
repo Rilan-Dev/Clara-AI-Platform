@@ -35,17 +35,19 @@ export class AIConfigResolutionError extends Error {
 }
 
 /**
- * Parse SARVAM_EMBEDDING_FALLBACK_PROVIDER (default "openai"). Only "openai"
- * and "gemini" are valid backbones — a fallback of "sarvam" is rejected with
- * a clear operator-facing message (Sarvam has no embeddings API).
+ * Parse SARVAM_EMBEDDING_FALLBACK_PROVIDER (default "openai"). "openai",
+ * "gemini" and "qwen" are valid backbones — a fallback of "sarvam" is
+ * rejected with a clear operator-facing message (Sarvam has no embeddings
+ * API).
  */
-export function parseSarvamEmbeddingFallbackProvider(): "openai" | "gemini" {
+export function parseSarvamEmbeddingFallbackProvider(): "openai" | "gemini" | "qwen" {
   const raw = (process.env.SARVAM_EMBEDDING_FALLBACK_PROVIDER ?? "openai").trim().toLowerCase();
   if (raw === "gemini") return "gemini";
+  if (raw === "qwen") return "qwen";
   if (raw === "openai" || raw === "") return "openai";
   console.error(
     `[ai-config] SARVAM_EMBEDDING_FALLBACK_PROVIDER="${raw}" is not a valid embedding backbone ` +
-    `(openai | gemini) — falling back to "openai".`,
+    `(openai | gemini | qwen) — falling back to "openai".`,
   );
   return "openai";
 }
@@ -64,6 +66,16 @@ function parseNumber(value: string | undefined): number | null {
 
 export function getPlatformAIDefaults(): PlatformAIDefaults {
   const provider = (process.env.AI_PROVIDER ?? "openai").toLowerCase();
+  // "qwen" is embedding-only: it can never be the brain provider. A stray
+  // AI_PROVIDER=qwen would otherwise construct a chat provider that throws on
+  // every chat call — normalise it to OpenAI and say so.
+  if (provider === "qwen") {
+    console.error(
+      "[ai-config] AI_PROVIDER=qwen is invalid — Qwen serves embeddings only. " +
+      "Falling back to the OpenAI brain; use AI_EMBEDDING_PROVIDER=qwen or the platform " +
+      "embedding default to route embedding work to the local server.",
+    );
+  }
   const normalizedProvider: AIProvider =
     provider === "gemini" ? "gemini" : provider === "sarvam" ? "sarvam" : "openai";
 
@@ -89,6 +101,16 @@ export function getPlatformAIDefaults(): PlatformAIDefaults {
       sarvam: {
         chat: process.env.SARVAM_CHAT_MODEL?.trim() || null,
         embedding: null,
+        realtime: null,
+        transcription: null,
+        defaultVoice: null,
+      },
+      // Qwen is embedding-only (local llama.cpp server): chat/realtime stay
+      // on the brain provider; embedding surfaces may resolve here when the
+      // platform embedding default (or AI_EMBEDDING_PROVIDER) selects it.
+      qwen: {
+        chat: null,
+        embedding: process.env.QWEN_EMBEDDING_MODEL?.trim() || null,
         realtime: null,
         transcription: null,
         defaultVoice: null,
@@ -375,6 +397,9 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
   // OpenAI is explicitly unconfigured, prefer Gemini if available. This is a
   // runtime availability fallback only — the platform default is not rewritten,
   // and the existing collection dimension is still resolved/pinned below.
+  // AI_EMBEDDING_PROVIDER=qwen routes embedding work to the local llama.cpp
+  // server without rewriting the platform default (the override for testing
+  // the self-hosted backbone before committing the fleet to it).
   const embeddingProvider = selectEmbeddingProvider({
     configuredProvider: configuredEmbeddingProvider,
     override: process.env.AI_EMBEDDING_PROVIDER,
@@ -384,8 +409,9 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
   if (embeddingProvider !== configuredEmbeddingProvider) {
     console.warn(
-      "[ai-config] Gemini embeddings override is active because AI_EMBEDDING_PROVIDER=gemini or OpenAI credentials are absent. " +
-      "Set the platform Embeddings default to Gemini to persist this choice and schedule fleet re-indexing.",
+      "[ai-config] An embeddings provider override is active (AI_EMBEDDING_PROVIDER=" +
+      `${embeddingProvider}, or OpenAI credentials are absent and Gemini is available). ` +
+      "Set the platform Embeddings default to persist this choice and schedule fleet re-indexing.",
     );
   }
 
@@ -838,7 +864,13 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
 
 export function getProviderApiKey(provider: AIProvider): string | undefined {
   const envKey =
-    provider === "openai" ? "OPENAI_API_KEY" : provider === "gemini" ? "GEMINI_API_KEY" : "SARVAM_API_KEY";
+    provider === "openai"
+      ? "OPENAI_API_KEY"
+      : provider === "gemini"
+        ? "GEMINI_API_KEY"
+        : provider === "qwen"
+          ? "QWEN_API_KEY" // optional — the local server runs without auth by default
+          : "SARVAM_API_KEY";
   const value = process.env[envKey]?.trim();
   return value || undefined;
 }

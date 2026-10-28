@@ -15,11 +15,24 @@ describe("multilingual embedding models", () => {
     expect(formatEmbeddingInput("We open at 9.", "document", model)).toBe("We open at 9.");
   });
 
+  it("formats Qwen3 queries with the instruct template and documents as-is", () => {
+    expect(formatEmbeddingInput("q", "query", "Qwen/Qwen3-Embedding-0.6B", "Find answers")).toBe("Instruct: Find answers\nQuery: q");
+    expect(formatEmbeddingInput("doc text", "document", "Qwen/Qwen3-Embedding-0.6B")).toBe("doc text");
+    expect(modelFamily("Qwen/Qwen3-Embedding-0.6B")).toBe("qwen");
+    expect(modelFamily("other/qwen3-embedding-4b")).toBe("qwen");
+  });
+
   it("uses query:/passage: prefixes for classic E5 and raw text for BGE-M3", () => {
     expect(formatEmbeddingInput("q", "query", "intfloat/multilingual-e5-large")).toBe("query: q");
     expect(formatEmbeddingInput("p", "document", "intfloat/multilingual-e5-large")).toBe("passage: p");
     expect(formatEmbeddingInput("q", "query", "BAAI/bge-m3")).toBe("q");
     expect(modelFamily("someone/e5-base-v2")).toBe("e5");
+  });
+
+  it("defaults to the local Qwen3 model with its 1024-d contract", () => {
+    expect(getMultilingualSettings({}).model).toBe("Qwen/Qwen3-Embedding-0.6B");
+    const on = getMultilingualSettings({ MULTILINGUAL_EMBEDDINGS_ENABLED: "true", MULTILINGUAL_EMBEDDINGS_BASE_URL: "http://qwen-embeddings:8080" });
+    expect(on).toMatchObject({ available: true, dimension: 1024, model: "Qwen/Qwen3-Embedding-0.6B" });
   });
 
   it("builds the embeddings URL from any base the admin enters", () => {
@@ -32,7 +45,7 @@ describe("multilingual embedding models", () => {
   it("is available only when switched on and configured", () => {
     expect(getMultilingualSettings({}).available).toBe(false);
     const on = getMultilingualSettings({ MULTILINGUAL_EMBEDDINGS_ENABLED: "true", MULTILINGUAL_EMBEDDINGS_BASE_URL: "http://e:80" });
-    expect(on).toMatchObject({ available: true, dimension: 1024, model: "intfloat/multilingual-e5-large-instruct" });
+    expect(on).toMatchObject({ available: true, dimension: 1024, model: "Qwen/Qwen3-Embedding-0.6B" });
     const unknown = getMultilingualSettings({
       MULTILINGUAL_EMBEDDINGS_ENABLED: "true", MULTILINGUAL_EMBEDDINGS_BASE_URL: "http://e:80", MULTILINGUAL_EMBEDDINGS_MODEL: "org/new-model",
     });
@@ -42,8 +55,9 @@ describe("multilingual embedding models", () => {
   it("uses a model-appropriate evidence cut-off", () => {
     expect(scoreThresholdFor("openai", "text-embedding-3-small", 0.25, {})).toBe(0.25);
     expect(scoreThresholdFor("tei", "intfloat/multilingual-e5-large-instruct", 0.25, {})).toBe(0.8);
+    expect(scoreThresholdFor("tei", "Qwen/Qwen3-Embedding-0.6B", 0.25, {})).toBe(0.35);
     expect(scoreThresholdFor("tei", "BAAI/bge-m3", 0.25, {})).toBe(0.45);
-    expect(scoreThresholdFor("tei", "intfloat/multilingual-e5-large-instruct", 0.25, { MULTILINGUAL_EMBEDDINGS_SCORE_THRESHOLD: "0.83" })).toBe(0.83);
+    expect(scoreThresholdFor("tei", "Qwen/Qwen3-Embedding-0.6B", 0.25, { MULTILINGUAL_EMBEDDINGS_SCORE_THRESHOLD: "0.4" })).toBe(0.4);
   });
 });
 
@@ -59,14 +73,14 @@ describe("TeiEmbeddingProvider", () => {
     vi.stubGlobal("fetch", fetchMock);
     const onUsage = vi.fn();
     const provider = new TeiEmbeddingProvider({
-      provider: "tei", embeddingModel: "intfloat/multilingual-e5-large-instruct", embeddingDimension: 2,
-      baseUrl: "http://embeddings:80", apiKey: "secret",
+      provider: "tei", embeddingModel: "Qwen/Qwen3-Embedding-0.6B", embeddingDimension: 2,
+      baseUrl: "http://qwen-embeddings:8080", apiKey: "secret",
     });
     const vector = await provider.embedText("hello", { onUsage });
     expect(vector).toEqual([0.6, 0.8]);
     expect(onUsage).toHaveBeenCalledWith({ promptTokens: 5, completionTokens: 0 });
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe("http://embeddings:80/v1/embeddings");
+    expect(url).toBe("http://qwen-embeddings:8080/v1/embeddings");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer secret");
   });
 

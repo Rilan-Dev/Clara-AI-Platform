@@ -307,7 +307,7 @@ export function ProvidersWorkspace() {
 function EmbeddingsWorkspace() {
   const [embeddingDefault, setEmbeddingDefault] = useState<EmbeddingDefaultDTO | null>(null);
   const [options, setOptions] = useState<Array<{
-    providerId: "openai" | "gemini";
+    providerId: "openai" | "gemini" | "qwen";
     displayName: string;
     configured: boolean;
     enabled: boolean;
@@ -328,8 +328,8 @@ function EmbeddingsWorkspace() {
       ]);
       setEmbeddingDefault(current.embeddingDefault ?? registry.embeddingDefault ?? null);
       const supported = registry.providers.filter(
-        (provider): provider is PlatformAIProviderDTO & { providerId: "openai" | "gemini" } =>
-          provider.providerId === "openai" || provider.providerId === "gemini",
+        (provider): provider is PlatformAIProviderDTO & { providerId: "openai" | "gemini" | "qwen" } =>
+          provider.providerId === "openai" || provider.providerId === "gemini" || provider.providerId === "qwen",
       );
       const workspaces = await Promise.all(
         supported.map(async (provider) => {
@@ -355,7 +355,7 @@ function EmbeddingsWorkspace() {
     void load();
   }, [load]);
 
-  const save = async (providerId: "openai" | "gemini", modelId: string) => {
+  const save = async (providerId: "openai" | "gemini" | "qwen", modelId: string) => {
     setBusy(providerId + ":" + modelId);
     setMessage(null);
     try {

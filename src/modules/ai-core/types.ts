@@ -8,8 +8,14 @@
  * the settings UI offers the provider, so behaviour is unchanged on deploy.
  * Sarvam serves CHAT ONLY — it publishes no embeddings API; embeddings run
  * on the platform backbone (SARVAM_EMBEDDING_FALLBACK_PROVIDER, V1).
+ *
+ * "qwen" is the mirror case: EMBEDDINGS ONLY (the local llama.cpp
+ * qwen-embeddings service, migration 076). It can never be a chat brain —
+ * resolve normalises AI_PROVIDER=qwen away — and chat surfaces never resolve
+ * to it; embedding surfaces do when the platform embedding default (or the
+ * AI_EMBEDDING_PROVIDER override / sarvam fallback) selects it.
  */
-export type AIProvider = "openai" | "gemini" | "sarvam";
+export type AIProvider = "openai" | "gemini" | "sarvam" | "qwen";
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';

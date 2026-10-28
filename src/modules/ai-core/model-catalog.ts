@@ -105,6 +105,18 @@ export const GEMINI_EMBEDDING_MODELS: EmbeddingModelEntry[] = [
   { id: "embedding-001",        provider: "gemini", dimension: 768,  inputUsdPerMTokens: 0.075 },
 ];
 
+// ─── Qwen (local llama.cpp server — embeddings ONLY, no billing) ────────────
+//
+// Served by the `qwen-embeddings` docker-compose service (llama.cpp
+// llama-server, Qwen3-Embedding-0.6B-GGUF Q8_0, --pooling last). Live
+// inventory comes from the server's OpenAI-compatible /v1/models endpoint
+// through the governance catalogue sync; these entries carry the dimension
+// contract Qdrant collections are pinned to.
+
+export const QWEN_EMBEDDING_MODELS: EmbeddingModelEntry[] = [
+  { id: "Qwen/Qwen3-Embedding-0.6B", provider: "qwen", dimension: 1024 },
+];
+
 // ─── Sarvam (Indic-first brain — chat ONLY, no embeddings) ──────────────────
 //
 // Vendor INR list prices converted at SARVAM_INR_TO_USD = 0.012 (default;
@@ -142,7 +154,7 @@ for (const entry of [...OPENAI_CHAT_MODELS, ...GEMINI_CHAT_MODELS, ...SARVAM_CHA
 }
 
 const EMBEDDING_BY_ID = new Map<string, EmbeddingModelEntry>();
-for (const entry of [...OPENAI_EMBEDDING_MODELS, ...GEMINI_EMBEDDING_MODELS]) {
+for (const entry of [...OPENAI_EMBEDDING_MODELS, ...GEMINI_EMBEDDING_MODELS, ...QWEN_EMBEDDING_MODELS]) {
   EMBEDDING_BY_ID.set(entry.id.toLowerCase(), entry);
 }
 

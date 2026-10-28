@@ -170,7 +170,7 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
   MULTILINGUAL_EMBEDDINGS_BASE_URL: {
     label: "Embeddings endpoint",
-    hint: "Text Embeddings Inference or any OpenAI-compatible /v1/embeddings URL. VPS: http://embeddings:80 (docker-compose profile \"multilingual\"). Vercel: a hosted endpoint serving the same model.",
+    hint: "Any OpenAI-compatible /v1/embeddings URL. VPS: http://qwen-embeddings:8080 (the local Qwen3-Embedding service in docker-compose). Vercel: a hosted endpoint serving a compatible model.",
     validation: (v) => (v === "" || /^https?:\/\//i.test(v) ? null : "Must start with http:// or https://"),
   },
   MULTILINGUAL_EMBEDDINGS_API_KEY: {
@@ -180,7 +180,7 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
   MULTILINGUAL_EMBEDDINGS_MODEL: {
     label: "Multilingual model",
-    hint: "intfloat/multilingual-e5-large-instruct (1024-d, ~100 languages — ElevenLabs multilingual_e5_large_instruct). Also: intfloat/multilingual-e5-large, BAAI/bge-m3.",
+    hint: "Qwen/Qwen3-Embedding-0.6B (1024-d, 100+ languages — the local qwen-embeddings service). Also: BAAI/bge-m3, or any OpenAI-compatible endpoint's model id.",
   },
   MULTILINGUAL_EMBEDDINGS_DIMENSION: {
     label: "Vector size (optional)",
@@ -225,7 +225,7 @@ const FIELD_METADATA: Record<string, FieldMeta> = {
   },
   SARVAM_EMBEDDING_FALLBACK_PROVIDER: {
     label: "Embedding backbone",
-    hint: "Sarvam publishes no embeddings API — embeddings run on this provider (openai | gemini).",
+    hint: "Sarvam publishes no embeddings API — embeddings run on this provider (openai | gemini | qwen).",
   },
   SARVAM_TRANSLATION_ENABLED: {
     label: "Language services",
@@ -877,6 +877,7 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
             options={[
               { value: "openai", label: "OpenAI embeddings", meta: "1536 / 3072 dims" },
               { value: "gemini", label: "Gemini embeddings", meta: "768 / 3072 dims" },
+              { value: "qwen", label: "Qwen embeddings (local)", meta: "1024 dims · no billing" },
             ]}
             placeholder="openai"
           />
@@ -903,7 +904,7 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
       <SettingsSection
         icon={<Languages />}
         title="Multilingual knowledge index"
-        description="ElevenLabs-grade multilingual retrieval (E5 embeddings). Organisations whose plan includes it can re-index their knowledge bases so questions in any language match documents in any language — no translation step."
+        description="Multilingual retrieval (local Qwen3 embeddings). Organisations whose plan includes it can re-index their knowledge bases so questions in any language match documents in any language — no translation step."
       >
         <div className="space-y-4">
           <FeatureToggle
@@ -937,7 +938,7 @@ function AICategoryEditor({ display, setDraftValue, isSet, clearSecret }: Editor
               hint={FIELD_METADATA.MULTILINGUAL_EMBEDDINGS_MODEL.hint}
               value={display("MULTILINGUAL_EMBEDDINGS_MODEL")}
               onChange={(value) => setDraftValue("MULTILINGUAL_EMBEDDINGS_MODEL", value)}
-              placeholder="intfloat/multilingual-e5-large-instruct"
+              placeholder="Qwen/Qwen3-Embedding-0.6B"
               mono
             />
             <TextField

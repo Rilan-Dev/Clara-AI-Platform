@@ -3,6 +3,7 @@ import { OpenAIProvider } from "./providers/openai";
 import { GeminiProvider } from "./providers/gemini";
 import { SarvamProvider } from "./providers/sarvam";
 import { TeiEmbeddingProvider } from "./providers/tei";
+import { QwenEmbeddingProvider } from "./providers/qwen";
 
 export class ProviderFactory {
   private static defaultInstance: LLMProvider | null = null;
@@ -29,6 +30,8 @@ export class ProviderFactory {
         return new SarvamProvider(config);
       case "tei":
         return new TeiEmbeddingProvider(config);
+      case "qwen":
+        return new QwenEmbeddingProvider(config);
       default:
         throw new Error(`Unsupported AI provider: ${config.provider}`);
     }

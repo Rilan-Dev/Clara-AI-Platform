@@ -151,7 +151,13 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
     const envKey = credRow ? String(credRow.env_key) : null;
     const baseUrlEnvKey = credRow?.base_url_env_key ? String(credRow.base_url_env_key) : null;
     const secretValue = envKey ? process.env[envKey]?.trim() : undefined;
-    const configured = Boolean(secretValue);
+    // Credential "configured" is resolved LIVE from process.env. The local
+    // Qwen embeddings server needs no API key — its base URL being set is the
+    // availability signal (QWEN_EMBEDDINGS_BASE_URL, or an explicit key).
+    const configured =
+      providerId === "qwen"
+        ? Boolean(baseUrlEnvKey && process.env[baseUrlEnvKey]?.trim()) || Boolean(secretValue)
+        : Boolean(secretValue);
     const credential: ProviderCredentialState | null = envKey
       ? {
           providerId,
@@ -193,7 +199,7 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
 
   const embeddingDefault = embeddingDefaultRows[0]
     ? {
-        providerId: String(embeddingDefaultRows[0].provider_id) as "openai" | "gemini",
+        providerId: String(embeddingDefaultRows[0].provider_id) as "openai" | "gemini" | "qwen",
         modelId: String(embeddingDefaultRows[0].model_id),
         updatedAt: embeddingDefaultRows[0].updated_at == null ? null : String(embeddingDefaultRows[0].updated_at),
       }
@@ -429,7 +435,7 @@ export async function setModelDefault(
 
 /** Set the platform default provider (+ optional model) for a capability. */
 export async function setEmbeddingDefault(
-  providerId: "openai" | "gemini",
+  providerId: "openai" | "gemini" | "qwen",
   modelId: string,
   updatedBy: string | null,
 ): Promise<void> {

@@ -7,16 +7,19 @@
  * ElevenLabs computes a RAG index per document per embedding model and offers
  *   • e5_mistral_7b_instruct          (4096-d, English-focused)
  *   • multilingual_e5_large_instruct  (1024-d, ~100 languages)
- * Clara uses the same open models (intfloat/*) through any Text Embeddings
- * Inference (TEI) or OpenAI-compatible /v1/embeddings server:
- *   • VPS (self-hosted): the `embeddings` service in docker-compose.yml
- *   • Vercel (cloud):    a hosted endpoint serving the same model
+ * Clara serves the same capability through any OpenAI-compatible
+ * /v1/embeddings server:
+ *   • VPS (self-hosted): the `qwen-embeddings` service in docker-compose.yml —
+ *     Qwen3-Embedding-0.6B (1024-d, 100+ languages, 32k context), a drop-in
+ *     successor to the retired heavyweight multilingual-e5-large TEI service
+ *     (~2 GB RAM) at roughly a third of the footprint.
+ *   • Vercel (cloud):    a hosted endpoint serving a compatible model
  *
  * Nothing tenant-specific here: the endpoint, key and model are platform
  * runtime settings (Settings → AI), and plans decide who may use it.
  */
 
-export type MultilingualModelFamily = "e5-instruct" | "e5" | "plain";
+export type MultilingualModelFamily = "e5-instruct" | "e5" | "qwen" | "plain";
 
 export type MultilingualEmbeddingModel = {
   id: string;
@@ -33,30 +36,12 @@ export type MultilingualEmbeddingModel = {
 
 export const MULTILINGUAL_EMBEDDING_MODELS: MultilingualEmbeddingModel[] = [
   {
-    id: "intfloat/multilingual-e5-large-instruct",
-    label: "Multilingual E5 Large Instruct",
+    id: "Qwen/Qwen3-Embedding-0.6B",
+    label: "Qwen3 Embedding 0.6B (local, 100+ languages)",
     dimension: 1024,
-    family: "e5-instruct",
+    family: "qwen",
     languages: 100,
-    elevenLabsModel: "multilingual_e5_large_instruct",
-    maxTokens: 512,
-  },
-  {
-    id: "intfloat/e5-mistral-7b-instruct",
-    label: "E5 Mistral 7B Instruct (English, GPU)",
-    dimension: 4096,
-    family: "e5-instruct",
-    languages: 1,
-    elevenLabsModel: "e5_mistral_7b_instruct",
-    maxTokens: 4096,
-  },
-  {
-    id: "intfloat/multilingual-e5-large",
-    label: "Multilingual E5 Large",
-    dimension: 1024,
-    family: "e5",
-    languages: 100,
-    maxTokens: 512,
+    maxTokens: 32768,
   },
   {
     id: "BAAI/bge-m3",
@@ -68,7 +53,7 @@ export const MULTILINGUAL_EMBEDDING_MODELS: MultilingualEmbeddingModel[] = [
   },
 ];
 
-export const DEFAULT_MULTILINGUAL_MODEL = "intfloat/multilingual-e5-large-instruct";
+export const DEFAULT_MULTILINGUAL_MODEL = "Qwen/Qwen3-Embedding-0.6B";
 
 /**
  * Retrieval task description for instruct models (E5 model card format:
@@ -86,6 +71,7 @@ export function modelFamily(id: string): MultilingualModelFamily {
   const known = findMultilingualModel(id);
   if (known) return known.family;
   const lower = id.toLowerCase();
+  if (lower.includes("qwen") && lower.includes("embedding")) return "qwen";
   if (lower.includes("e5") && lower.includes("instruct")) return "e5-instruct";
   if (/(^|[/_-])e5([/_-]|$)/.test(lower) || lower.includes("-e5-")) return "e5";
   return "plain";
@@ -93,7 +79,9 @@ export function modelFamily(id: string): MultilingualModelFamily {
 
 /**
  * Text as the model expects it. E5 models were trained with prefixes and
- * lose quality without them; "plain" models (BGE-M3) take raw text.
+ * lose quality without them; Qwen3-Embedding uses the same instruct-style
+ * query template (task description + query, documents raw); "plain" models
+ * (BGE-M3) take raw text.
  */
 export function formatEmbeddingInput(
   text: string,
@@ -103,14 +91,15 @@ export function formatEmbeddingInput(
 ): string {
   const family = modelFamily(model);
   if (family === "e5-instruct") return kind === "query" ? `Instruct: ${queryTask}\nQuery: ${text}` : text;
+  if (family === "qwen") return kind === "query" ? `Instruct: ${queryTask}\nQuery: ${text}` : text;
   if (family === "e5") return `${kind === "query" ? "query" : "passage"}: ${text}`;
   return text;
 }
 
 /**
  * The embeddings URL for a configured base URL. Accepts a bare host
- * (TEI: http://embeddings:80), an OpenAI-style base (…/v1, …/v1/openai) or
- * the full …/embeddings URL.
+ * (llama.cpp: http://qwen-embeddings:8080), an OpenAI-style base (…/v1,
+ * …/v1/openai) or the full …/embeddings URL.
  */
 export function embeddingsEndpoint(baseUrl: string): string {
   const base = baseUrl.trim().replace(/\/+$/, "");
@@ -149,8 +138,10 @@ export function getMultilingualSettings(env: Record<string, string | undefined> 
  * Minimum cosine similarity for a chunk to count as evidence, per model.
  * E5 models score everything between ~0.7 and 1.0 (low-temperature
  * contrastive training — see the E5 model card), so the 0.25 cut-off used
- * for OpenAI/Gemini embeddings would admit unrelated chunks. Override with
- * MULTILINGUAL_EMBEDDINGS_SCORE_THRESHOLD.
+ * for OpenAI/Gemini embeddings would admit unrelated chunks. Qwen3-Embedding
+ * behaves like the OpenAI/Gemini families (scores spread across the full
+ * 0–1 range) but sits slightly higher on related passages — 0.35. Override
+ * with MULTILINGUAL_EMBEDDINGS_SCORE_THRESHOLD.
  */
 export function scoreThresholdFor(
   provider: string | null | undefined,
@@ -162,5 +153,7 @@ export function scoreThresholdFor(
   const override = Number(env.MULTILINGUAL_EMBEDDINGS_SCORE_THRESHOLD);
   if (Number.isFinite(override) && override > 0 && override < 1) return override;
   const family = modelFamily(model ?? "");
-  return family === "plain" ? 0.45 : 0.8;
+  if (family === "plain") return 0.45;
+  if (family === "qwen") return 0.35;
+  return 0.8;
 }

@@ -62,10 +62,22 @@ import type {
   VoiceResolution,
 } from "./config-types";
 import type { VoiceProvider } from "./types";
+import type { AIProvider } from "@/modules/ai-core/types";
 import { normalizeLanguagePolicy, speechRecognitionLanguage } from "@/modules/assistant/core/language-policy";
 import { query } from "@/lib/db";
 import { VoiceProviderFactory } from "./factory";
 import { isOpenAIRealtimeModel, isSupportedOpenAIRealtimeVoice } from "@/modules/assistant/api/openai-catalog";
+
+/**
+ * The brain provider narrowed to the voice-capable subset. "qwen" is
+ * embedding-only and can never be a brain resolution in practice (the AI
+ * resolver normalises AI_PROVIDER=qwen away), but the widened AIProvider
+ * union carries it — degrade defensively to OpenAI instead of casting the
+ * impossibility away.
+ */
+function voiceCapableBrain(provider: AIProvider): Exclude<AIProvider, "qwen"> {
+  return provider === "qwen" ? "openai" : provider;
+}
 
 export class VoiceConfigResolutionError extends Error {
   constructor(message: string) {
@@ -270,7 +282,7 @@ export async function resolveVoiceConfig(
       platformVoiceChatDefault?.providerId === "gemini"
         ? platformVoiceChatDefault.providerId
         : null;
-    voiceProvider = platformProvider ?? brain.provider; // inherit — default for existing tenants
+    voiceProvider = platformProvider ?? voiceCapableBrain(brain.provider); // inherit — default for existing tenants
     source = "env";
   }
 
@@ -361,9 +373,9 @@ export async function resolveVoiceConfig(
   // terminal fallback is OpenAI, matching the platform's default-provider
   // posture.
   if (await platformUnavailable(voiceProvider, "voice_chat")) {
-    const fallback: VoiceProvider = (await platformUnavailable(brain.provider, "voice_chat"))
+    const fallback: VoiceProvider = (await platformUnavailable(voiceCapableBrain(brain.provider), "voice_chat"))
       ? "openai"
-      : brain.provider;
+      : voiceCapableBrain(brain.provider);
     if (await platformUnavailable(fallback, "voice_chat")) {
       throw unavailableError(voiceProvider);
     }
@@ -382,7 +394,7 @@ export async function resolveVoiceConfig(
     // platform's realtime-capable brain provider if permitted.
     const realtimeFallback =
       (await platformUnavailable(voiceProvider, "realtime_voice"))
-        ? ((await platformUnavailable(brain.provider, "realtime_voice")) ? null : brain.provider)
+        ? ((await platformUnavailable(voiceCapableBrain(brain.provider), "realtime_voice")) ? null : voiceCapableBrain(brain.provider))
         : voiceProvider;
     if (!realtimeFallback || await platformUnavailable(realtimeFallback, "realtime_voice")) {
       throw unavailableError(realtimeProvider);

@@ -13,10 +13,11 @@
 import { execute } from "@/lib/db";
 import { loadRuntimeSettingsOnStartup } from "@/lib/db/migrate";
 import { findChatModel, findEmbeddingModel } from "@/modules/ai-core/model-catalog";
+import { qwenModelsEndpoint } from "@/modules/ai-core/providers/qwen";
 import { findTTSModel, normalizeProviderBaseUrl } from "@/modules/voice-core/model-catalog";
 import { recordRuntimeIncident } from "@/modules/platform-health/core/incidents";
 
-type Provider = "openai" | "gemini" | "sarvam" | "elevenlabs";
+type Provider = "openai" | "gemini" | "sarvam" | "elevenlabs" | "qwen";
 type Capability = "chat" | "voice_chat" | "realtime_voice";
 type Kind = "chat" | "embedding" | "realtime" | "transcription" | "tts" | "stt" | "voice" | "sts";
 
@@ -212,6 +213,54 @@ async function syncOpenAI(): Promise<boolean> {
     const [capability, kind] = group.split(":") as [Capability, Kind];
     await disableMissing("openai", capability, kind, groups.get(group) ?? new Set<string>());
   }
+  return true;
+}
+
+/**
+ * Sync the local Qwen embeddings server (llama.cpp llama-server).
+ *
+ * Only runs when QWEN_EMBEDDINGS_BASE_URL is explicitly set — deployments
+ * without the self-hosted service (e.g. Vercel) skip the provider entirely
+ * instead of recording a DNS-failure incident every sync cycle. The server
+ * exposes an OpenAI-compatible /v1/models list; every served model is an
+ * embedding model (kind "embedding", capability "chat"), dimension 1024
+ * (Qwen3-Embedding-0.6B contract; enriched from the static catalogue when
+ * the served alias matches a known id).
+ */
+async function syncQwen(): Promise<boolean> {
+  const baseUrl = key("QWEN_EMBEDDINGS_BASE_URL");
+  if (!baseUrl) return false;
+  const apiKey = key("QWEN_API_KEY");
+  const body = (await jsonFetch(qwenModelsEndpoint(), {
+    ...(apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}),
+  })) as { data?: Array<{ id?: string }> };
+  if (!body || typeof body !== "object" || !Array.isArray(body.data)) {
+    throw new Error("Qwen embeddings server returned a malformed model list.");
+  }
+  const served = body.data
+    .map((model) => (typeof model.id === "string" ? model.id.trim() : ""))
+    .filter((id) => id.length > 0);
+  if (!served.length) {
+    throw new Error("Qwen embeddings server advertised no models (is the server built with --embedding enabled?).");
+  }
+  const items: CatalogItem[] = served.map((id) => {
+    const known = findEmbeddingModel(id) ?? findEmbeddingModel(id.replace(/\.gguf$/i, ""));
+    return {
+      providerId: "qwen",
+      capability: "chat",
+      kind: "embedding",
+      modelId: id,
+      displayName: known ? "Qwen3 Embedding 0.6B (local)" : id,
+      metadata: {
+        dimension: known?.dimension ?? 1024,
+        inputUsdPerMTokens: 0, // self-hosted: no vendor billing
+        local: true,
+      },
+    };
+  });
+  await upsertItems(items);
+  const liveIds = new Set(items.map((item) => item.modelId));
+  await disableMissing("qwen", "chat", "embedding", liveIds);
   return true;
 }
 
@@ -751,6 +800,7 @@ async function runSync(): Promise<void> {
     { provider: "gemini", run: syncGemini },
     { provider: "sarvam", run: syncSarvam },
     { provider: "elevenlabs", run: syncElevenLabs },
+    { provider: "qwen", run: syncQwen },
   ];
   await Promise.all(
     tasks.map(async ({ provider, run }) => {

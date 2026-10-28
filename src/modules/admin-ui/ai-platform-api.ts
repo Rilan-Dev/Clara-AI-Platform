@@ -85,7 +85,7 @@ export type CapabilityDefaultDTO = {
 };
 
 export type EmbeddingDefaultDTO = {
-  providerId: "openai" | "gemini";
+  providerId: "openai" | "gemini" | "qwen";
   modelId: string;
   updatedAt: string | null;
 };
@@ -145,7 +145,7 @@ export async function fetchEmbeddingDefault(): Promise<{ embeddingDefault: Embed
 }
 
 export async function putEmbeddingDefault(
-  providerId: "openai" | "gemini",
+  providerId: "openai" | "gemini" | "qwen",
   modelId: string,
 ): Promise<{ embeddingDefault: EmbeddingDefaultDTO }> {
   return apiFetch("/api/platform/ai/embedding-default", {

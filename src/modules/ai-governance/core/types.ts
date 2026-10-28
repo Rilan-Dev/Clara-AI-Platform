@@ -25,7 +25,7 @@ export type AIModelKind =
   | "voice"
   | "sts";
 
-export type GovernanceProviderId = "openai" | "gemini" | "sarvam" | "elevenlabs";
+export type GovernanceProviderId = "openai" | "gemini" | "sarvam" | "elevenlabs" | "qwen";
 
 export type ProviderHealthStatus = "healthy" | "degraded" | "down" | "unknown";
 
@@ -89,7 +89,7 @@ export interface PlatformAIRegistry {
   providers: PlatformAIProvider[];
   /** Dedicated embedding backbone used by document ingestion/scraping. */
   embeddingDefault: {
-    providerId: "openai" | "gemini";
+    providerId: "openai" | "gemini" | "qwen";
     modelId: string;
     updatedAt: string | null;
   } | null;

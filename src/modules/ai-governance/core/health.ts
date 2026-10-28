@@ -12,6 +12,7 @@ import {
   getElevenLabsBaseUrl,
   getSarvamBaseUrl,
 } from "@/modules/voice-core/model-catalog";
+import { qwenEmbeddingsBaseUrl, QWEN_DEFAULT_MODEL } from "@/modules/ai-core/providers/qwen";
 import { recordProviderHealth } from "./registry-db";
 import type { GovernanceProviderId, ProviderHealthRecord } from "./types";
 
@@ -135,6 +136,42 @@ export async function testProviderConnection(
           "xi-api-key": key,
         }),
       );
+    }
+    case "qwen": {
+      // The cheapest meaningful round trip for an embeddings server is an
+      // actual embedding of a one-token input — a bare /v1/models GET would
+      // pass even when the model failed to load or --embedding is off.
+      const base = qwenEmbeddingsBaseUrl();
+      const apiKey = process.env.QWEN_API_KEY?.trim();
+      const started = Date.now();
+      try {
+        const res = await fetch(base, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          },
+          body: JSON.stringify({
+            model: process.env.QWEN_EMBEDDING_MODEL?.trim() || QWEN_DEFAULT_MODEL,
+            input: ["ping"],
+            encoding_format: "float",
+          }),
+          signal: timeoutSignal(10_000),
+        });
+        const latencyMs = Date.now() - started;
+        if (res.ok) return { status: "healthy", latencyMs, errorMessage: null };
+        return {
+          status: "down",
+          latencyMs,
+          errorMessage: `Qwen embeddings server responded with HTTP ${res.status}. (probing ${base})`,
+        };
+      } catch (err) {
+        return {
+          status: "down",
+          latencyMs: null,
+          errorMessage: `Qwen embeddings server connection failed: ${(err as Error).message} (probing ${base})`,
+        };
+      }
     }
   }
 }

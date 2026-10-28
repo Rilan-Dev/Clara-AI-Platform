@@ -119,47 +119,65 @@ services:
     volumes:
       - ./infra/qdrant/storage:/qdrant/storage
 
-  # ──────────── Multilingual embeddings (optional) ────────────
-  # Self-hosted multilingual knowledge index: Hugging Face Text Embeddings
-  # Inference serving intfloat/multilingual-e5-large-instruct — the model
-  # ElevenLabs offers as multilingual_e5_large_instruct (1024-d, ~100
-  # languages). Start it with:
-  #   docker compose --profile multilingual up -d embeddings
-  # then in Settings → AI → Multilingual knowledge index set the endpoint to
-  # http://embeddings:80 and switch it on. Needs ~3 GB RAM on CPU; the model
-  # (~2.2 GB) downloads into ./infra/embeddings on first start. For a GPU host
-  # use a cuda image via TEI_IMAGE (see the TEI docs).
-  embeddings:
-    profiles: ["multilingual"]
-    image: ${TEI_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.8}
-    container_name: clara-embeddings
+  # ──────────── Qwen3 local embeddings (llama.cpp) ────────────
+  # Self-hosted embedding backbone: Qwen3-Embedding-0.6B (Q8_0 GGUF, 1024-d,
+  # 100+ languages, 32k context) served by llama.cpp's llama-server through
+  # an OpenAI-compatible API. Registered as the governance provider "qwen"
+  # (migration 076) — selectable in Settings → AI Platform → Embeddings
+  # alongside OpenAI and Gemini, and the recommended endpoint for the
+  # multilingual knowledge index (set MULTILINGUAL_EMBEDDINGS_BASE_URL to
+  # http://qwen-embeddings:8080). ~1 GB RSS on CPU — a third of the retired
+  # multilingual-e5-large TEI service. The model file (Qwen3-Embedding-0.6B-
+  # Q8_0.gguf, 639 MB) must be downloaded into ./infra/qwen-embeddings
+  # before first start:
+  #   curl -L -o infra/qwen-embeddings/Qwen3-Embedding-0.6B-Q8_0.gguf \
+  #     https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf
+  qwen-embeddings:
+    image: ${QWEN_EMBEDDINGS_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
+    container_name: clara-qwen-embeddings
     restart: unless-stopped
     logging: *default-logging
-    # The multilingual embedding service is opt-in but can consume several GB
-    # of RAM while loading the model. Keep it inside the same host resource
-    # policy so enabling the profile cannot bypass the production containment
-    # controls used by the core services.
+    # Embedding inference is memory-bound, not CPU-bound — 2 cores are enough
+    # for query workloads; batch re-indexing simply takes longer. Same host
+    # resource policy as the core services so it cannot bypass containment.
     deploy:
       resources:
         limits:
           cpus: "2.00"
-          memory: "4096M"
-          pids: 512
+          memory: "1536M"
+          pids: 256
         reservations:
-          memory: "2048M"
-    memswap_limit: "4096M"
+          memory: 384M
+    memswap_limit: "1536M"
+    # --pooling last is REQUIRED for Qwen3-Embedding (model card); -ub 8192
+    # lets single-token pooling see whole chunks; --alias pins the model id
+    # the governance catalogue and provider requests send.
     command:
-      - --model-id
-      - ${MULTILINGUAL_EMBEDDINGS_MODEL:-intfloat/multilingual-e5-large-instruct}
-      - --auto-truncate
-      - --max-client-batch-size
-      - "64"
-    environment:
-      HF_TOKEN: ${HF_TOKEN:-}
+      - -m
+      - /models/Qwen3-Embedding-0.6B-Q8_0.gguf
+      - --alias
+      - Qwen/Qwen3-Embedding-0.6B
+      - --embedding
+      - --pooling
+      - last
+      - -ub
+      - "8192"
+      - -c
+      - "8192"
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
     ports:
-      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:8088:80"
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:8090:8080"
     volumes:
-      - ./infra/embeddings:/data
+      - ./infra/qwen-embeddings:/models
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
 
   # ──────────────── Local RabbitMQ ────────────────
   # Kept inside the Clara Docker network so the bridge connects by the

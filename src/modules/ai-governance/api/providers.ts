@@ -370,9 +370,9 @@ export async function putEmbeddingDefaultHandler(req: NextRequest): Promise<Next
     const auth = await requireAuth(req);
     await requireSuperAdmin(auth);
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const providerId = body.providerId === "openai" || body.providerId === "gemini" ? body.providerId : null;
+    const providerId = body.providerId === "openai" || body.providerId === "gemini" || body.providerId === "qwen" ? body.providerId : null;
     const modelId = typeof body.modelId === "string" ? body.modelId.trim() : "";
-    if (!providerId) return errorResponse("Embedding provider must be openai or gemini", 400);
+    if (!providerId) return errorResponse("Embedding provider must be openai, gemini or qwen", 400);
     if (!modelId) return errorResponse("modelId is required", 400);
 
     await setEmbeddingDefault(providerId, modelId, auth.user.id);
