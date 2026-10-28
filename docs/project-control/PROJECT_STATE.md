@@ -1,3 +1,13 @@
+## CURRENT AUTHORITATIVE STATE — 2026-10-29 — MCP TRANSPORT SECURITY REGRESSION SOURCE
+
+[architect source review] The shared MCP HTTP transport now exposes injectable DNS and HTTPS boundaries with production defaults preserved. Regression source covers mixed public/private DNS answers, DNS revalidation between requests, request size, pre-cancelled and active cancellation, active timeout, redirect refusal, response-size enforcement, and pinning the socket lookup to the validated IP.
+
+- Commits: `b7caf9615652fff7e928040a30753f21ac831dd0`, `45b7207d66553b668d1cddf4019f133c88d7e219`, `7f1ca90b1298490142a30229336785ae1e6d2e80`, `f6f262578ff348faf4844e32b5ef75853820fcc2`, `fddf1d33d3230e254ae514d5dcdcfead30ac95a4`, `aa2e79d5c450b5714b0ca1c9c0c50ed45a49dcb2`.
+- No executable verification is claimed. I-6 bridge implementation is recorded complete in its plan; active follow-up hardens the end-to-end MCP resolver/runtime integration.
+- **Next:** add mocked grant-revocation and stale-schema regressions, then review singleflight authorization/cancellation behavior.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — 2026-10-29 — MCP TRANSPORT TEST SEAM
 
 [architect source review] The active MCP Streamable HTTP follow-up now has an injectable DNS/HTTPS boundary in the shared transport. Production defaults still use system DNS and Node HTTPS; the injection seam exists to make security regressions deterministic without live network access.
