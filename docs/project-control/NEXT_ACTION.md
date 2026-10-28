@@ -1,3 +1,15 @@
+## MCP RESOLVER AUTHORIZATION FRESHNESS — SOURCE REGRESSIONS — 2026-10-29
+
+- Added mocked resolver regressions proving a revoked organization/agent-grant lookup fails before any invocation transport call, and a changed remote input schema is rejected before the side-effecting `tools/call` RPC.
+- Test file: `src/modules/ai-platform-core/mcp-streamable-http-resolver.authorization.test.ts`.
+- Commits: `f7a27399fd5ae487a3dbda34cb4d76e14773eebc`, `0368a4e4bb21b4940cc8f94794d844d52b64e66f`.
+- Together with the transport regressions below, source coverage now addresses grant revocation, stale schema, DNS revalidation, mixed public/private DNS, pinned lookup, redirects, request/response size limits, active timeout and cancellation.
+- No tests/type-check/build/CI/Vercel/Gate/live MCP handshake was run or awaited; authored test cases are not execution evidence.
+- **Next implementation:** review singleflight behavior under parallel discovery and cancellation; ensure one cancelled waiter cannot poison an unrelated in-flight request and authorization is rechecked before cache reuse. Then review Chat/realtime parity and record remaining source-level gaps without claiming production readiness.
+- Keep MCP disabled pending controlled verification/handshake. Do not wait for CI/Vercel.
+
+---
+
 ## MCP STREAMABLE HTTP — TRANSPORT SECURITY REGRESSION COVERAGE — 2026-10-29
 
 - Added deterministic injection seams for DNS resolution and HTTPS requests in `mcpHttpRequest`; production defaults remain system DNS and Node HTTPS.
