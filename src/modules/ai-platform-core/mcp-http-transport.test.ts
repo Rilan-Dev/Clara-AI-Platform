@@ -93,7 +93,9 @@ describe("MCP outbound transport dependency boundary", () => {
         end: () => void;
         destroy: (error?: Error) => void;
       };
+      let destroyed = false;
       req.destroy = (error?: Error) => {
+        destroyed = true;
         queueMicrotask(() => {
           if (error) req.emit("error", error);
           req.emit("close");
@@ -120,7 +122,7 @@ describe("MCP outbound transport dependency boundary", () => {
         if (options.responseBody !== undefined) {
           queueMicrotask(() => {
             response.emit("data", options.responseBody!);
-            response.emit("end");
+            if (!destroyed) response.emit("end");
           });
         }
       };
