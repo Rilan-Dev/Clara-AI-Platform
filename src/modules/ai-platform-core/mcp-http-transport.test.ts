@@ -100,10 +100,10 @@ describe("MCP outbound transport dependency boundary", () => {
         });
       };
       req.end = () => {
-        const lookupOptions = requestOptions as {
-          lookup?: (hostname: string, options: unknown, callback: (...args: unknown[]) => void) => void;
+        const requestConfig = requestOptions as {
+          agent?: { options?: { lookup?: (hostname: string, options: unknown, callback: (...args: unknown[]) => void) => void } };
         };
-        lookupOptions.lookup?.("mcp.vendor.test", {}, (...args: unknown[]) => {
+        requestConfig.agent?.options?.lookup?.("mcp.vendor.test", {}, (...args: unknown[]) => {
           if (args[0] instanceof Error) return;
           options.onLookup?.(String(args[1]), Number(args[2]));
         });
