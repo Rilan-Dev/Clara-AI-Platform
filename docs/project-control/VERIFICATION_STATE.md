@@ -1,3 +1,12 @@
+## CURRENT VERIFICATION STATE — 2026-10-29 — MCP AUTHORIZATION FRESHNESS SOURCE REGRESSIONS
+
+- Added mock-based test source for revoked organization/agent grants and stale remote input schemas. Both cases assert refusal before side-effecting remote invocation.
+- Commits: `f7a27399fd5ae487a3dbda34cb4d76e14773eebc`, `0368a4e4bb21b4940cc8f94794d844d52b64e66f`.
+- These are authored tests only. No tests, type-check, build, live MCP handshake, CI, Vercel, or Gate was run or awaited. No PASS is claimed.
+- Remaining source review: singleflight cancellation/isolation, authorization freshness around cache reuse, and Chat/realtime parity.
+
+---
+
 ## CURRENT VERIFICATION STATE — 2026-10-29 — MCP TRANSPORT SECURITY REGRESSION SOURCE
 
 - Regression source covers DNS rebinding-style revalidation, mixed public/private answer rejection, request body limits, pre-cancelled requests, active cancellation, request timeout, redirect refusal, response byte limits, and pinned lookup address.
