@@ -71,7 +71,7 @@ function announceAlert(alert: HealthAlert) {
     toast.warning(alert.title, {
       id: `platform-warning:${alert.id}`,
       description,
-      duration: 8_000,
+      duration: Infinity,
       closeButton: true,
       onDismiss: () => markAlertDismissed(alert.id),
       action,
