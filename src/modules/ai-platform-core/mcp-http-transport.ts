@@ -17,7 +17,6 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import https from "node:https";
-import type { ClientRequest, IncomingMessage } from "node:http";
 import type { IncomingHttpHeaders } from "node:http";
 import type { LookupFunction } from "node:net";
 
