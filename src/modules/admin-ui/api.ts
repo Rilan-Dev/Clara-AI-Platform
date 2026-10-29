@@ -783,16 +783,47 @@ export type KbChunk = {
   title: string;
   originalFilename: string;
   documentId: string;
+  pageNumber?: number;
 };
+
+export type ChunkDebugSource = {
+  schemaVersion: "clara.chunk-debug.v1";
+  kbId: string;
+  documentId: string;
+  title: string;
+  chunkCount: number;
+  document: {
+    id: string;
+    title: string;
+    originalFilename: string;
+    mimeType: string | null;
+    sourceType: string;
+    status: string;
+    reportedChunkCount: number | null;
+  };
+  collection: string;
+  embedding: {
+    index: string;
+    provider: string;
+    model: string;
+    dimension: number;
+  } | null;
+  chunks: KbChunk[];
+};
+/** Full, authorized Qdrant chunk snapshot for debugging or the chunk viewer. */
+export async function fetchDocumentChunkDebug(
+  kbId: string,
+  docId: string,
+): Promise<ChunkDebugSource> {
+  return apiFetch<ChunkDebugSource>(
+    `/api/kbs/${kbId}/documents/${docId}/chunks`,
+  );
+}
 export async function listDocumentChunks(
   kbId: string,
   docId: string,
 ): Promise<KbChunk[]> {
-  return (
-    await apiFetch<{ chunks: KbChunk[]; total: number }>(
-      `/api/kbs/${kbId}/documents/${docId}/chunks`,
-    )
-  ).chunks;
+  return (await fetchDocumentChunkDebug(kbId, docId)).chunks;
 }
 export async function addDocumentChunk(
   kbId: string,
