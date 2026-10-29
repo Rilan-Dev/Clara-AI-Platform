@@ -1,3 +1,12 @@
+## 2026-10-30 — Owner verification: rerank telemetry test suites green
+
+- Owner pulled the feature branch and executed the focused RAG Vitest suites on their real checkout: `rerank.test.ts` 12/12 and `grounding.test.ts` 27/27, total **39/39 passing** (2 test files). Executed `node --test scripts/benchmark-rag-ab.test.mjs`: **9/9 passing**, zero failures. Ran `npm run type-check && echo "TYPECHECK PASS"`: TypeScript check **PASS**. All results are from the owner-supplied terminal output, not reproduced by this GitHub-only session.
+- These results verify the instrumentation/benchmark work ending at `9adc27622a8d94baa05ad3d1bab6c6e41b28ae45`; no outstanding code-level failures are evidenced by these focused checks.
+- Remains a **runtime validation**, not a unit-test problem: rebuild the backend image without touching the currently running production container; repeat both A/B arms as separate loopback-only disposable backends with identical image, local origin, query set and stage settings. Observe `rerankOutcomes` applied/skipped/timeout/fallback and `rerankMs` per-question/aggregate. Only after comparing the actual Q03/Q04 retrieved excerpts and Arabic performance can the production enablement decision be revisited. The previous mixed-origin A/B measured substantial p95 regression and did not establish a relevance gain.
+- Safety constraints: keep production `RAG_RERANK_URL` unchanged and off, do not share credentials or raw private benchmark files, check VPS memory before building/starting a second app + TEI, and remember the test containers still share production DB/Qdrant and consume quota. No deployment or production changes performed in this update.
+
+---
+
 ## 2026-10-30 — RAG reranker A/B results and content-free inference telemetry
 
 - Operator supplied actual **same-query, two-arm** A/B evidence on one draft KB: baseline reranker OFF (24/24 measured successful, 8/8 questions grounded), candidate reranker ON in a disposable local backend (24/24 successful, 8/8 grounded, TEI smoke PASS). Both temporary candidate and TEI service were stopped after measuring; the production backend's reranker remained disabled.
