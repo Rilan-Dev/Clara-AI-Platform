@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   count: vi.fn(),
   scroll: vi.fn(),
   createCollection: vi.fn(),
+  createPayloadIndex: vi.fn(),
   upsert: vi.fn(),
   copyCollectionEmbedding: vi.fn(),
 }));
@@ -15,6 +16,7 @@ vi.mock("./vector-store", () => ({
     count: mocks.count,
     scroll: mocks.scroll,
     createCollection: mocks.createCollection,
+    createPayloadIndex: mocks.createPayloadIndex,
     upsert: mocks.upsert,
   }),
   ensureCollectionExists: vi.fn(),
@@ -40,6 +42,7 @@ describe("published KB snapshots reject cross-tenant point contamination", () =>
     mocks.count.mockResolvedValue({ count: 2 });
     mocks.scroll.mockResolvedValue({ points: [], next_page_offset: null });
     mocks.createCollection.mockResolvedValue(true);
+    mocks.createPayloadIndex.mockResolvedValue(undefined);
     mocks.upsert.mockResolvedValue({ status: "completed" });
     mocks.copyCollectionEmbedding.mockResolvedValue(undefined);
   });
@@ -69,6 +72,9 @@ describe("published KB snapshots reject cross-tenant point contamination", () =>
       points: [{ id: "point-1", vector: [0.5], payload: { kbId: "kb-1", documentId: "document-1" } }],
     });
     expect(mocks.copyCollectionEmbedding).toHaveBeenCalledWith("live", "pub");
+    expect(mocks.createPayloadIndex).toHaveBeenCalledWith("pub", {
+      field_name: "referenceIds", field_schema: "keyword", wait: true,
+    });
   });
 
   it("does not create a snapshot when Qdrant ownership validation is unavailable", async () => {
