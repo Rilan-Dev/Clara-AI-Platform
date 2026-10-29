@@ -1,3 +1,13 @@
+## TOAST STACK HOVER REFLOW — 2026-10-30
+
+- Updated the shared Sonner host so stack offsets are recalculated during hover expansion. The hovered card can expand to show its full title and message while non-hovered cards retain compact dimensions and reposition with the stack instead of being obscured.
+- Tightened the default collapsed content to one title line and two description lines, preserving a useful short preview without requiring hover. Hover removes the text height caps; the card's existing max-height/overflow behavior remains in force for long incidents.
+- Implementation commit: `e186c410e007073cda3940444114622a482cdaf8`.
+- No tests, type-check, build, CI, Vercel, or Gate was run or awaited.
+- Next: continue the latest authorized implementation item in this file; do not wait for external verification or claim executable PASS.
+
+---
+
 ## TOAST CARD EXPANSION + OVERFLOW CORRECTION — 2026-10-29
 
 - Corrected the shared Sonner toast so hover expands the **toast card itself**, not only its title/description text. Compact cards are capped by default; hovered cards grow up to the viewport-safe `min(70vh, 32rem)` height and scroll internally for exceptionally long content.
