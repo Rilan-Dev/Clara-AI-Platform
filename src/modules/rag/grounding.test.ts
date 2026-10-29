@@ -288,6 +288,54 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.timings?.referenceScoreMs).toBeGreaterThanOrEqual(0);
   });
 
+  it("runs the indexed Qdrant reads while the query embedding is still pending", async () => {
+    let resolveEmbedding!: (vector: number[]) => void;
+    const provider = {
+      embedText: vi.fn(() => new Promise<number[]>((resolve) => {
+        resolveEmbedding = resolve;
+      })),
+    };
+    (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReturnValue(provider);
+    const chunks = [
+      { id: "start", payload: { kbId: KB_FIXTURE.id, documentId: "doc-a", chunkIndex: 21,
+        referenceIds: ["DO.4.2"], chunk: "DO.4.2 1. response 2. activation", title: "Policy" } },
+      { id: "end", payload: { kbId: KB_FIXTURE.id, documentId: "doc-a", chunkIndex: 22,
+        referenceIds: [], chunk: "3. recovery activities", title: "Policy" } },
+    ];
+    const scroll = vi.fn(async (_collection: string, opts: Record<string, unknown>) => {
+      const filter = opts.filter as { must?: Array<{ key?: string }> };
+      return {
+        points: filter.must?.some((condition) => condition.key === "referenceIds")
+          ? [chunks[0]] : chunks,
+        next_page_offset: null,
+      };
+    });
+    const query = vi.fn(async () => ({ points: chunks.map((chunk) => ({
+      ...chunk, score: 0.8,
+    })) }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ scroll, query });
+
+    const pending = groundClaraContext({
+      kbId: KB_FIXTURE.id, query: "List control DO.4.2 requirements",
+    });
+    // This fails if embeddings are again awaited before the Qdrant reads.
+    await vi.waitFor(() => expect(scroll).toHaveBeenCalledTimes(2));
+    expect(provider.embedText).toHaveBeenCalledTimes(1);
+    expect(query).not.toHaveBeenCalled();
+    resolveEmbedding([0.1, 0.2]);
+    const outcome = await pending;
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.sources.map((hit) => hit.id)).toEqual(["start", "end"]);
+    expect(outcome.result.timings?.denseSearchMs).toBe(0);
+    expect(outcome.result.timings?.referenceHeaderMs).toBeGreaterThanOrEqual(0);
+    expect(outcome.result.timings?.referenceNeighborMs).toBeGreaterThanOrEqual(0);
+    expect(outcome.result.timings?.indexLookupMs).toBeGreaterThanOrEqual(
+      (outcome.result.timings?.referenceHeaderMs ?? 0) +
+      (outcome.result.timings?.referenceNeighborMs ?? 0),
+    );
+  });
+
   it("batches overlapping exact-reference headers into one neighbor request per document", async () => {
     const rows = [
       { id: "header1", payload: { kbId: KB_FIXTURE.id, documentId: "arabic", chunkIndex: 110,
