@@ -34,7 +34,12 @@ async function syncCatalogFreshModule(): Promise<void> {
 
 describe("Live provider catalogue reconciliation", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    // clearAllMocks (NOT resetAllMocks): on Vitest 2.x resetAllMocks strips
+    // the vi.fn(impl) implementations from the vi.mock factories above, so
+    // loadRuntimeSettingsOnStartup() returned undefined from the second test
+    // onward and every sync died on "undefined.catch" before touching a
+    // vendor. clearAllMocks keeps implementations and only clears call logs.
+    vi.clearAllMocks();
     mocks.execute.mockResolvedValue(undefined);
     mocks.incidents.length = 0;
     process.env.GEMINI_API_KEY = "test-key";
@@ -58,9 +63,10 @@ describe("Live provider catalogue reconciliation", () => {
 
     await syncCatalogFreshModule();
 
-    const geminiUpserts = mocks.execute.mock.calls.filter(([sql]) =>
+    const geminiUpserts = mocks.execute.mock.calls.filter(([sql, params]) =>
       String(sql).includes("INSERT INTO platform_ai_provider_models") &&
-      String(sql).includes("ON CONFLICT"));
+      String(sql).includes("ON CONFLICT") &&
+      params?.[0] === "gemini");
     const chat = geminiUpserts.find(([, params]) => params?.[0] === "gemini" && params?.[3] === "gemini-2.5-flash");
     const embedding = geminiUpserts.find(([, params]) => params?.[0] === "gemini" && params?.[3] === "gemini-embedding-001");
     expect(JSON.parse(String(chat?.[1]?.[5]))).toMatchObject({
@@ -261,5 +267,80 @@ describe("Live provider catalogue reconciliation", () => {
     expect(mocks.incidents).toContainEqual(expect.objectContaining({
       key: "ai-catalog:gemini", healthy: false,
     }));
+  });
+
+  it("accepts the live OpenAI /v1/models single-page shape without has_more (production regression)", async () => {
+    delete process.env.GEMINI_API_KEY;
+    process.env.OPENAI_API_KEY = "test-openai-key";
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (String(url).includes("api.openai.com/v1/models")) {
+        // Exact production shape (verified 2026-10-29 against api.openai.com):
+        // { object, data } — NO has_more, NO last_id; the limit param is ignored
+        // and every model arrives in a single page.
+        return new Response(JSON.stringify({
+          object: "list",
+          data: [
+            { id: "gpt-4o", owned_by: "openai" },
+            { id: "text-embedding-3-small", owned_by: "openai" },
+            { id: "text-embedding-3-large", owned_by: "openai" },
+            { id: "gpt-realtime-2", owned_by: "openai" },
+            { id: "whisper-1", owned_by: "openai" },
+          ],
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    await syncCatalogFreshModule();
+
+    const upserts = mocks.execute.mock.calls.filter(([sql]) =>
+      String(sql).includes("INSERT INTO platform_ai_provider_models"));
+    expect(upserts.some(([, p]) => p?.[0] === "openai" && p?.[2] === "chat" && p?.[3] === "gpt-4o")).toBe(true);
+    expect(upserts.some(([, p]) => p?.[0] === "openai" && p?.[2] === "embedding" && p?.[3] === "text-embedding-3-small")).toBe(true);
+    expect(upserts.some(([, p]) => p?.[0] === "openai" && p?.[2] === "embedding" && p?.[3] === "text-embedding-3-large")).toBe(true);
+    expect(upserts.some(([, p]) => p?.[0] === "openai" && p?.[2] === "realtime" && p?.[3] === "gpt-realtime-2")).toBe(true);
+    expect(upserts.some(([, p]) => p?.[0] === "openai" && p?.[2] === "transcription" && p?.[3] === "whisper-1")).toBe(true);
+    // Discovered rows are stamped vendor_live so the admin pickers list them.
+    const embeddingMeta = upserts.find(([, p]) => p?.[3] === "text-embedding-3-small")?.[1]?.[5];
+    expect(JSON.parse(String(embeddingMeta))).toMatchObject({ catalogSource: "vendor_live" });
+    // Classic endpoint: exactly ONE page fetched — no cursor pagination loop.
+    expect(mocks.fetch.mock.calls.filter(([url]) =>
+      String(url).includes("api.openai.com/v1/models")).length).toBe(1);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:openai", healthy: true }));
+  });
+
+  it("accepts a null next_page_token on the final ElevenLabs voices page (production regression)", async () => {
+    delete process.env.GEMINI_API_KEY;
+    process.env.ELEVENLABS_API_KEY = "test-elevenlabs-key";
+    mocks.fetch.mockImplementation(async (url: string) => {
+      if (String(url).includes("/v1/models")) {
+        // /v1/models is a bare JSON array in production.
+        return new Response(JSON.stringify([
+          { model_id: "eleven_flash_v2_5", name: "Eleven Flash v2.5", can_do_text_to_speech: true },
+        ]), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      if (String(url).includes("/v2/voices")) {
+        // Exact production final-page shape (verified 2026-10-29 against
+        // api.elevenlabs.io): has_more false + next_page_token null.
+        return new Response(JSON.stringify({
+          voices: [{ voice_id: "voice-1", name: "Voice One", category: "generated" }],
+          has_more: false,
+          next_page_token: null,
+          total_count: 1,
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    await syncCatalogFreshModule();
+
+    const upserts = mocks.execute.mock.calls.filter(([sql]) =>
+      String(sql).includes("INSERT INTO platform_ai_provider_models"));
+    expect(upserts.some(([, p]) => p?.[0] === "elevenlabs" && p?.[2] === "voice" && p?.[3] === "voice-1")).toBe(true);
+    expect(upserts.some(([, p]) => p?.[0] === "elevenlabs" && p?.[2] === "tts" && p?.[3] === "eleven_flash_v2_5")).toBe(true);
+    // Final page: exactly ONE voices request — the null cursor must not loop.
+    expect(mocks.fetch.mock.calls.filter(([url]) =>
+      String(url).includes("/v2/voices")).length).toBe(1);
+    expect(mocks.incidents).toContainEqual(expect.objectContaining({ key: "ai-catalog:elevenlabs", healthy: true }));
   });
 });

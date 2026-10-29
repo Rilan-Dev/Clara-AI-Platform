@@ -158,9 +158,17 @@ async function syncOpenAI(): Promise<boolean> {
       has_more?: boolean;
       last_id?: string;
     };
+    // Production regression (2026-10-29): the live GET /v1/models returns the
+    // classic single-page shape { object: "list", data: [...] } with NO
+    // has_more/last_id fields — verified against api.openai.com (134 models in
+    // one response, limit param ignored). Requiring has_more to be a boolean
+    // made EVERY sync throw "malformed page", so OpenAI never gained
+    // vendor_live rows and its model lists stayed empty. A missing has_more is
+    // a valid final page (the break below treats it as such); only a has_more
+    // that is present but not a boolean is malformed.
     if (
       !body || typeof body !== "object" || !Array.isArray(body.data) ||
-      typeof body.has_more !== "boolean" ||
+      (body.has_more !== undefined && typeof body.has_more !== "boolean") ||
       body.data.some((model) => !model || typeof model.id !== "string" || model.id.length === 0)
     ) {
       throw new Error("OpenAI model catalogue returned a malformed page; refusing partial reconciliation.");
@@ -701,14 +709,20 @@ async function syncElevenLabs(): Promise<boolean> {
       const body = (await jsonFetch(`${base}/v2/voices?${qs}`, { headers })) as {
         voices?: Array<{ voice_id?: string; name?: string; category?: string; verified_languages?: unknown[] }>;
         has_more?: boolean;
-        next_page_token?: string;
+        next_page_token?: string | null;
       };
+      // Production regression (2026-10-29): the live GET /v2/voices returns
+      // next_page_token: null on the final page (has_more: false) — verified
+      // against api.elevenlabs.io. The strict typeof-string check rejected that
+      // null cursor as "malformed", failing every voices sync. A null/absent
+      // cursor is only fatal when has_more claims more pages remain (the
+      // "omitted its next-page token" guard below handles that case).
       if (
         !body ||
         typeof body !== "object" ||
         !Array.isArray(body.voices) ||
-        typeof body.has_more !== "boolean" ||
-        (body.next_page_token !== undefined && typeof body.next_page_token !== "string")
+        (body.has_more !== undefined && typeof body.has_more !== "boolean") ||
+        (body.next_page_token !== undefined && body.next_page_token !== null && typeof body.next_page_token !== "string")
       ) {
         throw new Error("ElevenLabs voice catalogue returned a malformed page; refusing partial reconciliation.");
       }
