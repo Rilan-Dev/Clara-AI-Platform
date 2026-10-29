@@ -49,6 +49,13 @@ function run(sql: string, params: unknown[] = []): { rows: Record<string, unknow
   if (s.includes("FROM org_subscriptions")) return one({ allowed: state.planAllows, status: "active", current_period_end: null });
   if (s.includes("FROM subscription_plans WHERE id = 'free'")) return one({ allowed: false });
   if (s.includes("FROM kb_reindex_jobs WHERE kb_id = $1 AND status IN")) return one(activeJob(String(params[0])));
+  if (s.includes("FROM kb_reindex_jobs WHERE kb_id = $1 AND status = 'failed'")) {
+    // "latest failed" — insertion order is creation order in this fake
+    const failed = [...state.jobs.values()].filter(
+      (j) => j.kb_id === String(params[0]) && j.status === "failed",
+    );
+    return one(failed[failed.length - 1]);
+  }
   if (s.includes("INSERT INTO kb_reindex_jobs")) {
     const id = `job-${state.nextJob++}`;
     const row: JobRow = {
@@ -262,6 +269,31 @@ describe("multilingual knowledge index", () => {
     await cancelReindex("kb-1");
     expect(state.collections.has(job.targetCollection)).toBe(false);
     expect(state.kb.qdrant_collection).toBe("kb_one");
+    expect(state.kb.embedding_index).toBe("standard");
+  });
+
+  it("cancelling a FAILED re-index clears the stuck banner state and drops its half-built index", async () => {
+    // Production gap (2026-10-29): the KB index panel renders "Cancel
+    // re-index" for a FAILED job, but the handler only considered
+    // queued/running jobs — cancelling a failed migration to a
+    // decommissioned provider (local Qwen embeddings) silently did
+    // nothing, so the "Re-index stopped" banner had no exit and Resume
+    // just re-attempted the unreachable target.
+    seedLegacyCollection(1);
+    const job = await startReindex({ kbId: "kb-1", index: "multilingual" });
+    expect(state.collections.has(job.targetCollection)).toBe(true);
+    // the batch failed mid-flight (target provider became unreachable)
+    Object.assign(state.jobs.get(job.id)!, {
+      status: "failed",
+      error_message: "Embedding failed: fetch failed",
+      lease_until: null,
+    });
+
+    const cancelled = await cancelReindex("kb-1");
+    expect(cancelled).toMatchObject({ id: job.id, status: "cancelled" });
+    expect(state.collections.has(job.targetCollection)).toBe(false); // half-built index dropped
+    expect(state.registry.has(job.targetCollection)).toBe(false); // registry row dropped
+    expect(state.kb.qdrant_collection).toBe("kb_one"); // serving index untouched
     expect(state.kb.embedding_index).toBe("standard");
   });
 

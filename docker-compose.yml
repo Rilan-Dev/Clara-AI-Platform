@@ -119,7 +119,7 @@ services:
     volumes:
       - ./infra/qdrant/storage:/qdrant/storage
 
-  # ──────────── Qwen3 local embeddings (llama.cpp) ────────────
+  # ──────────── Qwen3 local embeddings (llama.cpp) — OPT-IN ────────────
   # Self-hosted embedding backbone: Qwen3-Embedding-0.6B (Q8_0 GGUF, 1024-d,
   # 100+ languages, 32k context) served by llama.cpp's llama-server through
   # an OpenAI-compatible API. Registered as the governance provider "qwen"
@@ -127,14 +127,28 @@ services:
   # alongside OpenAI and Gemini, and the recommended endpoint for the
   # multilingual knowledge index (set MULTILINGUAL_EMBEDDINGS_BASE_URL to
   # http://qwen-embeddings:8080). ~1 GB RSS on CPU — a third of the retired
-  # multilingual-e5-large TEI service. The model file (Qwen3-Embedding-0.6B-
-  # Q8_0.gguf, 639 MB) must be downloaded into ./infra/qwen-embeddings
-  # before first start:
+  # multilingual-e5-large TEI service.
+  #
+  # Deployed behind the compose profile "qwen": a plain `docker compose up -d`
+  # (or `build`) SKIPS this service entirely — no container is created, no
+  # CPU/RAM is reserved, and the platform embedding default stays on the
+  # vendor APIs. Bring it up only when local embeddings are actually wanted:
+  #   docker compose --profile qwen up -d qwen-embeddings
+  # and stop it again with:
+  #   docker compose --profile qwen stop qwen-embeddings && \
+  #     docker compose --profile qwen rm -f qwen-embeddings
+  # The model file (Qwen3-Embedding-0.6B-Q8_0.gguf, 639 MB) must be downloaded
+  # into ./infra/qwen-embeddings before first start:
   #   curl -L -o infra/qwen-embeddings/Qwen3-Embedding-0.6B-Q8_0.gguf \
   #     https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf
   qwen-embeddings:
+    # Opt-in profile: excluded from plain `up`/`build`/`ps` unless --profile qwen
+    # (or an explicit service name) is given. Nothing else depends on it.
+    profiles: ["qwen"]
     image: ${QWEN_EMBEDDINGS_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
     container_name: clara-qwen-embeddings
+    # A profiled service must not auto-restart after a host reboot while the
+    # profile is inactive — restart only applies while the container exists.
     restart: unless-stopped
     logging: *default-logging
     # Embedding inference is memory-bound, not CPU-bound — 2 cores are enough

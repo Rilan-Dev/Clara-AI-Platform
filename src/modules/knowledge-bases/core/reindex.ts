@@ -28,6 +28,7 @@ import {
   ensureRuntimeSettings,
   forgetCollection,
   getActiveReindexJob,
+  getLatestFailedReindexJob,
   getCollectionEmbedding,
   getKbIndexContext,
   getMultilingualAvailability,
@@ -286,9 +287,21 @@ export async function retryReindexJob(kbId: string): Promise<ReindexJob> {
   return toJob(row);
 }
 
-/** Cancel the active job and drop its half-built collection. */
+/**
+ * Cancel the current re-index and drop its half-built collection.
+ *
+ * Production gap (2026-10-29): the KB index panel renders "Cancel re-index"
+ * for a FAILED job too, but this handler only considered queued/running
+ * jobs — cancelling a failed re-index silently did nothing, so the
+ * "Re-index stopped · 0%" banner had no exit except Resume, which retries
+ * the SAME target. When the target itself became unreachable (the local
+ * Qwen embeddings container was decommissioned mid-migration) the KB was
+ * stuck with an undismissable failed job. Cancel now falls back to the
+ * KB's most recent failed job — the exact row Resume would act on — drops
+ * its half-built collection and leaves the serving index untouched.
+ */
 export async function cancelReindex(kbId: string): Promise<ReindexJob | null> {
-  const job = await getActiveReindexJob(kbId);
+  const job = (await getActiveReindexJob(kbId)) ?? (await getLatestFailedReindexJob(kbId));
   if (!job) return null;
   await query(
     `UPDATE kb_reindex_jobs SET status = 'cancelled', lease_until = NULL, updated_at = now(), completed_at = now()

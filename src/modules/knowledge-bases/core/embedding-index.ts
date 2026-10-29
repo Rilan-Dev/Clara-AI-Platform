@@ -400,3 +400,16 @@ export async function getActiveReindexJob(kbId: string): Promise<ReindexJob | nu
   );
   return row ? toJob(row) : null;
 }
+
+/**
+ * The KB's most recent FAILED re-index job — the exact row the index panel
+ * renders as "Re-index stopped" and that Retry (retryReindexJob) would resume.
+ * Cancel falls back to it so a failed migration can be dismissed.
+ */
+export async function getLatestFailedReindexJob(kbId: string): Promise<ReindexJob | null> {
+  const row = await queryOne<Row>(
+    "SELECT * FROM kb_reindex_jobs WHERE kb_id = $1 AND status = 'failed' ORDER BY created_at DESC LIMIT 1",
+    [kbId],
+  );
+  return row ? toJob(row) : null;
+}
