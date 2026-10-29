@@ -34,6 +34,19 @@ describe("buildTurnGuidance — provider-neutral, no canned refusal", () => {
     expect(text).not.toMatch(/No knowledge-base passage matched/);
   });
 
+  it("grounded written answers must preserve every listed requirement without inventing any", () => {
+    const text = buildTurnGuidance({ grounded: true, intent: "knowledge", channel: "chat" });
+    expect(text).toContain("every applicable numbered or bulleted requirement");
+    expect(text).toContain("list may be incomplete");
+    expect(text).toContain("Never invent additional requirements");
+  });
+
+  it("spoken answers retain their own brevity policy without forced long lists", () => {
+    const text = buildTurnGuidance({ grounded: true, intent: "knowledge", channel: "voice" });
+    expect(text).not.toContain("every applicable numbered or bulleted requirement");
+    expect(text).toMatch(/offer to continue/);
+  });
+
   it("voice: spoken replies always end on complete sentences", () => {
     expect(buildTurnGuidance({ grounded: true, intent: "knowledge", channel: "voice" })).toMatch(/finish your sentences/);
     expect(buildTurnGuidance({ grounded: true, intent: "knowledge", channel: "chat" })).not.toMatch(/finish your sentences/);
