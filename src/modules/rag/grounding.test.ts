@@ -253,7 +253,9 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
       if (must.some((condition) => condition.key === "referenceIds")) {
         return { points: [rows[0]], next_page_offset: null };
       }
-      if (must.some((condition) => condition.key === "chunkIndex")) {
+      const should = (opts.filter as { should?: Array<{ key?: string }> })?.should ?? [];
+      if (must.some((condition) => condition.key === "documentId") &&
+          should.some((condition) => condition.key === "chunkIndex")) {
         return { points: rows, next_page_offset: null };
       }
       throw new Error("Unexpected full collection payload scroll");
@@ -275,6 +277,11 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.context).toContain("7. archive");
     expect(outcome.result.context).not.toContain("SYS-4.3");
     expect(scroll).toHaveBeenCalledTimes(2);
+    expect(q).toHaveBeenCalledTimes(1); // scored selected IDs; no broad ANN search
+    const onlyQueryFilter = q.mock.calls[0]?.[1].filter as { must: Array<{ has_id?: string[] }> };
+    expect(onlyQueryFilter.must.some((condition) =>
+      condition.has_id?.join(",") === "head,tail",
+    )).toBe(true);
     expect(count).not.toHaveBeenCalled();
   });
 
