@@ -89,6 +89,8 @@ test("run mode: real RAG API contract, warmup separation, percentiles, shareable
       "--out", output,
     ]);
     assert.equal(result.code, 0, result.stderr);
+    // The report contains raw question wording and document titles, even though snippets are excluded.
+    assert.match(result.stdout, /PRIVATE output: contains question text and document titles/i);
 
     // 2 questions x (1 warmup + 2 measured) = 6 requests, all authenticated.
     assert.equal(calls.length, 6);
