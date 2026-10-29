@@ -256,6 +256,9 @@ export interface GroundingTimings {
   embeddingMs?: number;
   denseSearchMs?: number;
   indexLookupMs?: number;
+  /** Header keyword search and neighboring-chunk fetch are sequential stages. */
+  referenceHeaderMs?: number;
+  referenceNeighborMs?: number;
   referenceScoreMs?: number;
   referenceFallbackMs?: number;
   graphMs: number;
@@ -417,6 +420,8 @@ type RetrievalStages = {
   embeddingMs: number;
   denseSearchMs: number;
   indexLookupMs: number;
+  referenceHeaderMs: number;
+  referenceNeighborMs: number;
   referenceScoreMs: number;
   referenceFallbackMs: number;
 };
@@ -490,10 +495,12 @@ async function lookupIndexedReferencePoints(
   question: string,
   filter: Record<string, unknown>,
   topK: number,
+  stages?: RetrievalStages,
 ): Promise<ReferencePoint[]> {
   const refs = extractStructuredReferences(question);
   if (!refs.length) return [];
   const must = (filter.must as unknown[]) ?? [];
+  const headerStarted = Date.now();
   const headers = await client.scroll(collectionName, {
     // Bound indexed lookups to the same evidence budget as the answer.
     limit: Math.min(24, Math.max(8, topK * 3)),
@@ -506,6 +513,7 @@ async function lookupIndexedReferencePoints(
     with_payload: ["chunk", "chunkIndex", "documentId", "referenceIds", "kbId"],
     with_vector: false,
   });
+  if (stages) stages.referenceHeaderMs += Date.now() - headerStarted;
   const filtered = headers.points.filter((point) => {
     const p = (point.payload ?? {}) as Record<string, unknown>;
     return Array.isArray(p.referenceIds) &&
@@ -530,6 +538,7 @@ async function lookupIndexedReferencePoints(
 
   const lookup: ReferencePoint[] = [];
   const seen = new Set<string>();
+  const neighborStarted = Date.now();
   const batches = await Promise.all([...rangesByDocument.entries()].map(async ([documentId, ranges]) => {
     const page = await client.scroll(collectionName, {
       // Each header contributes no more than four indices. All ranges have a
@@ -544,6 +553,7 @@ async function lookupIndexedReferencePoints(
     });
     return { documentId, ranges, points: page.points };
   }));
+  if (stages) stages.referenceNeighborMs += Date.now() - neighborStarted;
   // The network requests may settle in any order. Keep the source-document
   // grouping deterministic instead of letting completion order reorder cites.
   for (const { documentId, ranges, points } of batches) {
@@ -651,15 +661,28 @@ async function searchKbCollection(
       // An exact identifier already has a KB-scoped keyword index. Fetch the
       // clause and its continuation BEFORE issuing a broad vector search.
       // A query embedding is still required to retain genuine Qdrant scores.
-      const lookupStarted = Date.now();
-      const indexed = await lookupIndexedReferencePoints(client, collectionName, originalQuestion, filter, topK);
-      if (stages) stages.indexLookupMs += Date.now() - lookupStarted;
-      const windows = buildReferenceWindows(indexed, originalQuestion, topK);
+      // The query embedding and the indexed Qdrant reads are independent.
+      // Start both at once, rather than paying for their latencies in series.
+      // A failed/missing identifier still uses the same cached embedding for
+      // the existing semantic fallback; no second embedding request is needed.
       const text = (await queries[0])?.trim();
-      if (windows.length && text) {
-        const embedStarted = Date.now();
-        const embedding = await embedQueryCached(providerConfig, text);
-        if (stages) stages.embeddingMs += Date.now() - embedStarted;
+      const lookupStarted = Date.now();
+      const lookupPromise = lookupIndexedReferencePoints(
+        client, collectionName, originalQuestion, filter, topK, stages,
+      ).then((points) => {
+        if (stages) stages.indexLookupMs += Date.now() - lookupStarted;
+        return points;
+      });
+      const embedStarted = Date.now();
+      const embeddingPromise = text
+        ? embedQueryCached(providerConfig, text).then((vector) => {
+            if (stages) stages.embeddingMs += Date.now() - embedStarted;
+            return vector;
+          })
+        : Promise.resolve(null);
+      const [indexed, embedding] = await Promise.all([lookupPromise, embeddingPromise]);
+      const windows = buildReferenceWindows(indexed, originalQuestion, topK);
+      if (windows.length && embedding) {
         const scoreStarted = Date.now();
         const scored = await scoreReferenceWindows(client, collectionName, embedding, filter, windows);
         if (stages) stages.referenceScoreMs += Date.now() - scoreStarted;
@@ -1044,6 +1067,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const retrievalStarted = Date.now();
   const retrievalStages: RetrievalStages = {
     embeddingMs: 0, denseSearchMs: 0, indexLookupMs: 0,
+    referenceHeaderMs: 0, referenceNeighborMs: 0,
     referenceScoreMs: 0, referenceFallbackMs: 0,
   };
   let vectorResults: SearchHit[];
