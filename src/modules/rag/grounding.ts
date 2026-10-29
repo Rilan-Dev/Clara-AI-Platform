@@ -63,6 +63,7 @@ import {
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
+import { rerankCandidates } from "@/modules/rag/rerank";
 import { extractStructuredReferences, matchingExactReferenceEvidence } from "@/modules/rag/reference-evidence";
 import {
   REFERENCE_SCAN_LIMIT,
@@ -607,6 +608,7 @@ async function searchKbCollection(
   scoreThreshold = SCORE_THRESHOLD,
   documentScoped = false,
   originalQuestion = "",
+  skipModelRerank = false,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
   const queryVectors: number[][] = [];
@@ -650,12 +652,17 @@ async function searchKbCollection(
   // a specifically named control. If an exact identifier cannot be verified,
   // the AI receives no vector evidence and must say it cannot confirm it.
   const evidence = exactCandidateHits;
+  // Reference-recovery evidence is ordered by source clause sequence. Do not
+  // let a model disrupt that order or override exact-identifier filtering.
+  const ranked = await rerankCandidates(originalQuestion, evidence, (hit) => hit.snippet, {
+    disabled: skipModelRerank || explicitlyReferenced,
+  });
 
-  if (documentScoped) return evidence.slice(0, topK);
+  if (documentScoped) return ranked.slice(0, topK);
 
-  return diversifyByDocument(evidence, {
+  return diversifyByDocument(ranked, {
     getDocId: (r) => (r.payload?.documentId ? String(r.payload.documentId) : undefined),
-    getScore: (r) => r.score,
+    getScore: (r) => r.rerankScore ?? r.score,
     topK,
   });
 }
@@ -974,6 +981,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       scoreThreshold,
       Boolean(request.documentId),
       query,
+      request.surface === "voice",
     );
   } catch (searchErr) {
     const msg = (searchErr as Error).message;

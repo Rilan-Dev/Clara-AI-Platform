@@ -165,6 +165,38 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     clearKnowledgeTopicsCache();
   });
 
+
+  it("uses the TEI model to reorder normal evidence but retains Qdrant scores", async () => {
+    const priorUrl = process.env.RAG_RERANK_URL;
+    const priorEnabled = process.env.RAG_RERANK_ENABLED;
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    process.env.RAG_RERANK_ENABLED = "true";
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { index: 0, score: 0.1 },
+        { index: 1, score: 0.2 },
+        { index: 2, score: 0.99 },
+      ],
+    })));
+    try {
+      const outcome = await groundClaraContext({
+        kbId: KB_FIXTURE.id,
+        query: UNIQUE_KB_FACT_QUERY,
+      });
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(outcome.result.sources[0]?.id).toBe("point-2");
+      expect(outcome.result.sources[0]?.score).toBeCloseTo(0.7);
+    } finally {
+      vi.unstubAllGlobals();
+      if (priorUrl === undefined) delete process.env.RAG_RERANK_URL;
+      else process.env.RAG_RERANK_URL = priorUrl;
+      if (priorEnabled === undefined) delete process.env.RAG_RERANK_ENABLED;
+      else process.env.RAG_RERANK_ENABLED = priorEnabled;
+    }
+  });
+
   it("returns grounded context with the server-resolved binding", async () => {
     const outcome = await groundClaraContext({
       kbId: KB_FIXTURE.id,

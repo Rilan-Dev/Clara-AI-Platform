@@ -9,6 +9,7 @@ import { getQdrantClient } from "@/modules/admin/core/vector-store";
 import { embedQueryCached } from "@/modules/rag/query-embedding-cache";
 import type { ProviderConfig } from "@/modules/ai-core/types";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
+import { rerankCandidates } from "@/modules/rag/rerank";
 
 const SCORE_THRESHOLD = 0.25;
 
@@ -53,12 +54,15 @@ export async function searchKbEmbedded(
     if (!current || hit.score > current.score) best.set(hit.id, hit);
   }
   const mapped = [...best.values()].sort((a, b) => b.score - a.score);
+  const ranked = await rerankCandidates(query, mapped, (hit) => hit.snippet, {
+    disabled: options?.realtimeVoice === true,
+  });
 
-  if (options?.filter || options?.realtimeVoice) return mapped.slice(0, topK);
+  if (options?.filter || options?.realtimeVoice) return ranked.slice(0, topK);
 
-  return diversifyByDocument(mapped, {
+  return diversifyByDocument(ranked, {
     getDocId: (r) => r.documentId,
-    getScore: (r) => r.score,
+    getScore: (r) => r.rerankScore ?? r.score,
     topK,
   });
 }
