@@ -53,7 +53,7 @@ test("retrieval CLI uses authorized real RAG API contract and exports exact cont
     const result = await runProbe([
       "--base-url", base, "--kb-id", "kb-1", "--document-id", "doc-1",
       "--question", "What is DO.2.1?", "--top-k", "4",
-      "--expect", "DO.2.1", "--expect-collection", "col", "--out", output,
+      "--expect", "DO.2.1", "--expect-collection", "col", "--expect-document-id", "doc-1", "--out", output,
     ]);
     assert.equal(result.code, 0, result.stderr);
     assert.equal(auth, "Bearer probe-test-token");
@@ -70,6 +70,8 @@ test("retrieval CLI uses authorized real RAG API contract and exports exact cont
     assert.equal(trace.checks.collectionMatches, true);
     assert.equal(trace.checks.searchedCollection, "col");
     assert.equal(trace.checks.expectedCollection, "col");
+    assert.equal(trace.checks.expectedDocumentId, "doc-1");
+    assert.equal(trace.checks.documentMatches, true);
 
     const failed = await runProbe([
       "--base-url", base, "--kb-id", "kb-1", "--question", "different",
@@ -85,6 +87,14 @@ test("retrieval CLI uses authorized real RAG API contract and exports exact cont
     ]);
     assert.equal(wrongIndex.code, 2);
     assert.match(wrongIndex.stdout, /Collection mismatch/);
+    assert.match(wrongIndex.stdout, /after a completed reindex/);
+
+    const wrongDocument = await runProbe([
+      "--base-url", base, "--kb-id", "kb-1", "--question", "question",
+      "--expect-document-id", "a-document-not-in-the-source-list", "--no-context",
+    ]);
+    assert.equal(wrongDocument.code, 2);
+    assert.match(wrongDocument.stdout, /Expected document was not found/);
   } finally {
     await new Promise((resolve) => server.close(resolve));
     await rm(dir, { recursive: true, force: true });
