@@ -131,9 +131,34 @@ import { query as dbQuery } from "@/lib/db";
 
 const UNIQUE_KB_FACT_QUERY = "What is the deliberately unique KB fact for binding tests?";
 
+function resetGroundingProviderStubs(): void {
+  // clearAllMocks() resets call history, not changed mock implementations or
+  // queued once-responses. Restore the default Qdrant/provider stubs so one
+  // test's simulated outage cannot contaminate another provider turn.
+  (getQdrantClient as ReturnType<typeof vi.fn>).mockReset().mockImplementation(() => ({
+    query: vi.fn(async (_collection: string, params: Record<string, unknown>) => {
+      const limit = Number(params.limit ?? 6);
+      return { points: Array.from({ length: Math.min(limit, 3) }, (_, i) => ({
+        id: `point-${i}`,
+        score: 0.9 - i * 0.1,
+        payload: {
+          chunk: `Grounded chunk ${i + 1} with the unique binding fact.`,
+          title: "Policy Doc",
+          originalFilename: "policy.pdf",
+          documentId: "doc-fixture-1",
+        },
+      })) };
+    }),
+  }));
+  (ProviderFactory.getProvider as ReturnType<typeof vi.fn>).mockReset().mockImplementation(() => ({
+    embedText: vi.fn(async () => new Array(8).fill(0.1)),
+  }));
+}
+
 describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetGroundingProviderStubs();
     resetGroundingCaches();
     clearQueryEmbeddingCache();
     clearRetrievalTranslationCache();
@@ -403,9 +428,10 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
         throw new Error('Qdrant collection "kb_fixture_1" does not exist.');
       }),
     };
-    // Used by the KB topic pre-warm and by the vector search.
+    // The topic summarizer is mocked separately in these tests, so only
+    // vector retrieval calls the Qdrant client. Do not queue an extra
+    // one-time failure that leaks into the next provider-binding test.
     (getQdrantClient as ReturnType<typeof vi.fn>)
-      .mockReturnValueOnce(missingCollection)
       .mockReturnValueOnce(missingCollection);
     const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "q" });
     expect(outcome).toMatchObject({ ok: false, status: 503 });
@@ -415,6 +441,7 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
 describe("groundClaraContext — Task 3.2 identical knowledge binding across providers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetGroundingProviderStubs();
     resetGroundingCaches();
     clearQueryEmbeddingCache();
     clearRetrievalTranslationCache();
@@ -490,6 +517,7 @@ describe("groundClaraContext — Task 3.2 identical knowledge binding across pro
 describe("groundClaraContext — cross-lingual retrieval", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetGroundingProviderStubs();
     resetGroundingCaches();
     clearQueryEmbeddingCache();
     clearRetrievalTranslationCache();
@@ -541,6 +569,7 @@ describe("groundClaraContext — cross-lingual retrieval", () => {
 describe("groundClaraContext — turn guidance (no canned refusal)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetGroundingProviderStubs();
     resetGroundingCaches();
     clearQueryEmbeddingCache();
     clearRetrievalTranslationCache();
