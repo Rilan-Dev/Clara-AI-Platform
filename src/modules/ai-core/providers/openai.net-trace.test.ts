@@ -53,7 +53,7 @@ function provider(): OpenAIProvider {
 }
 
 function outputOf(spy: ReturnType<typeof vi.spyOn>): string {
-  return spy.mock.calls.map((c) => c.join(" ")).join("\n");
+  return spy.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
 }
 
 describe("OpenAI provider net-trace upstream rows", () => {
