@@ -138,7 +138,9 @@ event — the planned request count is printed before the first request fires.
    Require `RAG reranker smoke PASS` before running Arm B. Use the **same
    kbId, topK, mode, scope, repeat, warmup and gap-ms** as
    arm A. Compare mode warns when run configs differ, because then latency
-   deltas are no longer attributable to reranking alone.
+   deltas are no longer attributable to reranking alone. This also checks
+   repeat count, warmup count, gap and API origin, in addition to kbId,
+   topK, mode, scope and channel.
 
 ## Compare and interpret
 
@@ -156,7 +158,8 @@ node scripts/benchmark-rag-ab.mjs \
 | `contextChangeRate` | share of questions whose assembled AI context changed | directly predicts answer-text changes downstream |
 | `latency` p50/p95 deltas | total grounding call | compare against your latency budget for chat/voice turns |
 | retrieval-stage p50/p95 deltas | the rerank cost specifically | must stay inside `RAG_RERANK_TIMEOUT_MS`; on timeout the stage silently no-ops (fallback) |
-| `meanQdrantScoreDrift` | validity check | **> 0.005 means the index/embedding backbone changed between arms — rerun both arms**, the comparison is invalid |
+| `meanQdrantScoreDrift` | validity check | **> 0.005 signals a possible index/embedding change — rerun both arms**; zero drift only supports the scores of shared hits, not full index identity |
+| `qdrantScoreComparison` | number of questions with/without comparable scores | when no source IDs overlap, index stability **cannot be verified** from scores; investigate rather than interpreting it as stable |
 | `groundedRate` | answers that still return evidence | any drop means the rerank arm lost retrievable answers |
 
 **Spot-check changed top-1 answers before enabling.** For each question the
