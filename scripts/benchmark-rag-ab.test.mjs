@@ -67,6 +67,8 @@ function mockClara({ failStatus = null, failAuth = false, sourcesByQuestion = nu
         retrievalMs: 30 + (calls.length % 3) * 5,
         embeddingMs: 9, denseSearchMs: 0, indexLookupMs: 7, referenceHeaderMs: 4,
         referenceNeighborMs: 3, referenceScoreMs: 1, referenceFallbackMs: 0,
+        rerankStatus: question.includes("clause") ? "skipped" : "applied",
+        rerankMs: question.includes("clause") ? 0 : 20,
         graphMs: 0, totalMs: 40 + (calls.length % 3) * 5,
       },
     }));
@@ -142,6 +144,14 @@ test("run mode: real RAG API contract, warmup separation, percentiles, shareable
     assert.equal(run.aggregate.stages.referenceHeaderMs.p50, 4);
     assert.equal(run.aggregate.stages.referenceNeighborMs.p50, 3);
     assert.equal(run.aggregate.stages.embeddingMs.p50, 9);
+    assert.equal(run.aggregate.stages.rerankMs.n, 4);
+    assert.deepEqual(run.aggregate.rerankOutcomes, {
+      applied: 2, skipped: 2, timeout: 0, fallback: 0, unavailable: 0,
+    });
+    assert.equal(run.perQuestion[0].rerankOutcomes.skipped, 2);
+    assert.equal(run.perQuestion[1].rerankOutcomes.applied, 2);
+    assert.match(result.stdout, /Rerank outcomes: applied=2 skipped=2/);
+    assert.match(result.stdout, /Rerank stage: p50/);
     assert.ok(run.aggregate.latency.p50 >= run.aggregate.latency.min);
     assert.ok(run.aggregate.latency.p95 <= run.aggregate.latency.max);
 
@@ -205,6 +215,7 @@ test("compare mode: overlap, kendall tau, top-1 change, score drift and latency 
       attempts: [],
       aggregate: {
         questions: 2, measuredRequests: 4, successfulRequests: 4, failedRequests: 0,
+        rerankOutcomes: { applied: 0, skipped: 4, timeout: 0, fallback: 0, unavailable: 0 },
         groundedQuestions: 2, groundedRate: 1,
         latency: { n: 4, min: 100, max: 200, mean: 150, p50: 150, p95: 195 },
         stages: { retrievalMs: { n: 4, min: 90, max: 180, mean: 135, p50: 135, p95: 176 } },
@@ -229,6 +240,8 @@ test("compare mode: overlap, kendall tau, top-1 change, score drift and latency 
     ];
     candidate.perQuestion[1].contextHash = "eeeeeeeeeeeeeeee";
     candidate.aggregate.latency = { n: 4, min: 150, max: 260, mean: 200, p50: 200, p95: 255 };
+    candidate.aggregate.rerankOutcomes = { applied: 2, skipped: 0, timeout: 2, fallback: 0, unavailable: 0 };
+    candidate.aggregate.stages.rerankMs = { n: 4, min: 10, max: 6000, mean: 3005, p50: 3005, p95: 6000 };
     candidate.aggregate.stages.retrievalMs = { n: 4, min: 140, max: 240, mean: 190, p50: 190, p95: 236 };
     for (const q of candidate.perQuestion) q.latency = { n: 2, min: 150, max: 260, mean: 200, p50: 200, p95: 255 };
 
@@ -273,6 +286,10 @@ test("compare mode: overlap, kendall tau, top-1 change, score drift and latency 
     assert.equal(report.aggregate.latency.baseline.p50, 150);
     assert.equal(report.aggregate.latency.candidate.p50, 200);
     assert.equal(report.aggregate.latency.candidateRetrievalMs.p50, 190);
+    assert.equal(report.aggregate.latency.candidateRerankMs.p50, 3005);
+    assert.equal(report.aggregate.rerankOutcomes.candidate.timeout, 2);
+    assert.match(result.stdout, /Candidate rerank stage: p50 3005ms/);
+    assert.match(result.stdout, /Rerank outcomes baseline -> candidate:/);
     assert.match(result.stdout, /Top-1 source changed: 1\/2/);
     assert.match(result.stdout, /p50: 150ms -> 200ms \(\+50ms\)/);
     assert.match(result.stdout, /Retrieval stage p50: 135ms -> 190ms \(\+55ms\)/);
