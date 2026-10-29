@@ -826,7 +826,7 @@ export async function publishVersion(
     }
     const sourceCollection = "qdrantCollection" in kb ? kb.qdrantCollection : kb.qdrant_collection;
     const collectionName = `pub_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
-    await cloneKbCollection(sourceCollection, collectionName);
+    await cloneKbCollection(sourceCollection, collectionName, kb.id);
     kbSnapshots.push({ kbId: kb.id, collectionName });
   }
 
