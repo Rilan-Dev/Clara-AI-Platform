@@ -16,8 +16,10 @@ the real traffic shape, not by the smoke probe alone:
 authenticated production route (`POST /api/rag/search` → `postRagSearch` →
 `groundClaraContext`) with a fixed query set, records per-question source
 identity/order/scores plus stage timings, and compares two runs arm-to-arm.
-Result files are shareable by design: they contain no snippets, no assembled
-AI context (only lengths + digests) and no credentials.
+Result files are **private operator data**, even though snippets, assembled
+AI context and credentials are omitted: each run preserves complete query
+text, document titles, source IDs and KB identifiers. Keep these JSON files
+restricted to authorized operators and redact them before sharing.
 
 ## Prerequisites
 
@@ -43,6 +45,9 @@ traffic shape. Two sources:
   documents, questions that rely on exact clause IDs (these bypass reranking
   by design — `extractStructuredReferences`), and out-of-scope questions to
   confirm the no-evidence path is unaffected.
+- **Language-specific slices**: separately evaluate English and each supported
+  KB language (especially Arabic), plus cross-lingual query/source pairs.
+  Do not aggregate away a language-specific relevance regression.
 
 Save them as `rag-ab-queries.json`:
 
@@ -56,6 +61,17 @@ Save them as `rag-ab-queries.json`:
 
 Keep the **same file, byte-identical**, for both arms — compare mode aligns
 runs by exact question text.
+
+## Model-language gate (before running Arm B)
+
+The currently deployed CPU-compatible default, `mixedbread-ai/mxbai-rerank-base-v1`,
+is marked **English (`en`)** on its official Hugging Face model card:
+https://huggingface.co/mixedbread-ai/mxbai-rerank-base-v1.
+Its successful Mars/English smoke probe only proves service connectivity and
+basic English ordering; it is **not** evidence that Arabic or other languages
+rerank correctly. A multilingual Clara deployment must evaluate each language
+and choose a TEI-compatible model with verified multilingual relevance and
+hardware support before permanent enablement.
 
 ## Arm A — baseline (reranker off)
 
@@ -86,10 +102,11 @@ event — the planned request count is printed before the first request fires.
    ```bash
    mkdir -p infra/rag-reranker
    docker compose --profile rerank up -d clara-reranker
-   docker compose exec clara-backend node scripts/probe-rag-reranker.mjs
    ```
 
-   The smoke probe must print `RAG reranker smoke PASS` before continuing.
+   Start the service first. The smoke probe runs only **after** the backend
+   receives the reranker URL in step 3; otherwise it exits because
+   `RAG_RERANK_URL` is unset.
 
 2. Enable the stage in backend `.env`. On the measured CPU host
    (6 cores, 2-CPU container cap) the safe values are:
@@ -109,7 +126,8 @@ event — the planned request count is printed before the first request fires.
 3. Recreate the backend so it picks up the env, then run arm B:
 
    ```bash
-   docker compose up -d --no-deps clara-backend
+   docker compose up -d --no-deps --force-recreate clara-backend
+   docker compose exec clara-backend node scripts/probe-rag-reranker.mjs
    node scripts/benchmark-rag-ab.mjs \
      --kb-id '<KB_ID>' \
      --queries rag-ab-queries.json \
@@ -117,7 +135,8 @@ event — the planned request count is printed before the first request fires.
      --out rag-ab-candidate.json
    ```
 
-   Use the **same kbId, topK, mode, scope, repeat, warmup and gap-ms** as
+   Require `RAG reranker smoke PASS` before running Arm B. Use the **same
+   kbId, topK, mode, scope, repeat, warmup and gap-ms** as
    arm A. Compare mode warns when run configs differ, because then latency
    deltas are no longer attributable to reranking alone.
 
@@ -176,5 +195,7 @@ and model cache remain on the host for one-command re-enablement.
 The benchmark measures the **retrieval** layer only: sources, ordering and
 latency of the grounding call. It does not generate answers, so it cannot
 measure final answer quality — that is what the top-1 spot-checks are for.
-It deliberately records no snippet or context text, so sharing result files
-in issues or review threads never leaks tenant content.
+It deliberately records no snippet or context text, but the raw questions,
+document titles, source IDs and KB identifiers may be tenant-sensitive. Do
+**not** post raw benchmark files in issues or public review threads. Redact
+identifiers/question text or share aggregate metrics only.
