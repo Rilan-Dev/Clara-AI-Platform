@@ -63,7 +63,13 @@ import {
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
-import { focusExactReferenceEvidence } from "@/modules/rag/reference-evidence";
+import { extractStructuredReferences, focusExactReferenceEvidence } from "@/modules/rag/reference-evidence";
+import {
+  REFERENCE_SCAN_LIMIT,
+  REFERENCE_SCAN_PAGE_SIZE,
+  buildReferenceWindows,
+  type ReferencePoint,
+} from "@/modules/rag/reference-recovery";
 import type { QuerySurface } from "@/modules/knowledge-bases/core/analytics-db";
 
 const SCORE_THRESHOLD = 0.25;
@@ -414,6 +420,85 @@ type SearchHit = {
  * original does not wait for the translation — and hits are merged by best
  * score per point.
  */
+/**
+ * Recover exact identifiers absent from the dense ANN candidate pool.
+ *
+ * Legacy points have no dedicated lexical index. A bounded, KB-filtered,
+ * payload-only scan can recover those references without rebuilding vectors.
+ * Never scan the whole Qdrant instance or return another KB's content.
+ *
+ * Re-score the selected IDs using the original query embedding so exported
+ * scores remain real Qdrant similarities rather than invented keyword scores.
+ */
+async function recoverExactReferenceEvidence(
+  client: ReturnType<typeof getQdrantClient>,
+  collectionName: string,
+  question: string,
+  embedding: number[],
+  filter: Record<string, unknown>,
+  topK: number,
+): Promise<SearchHit[] | null> {
+  if (extractStructuredReferences(question).length === 0) return null;
+  if (typeof client.scroll !== "function") return null;
+  const points: ReferencePoint[] = [];
+  let offset: string | number | undefined;
+  while (true) {
+    const page = await client.scroll(collectionName, {
+      ...(offset == null ? {} : { offset }),
+      limit: REFERENCE_SCAN_PAGE_SIZE,
+      filter: filter as Parameters<typeof client.scroll>[1]["filter"],
+      with_payload: ["chunk", "chunkIndex", "documentId", "kbId"],
+      with_vector: false,
+    });
+    for (const point of page.points) {
+      points.push({
+        id: String(point.id),
+        payload: (point.payload ?? {}) as Record<string, unknown>,
+      });
+    }
+    // Fail closed on incomplete scans: a partial document scan might silently
+    // miss the continuation or a newer revision of a referenced clause.
+    if (points.length > REFERENCE_SCAN_LIMIT) {
+      console.warn("[grounding] exact-reference recovery skipped: KB exceeds bounded scan limit");
+      return null;
+    }
+    const next = page.next_page_offset;
+    if (typeof next !== "string" && typeof next !== "number") break;
+    if (points.length === REFERENCE_SCAN_LIMIT) {
+      console.warn("[grounding] exact-reference recovery skipped: KB exceeds bounded scan limit");
+      return null;
+    }
+    offset = next;
+  }
+
+  const windows = buildReferenceWindows(points, question, topK);
+  if (!windows.length) return null;
+
+  // Qdrant accepts has_id as a filter condition. Scores are computed by the
+  // actual configured embedding backend, not fabricated for lexical hits.
+  const response = await client.query(collectionName, {
+    query: embedding,
+    limit: windows.length,
+    filter: {
+      ...filter,
+      must: [
+        ...((filter.must as unknown[]) ?? []),
+        { has_id: windows.map((window) => window.id) },
+      ],
+    },
+    with_payload: ["chunk", "title", "originalFilename", "documentId", "pageNumber"],
+  } as Parameters<typeof client.query>[1]);
+  const byId = new Map(windows.map((window) => [window.id, window]));
+  return (response.points ?? [])
+    .filter((point) => byId.has(String(point.id)))
+    .map((point) => ({
+      id: String(point.id),
+      score: point.score ?? 0,
+      snippet: byId.get(String(point.id))!.text,
+      payload: (point.payload ?? {}) as Record<string, unknown>,
+    }));
+}
+
 async function searchKbCollection(
   collectionName: string,
   queries: Array<string | Promise<string | null> | null>,
@@ -425,6 +510,7 @@ async function searchKbCollection(
   originalQuestion = "",
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
+  const queryVectors: number[][] = [];
   const seen = new Set<string>();
   const lists = await Promise.all(
     queries.map(async (input) => {
@@ -433,6 +519,7 @@ async function searchKbCollection(
       if (!text || !key || seen.has(key)) return [];
       seen.add(key);
       const embedding = await embedQueryCached(providerConfig, text);
+      queryVectors.push(embedding);
       return searchKbVector(client, collectionName, embedding, topK, filter, scoreThreshold, documentScoped);
     }),
   );
@@ -443,6 +530,18 @@ async function searchKbCollection(
     if (!current || hit.score > current.score) best.set(hit.id, hit);
   }
   const mapped = [...best.values()].sort((a, b) => b.score - a.score);
+  if (filter && queryVectors.length && extractStructuredReferences(originalQuestion).length) {
+    try {
+      const recovered = await recoverExactReferenceEvidence(
+        client, collectionName, originalQuestion, queryVectors[0]!, filter, topK,
+      );
+      if (recovered?.length) return recovered;
+    } catch (error) {
+      // Preserve the existing semantic retrieval on an unavailable or
+      // oversized fallback; do not fail unrelated chat/voice traffic.
+      console.warn("[grounding] exact-reference recovery unavailable:", (error as Error).message);
+    }
+  }
   // For explicit clause / control references, only include candidates with
   // the exact identifier if any exist in the pool. A high cosine score is
   // not evidence that an unrelated control answers the cited specification.
