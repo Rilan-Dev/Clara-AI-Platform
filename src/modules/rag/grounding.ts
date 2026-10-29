@@ -430,6 +430,103 @@ type SearchHit = {
  * Re-score the selected IDs using the original query embedding so exported
  * scores remain real Qdrant similarities rather than invented keyword scores.
  */
+/** Preserve source order while using the collection's true vector scores. */
+async function scoreReferenceWindows(
+  client: ReturnType<typeof getQdrantClient>,
+  collectionName: string,
+  embedding: number[],
+  filter: Record<string, unknown>,
+  windows: ReturnType<typeof buildReferenceWindows>,
+): Promise<SearchHit[]> {
+  const response = await client.query(collectionName, {
+    query: embedding,
+    limit: windows.length,
+    filter: {
+      ...filter,
+      must: [
+        ...((filter.must as unknown[]) ?? []),
+        { has_id: windows.map((window) => window.id) },
+      ],
+    },
+    with_payload: ["chunk", "title", "originalFilename", "documentId", "pageNumber"],
+  } as Parameters<typeof client.query>[1]);
+  const scored = new Map((response.points ?? []).map((point) => [String(point.id), point] as const));
+  return windows.flatMap((window) => {
+    const point = scored.get(window.id);
+    if (!point) return [];
+    return [{
+      id: window.id,
+      score: point.score ?? 0,
+      snippet: window.text,
+      payload: (point.payload ?? {}) as Record<string, unknown>,
+    }];
+  });
+}
+
+/**
+ * Fast path for newly ingested / backfilled Qdrant points. An indexed
+ * keyword match retrieves clause headers without scanning the collection;
+ * indexed integer chunk positions then retrieve bounded continuations.
+ * Qdrant filters always include the resolved KB and optional document scope.
+ */
+async function lookupIndexedReferencePoints(
+  client: ReturnType<typeof getQdrantClient>,
+  collectionName: string,
+  question: string,
+  filter: Record<string, unknown>,
+): Promise<ReferencePoint[]> {
+  const refs = extractStructuredReferences(question);
+  if (!refs.length) return [];
+  const must = (filter.must as unknown[]) ?? [];
+  const headers = await client.scroll(collectionName, {
+    limit: 48,
+    filter: { must: [...must, { key: "referenceIds", match: { any: refs } }] }
+      as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
+    with_payload: ["chunk", "chunkIndex", "documentId", "referenceIds", "kbId"],
+    with_vector: false,
+  });
+  const filtered = headers.points.filter((point) => {
+    const p = (point.payload ?? {}) as Record<string, unknown>;
+    return Array.isArray(p.referenceIds) &&
+      p.referenceIds.some((id) => typeof id === "string" && refs.includes(id));
+  });
+  if (!filtered.length) return [];
+
+  const lookup: ReferencePoint[] = [];
+  const seen = new Set<string>();
+  for (const header of filtered) {
+    const payload = (header.payload ?? {}) as Record<string, unknown>;
+    if (typeof payload.documentId !== "string" ||
+      !Number.isSafeInteger(payload.chunkIndex) || (payload.chunkIndex as number) < 0) continue;
+    const idx = payload.chunkIndex as number;
+    // Backward one chunk for a possible section heading; forward two chunks
+    // for numbered items spanning a page boundary. Restrict both bounds to
+    // the SAME document and the authorized KB.
+    const range = { gte: Math.max(0, idx - 1), lte: idx + 2 };
+    const page = await client.scroll(collectionName, {
+      limit: 4,
+      filter: { must: [
+        ...must,
+        { key: "documentId", match: { value: payload.documentId } },
+        { key: "chunkIndex", range },
+      ] } as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
+      with_payload: ["chunk", "chunkIndex", "documentId", "kbId"],
+      with_vector: false,
+    });
+    for (const point of page.points) {
+      const id = String(point.id);
+      if (seen.has(id)) continue;
+      const p = (point.payload ?? {}) as Record<string, unknown>;
+      if (p.documentId !== payload.documentId || !Number.isSafeInteger(p.chunkIndex)) continue;
+      // The Qdrant filter enforces KB ownership even when payload selection
+      // omits it in some SDK versions; never weaken the predicate.
+      seen.add(id);
+      lookup.push({ id, payload: p });
+    }
+  }
+  return lookup;
+}
+
 async function recoverExactReferenceEvidence(
   client: ReturnType<typeof getQdrantClient>,
   collectionName: string,
@@ -440,7 +537,30 @@ async function recoverExactReferenceEvidence(
 ): Promise<SearchHit[] | null> {
   if (extractStructuredReferences(question).length === 0) return null;
   if (typeof client.scroll !== "function") return null;
-  const points: ReferencePoint[] = [];
+  // Keyword-indexed lookups are O(matched headings), not O(all KB chunks).
+  // Older vectors without referenceIds still use the bounded legacy path.
+  let points: ReferencePoint[] = [];
+  try {
+    points = await lookupIndexedReferencePoints(client, collectionName, question, filter);
+    const windows = buildReferenceWindows(points, question, topK);
+    if (windows.length) {
+      return await scoreReferenceWindows(client, collectionName, embedding, filter, windows);
+    }
+    // Once every point carries the referenceIndexed marker there is no
+    // legacy content left to scan. No match is a truthful empty result.
+    if (typeof client.count === "function") {
+      const legacy = await client.count(collectionName, {
+        exact: true,
+        filter: {
+          must: [...((filter.must as unknown[]) ?? []), { is_empty: { key: "referenceIndexed" } }],
+        } as NonNullable<Parameters<typeof client.count>[1]>["filter"],
+      });
+      if (legacy.count === 0) return [];
+    }
+  } catch (error) {
+    console.warn("[grounding] indexed clause lookup unavailable; using legacy bounded scan:", (error as Error).message);
+  }
+  points = [];
   let offset: string | number | undefined;
   while (true) {
     const page = await client.scroll(collectionName, {
@@ -473,35 +593,7 @@ async function recoverExactReferenceEvidence(
 
   const windows = buildReferenceWindows(points, question, topK);
   if (!windows.length) return [];
-
-  // Qdrant accepts has_id as a filter condition. Scores are computed by the
-  // actual configured embedding backend, not fabricated for lexical hits.
-  const response = await client.query(collectionName, {
-    query: embedding,
-    limit: windows.length,
-    filter: {
-      ...filter,
-      must: [
-        ...((filter.must as unknown[]) ?? []),
-        { has_id: windows.map((window) => window.id) },
-      ],
-    },
-    with_payload: ["chunk", "title", "originalFilename", "documentId", "pageNumber"],
-  } as Parameters<typeof client.query>[1]);
-  const scoredPoints = new Map((response.points ?? []).map((point) => [String(point.id), point] as const));
-  // Qdrant orders rescored points by similarity, which can place requirement 7
-  // BEFORE requirements 1-3. Preserve the recovered document/chunk sequence
-  // while retaining the real vector similarity attached to every source.
-  return windows.flatMap((window) => {
-    const point = scoredPoints.get(window.id);
-    if (!point) return [];
-    return [{
-      id: window.id,
-      score: point.score ?? 0,
-      snippet: window.text,
-      payload: (point.payload ?? {}) as Record<string, unknown>,
-    }];
-  });
+  return scoreReferenceWindows(client, collectionName, embedding, filter, windows);
 }
 
 async function searchKbCollection(
