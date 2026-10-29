@@ -4,7 +4,7 @@ import { ParserFactory } from '../factory';
 import { PDFParser } from '../parsers/pdf';
 import { parseDocumentFromBuffer } from '../../admin/core/ingest/document-loader';
 
-function buildTestPdf(): Buffer {
+function buildTestPdf(pageCount: 1 | 2 = 1): Buffer {
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
@@ -12,6 +12,15 @@ function buildTestPdf(): Buffer {
     '<< /Length 50 >>\nstream\nBT\n/F1 18 Tf\n72 720 Td\n(Clara PDF test) Tj\nET\nendstream',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
   ];
+
+  if (pageCount === 2) {
+    objects[1] = '<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>';
+    const secondText = 'BT\n/F1 18 Tf\n72 720 Td\n(Second PDF page) Tj\nET\n'.replace(/\\\n/g, '\n');
+    objects.push(
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>',
+      `<< /Length ${Buffer.byteLength(secondText, 'ascii')} >>\nstream\n${secondText}endstream`,
+    );
+  }
 
   const chunks = ['%PDF-1.4\n'];
   const offsets = [0];
@@ -53,6 +62,15 @@ describe('document ingestion validation', () => {
   it('extracts text from a real generated PDF', async () => {
     const result = await new PDFParser().parse(buildTestPdf(), 'policy.pdf');
     expect(result.text).toContain('Clara PDF test');
+  });
+
+  it('keeps multi-page PDF text without pdf-parse generated pagination markers', async () => {
+    const parsed = await new PDFParser().parse(buildTestPdf(2), 'policy.pdf');
+    expect(parsed.text).toContain('Clara PDF test');
+    expect(parsed.text).toContain('Second PDF page');
+    expect(parsed.text.indexOf('Clara PDF test')).toBeLessThan(parsed.text.indexOf('Second PDF page'));
+    expect(parsed.text).not.toMatch(/--\\s*\\d+\\s+of\\s+2\\s*--/);
+    expect(parsed.metadata.pageCount).toBe(2);
   });
 
   it('rejects a corrupt PDF instead of indexing binary bytes as UTF-8', async () => {
