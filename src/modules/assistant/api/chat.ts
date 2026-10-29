@@ -544,9 +544,10 @@ async function postChatKb(
       topics: kb.description ?? documentTitles.join(", "),
       channel: realtimeVoice ? "voice" : "chat",
     });
-  const evidence = groundedResult?.intent === "capability"
-    ? groundedResult.context
-    : results.map((r, i) => `[S${i + 1}] ${r.title}\n${r.snippet}`).join("\n\n");
+  // Use the shared grounder's authoritative evidence string unchanged.
+  // Reconstructing it here silently stripped page provenance and graph
+  // context, making chat disagree with /api/rag/search for the same KB/query.
+  const evidence = groundedResult?.context ?? "";
   const context = [guidance, evidence].filter(Boolean).join("\n\n");
 
   const systemPrompt = withChartInstructions(buildSystemPrompt(config, { kbName: kb.name, kbDescription: kb.description, documentCount: documentTitles.length, documentTitles, surface: "chat", allowedLanguages: resolved.allowedLanguages, responseLanguage: groundedResult?.responseLanguage ?? null }));
@@ -574,6 +575,9 @@ async function postChatKb(
     snippet: r.snippet.slice(0, 300),
     score: r.score,
     index: i + 1,
+    ...(r.documentId ? { documentId: r.documentId } : {}),
+    ...(r.originalFilename ? { originalFilename: r.originalFilename } : {}),
+    ...(r.pageNumber !== undefined ? { pageNumber: r.pageNumber } : {}),
   }));
 
   const encoder = new TextEncoder();
