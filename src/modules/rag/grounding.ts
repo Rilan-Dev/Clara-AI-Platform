@@ -483,8 +483,12 @@ async function lookupIndexedReferencePoints(
   const headers = await client.scroll(collectionName, {
     // Bound indexed lookups to the same evidence budget as the answer.
     limit: Math.min(24, Math.max(8, topK * 3)),
-    filter: { must: [...must, { key: "referenceIds", match: { any: refs } }] }
-      as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
+    // NOTE: the `as` must stay on the same line as the closing brace —
+    // TypeScript grammar forbids a line terminator before `as`, and the
+    // split-line form broke every bundler (tsc TS1005 / esbuild / vitest).
+    filter: {
+      must: [...must, { key: "referenceIds", match: { any: refs } }],
+    } as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
     with_payload: ["chunk", "chunkIndex", "documentId", "referenceIds", "kbId"],
     with_vector: false,
   });

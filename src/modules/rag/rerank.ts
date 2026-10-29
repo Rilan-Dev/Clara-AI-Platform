@@ -14,7 +14,9 @@ export async function rerankCandidates<T>(
   getText: (candidate: T) => string,
   options: { disabled?: boolean } = {},
 ): Promise<Array<Reranked<T>>> {
-  const fallback = [...candidates];
+  // `rerankScore` is an optional marker property, so every T is a valid
+  // Reranked<T>; the assertion only informs the checker of that invariant.
+  const fallback = [...candidates] as Array<Reranked<T>>;
   const url = process.env.RAG_RERANK_URL?.trim();
   const enabled = process.env.RAG_RERANK_ENABLED?.trim().toLowerCase();
   if (
@@ -46,7 +48,9 @@ export async function rerankCandidates<T>(
     ? Math.min(Math.floor(configuredLimit), 30)
     : 12;
   const head = candidates.slice(0, maxCandidates);
-  const tail = candidates.slice(maxCandidates);
+  // Same optional-marker invariant as `fallback` above: the unscored tail
+  // stays a valid Reranked<T> (diversification may still select it).
+  const tail = candidates.slice(maxCandidates) as Array<Reranked<T>>;
   const maxChars = 2_000; // Bound inference cost and outbound content size.
   // A malformed/legacy Qdrant payload or extractor must never turn an
   // optional inference stage into a chat retrieval failure.
