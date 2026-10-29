@@ -499,38 +499,48 @@ async function lookupIndexedReferencePoints(
   });
   if (!filtered.length) return [];
 
-  const lookup: ReferencePoint[] = [];
-  const seen = new Set<string>();
+  // Each matching header used to issue a separate network request. Combine
+  // same-document neighboring ranges into ONE filtered scroll per document.
+  // This preserves section boundaries while reducing Qdrant round trips for
+  // the common case (multiple overlapping policy headers in each document).
+  const rangesByDocument = new Map<string, Array<{ gte: number; lte: number }>>();
   for (const header of filtered) {
     const payload = (header.payload ?? {}) as Record<string, unknown>;
     if (typeof payload.documentId !== "string" ||
       !Number.isSafeInteger(payload.chunkIndex) || (payload.chunkIndex as number) < 0) continue;
     const idx = payload.chunkIndex as number;
-    // Backward one chunk for a possible section heading; forward two chunks
-    // for numbered items spanning a page boundary. Restrict both bounds to
-    // the SAME document and the authorized KB.
-    const range = { gte: Math.max(0, idx - 1), lte: idx + 2 };
+    const ranges = rangesByDocument.get(payload.documentId) ?? [];
+    ranges.push({ gte: Math.max(0, idx - 1), lte: idx + 2 });
+    rangesByDocument.set(payload.documentId, ranges);
+  }
+
+  const lookup: ReferencePoint[] = [];
+  const seen = new Set<string>();
+  await Promise.all([...rangesByDocument.entries()].map(async ([documentId, ranges]) => {
     const page = await client.scroll(collectionName, {
-      limit: 4,
-      filter: { must: [
-        ...must,
-        { key: "documentId", match: { value: payload.documentId } },
-        { key: "chunkIndex", range },
-      ] } as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
+      // Each header contributes no more than four indices. All ranges have a
+      // hard upper bound because the header scan itself is capped at 24.
+      limit: ranges.length * 4,
+      filter: {
+        must: [...must, { key: "documentId", match: { value: documentId } }],
+        should: ranges.map((range) => ({ key: "chunkIndex", range })),
+      } as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
       with_payload: ["chunk", "chunkIndex", "documentId", "kbId"],
       with_vector: false,
     });
     for (const point of page.points) {
       const id = String(point.id);
+      const payload = (point.payload ?? {}) as Record<string, unknown>;
+      if (payload.documentId !== documentId || !Number.isSafeInteger(payload.chunkIndex)) continue;
+      // Explicitly re-check the ranges as well as Qdrant's filter: a faulty
+      // client mock or malformed upstream response must not expand evidence.
+      const idx = payload.chunkIndex as number;
+      if (!ranges.some((range) => idx >= range.gte && idx <= range.lte)) continue;
       if (seen.has(id)) continue;
-      const p = (point.payload ?? {}) as Record<string, unknown>;
-      if (p.documentId !== payload.documentId || !Number.isSafeInteger(p.chunkIndex)) continue;
-      // The Qdrant filter enforces KB ownership even when payload selection
-      // omits it in some SDK versions; never weaken the predicate.
       seen.add(id);
-      lookup.push({ id, payload: p });
+      lookup.push({ id, payload });
     }
-  }
+  }));
   return lookup;
 }
 
