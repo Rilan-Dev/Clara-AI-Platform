@@ -252,6 +252,12 @@ export interface GroundingTimings {
   configMs: number;
   translationMs: number;
   retrievalMs: number;
+  /** Substages of retrieval; parallel stages may overlap. */
+  embeddingMs?: number;
+  denseSearchMs?: number;
+  indexLookupMs?: number;
+  referenceScoreMs?: number;
+  referenceFallbackMs?: number;
   graphMs: number;
   totalMs: number;
 }
@@ -406,6 +412,14 @@ function isCapabilityQuery(query: string): boolean {
   ];
   return patterns.some((pattern) => pattern.test(normalized));
 }
+
+type RetrievalStages = {
+  embeddingMs: number;
+  denseSearchMs: number;
+  indexLookupMs: number;
+  referenceScoreMs: number;
+  referenceFallbackMs: number;
+};
 
 type SearchHit = {
   id: string;
@@ -628,6 +642,7 @@ async function searchKbCollection(
   documentScoped = false,
   originalQuestion = "",
   skipModelRerank = false,
+  stages?: RetrievalStages,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
   const explicitlyReferenced = extractStructuredReferences(originalQuestion).length > 0;
@@ -636,12 +651,18 @@ async function searchKbCollection(
       // An exact identifier already has a KB-scoped keyword index. Fetch the
       // clause and its continuation BEFORE issuing a broad vector search.
       // A query embedding is still required to retain genuine Qdrant scores.
+      const lookupStarted = Date.now();
       const indexed = await lookupIndexedReferencePoints(client, collectionName, originalQuestion, filter, topK);
+      if (stages) stages.indexLookupMs += Date.now() - lookupStarted;
       const windows = buildReferenceWindows(indexed, originalQuestion, topK);
       const text = (await queries[0])?.trim();
       if (windows.length && text) {
+        const embedStarted = Date.now();
         const embedding = await embedQueryCached(providerConfig, text);
+        if (stages) stages.embeddingMs += Date.now() - embedStarted;
+        const scoreStarted = Date.now();
         const scored = await scoreReferenceWindows(client, collectionName, embedding, filter, windows);
+        if (stages) stages.referenceScoreMs += Date.now() - scoreStarted;
         if (scored.length) return scored;
       }
     } catch (error) {
@@ -658,9 +679,16 @@ async function searchKbCollection(
       const key = text?.toLowerCase();
       if (!text || !key || seen.has(key)) return [];
       seen.add(key);
+      const embedStarted = Date.now();
       const embedding = await embedQueryCached(providerConfig, text);
+      if (stages) stages.embeddingMs += Date.now() - embedStarted;
       queryVectors.push(embedding);
-      return searchKbVector(client, collectionName, embedding, topK, filter, scoreThreshold, documentScoped);
+      const denseStarted = Date.now();
+      try {
+        return await searchKbVector(client, collectionName, embedding, topK, filter, scoreThreshold, documentScoped);
+      } finally {
+        if (stages) stages.denseSearchMs += Date.now() - denseStarted;
+      }
     }),
   );
 
@@ -674,6 +702,7 @@ async function searchKbCollection(
     ? matchingExactReferenceEvidence(mapped, originalQuestion, (hit) => hit.snippet)
     : mapped;
   if (filter && queryVectors.length && explicitlyReferenced) {
+    const fallbackStarted = Date.now();
     try {
       const recovered = await recoverExactReferenceEvidence(
         client, collectionName, originalQuestion, queryVectors[0]!, filter, topK,
@@ -684,6 +713,8 @@ async function searchKbCollection(
       // Preserve the existing semantic retrieval on an unavailable or
       // oversized fallback; do not fail unrelated chat/voice traffic.
       console.warn("[grounding] exact-reference recovery unavailable:", (error as Error).message);
+    } finally {
+      if (stages) stages.referenceFallbackMs += Date.now() - fallbackStarted;
     }
   }
   // An unrelated high cosine score must never be presented as evidence for
@@ -1011,6 +1042,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     : Promise.resolve([]);
 
   const retrievalStarted = Date.now();
+  const retrievalStages: RetrievalStages = {
+    embeddingMs: 0, denseSearchMs: 0, indexLookupMs: 0,
+    referenceScoreMs: 0, referenceFallbackMs: 0,
+  };
   let vectorResults: SearchHit[];
   try {
     vectorResults = await searchKbCollection(
@@ -1023,6 +1058,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       Boolean(request.documentId),
       query,
       request.surface === "voice",
+      retrievalStages,
     );
   } catch (searchErr) {
     const msg = (searchErr as Error).message;
@@ -1215,6 +1251,7 @@ ${graphContext}`);
         configMs,
         translationMs: translation.ms,
         retrievalMs,
+        ...retrievalStages,
         graphMs,
         totalMs: Date.now() - t0,
       },
