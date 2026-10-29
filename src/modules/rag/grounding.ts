@@ -63,7 +63,7 @@ import {
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
-import { extractStructuredReferences, focusExactReferenceEvidence } from "@/modules/rag/reference-evidence";
+import { extractStructuredReferences, matchingExactReferenceEvidence } from "@/modules/rag/reference-evidence";
 import {
   REFERENCE_SCAN_LIMIT,
   REFERENCE_SCAN_PAGE_SIZE,
@@ -472,7 +472,7 @@ async function recoverExactReferenceEvidence(
   }
 
   const windows = buildReferenceWindows(points, question, topK);
-  if (!windows.length) return null;
+  if (!windows.length) return [];
 
   // Qdrant accepts has_id as a filter condition. Scores are computed by the
   // actual configured embedding backend, not fabricated for lexical hits.
@@ -530,22 +530,27 @@ async function searchKbCollection(
     if (!current || hit.score > current.score) best.set(hit.id, hit);
   }
   const mapped = [...best.values()].sort((a, b) => b.score - a.score);
-  if (filter && queryVectors.length && extractStructuredReferences(originalQuestion).length) {
+  const explicitlyReferenced = extractStructuredReferences(originalQuestion).length > 0;
+  const exactCandidateHits = explicitlyReferenced
+    ? matchingExactReferenceEvidence(mapped, originalQuestion, (hit) => hit.snippet)
+    : mapped;
+  if (filter && queryVectors.length && explicitlyReferenced) {
     try {
       const recovered = await recoverExactReferenceEvidence(
         client, collectionName, originalQuestion, queryVectors[0]!, filter, topK,
       );
       if (recovered?.length) return recovered;
+      if (recovered && exactCandidateHits.length === 0) return [];
     } catch (error) {
       // Preserve the existing semantic retrieval on an unavailable or
       // oversized fallback; do not fail unrelated chat/voice traffic.
       console.warn("[grounding] exact-reference recovery unavailable:", (error as Error).message);
     }
   }
-  // For explicit clause / control references, only include candidates with
-  // the exact identifier if any exist in the pool. A high cosine score is
-  // not evidence that an unrelated control answers the cited specification.
-  const evidence = focusExactReferenceEvidence(mapped, originalQuestion, (hit) => hit.snippet);
+  // An unrelated high cosine score must never be presented as evidence for
+  // a specifically named control. If an exact identifier cannot be verified,
+  // the AI receives no vector evidence and must say it cannot confirm it.
+  const evidence = exactCandidateHits;
 
   if (documentScoped) return evidence.slice(0, topK);
 
