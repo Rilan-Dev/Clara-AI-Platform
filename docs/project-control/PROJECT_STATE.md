@@ -1,3 +1,13 @@
+## CURRENT UI CORRECTION — 2026-10-30 — TOAST STACK REFLOW
+
+[architect-verified] Shared Sonner toast behavior now keeps a compact preview visible without hover (one title line and two description lines) and expands only the hovered card's text/card styling. Sonner stack expansion is enabled so neighboring compact cards can reposition as the expanded card changes height, rather than overlapping it.
+
+- Commit: `e186c410e007073cda3940444114622a482cdaf8`.
+- No executable verification was run or awaited. This records the source change only, not browser/runtime proof.
+- Continue the next authorized project-control item; external verification remains deferred.
+
+---
+
 ## CURRENT AUTHORITATIVE STATE — TOAST CARD OVERFLOW CORRECTION — 2026-10-29
 
 [architect-implemented, not runtime-verified] Shared Sonner toast card now grows as a card on hover with a viewport-safe maximum height and internal scrolling; title/description no longer expand independently beyond the card. Commit: `e05f395cd82fd9c110fad75f3067772d5881f753`.
