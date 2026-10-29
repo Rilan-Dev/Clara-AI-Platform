@@ -64,7 +64,10 @@ function mockClara({ failStatus = null, failAuth = false, sourcesByQuestion = nu
       latencyMs: 40 + (calls.length % 3) * 5,
       timings: {
         metadataMs: 1, admissionMs: 2, configMs: 3, translationMs: 0,
-        retrievalMs: 30 + (calls.length % 3) * 5, graphMs: 0, totalMs: 40 + (calls.length % 3) * 5,
+        retrievalMs: 30 + (calls.length % 3) * 5,
+        embeddingMs: 9, denseSearchMs: 0, indexLookupMs: 7, referenceHeaderMs: 4,
+        referenceNeighborMs: 3, referenceScoreMs: 1, referenceFallbackMs: 0,
+        graphMs: 0, totalMs: 40 + (calls.length % 3) * 5,
       },
     }));
   });
@@ -123,9 +126,22 @@ test("run mode: real RAG API contract, warmup separation, percentiles, shareable
       assert.equal(q.sources[0].id, "pt-a");
       assert.equal(q.sources[0].score, 0.91);
       assert.equal(q.latency.n, 2);
+      assert.equal(q.clientLatency.n, 2);
+      assert.ok(Number.isFinite(q.clientLatency.p50));
     }
+    assert.equal(run.aggregate.clientLatency.n, 4);
+    assert.ok(run.aggregate.clientLatency.p95 >= run.aggregate.clientLatency.p50);
+    assert.equal(run.warmup.clientFirstSeenLatency.n, 2);
+    for (const attempt of run.attempts) {
+      assert.ok(Number.isFinite(attempt.clientLatencyMs));
+      assert.ok(attempt.clientLatencyMs >= 0);
+    }
+    assert.match(result.stdout, /Measured client HTTP round trip:/);
     // Stage percentiles recorded from the route's timings payload.
     assert.equal(run.aggregate.stages.retrievalMs.n, 4);
+    assert.equal(run.aggregate.stages.referenceHeaderMs.p50, 4);
+    assert.equal(run.aggregate.stages.referenceNeighborMs.p50, 3);
+    assert.equal(run.aggregate.stages.embeddingMs.p50, 9);
     assert.ok(run.aggregate.latency.p50 >= run.aggregate.latency.min);
     assert.ok(run.aggregate.latency.p95 <= run.aggregate.latency.max);
 
