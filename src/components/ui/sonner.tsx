@@ -30,9 +30,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast relative box-border w-[calc(100vw-2rem)] min-w-0 max-w-[min(28rem,calc(100vw-2rem))] sm:w-[min(28rem,calc(100vw-3rem))] min-h-20 pr-11 break-words [overflow-wrap:anywhere] whitespace-normal transition-[transform,opacity,box-shadow] duration-300 ease-in-out hover:z-50 hover:shadow-xl group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+            "group toast relative box-border w-[calc(100vw-2rem)] min-w-0 max-w-[min(28rem,calc(100vw-2rem))] sm:w-[min(28rem,calc(100vw-3rem))] min-h-20 max-h-24 overflow-hidden pr-11 break-words [overflow-wrap:anywhere] whitespace-normal transition-[max-height,transform,opacity,box-shadow] duration-300 ease-in-out hover:z-50 hover:max-h-[min(70vh,32rem)] hover:overflow-y-auto hover:overscroll-contain hover:shadow-xl group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
           title:
-            "block max-h-10 overflow-hidden whitespace-normal break-words [overflow-wrap:anywhere] pr-1 leading-5 transition-[max-height] duration-300 ease-in-out group-hover:max-h-[1000px] group-hover:overflow-visible",
+            "block max-h-10 overflow-hidden whitespace-normal break-words [overflow-wrap:anywhere] pr-1 leading-5 transition-[max-height] duration-300 ease-in-out group-hover:max-h-none group-hover:overflow-visible",
           description:
             "block max-h-12 overflow-hidden whitespace-normal break-words [overflow-wrap:anywhere] pr-1 leading-5 transition-[max-height] duration-300 ease-in-out group-hover:max-h-[1000px] group-hover:overflow-visible",
           closeButton:
