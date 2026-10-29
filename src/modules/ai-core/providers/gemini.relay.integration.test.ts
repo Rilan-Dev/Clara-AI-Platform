@@ -393,7 +393,7 @@ describe("net-trace upstream rows — Gemini provider wiring (real SDK + relay)"
   });
 
   function outputOf(spy: ReturnType<typeof vi.spyOn>): string {
-    return spy.mock.calls.map((c) => c.join(" ")).join("\n");
+    return spy.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
   }
 
   it("verbose: one upstream row per successful batch call, relay URL + res summary", async () => {
