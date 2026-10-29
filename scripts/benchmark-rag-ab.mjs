@@ -22,10 +22,10 @@
  *      and latency deltas before deciding production enablement.
  *
  * Security: authentication is read from the environment (CLARA_DEBUG_TOKEN or
- * CLARA_DEBUG_COOKIE), never from CLI arguments. Result files are shareable by
- * design: they contain source IDs, document titles, scores, hashes and
- * latencies — never snippets, never the assembled AI context, never
- * credentials. Do not paste cookies/tokens into questions, files or issues.
+ * CLARA_DEBUG_COOKIE), never from CLI arguments. Result files are PRIVATE: they contain raw questions, document titles,
+ * source/KB identifiers, scores and timing metadata. Snippets, assembled
+ * context and credentials are omitted, but identifiers can be sensitive.
+ * Redact before sharing; never paste cookies/tokens into questions or issues.
  *
  * Cost notice: every request consumes embedding usage/quota and records a RAG
  * search audit event, exactly like the debug probe. The planned request count
@@ -70,8 +70,9 @@ Every request consumes embedding usage/quota and records a RAG search audit
 event. Nothing is sent to an LLM for answer generation; the route returns the
 same retrieved context/sources Clara's grounded assistant uses.
 
-Result files contain no snippets and no AI context text (only lengths and
-short SHA-256 digests) so they can be attached to enablement decisions.
+Result files are PRIVATE: they omit snippets, assembled AI context and
+credentials, but preserve raw questions and document/source identifiers.
+Redact or aggregate before sharing outside the authorized organization.
 `;
 
 // ── CLI parsing ────────────────────────────────────────────────────────────
@@ -225,7 +226,7 @@ function round(value, digits = 2) {
   return Number.isFinite(value) ? Math.round(value * 10 ** digits) / 10 ** digits : null;
 }
 
-// ── Response summarisation (shareable: no snippet, no context text) ────────
+// ── Response summarisation (private; no snippet or context text) ────────
 
 function summarizeResponse(payload, topK) {
   const sources = payload.sources.map((hit) => ({
@@ -328,6 +329,7 @@ async function runBenchmark(opts) {
   const totalRequests = questions.length * (opts.warmup + opts.repeat);
   console.log(`Benchmark plan: ${questions.length} question(s) x (${opts.warmup} warmup + ${opts.repeat} measured) = ${totalRequests} requests.`);
   console.log("Every request consumes embedding usage/quota and records a RAG search audit event.");
+  console.log("PRIVATE output: contains question text and document titles, source and KB IDs; redact before sharing.");
 
   const warmupRecords = [];
   const measuredRecords = [];
@@ -460,7 +462,7 @@ async function runBenchmark(opts) {
     console.log(`First-seen (warmup) latency: p50 ${firstSeen.p50}ms / p95 ${firstSeen.p95}ms (n=${firstSeen.n}).`);
   }
   console.log(`Grounded questions: ${aggregate.groundedQuestions}/${aggregate.questions}.`);
-  console.log(`Saved: ${opts.output} (shareable: no snippets, no AI context text, no credentials)`);
+  console.log(`Saved: ${opts.output} (PRIVATE: no snippets/context, but questions and source metadata remain)`);
 
   const successRate = measuredRecords.length ? successfulMeasured.length / measuredRecords.length : 0;
   const firstFailure = measuredRecords.find((r) => r.failure)?.failure ?? null;
@@ -655,7 +657,7 @@ async function compareRuns(opts) {
 
   if (opts.output) {
     await writeFile(opts.output, JSON.stringify(report, null, 2) + "\n", { flag: "wx", mode: 0o600 });
-    console.log(`Saved: ${opts.output} (shareable: no snippets, no AI context text, no credentials)`);
+    console.log(`Saved: ${opts.output} (PRIVATE: no snippets/context, but questions and source metadata remain)`);
   }
 }
 
