@@ -254,6 +254,8 @@ export interface GroundedSource {
   title: string;
   originalFilename?: string;
   documentId?: string;
+  /** Original physical PDF page, if a provenance-aware index is available. */
+  pageNumber?: number;
   score: number;
   snippet: string;
   sourceType: "vector";
@@ -467,7 +469,7 @@ async function searchKbVector(
     limit: fetchLimit,
     // Only the fields the context builder reads — smaller responses from
     // Qdrant (https://qdrant.tech/documentation/concepts/payload/).
-    with_payload: ["chunk", "title", "originalFilename", "documentId"],
+    with_payload: ["chunk", "title", "originalFilename", "documentId", "pageNumber"],
     score_threshold: scoreThreshold,
     ...(filter ? { filter } : {}),
   };
@@ -842,7 +844,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         const title = r.payload?.title ? String(r.payload.title) : "Document";
         const filename = r.payload?.originalFilename ? String(r.payload.originalFilename) : "";
         const label = filename && filename !== title ? `${title} (${filename})` : title;
-        return `[S${i + 1}] ${label}
+        const page = r.payload?.pageNumber;
+        const location = typeof page === "number" && Number.isSafeInteger(page) && page > 0
+          ? ` (page ${page})` : "";
+        return `[S${i + 1}] ${label}${location}
 ${r.snippet}`.trim();
       })
       .join("\n\n"),
@@ -861,6 +866,9 @@ ${graphContext}`);
     title: r.payload?.title ? String(r.payload.title) : "Document",
     originalFilename: r.payload?.originalFilename ? String(r.payload.originalFilename) : undefined,
     documentId: r.payload?.documentId ? String(r.payload.documentId) : undefined,
+    ...(typeof r.payload?.pageNumber === "number" &&
+       Number.isSafeInteger(r.payload.pageNumber) && r.payload.pageNumber > 0
+      ? { pageNumber: r.payload.pageNumber } : {}),
     score: r.score,
     snippet: r.snippet,
     sourceType: "vector",

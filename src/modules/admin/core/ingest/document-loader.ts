@@ -1,10 +1,12 @@
 import path from "node:path";
 import { ParserFactory } from "../../../ingest/factory";
+import type { DocumentPage } from "../../../ingest/types";
 
 export type LoadedDocument = {
   title: string;
   text: string;
   metadata: Record<string, unknown>;
+  pages?: DocumentPage[];
 };
 
 /**
@@ -86,6 +88,10 @@ export async function parseDocumentFromBuffer(
       title: sanitizeString(parsed.title || path.basename(filename, path.extname(filename))),
       text,
       metadata: parsed.metadata,
+      ...(parsed.pages ? { pages: parsed.pages.map((page) => ({
+        pageNumber: page.pageNumber,
+        text: sanitizeString(page.text),
+      })) } : {}),
     };
   } catch (error) {
     console.error(`[ingest] Error parsing document ${filename}:`, error);

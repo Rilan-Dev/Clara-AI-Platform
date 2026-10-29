@@ -1,7 +1,15 @@
+export interface DocumentPage {
+  /** One-based physical source page number; blank pages still count. */
+  pageNumber: number;
+  text: string;
+}
+
 export interface ParsedDocument {
   text: string;
   metadata: Record<string, unknown>;
   title?: string;
+  /** Optional physical pages. Legacy text remains supported. */
+  pages?: DocumentPage[];
 }
 
 export interface DocumentParser {

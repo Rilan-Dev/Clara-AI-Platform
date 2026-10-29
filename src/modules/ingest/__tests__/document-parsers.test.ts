@@ -71,6 +71,12 @@ describe('document ingestion validation', () => {
     expect(parsed.text.indexOf('Clara PDF test')).toBeLessThan(parsed.text.indexOf('Second PDF page'));
     expect(parsed.text).not.toMatch(/--\s*\d+\s+of\s+2\s*--/);
     expect(parsed.metadata.pageCount).toBe(2);
+    expect(parsed.pages?.map((page) => page.pageNumber)).toEqual([1, 2]);
+    expect(parsed.pages?.[0]?.text).toContain('Clara PDF test');
+    expect(parsed.pages?.[1]?.text).toContain('Second PDF page');
+    const loaded = await parseDocumentFromBuffer(buildTestPdf(2), 'policy.pdf');
+    expect(loaded.pages?.map((page) => page.pageNumber)).toEqual([1, 2]);
+    expect(loaded.pages?.[1]?.text).toContain('Second PDF page');
   });
 
   it('rejects a corrupt PDF instead of indexing binary bytes as UTF-8', async () => {

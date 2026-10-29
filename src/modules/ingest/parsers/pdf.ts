@@ -26,7 +26,7 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
   });
 
   const document = await loadingTask.promise;
-  const pages: string[] = [];
+  const pages: Array<{ pageNumber: number; text: string }> = [];
 
   try {
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
@@ -41,7 +41,7 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
         .join(" ")
         .trim();
 
-      if (text) pages.push(text);
+      pages.push({ pageNumber, text }); // Blank pages must not shift citation numbers.
     }
 
     // Some pdfjs-dist builds expose getMetadata at runtime without declaring
@@ -61,7 +61,8 @@ async function parseWithPdfJs(buffer: Buffer): Promise<ParsedDocument> {
     }
 
     return {
-      text: pages.join("\n\n"),
+      text: pages.map((page) => page.text).join("\n\n"),
+      pages,
       metadata: {
         pageCount: document.numPages,
         info,
@@ -104,12 +105,15 @@ export class PDFParser implements DocumentParser {
       // Use the page-level result rather than guessing at delimiters with a
       // regex that could accidentally delete legitimate user-authored text.
       const data = await parser.getText({ pageJoiner: "\n\n" });
-      const pageTexts = Array.isArray(data.pages)
-        ? data.pages.map((page) => page.text ?? "")
+      const pages = Array.isArray(data.pages)
+        ? data.pages.map((page, index) => ({
+            pageNumber: index + 1,
+            text: typeof page.text === "string" ? page.text : "",
+          }))
         : [];
       const text = (
-        pageTexts.some((pageText) => pageText.trim())
-          ? pageTexts.join("\n\n")
+        pages.some((page) => page.text.trim())
+          ? pages.map((page) => page.text).join("\n\n")
           : typeof data.text === "string" ? data.text : ""
       ).trim();
 
@@ -127,6 +131,7 @@ export class PDFParser implements DocumentParser {
 
         return {
           text,
+          ...(pages.length ? { pages } : {}),
           metadata: {
             pageCount,
             info: infoData,
