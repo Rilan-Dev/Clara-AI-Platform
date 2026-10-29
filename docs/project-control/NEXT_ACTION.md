@@ -1,3 +1,13 @@
+## TOAST CARD EXPANSION + OVERFLOW CORRECTION — 2026-10-29
+
+- Corrected the shared Sonner toast so hover expands the **toast card itself**, not only its title/description text. Compact cards are capped by default; hovered cards grow up to the viewport-safe `min(70vh, 32rem)` height and scroll internally for exceptionally long content.
+- Removed the text's fixed hover max-height so the card controls the expansion; retained wrapping for long tokens, reserved close-button space, stable responsive width, and `expand={false}` to avoid expanding the entire stack.
+- Commit: `e05f395cd82fd9c110fad75f3067772d5881f753`.
+- No tests, type-check, build, CI, Vercel, or Gate was run or awaited.
+- Next: continue the active project-control item after this targeted UI correction; do not wait for external verification.
+
+---
+
 ## TOAST HOVER-ONLY EXPANSION — 2026-10-29
 
 - Updated `src/components/ui/sonner.tsx` so toast titles and descriptions are compact and clipped by default, then expand vertically only for the toast under the pointer. The expanded content animates its maximum height; neighboring toasts remain compact.
