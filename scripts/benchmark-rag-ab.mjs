@@ -228,6 +228,20 @@ function round(value, digits = 2) {
   return Number.isFinite(value) ? Math.round(value * 10 ** digits) / 10 ** digits : null;
 }
 
+/** Aggregate TEI outcomes without reading or copying queries or KB content. */
+function rerankOutcomeCounts(records) {
+  const totals = { applied: 0, skipped: 0, timeout: 0, fallback: 0, unavailable: 0 };
+  for (const record of records) {
+    const status = record.timings?.rerankStatus;
+    if (typeof status === "string" && Object.hasOwn(totals, status) && status !== "unavailable") {
+      totals[status]++;
+    } else {
+      totals.unavailable++;
+    }
+  }
+  return totals;
+}
+
 // ── Response summarisation (private; no snippet or context text) ────────
 
 function summarizeResponse(payload, topK) {
@@ -404,6 +418,7 @@ async function runBenchmark(opts) {
       contextStableAcrossAttempts: successful.length ? contextStable : null,
       latency: latencyStats(successful.map((r) => r.latencyMs).filter((v) => v != null)),
       clientLatency: latencyStats(successful.map((r) => r.clientLatencyMs).filter((v) => v != null)),
+      rerankOutcomes: rerankOutcomeCounts(successful),
     };
   });
 
@@ -413,7 +428,7 @@ async function runBenchmark(opts) {
     "metadataMs", "admissionMs", "configMs", "translationMs", "retrievalMs",
     "embeddingMs", "denseSearchMs", "indexLookupMs", "referenceHeaderMs",
     "referenceNeighborMs", "referenceScoreMs", "referenceFallbackMs",
-    "graphMs", "totalMs",
+    "rerankMs", "graphMs", "totalMs",
   ];
   const stages = {};
   for (const stage of stageNames) {
@@ -431,6 +446,7 @@ async function runBenchmark(opts) {
     latency: latencyStats(successfulMeasured.map((r) => r.latencyMs).filter((v) => v != null)),
     clientLatency: latencyStats(successfulMeasured.map((r) => r.clientLatencyMs).filter((v) => v != null)),
     stages,
+    rerankOutcomes: rerankOutcomeCounts(successfulMeasured),
     returnedMoreThanTopKRequests: successfulMeasured.filter((r) => r.returnedMoreThanTopK).length,
   };
 
@@ -482,6 +498,10 @@ async function runBenchmark(opts) {
   if (stages.retrievalMs) {
     console.log(`Retrieval stage: p50 ${stages.retrievalMs.p50}ms / p95 ${stages.retrievalMs.p95}ms.`);
   }
+  if (stages.rerankMs) {
+    console.log(`Rerank stage: p50 ${stages.rerankMs.p50}ms / p95 ${stages.rerankMs.p95}ms.`);
+  }
+  console.log(`Rerank outcomes: ${Object.entries(aggregate.rerankOutcomes).map(([k, n]) => k + "=" + n).join(" ")}.`);
   for (const name of ["embeddingMs", "referenceHeaderMs", "referenceNeighborMs", "referenceScoreMs"]) {
     if (stages[name]) {
       console.log(`${name}: p50 ${stages[name].p50}ms / p95 ${stages[name].p95}ms.`);
@@ -637,8 +657,14 @@ async function compareRuns(opts) {
       candidateClientMs: candidate.aggregate?.clientLatency ?? null,
       baselineRetrievalMs: baseline.aggregate?.stages?.retrievalMs ?? null,
       candidateRetrievalMs: candidate.aggregate?.stages?.retrievalMs ?? null,
+      baselineRerankMs: baseline.aggregate?.stages?.rerankMs ?? null,
+      candidateRerankMs: candidate.aggregate?.stages?.rerankMs ?? null,
     },
     configMismatch,
+    rerankOutcomes: {
+      baseline: baseline.aggregate?.rerankOutcomes ?? null,
+      candidate: candidate.aggregate?.rerankOutcomes ?? null,
+    },
   };
 
   const report = {
@@ -679,6 +705,11 @@ async function compareRuns(opts) {
     console.log(`Retrieval stage p50: ${br.p50}ms -> ${cr.p50}ms (${cr.p50 - br.p50 >= 0 ? "+" : ""}${cr.p50 - br.p50}ms) | p95: ${br.p95}ms -> ${cr.p95}ms (${cr.p95 - br.p95 >= 0 ? "+" : ""}${cr.p95 - br.p95}ms).`);
   }
 
+  if (aggregate.rerankOutcomes.baseline && aggregate.rerankOutcomes.candidate) {
+    console.log(`Rerank outcomes baseline -> candidate: ${JSON.stringify(aggregate.rerankOutcomes.baseline)} -> ${JSON.stringify(aggregate.rerankOutcomes.candidate)}.`);
+  }
+  const rerankCandidate = aggregate.latency.candidateRerankMs;
+  if (rerankCandidate) console.log(`Candidate rerank stage: p50 ${rerankCandidate.p50}ms / p95 ${rerankCandidate.p95}ms.`);
   const drift = aggregate.meanQdrantScoreDrift;
   if (drift != null && drift > 0.005) {
     console.log(`VALIDITY WARNING: mean Qdrant score drift ${drift} across common sources — the vector index or embedding backbone changed between arms. Re-run BOTH arms before drawing enablement conclusions.`);
