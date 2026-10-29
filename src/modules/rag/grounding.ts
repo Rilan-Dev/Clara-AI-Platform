@@ -63,6 +63,7 @@ import {
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
+import { focusExactReferenceEvidence } from "@/modules/rag/reference-evidence";
 import type { QuerySurface } from "@/modules/knowledge-bases/core/analytics-db";
 
 const SCORE_THRESHOLD = 0.25;
@@ -421,6 +422,7 @@ async function searchKbCollection(
   providerConfig?: ProviderConfig,
   scoreThreshold = SCORE_THRESHOLD,
   documentScoped = false,
+  originalQuestion = "",
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
   const seen = new Set<string>();
@@ -441,10 +443,14 @@ async function searchKbCollection(
     if (!current || hit.score > current.score) best.set(hit.id, hit);
   }
   const mapped = [...best.values()].sort((a, b) => b.score - a.score);
+  // For explicit clause / control references, only include candidates with
+  // the exact identifier if any exist in the pool. A high cosine score is
+  // not evidence that an unrelated control answers the cited specification.
+  const evidence = focusExactReferenceEvidence(mapped, originalQuestion, (hit) => hit.snippet);
 
-  if (documentScoped) return mapped.slice(0, topK);
+  if (documentScoped) return evidence.slice(0, topK);
 
-  return diversifyByDocument(mapped, {
+  return diversifyByDocument(evidence, {
     getDocId: (r) => (r.payload?.documentId ? String(r.payload.documentId) : undefined),
     getScore: (r) => r.score,
     topK,
@@ -760,6 +766,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       providerConfig,
       scoreThreshold,
       Boolean(request.documentId),
+      query,
     );
   } catch (searchErr) {
     const msg = (searchErr as Error).message;
