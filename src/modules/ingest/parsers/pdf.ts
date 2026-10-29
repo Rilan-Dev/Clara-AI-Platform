@@ -98,8 +98,20 @@ export class PDFParser implements DocumentParser {
       // the parser registry at server startup; resolve it only for an actual PDF.
       const { PDFParse: PDFParseRuntime } = await import("pdf-parse");
       parser = new PDFParseRuntime({ data: buffer });
-      const data = await parser.getText();
-      const text = typeof data.text === "string" ? data.text.trim() : "";
+      // pdf-parse adds "-- N of M --" pagination markers to data.text by default.
+      // Index only the page text itself: generated delimiters are not document
+      // content and otherwise leak into embeddings, search matches, and answers.
+      // Use the page-level result rather than guessing at delimiters with a
+      // regex that could accidentally delete legitimate user-authored text.
+      const data = await parser.getText({ pageJoiner: "\n\n" });
+      const pageTexts = Array.isArray(data.pages)
+        ? data.pages.map((page) => page.text ?? "")
+        : [];
+      const text = (
+        pageTexts.some((pageText) => pageText.trim())
+          ? pageTexts.join("\n\n")
+          : typeof data.text === "string" ? data.text : ""
+      ).trim();
 
       if (text) {
         let infoData: Record<string, unknown> | undefined;
