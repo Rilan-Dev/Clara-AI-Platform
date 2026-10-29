@@ -850,6 +850,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   };
 
   const graphStarted = Date.now();
+  let graphSettledAt = graphStarted;
   const graphPromise = runtime.enableGraphRag
     ? settleWithin(
         retrieveGraphContext({
@@ -861,7 +862,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         graphBudgetMs(),
         [],
         "graph retrieval",
-      )
+      ).then((hits) => {
+        graphSettledAt = Date.now();
+        return hits;
+      })
     : Promise.resolve([]);
 
   const retrievalStarted = Date.now();
@@ -907,7 +911,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const retrievalMs = Date.now() - retrievalStarted;
   const translation = await translationPromise;
   const graphHits = await graphPromise;
-  const graphMs = Date.now() - graphStarted;
+  // Graph and vector work overlap. Measuring graph AFTER awaiting vector
+  // wrongly attributes the entire Qdrant request to graphMs (even with graph
+  // disabled), making stage-level latency diagnoses misleading.
+  const graphMs = runtime.enableGraphRag ? graphSettledAt - graphStarted : 0;
 
   if (admissionPromise) {
     admission = await admissionPromise;
