@@ -474,12 +474,14 @@ async function lookupIndexedReferencePoints(
   collectionName: string,
   question: string,
   filter: Record<string, unknown>,
+  topK: number,
 ): Promise<ReferencePoint[]> {
   const refs = extractStructuredReferences(question);
   if (!refs.length) return [];
   const must = (filter.must as unknown[]) ?? [];
   const headers = await client.scroll(collectionName, {
-    limit: 48,
+    // Bound indexed lookups to the same evidence budget as the answer.
+    limit: Math.min(24, Math.max(8, topK * 3)),
     filter: { must: [...must, { key: "referenceIds", match: { any: refs } }] }
       as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
     with_payload: ["chunk", "chunkIndex", "documentId", "referenceIds", "kbId"],
@@ -541,7 +543,7 @@ async function recoverExactReferenceEvidence(
   // Older vectors without referenceIds still use the bounded legacy path.
   let points: ReferencePoint[] = [];
   try {
-    points = await lookupIndexedReferencePoints(client, collectionName, question, filter);
+    points = await lookupIndexedReferencePoints(client, collectionName, question, filter, topK);
     const windows = buildReferenceWindows(points, question, topK);
     if (windows.length) {
       return await scoreReferenceWindows(client, collectionName, embedding, filter, windows);
