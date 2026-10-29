@@ -71,6 +71,20 @@ vi.mock("@/modules/ai-core/factory", () => ({
   },
 }));
 
+// Grounding behavior is tested here; topic summarization and collection
+// registration have dedicated owners. Keep their I/O out of these unit tests.
+vi.mock("@/modules/rag/knowledge-topics", () => ({
+  getKnowledgeTopics: vi.fn(async (params: { description?: string | null; documentTitles: string[] }) =>
+    params.description?.trim() || params.documentTitles.join(", "),
+  ),
+  clearKnowledgeTopicsCache: vi.fn(),
+}));
+
+vi.mock("@/modules/knowledge-bases/core/embedding-index", () => ({
+  getCollectionEmbedding: vi.fn(async () => null),
+  resolveSearchEmbedding: vi.fn(async (_collection: string, fallback: unknown) => fallback),
+}));
+
 vi.mock("@/modules/admin/core/vector-store", () => ({
   getQdrantClient: vi.fn(() => ({
     query: vi.fn(async (_collection: string, params: Record<string, unknown>) => {
