@@ -193,7 +193,7 @@ services:
       retries: 3
       start_period: 90s
 
-  # ─────────────── Self-hosted multilingual RAG reranker (OPT-IN) ─────────────
+  # ────────────────── Self-hosted RAG reranker (OPT-IN) ──────────────────
   # TEI cross-encoder on the private Compose network, never exposed publicly.
   # Start only on hosts with enough free RAM/CPU (measured: ~1.25GiB resident
   # with the ONNX backend; container limit below is 2560M):
@@ -209,6 +209,11 @@ services:
   #   image (repo has no ONNX weights; the ORT backend fails and the candle
   #   fallback crash-loops without ever binding port 80). The default below
   #   ships ONNX weights and serves /rerank correctly on the ORT backend.
+  #   IMPORTANT LANGUAGE LIMIT: mixedbread-ai/mxbai-rerank-base-v1 is tagged
+  #   English ('en') in its official model card. Its successful English smoke
+  #   probe does NOT prove Arabic/multilingual relevance. Benchmark each KB
+  #   language before enabling; use a TEI-compatible multilingual model with
+  #   working CPU/GPU weights when production multilingual RAG is required.
   #   CPU latency for a single 12-candidate batch: ~1.5s p50 with ~130-char
   #   snippets, ~3.9s p50 / ~4.7s p95 with realistic ~900-char chunks, and
   #   ~10s p50 at the 30-candidate maximum. The code's 1500ms default
