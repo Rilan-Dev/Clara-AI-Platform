@@ -143,8 +143,39 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.kb.collection).toBe("kb_fixture_1");
   });
 
-  it("always filters Qdrant by the server-resolved KB, even without a document ID", async (_collection: string, _params: Record<string, unknown>) => {
-    const q = vi.fn(async () => ({
+  it("focuses exact-reference questions on supporting policy chunks, not high-score unrelated sections", async () => {
+    const q = vi.fn(async (_collection: string, _params: Record<string, unknown>) => ({
+      points: [
+        { id: "english-exact", score: 0.811, payload: {
+          kbId: KB_FIXTURE.id, documentId: "en", title: "English policy",
+          chunk: "DO.2.1 Storage and retention: four minimum requirements",
+        } },
+        { id: "unrelated-foo", score: 0.805, payload: {
+          kbId: KB_FIXTURE.id, documentId: "unrelated", title: "Other section",
+          chunk: "DCM.2.3 Employee document training",
+        } },
+        { id: "arabic-exact", score: 0.789, payload: {
+          kbId: KB_FIXTURE.id, documentId: "ar", title: "Arabic policy",
+          chunk: "المواصفة DO.2.1: المتطلبات 1 2 3 4",
+        } },
+      ],
+    }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({
+      query: q,
+      scroll: vi.fn(async () => ({ points: [] })),
+    });
+    const outcome = await groundClaraContext({
+      kbId: KB_FIXTURE.id, query: "What does policy DO.2.1 require?",
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.sources.map((source) => source.id)).toEqual(["english-exact", "arabic-exact"]);
+    expect(outcome.result.context).toContain("DO.2.1");
+    expect(outcome.result.context).not.toContain("DCM.2.3");
+  });
+
+  it("always filters Qdrant by the server-resolved KB, even without a document ID", async () => {
+    const q = vi.fn(async (_collection: string, _params: Record<string, unknown>) => ({
       points: [{
         id: "allowed-point", score: 0.91,
         payload: { kbId: KB_FIXTURE.id, documentId: "document-1", title: "Allowed", chunk: "Authorised evidence" },
@@ -162,8 +193,8 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     });
   });
 
-  it("ANDs an optional document scope with KB identity rather than replacing KB filtering", async (_collection: string, _params: Record<string, unknown>) => {
-    const q = vi.fn(async () => ({ points: [] }));
+  it("ANDs an optional document scope with KB identity rather than replacing KB filtering", async () => {
+    const q = vi.fn(async (_collection: string, _params: Record<string, unknown>) => ({ points: [] }));
     (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({
       query: q,
       scroll: vi.fn(async () => ({ points: [] })),
