@@ -89,7 +89,7 @@ describe("netTraceRequest", () => {
       reqBody: { query: "email me at john.doe@example.com" },
     });
     trace.end({ status: 200, resBody: { error: "no" } });
-    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(" ")).join("\n");
     expect(output).toContain("req  ▸");
     expect(output).toContain("res  ▸");
     expect(output).toContain("[email]"); // PII redacted
@@ -160,7 +160,7 @@ describe("netTraceRequest", () => {
     process.env.NET_TRACE_BODY_CHARS = "200";
     const trace = netTraceRequest({ route: "chat", url: "/api/chat" });
     trace.end({ status: 200, resBody: { blob: "x".repeat(5000) } });
-    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("");
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(" ")).join("");
     expect(output).toContain("… (+");
     expect(output.length).toBeLessThan(600);
   });
@@ -179,7 +179,7 @@ describe("secret scrubbing", () => {
       },
     });
     trace.end({ status: 200 });
-    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("");
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(" ")).join("");
     expect(output).toContain("[secret]");
     expect(output).toContain("ok");
     expect(output).not.toContain("AIzaSyABCDE1234567890");
@@ -193,7 +193,7 @@ describe("secret scrubbing", () => {
     circular.self = circular;
     const trace = netTraceRequest({ route: "chat", url: "/api/chat", reqBody: circular });
     expect(() => trace.end({ status: 200 })).not.toThrow();
-    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("");
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(" ")).join("");
     expect(output).toContain("[circular]");
   });
 });
@@ -305,7 +305,7 @@ describe("netTraceUpstream", () => {
       requestBody: ["chunk 1", "chunk 2"],
       responseBody: { embeddings: 1, requests: 20, dimension: 1536 },
     });
-    const output = logSpy.mock.calls.map((c) => c.join(" ")).join("");
+    const output = logSpy.mock.calls.map((c: unknown[]) => c.join(" ")).join("");
     expect(output).toContain("res  ▸ {\"embeddings\":1,\"requests\":20,\"dimension\":1536}");
   });
 
