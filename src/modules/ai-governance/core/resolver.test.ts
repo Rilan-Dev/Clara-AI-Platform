@@ -274,6 +274,65 @@ describe("validateAgentAISelection (runtime gate)", () => {
     if (!result.ok) expect(result.code).toBe("PLAN_PROVIDER_NOT_ALLOWED");
   });
 
+  it("permits retrieval-only embedding resolution when an unrelated chat provider is unhealthy, without relaxing chat access", async () => {
+    setProviders([makeProvider({
+      providerId: "sarvam",
+      health: { providerId: "sarvam", status: "down", latencyMs: null,
+        errorMessage: null, checkedAt: null, checkedBy: null },
+    })]);
+    const input = { organizationId: "org-1", provider: "sarvam", capability: "chat" as const };
+    const chat = await validateAgentAISelection(input);
+    expect(chat.ok).toBe(false);
+    if (!chat.ok) expect(chat.code).toBe("PROVIDER_UNHEALTHY");
+
+    const retrieval = await validateAgentAISelection({
+      ...input, ignoreHealthForRetrieval: true,
+    });
+    expect(retrieval.ok).toBe(true);
+
+    // Even the retrieval-only exemption cannot permit a disabled provider.
+    setProviders([makeProvider({
+      providerId: "sarvam", enabled: false,
+      health: { providerId: "sarvam", status: "down", latencyMs: null,
+        errorMessage: null, checkedAt: null, checkedBy: null },
+    })]);
+    const disabled = await validateAgentAISelection({
+      ...input, ignoreHealthForRetrieval: true,
+    });
+    expect(disabled.ok).toBe(false);
+    if (!disabled.ok) expect(disabled.code).toBe("PROVIDER_DISABLED");
+  });
+
+  it("does not bypass a plan's entitlement or provider restrictions during retrieval-only resolution", async () => {
+    setProviders([makeProvider({
+      providerId: "sarvam",
+      health: { providerId: "sarvam", status: "degraded", latencyMs: null,
+        errorMessage: null, checkedAt: null, checkedBy: null },
+    })]);
+    entitlementState.entitlements = {
+      planId: "starter", planName: "Starter",
+      capabilities: { chat: true, voice_chat: true, realtime_voice: true },
+      allowedProviders: { sarvam: false, openai: true },
+      modelExceptions: [],
+    };
+    const input = {
+      organizationId: "org-1", provider: "sarvam", capability: "chat" as const,
+      ignoreHealthForRetrieval: true,
+    };
+    const forbiddenProvider = await validateAgentAISelection(input);
+    expect(forbiddenProvider.ok).toBe(false);
+    if (!forbiddenProvider.ok) expect(forbiddenProvider.code).toBe("PLAN_PROVIDER_NOT_ALLOWED");
+
+    entitlementState.entitlements = {
+      ...entitlementState.entitlements,
+      capabilities: { chat: false, voice_chat: true, realtime_voice: true },
+      allowedProviders: { sarvam: true },
+    };
+    const forbiddenCapability = await validateAgentAISelection(input);
+    expect(forbiddenCapability.ok).toBe(false);
+    if (!forbiddenCapability.ok) expect(forbiddenCapability.code).toBe("PLAN_NOT_ENTITLED");
+  });
+
   it("rejects unknown provider ids outright", async () => {
     setProviders([]);
     const result = await validateAgentAISelection({ organizationId: "org-1", provider: "mystery-vendor", capability: "chat" });
