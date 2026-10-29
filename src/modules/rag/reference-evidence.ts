@@ -22,6 +22,18 @@ function containsExactReference(text: string, identifier: string): boolean {
     .test(text);
 }
 
+export function matchingExactReferenceEvidence<T>(
+  candidates: readonly T[],
+  question: string,
+  sourceText: (candidate: T) => string,
+): T[] {
+  const references = extractStructuredReferences(question);
+  if (!references.length) return [];
+  return candidates.filter((candidate) =>
+    references.some((identifier) => containsExactReference(sourceText(candidate), identifier)),
+  );
+}
+
 export function focusExactReferenceEvidence<T>(
   candidates: readonly T[],
   question: string,
@@ -29,9 +41,6 @@ export function focusExactReferenceEvidence<T>(
 ): T[] {
   const references = extractStructuredReferences(question);
   if (!references.length) return [...candidates];
-
-  const matching = candidates.filter((candidate) =>
-    references.some((identifier) => containsExactReference(sourceText(candidate), identifier)),
-  );
+  const matching = matchingExactReferenceEvidence(candidates, question, sourceText);
   return matching.length ? matching : [...candidates];
 }
