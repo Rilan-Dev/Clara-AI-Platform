@@ -1,3 +1,16 @@
+## 2026-10-29 — RAG A/B harness verification received; comparison validity hardening
+
+- Owner pulled `feature/ai-core-from-doable-source` at `7ef2df95` and supplied **real execution** of `node --test scripts/benchmark-rag-ab.test.mjs` (9/9 passed, 0 failed, 2573ms) plus `npm run type-check && echo "TYPECHECK PASS"` (confirmed PASS). Prior owner-run focused RAG Vitest suites also passed 49/49.
+- Continued only the **benchmark enablement gate**; no production reranker toggle, no model/KB data mutation, no Docker deployment, no live A/B queries, and no changes to chat/voice retrieval runtime.
+- Fixed comparison configuration check: `--compare` now warns on mismatched `repeat`, `warmup`, `gapMs` and `baseUrlOrigin`, in addition to the existing KB/mode/scope/topK/channel checks, so incomparable latency samples cannot quietly pass as a controlled A/B.
+- Fixed incomplete score-drift interpretation: comparison now records `qdrantScoreComparison.comparableQuestions/unverifiedQuestions`. When no common source scores exist, output explicitly says it **cannot verify index stability**, rather than falsely printing `(index stable)`. Partial overlap is reported as limited evidence.
+- Extended `scripts/benchmark-rag-ab.test.mjs` with regression assertions for parameter-mismatch warnings and no-common-score behavior. Updated deployment runbook's validity interpretation.
+- Commits: `43746c09fa45f825a505690aab6f90807bbbc792` (regressions), `0b0c72af680fbd62437ed09f48fb88d3219bf02b` (comparator), `9083b4354d7d21d371dd89a3251180bc3ae98088` (runbook).
+- Verification for **new** changes: re-fetched exact committed source and confirmed code/test anchors. No Node execution or TypeScript run was available in this connector-only continuation; 9/9 owner PASS applies to the **previous** benchmark version, not these new assertions. Next local operator check: `node --test scripts/benchmark-rag-ab.test.mjs && npm run type-check`.
+- Next unfinished dependency: privately run A and B against the same real KB, scope and mixed-language query set with identical settings; compare ordering/citation evidence and p50/p95; keep the optional reranker disabled for normal production users until evidence justifies enablement. Exact-reference-only questions bypass model reranking by design, so include normal semantic questions. Do not commit raw benchmark reports with user queries/source IDs.
+
+---
+
 ## 2026-10-29 — RAG reranking benchmark follow-up: privacy and multilingual readiness
 
 - Owner-provided checkout verification: focused RAG Vitest suites 5/5 files, 49/49 tests passed. The owner's supplied `npm run type-check` output shows invocation but not final exit status; do not misreport the process as confirmed green from that transcript alone.
