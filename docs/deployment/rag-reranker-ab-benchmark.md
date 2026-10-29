@@ -157,10 +157,29 @@ node scripts/benchmark-rag-ab.mjs \
 | `meanRankTau` | ordering agreement on common sources (−1…1) | low tau with high overlap = pure reordering, the reranker's intended effect |
 | `contextChangeRate` | share of questions whose assembled AI context changed | directly predicts answer-text changes downstream |
 | `latency` p50/p95 deltas | total grounding call | compare against your latency budget for chat/voice turns |
-| retrieval-stage p50/p95 deltas | the rerank cost specifically | must stay inside `RAG_RERANK_TIMEOUT_MS`; on timeout the stage silently no-ops (fallback) |
+| retrieval-stage p50/p95 deltas | total vector retrieval including TEI | includes embedding, Qdrant, translations and reranking; **not** equivalent to model runtime |
+| `rerankMs` p50/p95 | TEI stage wall time | isolates optional inference and connection wait; zero for skipped requests |
+| `rerankOutcomes` | applied / skipped / timeout / fallback / unavailable counts | establish whether the candidate actually reranked and whether the model timed out; unavailable indicates an older backend image with no instrumentation |
 | `meanQdrantScoreDrift` | validity check | **> 0.005 signals a possible index/embedding change — rerun both arms**; zero drift only supports the scores of shared hits, not full index identity |
 | `qdrantScoreComparison` | number of questions with/without comparable scores | when no source IDs overlap, index stability **cannot be verified** from scores; investigate rather than interpreting it as stable |
 | `groundedRate` | answers that still return evidence | any drop means the rerank arm lost retrievable answers |
+
+**Use the current instrumented backend image for both arms.** When the backend
+image includes outcome instrumentation, `timings.rerankMs` and
+`timings.rerankStatus` (`applied`, `skipped`, `timeout`, `fallback`) are
+returned in the authenticated RAG response. The A/B CLI prints per-run counts
+and the stage p50/p95, and records `rerankOutcomes` for each question and for
+the complete run. If rerank status is `unavailable`, the image predates this
+feature; rebuild the test image and run **both** arms again before relying
+on model success/timeout statistics.
+
+Some questions with explicit clause IDs deliberately bypass reranking, so
+`skipped` is expected for those questions. This is not an inference success.
+The HTTP model timeout only bounds TEI work, not embedding, translation or
+whole-response processing. A 6-second TEI timeout may accompany a longer
+total retrieval, but compare model-specific timeout counts and `rerankMs`
+before attributing it to the model. Model inference that succeeds yet leaves
+citation order unchanged still counts as `applied`.
 
 **Spot-check changed top-1 answers before enabling.** For each question the
 compare output flags, run the debug probe with the same question and read the
