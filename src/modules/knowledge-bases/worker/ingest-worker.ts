@@ -135,7 +135,8 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
       originalFilename: filePayload.filename,
       ...(pageAware ? {
         chunkLocations: sourcedChunks.map((entry) => ({
-          pageNumber: "pageNumber" in entry ? entry.pageNumber : undefined,
+          pageNumber: "pageNumber" in entry && typeof entry.pageNumber === "number"
+            ? entry.pageNumber : undefined,
         })),
       } : {}),
     });
