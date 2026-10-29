@@ -20,6 +20,19 @@
 -- sync (syncQwen) reconciles it against the server's /v1/models list and
 -- stamps it vendor_live, exactly like the OpenAI/Gemini cycles.
 
+-- 040's CHECK constraint pins the provider axis to the original four;
+-- widen it BEFORE inserting the qwen row (dropped/re-added idempotently so
+-- re-running after a partial manual application cannot fail).
+ALTER TABLE platform_ai_providers DROP CONSTRAINT IF EXISTS platform_ai_providers_provider_id_check;
+ALTER TABLE platform_ai_providers ADD CONSTRAINT platform_ai_providers_provider_id_check
+  CHECK (provider_id IN ('openai', 'gemini', 'sarvam', 'elevenlabs', 'qwen'));
+
+-- 053's embedding-defaults axis was openai/gemini only; qwen is now a
+-- selectable embedding backbone too.
+ALTER TABLE platform_ai_embedding_defaults DROP CONSTRAINT IF EXISTS platform_ai_embedding_defaults_provider_id_check;
+ALTER TABLE platform_ai_embedding_defaults ADD CONSTRAINT platform_ai_embedding_defaults_provider_id_check
+  CHECK (provider_id IN ('openai', 'gemini', 'qwen'));
+
 INSERT INTO platform_ai_providers (provider_id, display_name, description, enabled) VALUES
   ('qwen', 'Qwen (local)', 'Self-hosted Qwen3-Embedding-0.6B embeddings via the llama.cpp qwen-embeddings service — no vendor billing, no egress', TRUE)
 ON CONFLICT (provider_id) DO NOTHING;
