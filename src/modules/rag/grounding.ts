@@ -630,6 +630,26 @@ async function searchKbCollection(
   skipModelRerank = false,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
+  const explicitlyReferenced = extractStructuredReferences(originalQuestion).length > 0;
+  if (explicitlyReferenced && filter && typeof client.scroll === "function") {
+    try {
+      // An exact identifier already has a KB-scoped keyword index. Fetch the
+      // clause and its continuation BEFORE issuing a broad vector search.
+      // A query embedding is still required to retain genuine Qdrant scores.
+      const indexed = await lookupIndexedReferencePoints(client, collectionName, originalQuestion, filter, topK);
+      const windows = buildReferenceWindows(indexed, originalQuestion, topK);
+      const text = (await queries[0])?.trim();
+      if (windows.length && text) {
+        const embedding = await embedQueryCached(providerConfig, text);
+        const scored = await scoreReferenceWindows(client, collectionName, embedding, filter, windows);
+        if (scored.length) return scored;
+      }
+    } catch (error) {
+      // Index/schema faults never bypass the existing filtered semantic +
+      // bounded lexical fallback. A failed lookup cannot break other turns.
+      console.warn("[grounding] indexed reference fast path unavailable:", (error as Error).message);
+    }
+  }
   const queryVectors: number[][] = [];
   const seen = new Set<string>();
   const lists = await Promise.all(
@@ -650,7 +670,6 @@ async function searchKbCollection(
     if (!current || hit.score > current.score) best.set(hit.id, hit);
   }
   const mapped = [...best.values()].sort((a, b) => b.score - a.score);
-  const explicitlyReferenced = extractStructuredReferences(originalQuestion).length > 0;
   const exactCandidateHits = explicitlyReferenced
     ? matchingExactReferenceEvidence(mapped, originalQuestion, (hit) => hit.snippet)
     : mapped;
