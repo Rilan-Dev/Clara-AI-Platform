@@ -79,3 +79,74 @@ test("retrieval CLI uses authorized real RAG API contract and exports exact cont
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("rejects bare session cookie before network access and never prints the cookie", async () => {
+  const badCookie = "secret-cookie-value-should-not-appear";
+  const result = await runProbe(
+    ["--base-url", "http://127.0.0.1:3000", "--kb-id", "kb-1", "--question", "question"],
+    { CLARA_DEBUG_COOKIE: badCookie, CLARA_DEBUG_TOKEN: "" },
+  );
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /clara_platform_token=VALUE/);
+  assert.doesNotMatch(result.stdout + result.stderr, /secret-cookie-value/);
+});
+
+test("preflight authenticates via the real auth/me route before invoking RAG search", async () => {
+  const calls = [];
+  const server = createServer((req, res) => {
+    calls.push({ path: req.url, authorization: req.headers.authorization });
+    if (req.url === "/api/auth/me") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ user: { id: "allowed-user" } }));
+      return;
+    }
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({
+      context: "[S1] verified", sources: [{
+        id: "id-1", score: 0.9, snippet: "verified", title: "Document",
+      }], graphSources: [], mode: "classic", grounded: true, latencyMs: 3,
+    }));
+  });
+  try {
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const addr = server.address();
+    const result = await runProbe([
+      "--base-url", `http://127.0.0.1:${addr.port}`,
+      "--kb-id", "kb-1", "--question", "verified", "--preflight-auth",
+    ]);
+    assert.equal(result.code, 0, result.stderr);
+    assert.deepEqual(calls.map((c) => c.path), ["/api/auth/me", "/api/rag/search"]);
+    assert.ok(calls.every((c) => c.authorization === "Bearer probe-test-token"));
+    assert.match(result.stdout, /Authentication preflight: PASS/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("502 upstream HTML is reported with status and request ID without leaking gateway content", async () => {
+  const secret = "private-upstream-debug-page-must-not-leak";
+  const server = createServer((_req, res) => {
+    res.writeHead(502, {
+      "content-type": "text/html",
+      "x-request-id": "gateway-id-123",
+      server: "nginx",
+    });
+    res.end("<html>" + secret + "</html>");
+  });
+  try {
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const addr = server.address();
+    const result = await runProbe([
+      "--base-url", `http://127.0.0.1:${addr.port}`,
+      "--kb-id", "kb-1", "--question", "some query",
+    ]);
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /HTTP 502/);
+    assert.match(result.stderr, /gateway-id-123/);
+    assert.match(result.stderr, /reverse-proxy and Clara backend logs/);
+    assert.doesNotMatch(result.stdout + result.stderr, /private-upstream-debug-page/);
+    assert.doesNotMatch(result.stdout + result.stderr, /probe-test-token/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

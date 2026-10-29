@@ -28,13 +28,15 @@ Options:
   --scope SCOPE        live (default) | draft (requires kb:update)
   --expect TEXT        Assert this text appears in returned AI context (repeatable)
   --allow-empty        Don't fail exit status for 0 results (out-of-scope tests)
+  --preflight-auth     Check /api/auth/me BEFORE the quota-consuming RAG search
   --no-context         Do not print full AI context to the terminal
   --out FILE           Save a shareable JSON trace; refuses to overwrite file
   --help               Display this help
 
 Authentication (env only, never CLI args):
   CLARA_DEBUG_TOKEN    Access token for this Clara deployment
-  CLARA_DEBUG_COOKIE   Cookie header from an authorized local session
+  CLARA_DEBUG_COOKIE   Full Cookie header e.g. clara_platform_token=TOKEN
+                       Prefer CLARA_DEBUG_TOKEN for CLI access
 
 Nothing is sent to an LLM for answer generation; the route returns the same
 retrieved context/sources that Clara's grounded assistant uses. Running this
@@ -47,6 +49,7 @@ function readArgs(argv) {
     const key = argv[i];
     if (key === "--help" || key === "-h") { args.help = true; continue; }
     if (key === "--allow-empty") { args.allowEmpty = true; continue; }
+    if (key === "--preflight-auth") { args.preflightAuth = true; continue; }
     if (key === "--no-context") { args.printContext = false; continue; }
     const supported = ["--base-url", "--kb-id", "--question", "--top-k", "--document-id", "--mode", "--scope", "--expect", "--out"];
     if (!supported.includes(key)) throw new Error(`Unknown option: ${key}`);
@@ -75,6 +78,34 @@ function baseUrlOf(raw) {
   return url.origin;
 }
 
+function responseDiagnostic(res) {
+  const headers = [
+    ["content-type", "Content-Type"],
+    ["server", "Server"],
+    ["x-request-id", "X-Request-ID"],
+    ["x-vercel-id", "X-Vercel-ID"],
+    ["cf-ray", "CF-Ray"],
+  ];
+  return [
+    `HTTP ${res.status} ${res.statusText || ""}`.trim(),
+    ...headers.map(([key, label]) => {
+      const value = res.headers.get(key);
+      // These fields contain diagnostic metadata, never Bearer/cookie values.
+      return value ? `${label}: ${value.slice(0, 160)}` : "";
+    }).filter(Boolean),
+  ].join(" | ");
+}
+
+function httpFailureHint(status) {
+  if (status === 401 || status === 403) {
+    return "Authentication or KB permission denied. Check session validity and kb:read access.";
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return "Gateway/upstream failure. Check reverse-proxy and Clara backend logs at this request time; if /api/auth/me works, inspect RAG provider, Qdrant, DB and gateway timeouts.";
+  }
+  return "Inspect the Clara backend logs for this request; do not share access tokens or raw HTTP headers.";
+}
+
 async function main() {
   let opts;
   try { opts = readArgs(process.argv.slice(2)); }
@@ -84,6 +115,9 @@ async function main() {
   const cookie = process.env.CLARA_DEBUG_COOKIE?.trim();
   if (!token && !cookie) {
     throw new Error("Set CLARA_DEBUG_TOKEN or CLARA_DEBUG_COOKIE in your local environment; credentials must never be passed as CLI arguments.");
+  }
+  if (cookie && !/(?:^|;\s*)clara_platform_token=[^;\s]+/.test(cookie)) {
+    throw new Error("CLARA_DEBUG_COOKIE must be a full cookie header containing clara_platform_token=VALUE, not a bare token. Prefer CLARA_DEBUG_TOKEN for a session token.");
   }
   const base = baseUrlOf(opts.baseUrl ?? process.env.CLARA_BASE_URL ?? "http://localhost:3000");
   const requestBody = {
@@ -98,15 +132,26 @@ async function main() {
   const headers = { "Content-Type": "application/json", Accept: "application/json" };
   if (token) headers.Authorization = /^Bearer\s/i.test(token) ? token : `Bearer ${token}`;
   if (cookie) headers.Cookie = cookie;
+  if (opts.preflightAuth) {
+    const authRes = await fetch(base + "/api/auth/me", {
+      method: "GET", headers, redirect: "manual", signal: AbortSignal.timeout(20_000),
+    });
+    if (!authRes.ok) {
+      throw new Error(`Authentication preflight failed: ${responseDiagnostic(authRes)}. ${httpFailureHint(authRes.status)}`);
+    }
+    console.log("Authentication preflight: PASS (/api/auth/me)");
+  }
   const res = await fetch(base + "/api/rag/search", {
     method: "POST", headers, body: JSON.stringify(requestBody),
     redirect: "manual", signal: AbortSignal.timeout(90_000),
   });
   if (res.status >= 300 && res.status < 400) throw new Error(`Unexpected redirect HTTP ${res.status}; use the real Clara app origin`);
-  const payload = await res.json().catch(() => null);
+  // A 502 from a reverse proxy often contains an HTML body. Never leak raw
+  // error pages, credentials or provider errors into shared diagnostic logs.
   if (!res.ok) {
-    throw new Error(`RAG endpoint HTTP ${res.status}: ${typeof payload?.error === "string" ? payload.error : "request failed"}`);
+    throw new Error(`RAG endpoint: ${responseDiagnostic(res)}. ${httpFailureHint(res.status)}`);
   }
+  const payload = await res.json().catch(() => null);
   if (!Array.isArray(payload?.sources) || typeof payload?.context !== "string") {
     throw new Error("Unexpected RAG response: sources[] and context string are required");
   }
