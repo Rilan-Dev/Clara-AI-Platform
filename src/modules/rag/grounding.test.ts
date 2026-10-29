@@ -283,6 +283,47 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
       condition.has_id?.join(",") === "head,tail",
     )).toBe(true);
     expect(count).not.toHaveBeenCalled();
+    expect(outcome.result.timings?.denseSearchMs).toBe(0);
+    expect(outcome.result.timings?.indexLookupMs).toBeGreaterThanOrEqual(0);
+    expect(outcome.result.timings?.referenceScoreMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("batches overlapping exact-reference headers into one neighbor request per document", async () => {
+    const rows = [
+      { id: "header1", payload: { kbId: KB_FIXTURE.id, documentId: "arabic", chunkIndex: 110,
+        referenceIds: ["DO.4.2"], chunk: "DO.4.2 Disaster recovery 1. prioritization", title: "Policy" } },
+      { id: "header2", payload: { kbId: KB_FIXTURE.id, documentId: "arabic", chunkIndex: 111,
+        referenceIds: ["DO.4.2"], chunk: "DO.4.2 1. priority 2. roles 3. response", title: "Policy" } },
+      { id: "tail", payload: { kbId: KB_FIXTURE.id, documentId: "arabic", chunkIndex: 112,
+        referenceIds: [], chunk: "4. safety 5. RPO 6. RTO 7. recovery DO.4.3 next control", title: "Policy" } },
+    ];
+    const scroll = vi.fn(async (_collection: string, opts: Record<string, unknown>) => {
+      const filter = opts.filter as { must?: Array<{ key?: string }>; should?: Array<{ key?: string }> };
+      if (filter.must?.some((condition) => condition.key === "referenceIds")) {
+        return { points: rows.slice(0, 2), next_page_offset: null };
+      }
+      if (filter.must?.some((condition) => condition.key === "documentId") &&
+          filter.should?.some((condition) => condition.key === "chunkIndex")) {
+        return { points: rows, next_page_offset: null };
+      }
+      throw new Error("Unexpected full KB scan");
+    });
+    const query = vi.fn(async (_collection: string, params: Record<string, unknown>) => {
+      const hasId = (params.filter as { must: Array<{ has_id?: string[] }> }).must
+        .some((condition) => condition.has_id);
+      if (!hasId) throw new Error("Unexpected broad vector search");
+      return { points: rows.map((row, i) => ({ ...row, score: 0.81 - i * 0.01 })).reverse() };
+    });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ scroll, query });
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "List all DO.4.2 items" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.sources.map((item) => item.id)).toEqual(["header1", "header2", "tail"]);
+    expect(outcome.result.context).toContain("7. recovery");
+    expect(outcome.result.context).not.toContain("DO.4.3");
+    expect(scroll).toHaveBeenCalledTimes(2);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(outcome.result.timings?.denseSearchMs).toBe(0);
   });
 
   it("recovers a clause missed by semantic Top-K, preserving adjacent numbered requirements", async () => {
