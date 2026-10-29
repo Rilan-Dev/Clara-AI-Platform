@@ -25,7 +25,9 @@ Options:
   --top-k N            1..20, defaults to 6 (current grounding service cap)
   --document-id ID     Optional document-scoped search within this KB
   --mode MODE          classic | hybrid | agentic; omit to use platform runtime default
-  --scope SCOPE        live (default) | draft (requires kb:update)
+  --scope SCOPE        live (default: published deployment snapshot) |
+                       draft (working KB index, requires kb:update)
+  --expect-collection  Fail if the searched Qdrant collection differs
   --expect TEXT        Assert this text appears in returned AI context (repeatable)
   --allow-empty        Don't fail exit status for 0 results (out-of-scope tests)
   --preflight-auth     Check /api/auth/me BEFORE the quota-consuming RAG search
@@ -51,12 +53,12 @@ function readArgs(argv) {
     if (key === "--allow-empty") { args.allowEmpty = true; continue; }
     if (key === "--preflight-auth") { args.preflightAuth = true; continue; }
     if (key === "--no-context") { args.printContext = false; continue; }
-    const supported = ["--base-url", "--kb-id", "--question", "--top-k", "--document-id", "--mode", "--scope", "--expect", "--out"];
+    const supported = ["--base-url", "--kb-id", "--question", "--top-k", "--document-id", "--mode", "--scope", "--expect", "--expect-collection", "--out"];
     if (!supported.includes(key)) throw new Error(`Unknown option: ${key}`);
     const value = argv[++i];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${key}`);
     if (key === "--expect") args.expected.push(value);
-    else args[({ "--base-url": "baseUrl", "--kb-id": "kbId", "--question": "question", "--top-k": "topK", "--document-id": "documentId", "--mode": "mode", "--scope": "scope", "--out": "output" })[key]] = value;
+    else args[({ "--base-url": "baseUrl", "--kb-id": "kbId", "--question": "question", "--top-k": "topK", "--document-id": "documentId", "--mode": "mode", "--scope": "scope", "--expect-collection": "expectCollection", "--out": "output" })[key]] = value;
   }
   if (args.help) return args;
   if (!args.kbId || !args.question?.trim()) throw new Error("--kb-id and --question are required");
@@ -157,6 +159,11 @@ async function main() {
   }
   const sources = payload.sources;
   const failures = opts.expected.filter((term) => !payload.context.includes(term));
+  const actualCollection = payload.kb?.collection;
+  const collectionMatches = !opts.expectCollection || actualCollection === opts.expectCollection;
+  if (!collectionMatches) {
+    failures.push(`Collection mismatch: expected ${opts.expectCollection}, actual ${actualCollection ?? "unknown"}`);
+  }
   if (!opts.allowEmpty && sources.length === 0) failures.push("No Qdrant vector sources returned");
   if (sources.length > opts.topK) failures.push(`Received ${sources.length} vector sources, greater than requested topK ${opts.topK}`);
 
@@ -184,6 +191,9 @@ async function main() {
       outOfScopeReply: payload.outOfScopeReply,
     },
     checks: {
+      searchedCollection: actualCollection ?? null,
+      expectedCollection: opts.expectCollection ?? null,
+      collectionMatches,
       vectorResults: sources.length,
       requestedTopK: opts.topK,
       returnedAtMostTopK: sources.length <= opts.topK,
@@ -193,7 +203,11 @@ async function main() {
     },
   };
   console.log(`Clara RAG retrieval: ${opts.question}`);
-  console.log(`Mode: ${payload.mode} | grounded: ${payload.grounded} | vector hits: ${sources.length}/${opts.topK} | graph hits: ${payload.graphSources?.length ?? 0} | latency: ${payload.latencyMs}ms`);
+  console.log(`Mode: ${payload.mode} | scope: ${opts.scope} | grounded: ${payload.grounded} | vector hits: ${sources.length}/${opts.topK} | graph hits: ${payload.graphSources?.length ?? 0} | latency: ${payload.latencyMs}ms`);
+  console.log(`Searched collection: ${actualCollection ?? "unknown"}`);
+  if (opts.scope === "live") {
+    console.log("Note: live scope uses the published deployment snapshot when one exists; --scope draft tests the currently indexed working KB (requires kb:update).");
+  }
   sources.forEach((hit, i) => {
     console.log(`\n#${i + 1} score=${Number(hit.score).toFixed(4)} point=${hit.id} document=${hit.documentId ?? "unknown"} page=${hit.pageNumber ?? "unknown"}`);
     console.log(`  ${hit.title}`);
