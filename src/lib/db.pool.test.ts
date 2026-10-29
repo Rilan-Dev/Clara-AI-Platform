@@ -26,7 +26,9 @@ describe("resolvePgScopeOptions (environment scoping)", () => {
   afterEach(() => {
     process.env.CLARA_ENV = saved.CLARA_ENV;
     process.env.PG_SCHEMA = saved.PG_SCHEMA;
-    process.env.NODE_ENV = saved.NODE_ENV;
+    // NODE_ENV is readonly in the current Node typings; restore safely.
+    if (saved.NODE_ENV === undefined) Reflect.deleteProperty(process.env, "NODE_ENV");
+    else Reflect.set(process.env, "NODE_ENV", saved.NODE_ENV);
   });
 
   it("production default sets NO options key — connections are byte-identical to today", () => {
