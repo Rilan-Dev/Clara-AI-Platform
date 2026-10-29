@@ -446,7 +446,7 @@ async function recoverExactReferenceEvidence(
     const page = await client.scroll(collectionName, {
       ...(offset == null ? {} : { offset }),
       limit: REFERENCE_SCAN_PAGE_SIZE,
-      filter: filter as Parameters<typeof client.scroll>[1]["filter"],
+      filter: filter as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
       with_payload: ["chunk", "chunkIndex", "documentId", "kbId"],
       with_vector: false,
     });
