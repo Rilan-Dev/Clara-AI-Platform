@@ -10,12 +10,6 @@
  * npx tsx scripts/backfill-rag-reference-index.ts --kb-id UUID --apply
  */
 import { loadEnvConfig } from "@next/env";
-import { getKnowledgeBaseById } from "../src/modules/knowledge-bases/core/db";
-import { getActiveReindexJob } from "../src/modules/knowledge-bases/core/embedding-index";
-import { getQdrantClient } from "../src/modules/admin/core/vector-store";
-import { ensureReferencePayloadIndexes } from "../src/modules/admin/core/vector-store-kb";
-import { extractStructuredReferences } from "../src/modules/rag/reference-evidence";
-
 loadEnvConfig(process.cwd());
 
 async function main(): Promise<void> {
@@ -27,6 +21,18 @@ async function main(): Promise<void> {
     || args.some((arg, i) => arg !== "--kb-id" && (i !== idAt + 1) && arg !== "--apply")) {
     throw new Error("Usage: npx tsx scripts/backfill-rag-reference-index.ts --kb-id UUID [--apply]");
   }
+  // Import backend modules only after loading local Next.js environment.
+  const [
+    { getKnowledgeBaseById }, { getActiveReindexJob },
+    { getQdrantClient }, { ensureReferencePayloadIndexes },
+    { extractStructuredReferences },
+  ] = await Promise.all([
+    import("../src/modules/knowledge-bases/core/db"),
+    import("../src/modules/knowledge-bases/core/embedding-index"),
+    import("../src/modules/admin/core/vector-store"),
+    import("../src/modules/admin/core/vector-store-kb"),
+    import("../src/modules/rag/reference-evidence"),
+  ]);
   const kb = await getKnowledgeBaseById(kbId);
   if (!kb) throw new Error("Knowledge base does not exist");
   if (await getActiveReindexJob(kbId)) {
