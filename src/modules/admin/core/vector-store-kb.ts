@@ -27,6 +27,7 @@ import {
   type ReindexJob,
 } from "@/modules/knowledge-bases/core/embedding-index";
 import { describeNetworkError } from "@/lib/egress";
+import { extractStructuredReferences } from "@/modules/rag/reference-evidence";
 
 // Re-use batch config from env
 const EMBED_BATCH_SIZE = (() => {
@@ -308,6 +309,7 @@ export async function upsertDocumentsKb(
 
   await ensureCollectionExists(collectionName, { vectorSize: entry.dimension });
   await ensureDocumentIdIndex(collectionName);
+  await ensureReferencePayloadIndexes(collectionName);
 
   const metering = { orgId: context?.orgId ?? null, kbId: meta.kbId, documentId: meta.documentId };
   const embeddings = await embedBatches(textChunks, providerConfig, metering);
@@ -327,6 +329,8 @@ export async function upsertDocumentsKb(
       // Chunk content
       chunk,
       chunkIndex: index,
+      referenceIds: extractStructuredReferences(chunk),
+      referenceIndexed: true,
       uploadedAt,
       ...(typeof pageNumber === "number" && Number.isSafeInteger(pageNumber) && pageNumber > 0
         ? { pageNumber } : {}),
@@ -424,6 +428,7 @@ export async function cloneKbCollection(
   }
 
   await client.createCollection(targetCollection, { vectors });
+  await ensureReferencePayloadIndexes(targetCollection);
 
   let offset: string | number | undefined;
   do {
@@ -492,6 +497,44 @@ function qdrantErrorMessage(err: unknown): string {
 // intermittent 502 CHUNKS_READ_FAILED responses.
 const ensuredDocumentIdIndex = new Set<string>();
 const documentIdIndexInFlight = new Map<string, Promise<void>>();
+
+/**
+ * Index generic clause/section identifiers for fast, exact Qdrant filtering.
+ * The index belongs to each collection (including reindex targets/snapshots).
+ * The marker is written on EVERY point, even when no identifier was found,
+ * so a separate backfill can distinguish legacy from indexed payloads.
+ */
+const referenceIndexEnsured = new Set<string>();
+const referenceIndexInFlight = new Map<string, Promise<void>>();
+export async function ensureReferencePayloadIndexes(collectionName: string): Promise<void> {
+  if (referenceIndexEnsured.has(collectionName)) return;
+  const pending = referenceIndexInFlight.get(collectionName);
+  if (pending) return pending;
+  const task = (async () => {
+    try {
+      const client = getQdrantClient();
+      for (const [field_name, field_schema] of [
+        ["kbId", "keyword"], ["referenceIds", "keyword"], ["chunkIndex", "integer"],
+      ] as const) {
+        try {
+          await client.createPayloadIndex(collectionName, { field_name, field_schema, wait: true });
+        } catch (error) {
+          const message = qdrantErrorMessage(error).toLowerCase();
+          if (!message.includes("already exists") && !message.includes("already exist")) {
+            throw new Error(
+              `[qdrant] could not create ${field_name} index on "${collectionName}": ${qdrantErrorMessage(error)}`,
+            );
+          }
+        }
+      }
+      referenceIndexEnsured.add(collectionName);
+    } finally {
+      referenceIndexInFlight.delete(collectionName);
+    }
+  })();
+  referenceIndexInFlight.set(collectionName, task);
+  return task;
+}
 
 export async function ensureDocumentIdIndex(collectionName: string): Promise<void> {
   if (ensuredDocumentIdIndex.has(collectionName)) return;
@@ -610,6 +653,7 @@ export async function updateChunk(
   const embedding = await embedWithRetry(newText, providerConfig);
 
   const client = getQdrantClient();
+  await ensureReferencePayloadIndexes(collectionName);
   // Preserve future structured metadata, including source-page provenance.
   const existing = await client.retrieve(collectionName, {
     ids: [pointId],
@@ -628,6 +672,8 @@ export async function updateChunk(
     originalFilename: meta.originalFilename,
     chunk:            newText,
     chunkIndex,
+    referenceIds: extractStructuredReferences(newText),
+    referenceIndexed: true,
     uploadedAt:       new Date().toISOString(),
   };
   await client.upsert(collectionName, {
@@ -654,6 +700,7 @@ export async function addChunk(
   const embedding = await embedWithRetry(text, providerConfig);
 
   const client = getQdrantClient();
+  await ensureReferencePayloadIndexes(collectionName);
   const pointId = randomUUID();
   const payload = {
     kbId:             meta.kbId,
@@ -662,6 +709,8 @@ export async function addChunk(
     originalFilename: meta.originalFilename,
     chunk:            text,
     chunkIndex,
+    referenceIds: extractStructuredReferences(text),
+    referenceIndexed: true,
     uploadedAt:       new Date().toISOString(),
   };
 
