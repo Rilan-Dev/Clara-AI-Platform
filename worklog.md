@@ -1,3 +1,15 @@
+## 2026-10-29 — RAG reranking safety continuation
+
+- Resumed from reranking handoff commit `0effd65cede19a30e1a465b99ac061afdcebe4bc`; scoped changes only to the opt-in second-stage reranker and its regression coverage. No production deployment or live KB was modified.
+- Added three source regression cases for refusing redirected HTTP responses, gracefully handling a throwing snippet extractor, and bounding long query/snippet text before sending it to the private TEI service.
+- Hardened `src/modules/rag/rerank.ts`: reranker calls now set `redirect: "error"` so retrieved KB content is not forwarded to a redirected destination; malformed snippets or extraction errors preserve original Qdrant ordering rather than crashing grounding.
+- Commits: `6a32b7306a7032ef18d0102f88e17d0046ba48d6` (regressions), `bf20985bb28ac4e1e9151104b772571f20750e6d` (correction).
+- Re-fetched the committed source and ran 10/10 source-level JavaScript smoke assertions using mocked fetch and a URL parser shim: model ordering, original score preservation, unscored tail, redirect refusal, candidate cap, extractor exception and null fallback, no outbound call on invalid input, disabled mode, and invalid protocol. These are limited smoke assertions from type-erased source, NOT an npm/Vitest run, full TypeScript type-check, Docker/TEI handshake, or production benchmark.
+- **Remaining checkout verification:** `npx vitest run src/modules/rag/rerank.test.ts src/modules/rag/diversify.test.ts src/modules/rag/grounding.test.ts src/modules/rag/reference-evidence.test.ts src/modules/rag/reference-recovery.test.ts` and `npm run type-check`. No CI/Vercel gating or polling needed.
+- **Remaining deployment/quality gate:** confirm free memory before starting the optional `rerank` profile, configure private `RAG_RERANK_URL`, run `docker compose exec clara-backend node scripts/probe-rag-reranker.mjs`, then compare before/after ranked evidence, citation correctness, p50/p95 retrieval latency and fallback rate. Keep the service opt-in until live validation. Sparse BM25/SPLADE + dense/sparse fusion is separate unimplemented work, not part of this reranker correction.
+
+---
+
 ## 2026-10-29 — RAG model-based reranking and verification
 
 - Added an optional self-hosted Hugging Face TEI-compatible cross-encoder reranker in `src/modules/rag/rerank.ts`. Its request uses only already KB-filtered candidate snippets; it preserves Qdrant cosine scores, validates complete unique model ranks, caps model inputs to 12 candidates by default, and retains unscored tail hits. Disabled/unavailable/malformed endpoints fall back to original retrieval.
