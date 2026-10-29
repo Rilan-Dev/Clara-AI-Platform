@@ -293,14 +293,34 @@ test("compare mode: score drift and config mismatch produce validity warnings", 
     const a = join(dir, "a.json");
     const b = join(dir, "b.json");
     await writeFile(a, JSON.stringify(mk("arm-a", 6, 0.80)));
-    await writeFile(b, JSON.stringify(mk("arm-b", 8, 0.72))); // different topK AND drifted score
+    const candidate = mk("arm-b", 8, 0.72);
+    candidate.config.repeat = 3;
+    candidate.config.warmup = 1;
+    candidate.config.gapMs = 250;
+    candidate.config.baseUrlOrigin = "https://different.example";
+    await writeFile(b, JSON.stringify(candidate)); // different settings AND drifted score
     const result = await runTool(["--compare", a, b]);
     assert.equal(result.code, 0, result.stderr);
     assert.match(result.stdout, /VALIDITY WARNING: mean Qdrant score drift/);
     assert.match(result.stdout, /Re-run BOTH arms/);
-    assert.match(result.stdout, /run configs differ \(topK: 6 -> 8\)/);
+    assert.match(result.stdout, /run configs differ/);
+    assert.match(result.stdout, /topK: 6 -> 8/);
+    assert.match(result.stdout, /repeat: 1 -> 3/);
+    assert.match(result.stdout, /warmup: 0 -> 1/);
+    assert.match(result.stdout, /gapMs: 0 -> 250/);
+    assert.match(result.stdout, /baseUrlOrigin: "https:\/\/clara.example" -> "https:\/\/different.example"/);
     const reportless = await runTool(["--compare", a, b]);
     assert.equal(reportless.code, 0); // --out is optional for compare mode
+
+    // A candidate that swaps every source has no common Qdrant score values.
+    // The benchmark must not assert index stability from an empty comparison.
+    candidate.perQuestion[0].sources = [{ id: "other", documentId: "d", pageNumber: 1, title: "Doc", score: 0.95 }];
+    const c = join(dir, "no-common.json");
+    await writeFile(c, JSON.stringify(candidate));
+    const noCommon = await runTool(["--compare", a, c]);
+    assert.equal(noCommon.code, 0, noCommon.stderr);
+    assert.match(noCommon.stdout, /cannot verify index stability/i);
+    assert.doesNotMatch(noCommon.stdout, /\(index stable\)/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
