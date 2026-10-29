@@ -143,6 +143,28 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.kb.collection).toBe("kb_fixture_1");
   });
 
+  it("does not treat unrelated high-cosine evidence as a grounded answer for a nonexistent clause", async () => {
+    const q = vi.fn(async () => ({ points: [{
+      id: "wrong", score: 0.94, payload: {
+        kbId: KB_FIXTURE.id, documentId: "unrelated",
+        title: "Other control", chunk: "DO.1.1 has no relation to the requested control",
+      },
+    }] }));
+    const scroll = vi.fn(async () => ({ points: [{
+      id: "wrong", payload: {
+        kbId: KB_FIXTURE.id, documentId: "unrelated", chunkIndex: 0,
+        chunk: "DO.1.1 has no relation to the requested control",
+      },
+    }], next_page_offset: null }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query: q, scroll });
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "Explain ABC.99.1" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.sources).toEqual([]);
+    expect(outcome.result.grounded).toBe(false);
+    expect(outcome.result.context).not.toContain("DO.1.1");
+  });
+
   it("recovers a clause missed by semantic Top-K, preserving adjacent numbered requirements", async () => {
     const scanned = [
       { id: "exact-one", payload: { kbId: KB_FIXTURE.id, documentId: "arabic",
