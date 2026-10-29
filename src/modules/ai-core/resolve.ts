@@ -343,6 +343,10 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
         provider: candidate.providerId,
         capability: "chat",
         modelId: null,
+        // RAG retrieval reads the collection's separately configured embedding
+        // backbone and performs no chat generation; preserve entitlements but
+        // do not depend on the chosen chat provider's operational health.
+        ignoreHealthForRetrieval: input.surface === "rag-embedding",
       }),
     })));
     // Preserve the configured platform default when the current plan allows it.
@@ -374,6 +378,7 @@ export async function resolveAIConfig(input: ResolveAIConfigInput): Promise<Reso
     provider,
     capability: "chat",
     modelId: null,
+    ignoreHealthForRetrieval: input.surface === "rag-embedding",
   });
   if (!governanceGate.ok) {
     throw new AIConfigResolutionError(governanceGate.reason);
