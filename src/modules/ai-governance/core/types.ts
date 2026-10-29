@@ -148,6 +148,7 @@ export interface ResolvedAIOptionBlocked {
     | "provider_not_configured"
     | "provider_capability_unsupported"
     | "provider_unhealthy"
+    | "provider_no_models"
     | "plan_not_entitled"
     | "plan_provider_not_allowed";
 }

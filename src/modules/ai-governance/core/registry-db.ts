@@ -117,6 +117,12 @@ export async function getPlatformAIRegistry(): Promise<PlatformAIRegistry> {
            FROM platform_ai_provider_models
           WHERE enabled
             AND metadata->>'catalogSource' = 'vendor_live'
+            -- Embedding rows live under the chat capability (schema convention)
+            -- but are NOT chat models: they cannot generate text and are never
+            -- selectable on the chat surface. Counting them inflated provider
+            -- cards ("107 available" = 104 chat + 3 embedding). They are managed
+            -- and counted in the dedicated Embeddings workspace instead.
+            AND kind <> 'embedding'
           GROUP BY provider_id, capability`,
       ),
       query<Row>("SELECT capability, provider_id, model_id FROM platform_ai_defaults"),

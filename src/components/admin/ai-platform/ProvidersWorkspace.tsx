@@ -67,11 +67,15 @@ const CAPABILITY_META: Record<AICapability, { label: string; blurb: string }> = 
 
 const CAPABILITIES: AICapability[] = ["chat", "voice_chat", "realtime_voice"];
 
-// Applicable functional kinds per capability tab (mirrors the resolver's
-// modelKinds). Voices live in their own drawer section, so they are excluded
-// from the Models list and never mixed in.
+// Models a picker on that surface can actually SELECT. Embedding models are
+// deliberately NOT applicable to the chat surface: they cannot generate text,
+// so they must never appear in a chat model list (the operator saw
+// "107 applicable models for Chat" = 104 chat + 3 embedding and rightly
+// flagged it). Embeddings are managed in the dedicated Embeddings workspace.
+// The speech surfaces legitimately mix kinds — each picker field on those
+// surfaces is kind-scoped (STT/TTS/realtime/voice pick their own kinds).
 const APPLICABLE_MODEL_KINDS: Record<AICapability, string[]> = {
-  chat: ["chat", "embedding"],
+  chat: ["chat"],
   voice_chat: ["tts", "stt", "transcription"],
   realtime_voice: ["realtime", "stt", "tts", "transcription", "sts"],
 };

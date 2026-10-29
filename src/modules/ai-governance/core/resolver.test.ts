@@ -161,8 +161,11 @@ describe("resolveAvailableAIOptions", () => {
       ],
     };
     const chat = await resolveAvailableAIOptions({ organizationId: "org-1", capability: "chat" });
-    expect(chat.available[0]!.models.map((m) => m.modelId)).toEqual([]); // m-chat-1 blocked by entitlement
-    expect(chat.available[0]!.models).toHaveLength(0);
+    // Every chat model is blocked by the entitlement exception → the provider
+    // has nothing selectable on the chat surface and must be blocked outright
+    // (never offered as an empty picker entry).
+    expect(chat.available).toHaveLength(0);
+    expect(chat.blocked.find((b) => b.providerId === "openai")!.reason).toBe("provider_no_models");
 
     const realtime = await resolveAvailableAIOptions({ organizationId: "org-1", capability: "realtime_voice" });
     // voice-disabled must never appear; enabled realtime model + voices do.
@@ -198,6 +201,27 @@ describe("resolveAvailableAIOptions", () => {
     expect(models).toContain("stt:scribe_v2_realtime");
     expect(models).toContain("realtime:m-rt-1");
     expect(models).not.toContain("sts:sts-disabled"); // disabled rows never resolve
+  });
+  it("never offers embedding models as chat options (chat lists stay kind-pure)", async () => {
+    // Production regression: the OpenAI chat list showed "107 applicable
+    // models for Chat" = 104 chat + 3 embedding. Embedding models cannot
+    // generate text and must never be selectable as a chat LLM.
+    setProviders([makeProvider({ providerId: "openai" })]);
+    const chat = await resolveAvailableAIOptions({ organizationId: "org-1", capability: "chat" });
+    expect(chat.available[0]!.models.map((m) => m.kind)).toEqual(["chat"]);
+    expect(chat.available[0]!.models.map((m) => m.modelId)).toEqual(["m-chat-1"]);
+  });
+
+  it("blocks an embeddings-only provider on the chat surface instead of listing it with no chat models", async () => {
+    // Production regression: the local Qwen provider (chat capability TRUE
+    // from migration 076, embedding model rows only) appeared in the chat
+    // provider picker even though Qwen3-Embedding-0.6B cannot generate text.
+    setProviders([makeProvider({ providerId: "qwen" })]);
+    const qwen = registryState.providers[0] as { models: Array<Record<string, unknown>> };
+    qwen.models = qwen.models.filter((m) => m.kind === "embedding");
+    const chat = await resolveAvailableAIOptions({ organizationId: "org-1", capability: "chat" });
+    expect(chat.available).toHaveLength(0);
+    expect(chat.blocked.find((b) => b.providerId === "qwen")!.reason).toBe("provider_no_models");
   });
 });
 

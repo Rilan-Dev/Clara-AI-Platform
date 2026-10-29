@@ -28,6 +28,28 @@ export const QWEN_DEFAULT_MODEL = "Qwen/Qwen3-Embedding-0.6B";
 export const QWEN_DEFAULT_BASE_URL = "http://qwen-embeddings:8080";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+// CPU-bound local inference scales linearly with batch size. Production
+// measured ~3.6s per chunk on the 2-core qwen-embeddings container (a 6-chunk
+// batch took 21.7s) while the flat 30s default aborted every 20-chunk re-index
+// batch at exactly 30.0s — killing the whole re-index job with "embedding
+// provider unreachable". The abort ceiling must scale with the input count so
+// large batches complete instead of timing out; the per-input budget (~2.2x
+// the measured rate) leaves headroom for slow chunks under load.
+const BATCH_TIMEOUT_BASE_MS = 10_000;
+const BATCH_TIMEOUT_PER_INPUT_MS = 8_000;
+
+/** Abort ceiling for one embeddings request (explicit env override wins). */
+export function qwenRequestTimeoutMs(
+  inputCount: number,
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const explicit = Number(env.QWEN_EMBEDDINGS_TIMEOUT_MS);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  return Math.max(
+    DEFAULT_TIMEOUT_MS,
+    BATCH_TIMEOUT_BASE_MS + Math.max(0, inputCount) * BATCH_TIMEOUT_PER_INPUT_MS,
+  );
+}
 
 /**
  * Retrieval task description for query embeddings (Qwen3-Embedding model-card
@@ -122,8 +144,7 @@ export class QwenEmbeddingProvider implements LLMProvider {
   private async request(inputs: string[], options?: EmbedOptions): Promise<number[][]> {
     const url = this.baseUrl;
     const body = { model: this.model, input: inputs, encoding_format: "float" };
-    const timeoutRaw = Number(process.env.QWEN_EMBEDDINGS_TIMEOUT_MS);
-    const timeout = Number.isFinite(timeoutRaw) && timeoutRaw > 0 ? timeoutRaw : DEFAULT_TIMEOUT_MS;
+    const timeout = qwenRequestTimeoutMs(inputs.length);
     const beganAt = Date.now();
 
     let response: Response;

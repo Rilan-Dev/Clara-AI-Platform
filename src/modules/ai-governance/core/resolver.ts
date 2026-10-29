@@ -212,6 +212,23 @@ export async function resolveAvailableAIOptions(
         ];
       }
 
+      // A provider that passes every gate but offers ZERO selectable models
+      // for this capability is not a usable choice (the operator saw the
+      // embeddings-only Qwen provider listed in the chat picker with an empty
+      // model list). Surface it as blocked instead of offering a picker entry
+      // that can never be configured. Typical causes: an embeddings-only
+      // provider on a generation surface, or a catalogue sync that has not
+      // produced vendor_live rows for this capability yet.
+      if (modelOptions.length === 0 && voiceOptions.length === 0) {
+        return {
+          blocked: {
+            providerId: provider.providerId,
+            displayName: provider.displayName,
+            reason: "provider_no_models",
+          },
+        };
+      }
+
       return {
         available: {
           providerId: provider.providerId,
