@@ -195,13 +195,29 @@ services:
 
   # ─────────────── Self-hosted multilingual RAG reranker (OPT-IN) ─────────────
   # TEI cross-encoder on the private Compose network, never exposed publicly.
-  # Start only on hosts with enough free RAM/CPU:
+  # Start only on hosts with enough free RAM/CPU (measured: ~1.25GiB resident
+  # with the ONNX backend; container limit below is 2560M):
+  #   mkdir -p infra/rag-reranker
   #   docker compose --profile rerank up -d clara-reranker
   # Then set RAG_RERANK_URL=http://clara-reranker:80/rerank in backend .env,
-  # recreate clara-backend, and run scripts/probe-rag-reranker.mjs.
+  # recreate clara-backend, and run the in-image smoke probe:
+  #   docker compose exec clara-backend node scripts/probe-rag-reranker.mjs
   # Plain 'docker compose up' does not start this resource-heavy service.
+  #
+  # Model note (measured 2026-10-29 on the 6-core CPU host, 2-CPU cap):
+  #   Alibaba-NLP/gte-multilingual-reranker-base CANNOT be served by the cpu
+  #   image (repo has no ONNX weights; the ORT backend fails and the candle
+  #   fallback crash-loops without ever binding port 80). The default below
+  #   ships ONNX weights and serves /rerank correctly on the ORT backend.
+  #   CPU latency for a single 12-candidate batch: ~1.5s p50 with ~130-char
+  #   snippets, ~3.9s p50 / ~4.7s p95 with realistic ~900-char chunks, and
+  #   ~10s p50 at the 30-candidate maximum. The code's 1500ms default
+  #   RAG_RERANK_TIMEOUT_MS therefore only suits short snippets on CPU:
+  #   set RAG_RERANK_TIMEOUT_MS=6000 and consider RAG_RERANK_MAX_CANDIDATES=8
+  #   for real chunks, or deploy a GPU TEI image instead.
   clara-reranker:
     profiles: ["rerank"]
+    container_name: clara-reranker
     image: ${RAG_RERANK_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.9}
     restart: unless-stopped
     logging: *default-logging
@@ -216,7 +232,7 @@ services:
     memswap_limit: "2560M"
     command:
       - --model-id
-      - ${RAG_RERANK_MODEL:-Alibaba-NLP/gte-multilingual-reranker-base}
+      - ${RAG_RERANK_MODEL:-mixedbread-ai/mxbai-rerank-base-v1}
     volumes:
       - ./infra/rag-reranker:/data
 

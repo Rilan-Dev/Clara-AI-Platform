@@ -51,6 +51,7 @@ RUN mkdir -p .next/standalone/scripts .next/standalone/node_modules && \
     cp scripts/voice-relay.mjs .next/standalone/scripts/voice-relay.mjs && \
     cp scripts/phone-stream.mjs .next/standalone/scripts/phone-stream.mjs && \
     cp scripts/sarvam-relay.mjs .next/standalone/scripts/sarvam-relay.mjs && \
+    cp scripts/probe-rag-reranker.mjs .next/standalone/scripts/probe-rag-reranker.mjs && \
     cp -r node_modules/ws .next/standalone/node_modules/ws
 
 # The ElevenLabs Speech Engine is imported by the custom server entry point,
