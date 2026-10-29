@@ -65,9 +65,11 @@ export function buildReferenceWindows(
       const start = Math.min(...spans.map((r) => r.start));
       const nextRef = referenceSpans(original).find((r) => r.start > start && !wanted.has(r.id));
       const clipped = original.slice(start, nextRef?.start ?? original.length).trim();
-      if (clipped && !windows.has(base.id)) {
+      if (clipped) {
+        // A previous section can add this as a continuation. An actual exact
+        // match must replace its broader excerpt with the correct clause span.
         windows.set(base.id, { id: base.id, text: clipped, documentId: docId, chunkIndex: base.index });
-        ids.push(base.id);
+        if (!ids.includes(base.id)) ids.push(base.id);
       }
       // Continue at most two adjacent chunks. Stop at the first new clause,
       // even when the new clause begins partway through the continuation.
