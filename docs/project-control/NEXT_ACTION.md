@@ -1,3 +1,13 @@
+## TOAST HOVER-ONLY EXPANSION — 2026-10-29
+
+- Updated `src/components/ui/sonner.tsx` so toast titles and descriptions are compact and clipped by default, then expand vertically only for the toast under the pointer. The expanded content animates its maximum height; neighboring toasts remain compact.
+- Explicitly set Sonner `expand={false}` to keep hover from expanding the whole notification stack. Existing responsive width, spacing, close-button placement, and card transitions are preserved.
+- Commit: `4bbef64de73017d68e2d1b7ea1e298900d8d41e8`.
+- No tests, type-check, build, CI, Vercel, or Gate was run or awaited.
+- Next: continue the active project-control item after this targeted UI correction; do not wait for external verification.
+
+---
+
 ## PLATFORM HEALTH TOAST READABILITY + DISMISSAL — 2026-10-29
 
 - Updated the shared Sonner toast styling so titles and descriptions render in full without hover; long messages wrap and the card grows vertically while the stack can animate layout changes. Close control is anchored inside the card's upper-right with reserved text space.
