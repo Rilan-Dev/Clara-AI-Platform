@@ -143,6 +143,46 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.kb.collection).toBe("kb_fixture_1");
   });
 
+  it("always filters Qdrant by the server-resolved KB, even without a document ID", async () => {
+    const q = vi.fn(async () => ({
+      points: [{
+        id: "allowed-point", score: 0.91,
+        payload: { kbId: KB_FIXTURE.id, documentId: "document-1", title: "Allowed", chunk: "Authorised evidence" },
+      }],
+    }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({
+      query: q,
+      scroll: vi.fn(async () => ({ points: [] })),
+    });
+    const result = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "Explain the control" });
+    expect(result.ok).toBe(true);
+    expect(q).toHaveBeenCalledTimes(1);
+    expect(q.mock.calls[0]?.[1]).toMatchObject({
+      filter: { must: [{ key: "kbId", match: { value: KB_FIXTURE.id } }] },
+    });
+  });
+
+  it("ANDs an optional document scope with KB identity rather than replacing KB filtering", async () => {
+    const q = vi.fn(async () => ({ points: [] }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({
+      query: q,
+      scroll: vi.fn(async () => ({ points: [] })),
+    });
+    const result = await groundClaraContext({
+      kbId: KB_FIXTURE.id,
+      documentId: "document-1",
+      query: "What does this exact document require?",
+    });
+    expect(result.ok).toBe(true);
+    expect(q).toHaveBeenCalledTimes(1);
+    expect(q.mock.calls[0]?.[1]).toMatchObject({
+      filter: { must: [
+        { key: "kbId", match: { value: KB_FIXTURE.id } },
+        { key: "documentId", match: { value: "document-1" } },
+      ] },
+    });
+  });
+
   it("resolves the tenant from the KB server-side — never from the request", async () => {
     await groundClaraContext({ kbId: KB_FIXTURE.id, query: "q" });
     // The tenant resolution query ran against the DB with the kbId…
