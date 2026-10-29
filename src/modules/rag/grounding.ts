@@ -488,15 +488,20 @@ async function recoverExactReferenceEvidence(
     },
     with_payload: ["chunk", "title", "originalFilename", "documentId", "pageNumber"],
   } as Parameters<typeof client.query>[1]);
-  const byId = new Map(windows.map((window) => [window.id, window]));
-  return (response.points ?? [])
-    .filter((point) => byId.has(String(point.id)))
-    .map((point) => ({
-      id: String(point.id),
+  const scoredPoints = new Map((response.points ?? []).map((point) => [String(point.id), point] as const));
+  // Qdrant orders rescored points by similarity, which can place requirement 7
+  // BEFORE requirements 1-3. Preserve the recovered document/chunk sequence
+  // while retaining the real vector similarity attached to every source.
+  return windows.flatMap((window) => {
+    const point = scoredPoints.get(window.id);
+    if (!point) return [];
+    return [{
+      id: window.id,
       score: point.score ?? 0,
-      snippet: byId.get(String(point.id))!.text,
+      snippet: window.text,
       payload: (point.payload ?? {}) as Record<string, unknown>,
-    }));
+    }];
+  });
 }
 
 async function searchKbCollection(
