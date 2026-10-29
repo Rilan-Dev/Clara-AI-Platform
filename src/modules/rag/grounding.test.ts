@@ -194,8 +194,10 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
       const filter = params.filter as { must?: Array<{ has_id?: string[] }> };
       const selected = filter?.must?.find((condition) => condition.has_id)?.has_id;
       if (selected) {
+        // Qdrant may rank the tail chunk above the policy heading. The
+        // grounding context must still preserve the numbered source sequence.
         return { points: scanned.filter((p) => selected.includes(p.id))
-          .map((p, i) => ({ ...p, score: 0.79 - i * 0.01 })) };
+          .map((p, i) => ({ ...p, score: 0.79 - i * 0.01 })).reverse() };
       }
       return { points: [{
         id: "wrong-semantic", score: 0.85,
