@@ -420,6 +420,7 @@ async function searchKbCollection(
   filter?: Record<string, unknown>,
   providerConfig?: ProviderConfig,
   scoreThreshold = SCORE_THRESHOLD,
+  documentScoped = false,
 ): Promise<SearchHit[]> {
   const client = getQdrantClient();
   const seen = new Set<string>();
@@ -430,7 +431,7 @@ async function searchKbCollection(
       if (!text || !key || seen.has(key)) return [];
       seen.add(key);
       const embedding = await embedQueryCached(providerConfig, text);
-      return searchKbVector(client, collectionName, embedding, topK, filter, scoreThreshold);
+      return searchKbVector(client, collectionName, embedding, topK, filter, scoreThreshold, documentScoped);
     }),
   );
 
@@ -441,7 +442,7 @@ async function searchKbCollection(
   }
   const mapped = [...best.values()].sort((a, b) => b.score - a.score);
 
-  if (filter) return mapped.slice(0, topK);
+  if (documentScoped) return mapped.slice(0, topK);
 
   return diversifyByDocument(mapped, {
     getDocId: (r) => (r.payload?.documentId ? String(r.payload.documentId) : undefined),
@@ -457,12 +458,13 @@ async function searchKbVector(
   topK: number,
   filter?: Record<string, unknown>,
   scoreThreshold = SCORE_THRESHOLD,
+  documentScoped = false,
 ): Promise<SearchHit[]> {
 
   // Fetch a wider candidate pool so a document-scoped filter isn't required
   // just to keep a smaller document's chunks from being crowded out by a
   // larger one in the same KB collection.
-  const fetchLimit = filter ? topK : candidatePoolSize(topK);
+  const fetchLimit = documentScoped ? topK : candidatePoolSize(topK);
 
   const searchParams: Record<string, unknown> = {
     query: embedding,
@@ -720,9 +722,17 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     requestedMode: (request.ragMode ?? undefined) as string | undefined,
   });
 
-  const filter = request.documentId
-    ? { must: [{ key: "documentId", match: { value: request.documentId } }] }
-    : undefined;
+  // Tenant/KB binding must be enforced by Qdrant itself, not only by the
+  // collection name. Published snapshots and legacy collections can contain
+  // stale or misplaced points; a document-only filter is insufficient.
+  const filter = {
+    must: [
+      { key: "kbId", match: { value: kb.id } },
+      ...(request.documentId
+        ? [{ key: "documentId", match: { value: request.documentId } }]
+        : []),
+    ],
+  };
 
   const graphStarted = Date.now();
   const graphPromise = runtime.enableGraphRag
@@ -749,6 +759,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       filter,
       providerConfig,
       scoreThreshold,
+      Boolean(request.documentId),
     );
   } catch (searchErr) {
     const msg = (searchErr as Error).message;
