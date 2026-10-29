@@ -28,6 +28,7 @@ Options:
   --scope SCOPE        live (default: published deployment snapshot) |
                        draft (working KB index, requires kb:update)
   --expect-collection  Fail if the searched Qdrant collection differs
+  --expect-document-id Fail unless one returned source belongs to this document
   --expect TEXT        Assert this text appears in returned AI context (repeatable)
   --allow-empty        Don't fail exit status for 0 results (out-of-scope tests)
   --preflight-auth     Check /api/auth/me BEFORE the quota-consuming RAG search
@@ -53,12 +54,12 @@ function readArgs(argv) {
     if (key === "--allow-empty") { args.allowEmpty = true; continue; }
     if (key === "--preflight-auth") { args.preflightAuth = true; continue; }
     if (key === "--no-context") { args.printContext = false; continue; }
-    const supported = ["--base-url", "--kb-id", "--question", "--top-k", "--document-id", "--mode", "--scope", "--expect", "--expect-collection", "--out"];
+    const supported = ["--base-url", "--kb-id", "--question", "--top-k", "--document-id", "--mode", "--scope", "--expect", "--expect-collection", "--expect-document-id", "--out"];
     if (!supported.includes(key)) throw new Error(`Unknown option: ${key}`);
     const value = argv[++i];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${key}`);
     if (key === "--expect") args.expected.push(value);
-    else args[({ "--base-url": "baseUrl", "--kb-id": "kbId", "--question": "question", "--top-k": "topK", "--document-id": "documentId", "--mode": "mode", "--scope": "scope", "--expect-collection": "expectCollection", "--out": "output" })[key]] = value;
+    else args[({ "--base-url": "baseUrl", "--kb-id": "kbId", "--question": "question", "--top-k": "topK", "--document-id": "documentId", "--mode": "mode", "--scope": "scope", "--expect-collection": "expectCollection", "--expect-document-id": "expectDocumentId", "--out": "output" })[key]] = value;
   }
   if (args.help) return args;
   if (!args.kbId || !args.question?.trim()) throw new Error("--kb-id and --question are required");
@@ -164,6 +165,11 @@ async function main() {
   if (!collectionMatches) {
     failures.push(`Collection mismatch: expected ${opts.expectCollection}, actual ${actualCollection ?? "unknown"}`);
   }
+  const documentMatches = !opts.expectDocumentId ||
+    sources.some((hit) => hit.documentId === opts.expectDocumentId);
+  if (!documentMatches) {
+    failures.push(`Expected document was not found in the Top-K sources: ${opts.expectDocumentId}`);
+  }
   if (!opts.allowEmpty && sources.length === 0) failures.push("No Qdrant vector sources returned");
   if (sources.length > opts.topK) failures.push(`Received ${sources.length} vector sources, greater than requested topK ${opts.topK}`);
 
@@ -194,6 +200,8 @@ async function main() {
       searchedCollection: actualCollection ?? null,
       expectedCollection: opts.expectCollection ?? null,
       collectionMatches,
+      expectedDocumentId: opts.expectDocumentId ?? null,
+      documentMatches,
       vectorResults: sources.length,
       requestedTopK: opts.topK,
       returnedAtMostTopK: sources.length <= opts.topK,
@@ -207,6 +215,9 @@ async function main() {
   console.log(`Searched collection: ${actualCollection ?? "unknown"}`);
   if (opts.scope === "live") {
     console.log("Note: live scope uses the published deployment snapshot when one exists; --scope draft tests the currently indexed working KB (requires kb:update).");
+  }
+  if (!collectionMatches) {
+    console.log("Collection names can change after a completed reindex. Refresh the export metadata or omit the stale --expect-collection; use --expect-document-id to assert actual evidence retrieval.");
   }
   sources.forEach((hit, i) => {
     console.log(`\n#${i + 1} score=${Number(hit.score).toFixed(4)} point=${hit.id} document=${hit.documentId ?? "unknown"} page=${hit.pageNumber ?? "unknown"}`);
