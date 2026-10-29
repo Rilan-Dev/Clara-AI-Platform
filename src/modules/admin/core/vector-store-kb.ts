@@ -399,11 +399,29 @@ async function dualWrite(
  * Published deployments use this collection so later KB edits cannot alter
  * the content served by an already-published version.
  */
-export async function cloneKbCollection(sourceCollection: string, targetCollection: string): Promise<void> {
+export async function cloneKbCollection(
+  sourceCollection: string,
+  targetCollection: string,
+  kbId: string,
+): Promise<void> {
   const client = getQdrantClient();
   const source = await client.getCollection(sourceCollection);
   const vectors = source.config.params.vectors;
   if (!vectors) throw new Error(`Qdrant collection "${sourceCollection}" has no vector configuration`);
+
+  // Collections are per-KB, not multi-tenant buckets. A mismatched or missing
+  // kbId is an integrity failure: never publish another KB's evidence into
+  // an immutable deployment snapshot. Validate BEFORE creating a snapshot.
+  const ownershipFilter = { must: [{ key: "kbId", match: { value: kbId } }] };
+  const [total, owned] = await Promise.all([
+    client.count(sourceCollection, { exact: true }),
+    client.count(sourceCollection, { exact: true, filter: ownershipFilter }),
+  ]);
+  if (total.count !== owned.count) {
+    throw new Error(
+      `Cannot publish KB ${kbId}: Qdrant collection contains ${total.count - owned.count} point(s) missing this KB's ownership marker. Repair or reprocess the source collection first.`,
+    );
+  }
 
   await client.createCollection(targetCollection, { vectors });
 
@@ -412,6 +430,7 @@ export async function cloneKbCollection(sourceCollection: string, targetCollecti
     const page = await client.scroll(sourceCollection, {
       offset,
       limit: 256,
+      filter: ownershipFilter,
       with_payload: true,
       with_vector: true,
     });
