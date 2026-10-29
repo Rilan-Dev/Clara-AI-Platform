@@ -1,3 +1,15 @@
+## 2026-10-29 — RAG reranking benchmark follow-up: privacy and multilingual readiness
+
+- Owner-provided checkout verification: focused RAG Vitest suites 5/5 files, 49/49 tests passed. The owner's supplied `npm run type-check` output shows invocation but not final exit status; do not misreport the process as confirmed green from that transcript alone.
+- Continued from current reranker/benchmark branch: `b44f4493e3bc` had added the A/B benchmarking harness; the previous live-service worklog recorded a working ONNX CPU TEI deployment and leaving `RAG_RERANK_URL` unset.
+- Corrected a consequential language-scope claim: the currently selected `mixedbread-ai/mxbai-rerank-base-v1` default's official Hugging Face model metadata is `language: [en]`. A successful English smoke probe does not establish Arabic/multilingual reranking quality; the operator runbook now requires per-language/cross-lingual A/B and a verified multilingual model before enabling for those KBs.
+- Corrected A/B runbook sequence: probe previously ran before backend received `RAG_RERANK_URL` (guaranteed failure). It now starts TEI, configures the backend .env, force-recreates backend, probes from backend, then runs the candidate arm.
+- Privacy correction: run/compare JSON files omit snippets/context but preserve raw questions, document titles and source/KB IDs. Removed misleading `shareable` claims, added an explicit runtime privacy warning and regression expectation. Keep reports private/redact before external sharing.
+- Implementation commits: `2f1b55737c807025e3d9e27430bc784cade9183e` (test), `72c3a1dc7090ce1cc325af5b1c1940e1fda4e8bd` (CLI warning), `34af0ecd6690d4457d0068da15efafaf17ae6b25` (Compose model note), `b4a2b07316443d4eab07576a60e19cac59f05f31` (runbook).
+- Verification here was scoped to reading current GitHub source and static source checks. No new Node benchmark tests, production A/B, typecheck, Docker rebuild, or live model reranking was executed in this continuation. Next checkout command: `node --test scripts/benchmark-rag-ab.test.mjs` and `npm run type-check`; then run private A/B per language and review source relevance and latency before enablement. Existing production reranking setting was not changed.
+
+---
+
 ## 2026-10-29 — RAG reranking safety continuation
 
 - Resumed from reranking handoff commit `0effd65cede19a30e1a465b99ac061afdcebe4bc`; scoped changes only to the opt-in second-stage reranker and its regression coverage. No production deployment or live KB was modified.
