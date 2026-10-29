@@ -35,6 +35,12 @@ const entitlementState = {
   entitlements: null as Record<string, unknown> | null,
 };
 
+// Runtime and picker code import catalogue refresh from this module, not
+// registry-db. Prevent vendor calls/DB incident writes during isolated tests.
+vi.mock("@/modules/ai-governance/core/live-catalog", () => ({
+  syncLiveProviderCatalog: vi.fn(async () => {}),
+}));
+
 vi.mock("@/modules/ai-governance/core/entitlements-db", () => ({
   resolvePlanAIEntitlements: vi.fn(async () => entitlementState.entitlements),
 }));
@@ -280,6 +286,16 @@ describe("validateAgentAISelection (runtime gate)", () => {
       health: { providerId: "sarvam", status: "down", latencyMs: null,
         errorMessage: null, checkedAt: null, checkedBy: null },
     })]);
+    // Validate the health exception with a real, permitted plan fixture.
+    // Earlier calls stop at the unhealthy provider gate, but the retrieval
+    // path proceeds to the plan check and must not receive a null mock.
+    entitlementState.entitlements = {
+      planId: "pro",
+      planName: "Pro",
+      capabilities: { chat: true, voice_chat: true, realtime_voice: true },
+      allowedProviders: { sarvam: true, openai: true },
+      modelExceptions: [],
+    };
     const input = { organizationId: "org-1", provider: "sarvam", capability: "chat" as const };
     const chat = await validateAgentAISelection(input);
     expect(chat.ok).toBe(false);
