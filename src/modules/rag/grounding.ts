@@ -63,7 +63,7 @@ import {
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
-import { rerankCandidates } from "@/modules/rag/rerank";
+import { rerankCandidates, type RerankStatus } from "@/modules/rag/rerank";
 import { extractStructuredReferences, matchingExactReferenceEvidence } from "@/modules/rag/reference-evidence";
 import {
   REFERENCE_SCAN_LIMIT,
@@ -191,6 +191,7 @@ async function getGroundingMetadata(kbId: string): Promise<{ value: GroundingMet
 export function groundingServerTiming(timings: GroundingTimings | undefined, prefix = ""): string | null {
   if (!timings) return null;
   return Object.entries(timings)
+    .filter(([, ms]) => typeof ms === "number")
     .map(([stage, ms]) => `${prefix}${stage.replace(/Ms$/, "")};dur=${ms}`)
     .join(", ");
 }
@@ -252,6 +253,10 @@ export interface GroundingTimings {
   configMs: number;
   translationMs: number;
   retrievalMs: number;
+  /** Optional TEI inference wall time; zero when skipped. */
+  rerankMs?: number;
+  /** Content-free diagnostic: whether TEI was applied, skipped or failed open. */
+  rerankStatus?: RerankStatus;
   /** Substages of retrieval; parallel stages may overlap. */
   embeddingMs?: number;
   denseSearchMs?: number;
@@ -424,6 +429,8 @@ type RetrievalStages = {
   referenceNeighborMs: number;
   referenceScoreMs: number;
   referenceFallbackMs: number;
+  rerankMs: number;
+  rerankStatus: RerankStatus;
 };
 
 type SearchHit = {
@@ -748,6 +755,12 @@ async function searchKbCollection(
   // let a model disrupt that order or override exact-identifier filtering.
   const ranked = await rerankCandidates(originalQuestion, evidence, (hit) => hit.snippet, {
     disabled: skipModelRerank || explicitlyReferenced,
+    onObservation: (observation) => {
+      if (stages) {
+        stages.rerankMs = observation.ms;
+        stages.rerankStatus = observation.status;
+      }
+    },
   });
 
   if (documentScoped) return ranked.slice(0, topK);
@@ -1069,6 +1082,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     embeddingMs: 0, denseSearchMs: 0, indexLookupMs: 0,
     referenceHeaderMs: 0, referenceNeighborMs: 0,
     referenceScoreMs: 0, referenceFallbackMs: 0,
+    rerankMs: 0, rerankStatus: "skipped",
   };
   let vectorResults: SearchHit[];
   try {
