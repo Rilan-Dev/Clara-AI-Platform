@@ -1,3 +1,14 @@
+## 2026-10-29 — RAG model-based reranking and verification
+
+- Added an optional self-hosted Hugging Face TEI-compatible cross-encoder reranker in `src/modules/rag/rerank.ts`. Its request uses only already KB-filtered candidate snippets; it preserves Qdrant cosine scores, validates complete unique model ranks, caps model inputs to 12 candidates by default, and retains unscored tail hits. Disabled/unavailable/malformed endpoints fall back to original retrieval.
+- Wired the new stage into the authenticated KB grounding path and embeddable search, retaining source-order exact-reference recovery and the realtime voice fast path. Existing `diversifyByDocument` remains responsible for cross-document coverage, using ordering rather than mixing model and cosine score scales.
+- Added regression sources: `src/modules/rag/rerank.test.ts`, `src/modules/rag/diversify.test.ts`, and a grounding integration test. Added opt-in `clara-reranker` Docker Compose profile, an operator-only .env example, and `scripts/probe-rag-reranker.mjs` to verify a real TEI service.
+- Source-level executable JS smoke checks (TypeScript annotations erased from fetched GitHub sources) returned 12/12 assertions passing for model order, Qdrant score preservation, candidate cap, tail availability, malformed/error/disabled fallbacks, fairness, and Compose/probe presence; additional exact-identifier filtering checks passed. This is NOT a real Vitest execution or live Qdrant/TEI test. No production stack, model service, npm typecheck, or Docker runtime was accessed. Do not claim deployment/production verification.
+- Implementation commits: `8c5b7ba9768d6121edac3f13e3e0897e312f0ca1`, `d84f2de5246ede7d6480221bea4c28f252362659`, `fbb7de00fc3496aead11b2eb35b10ef215115839`, `1ffce48af46d3051b2f0ea3611ac693b65730207`.
+- Next: run `npx vitest run src/modules/rag/rerank.test.ts src/modules/rag/diversify.test.ts src/modules/rag/grounding.test.ts src/modules/rag/reference-evidence.test.ts src/modules/rag/reference-recovery.test.ts` and `npm run type-check` on the checkout. Start the optional `rerank` profile only after checking memory availability, configure the private RAG_RERANK_URL, recreate backend and execute the smoke probe, then evaluate benchmarked ranking/citation relevance and latency. Actual BM25/SPLADE sparse indexing + dense/sparse fusion remains independent pending work; do not label GraphRAG hybrid mode as completed dense/sparse fusion.
+
+---
+
 ## 2026-10-09 — Shared integration capability policy
 
 - Extracted the duplicated platform/org/agent/plan/connection checks into `src/modules/ai-platform-core/integrations/integration-policy.ts`.
