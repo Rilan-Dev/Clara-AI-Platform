@@ -1,3 +1,12 @@
+## SOURCE CHANGE — 2026-10-30 — TOAST STACK HOVER REFLOW
+
+[architect-verified] Source change committed at `e186c410e007073cda3940444114622a482cdaf8`: default toast previews are compact (one title line/two description lines), hover expands the selected toast, and Sonner is allowed to recalculate stack offsets so neighboring cards can move smoothly without being covered by the expanded card.
+
+- Verification status: source change recorded; no tests, type-check, build, browser interaction, CI, Vercel, or Gate was executed or awaited.
+- Do not treat this as visual/runtime PASS evidence.
+
+---
+
 ## TOAST CARD EXPANSION + OVERFLOW CORRECTION — 2026-10-29
 
 Source change committed: `e05f395cd82fd9c110fad75f3067772d5881f753`. The toast card now expands on hover up to a viewport-safe maximum and uses internal scrolling for unusually long messages; the whole stack remains non-expanded. This is source-level implementation only. No browser check, tests, type-check, build, CI, Vercel, or Gate was run or awaited. No runtime PASS is claimed.
