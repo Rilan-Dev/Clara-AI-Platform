@@ -52,6 +52,8 @@ Run options:
   --repeat N           Measured passes per question, 1..10, default 3
   --warmup N           Unmeasured cache-priming passes, 0..3, default 1
                        (warmup latencies are reported separately as first-seen)
+                       Note: server latency excludes HTTPS transit and response download;
+                       client HTTP round-trip latency is also measured separately.
   --gap-ms N           Pause between requests, 0..60000, default 250
   --timeout-ms N       Per-request timeout, default 90000
   --preflight-auth     Check /api/auth/me BEFORE any quota-consuming request
@@ -254,6 +256,7 @@ function summarizeResponse(payload, topK) {
 }
 
 async function callRagSearch({ base, headers, body, timeoutMs }) {
+  const clientStarted = performance.now();
   const res = await fetch(base + "/api/rag/search", {
     method: "POST", headers, body: JSON.stringify(body),
     redirect: "manual", signal: AbortSignal.timeout(timeoutMs),
@@ -270,7 +273,9 @@ async function callRagSearch({ base, headers, body, timeoutMs }) {
   if (!Array.isArray(payload?.sources) || typeof payload?.context !== "string") {
     throw new Error("Unexpected RAG response: sources[] and context string are required");
   }
-  return payload;
+  // Includes request upload, proxy transit, server processing and JSON body
+  // download/parse. Keep distinct from payload.latencyMs (backend processing).
+  return { payload, clientLatencyMs: Math.round(performance.now() - clientStarted) };
 }
 
 async function assertWritable(output) {
@@ -339,23 +344,29 @@ async function runBenchmark(opts) {
       const requestBody = { ...body, query: questions[qi] };
       let summary = null;
       let failure = null;
+      let clientLatencyMs = null;
       try {
-        const payload = await callRagSearch({ base, headers, body: requestBody, timeoutMs: opts.timeoutMs });
-        summary = summarizeResponse(payload, opts.topK);
+        const response = await callRagSearch({ base, headers, body: requestBody, timeoutMs: opts.timeoutMs });
+        clientLatencyMs = response.clientLatencyMs;
+        summary = summarizeResponse(response.payload, opts.topK);
       } catch (error) {
         failure = { message: error.message, status: error.status ?? null };
         if (error.status === 401 || error.status === 403) throw error;
       }
       if (measured) {
-        measuredRecords.push({ questionIndex: qi, pass: passIndex, ...summary, failure });
+        measuredRecords.push({ questionIndex: qi, pass: passIndex, ...summary, clientLatencyMs, failure });
       } else {
-        warmupRecords.push({ questionIndex: qi, pass: passIndex, latencyMs: summary?.latencyMs ?? null, failure });
+        warmupRecords.push({
+          questionIndex: qi, pass: passIndex, latencyMs: summary?.latencyMs ?? null,
+          clientLatencyMs, failure,
+        });
       }
       if (summary) {
         const retrieval = summary.timings?.retrievalMs;
         console.log(
           `q${String(qi + 1).padStart(2, "0")} pass${passIndex}${measured ? "" : " (warmup)"} `
-          + `${summary.latencyMs ?? "?"}ms${Number.isFinite(retrieval) ? ` (retrieval ${retrieval}ms)` : ""} `
+          + `server=${summary.latencyMs ?? "?"}ms client=${clientLatencyMs ?? "?"}ms`
+          + `${Number.isFinite(retrieval) ? ` (retrieval ${retrieval}ms)` : ""} `
           + `hits=${summary.sources.length}/${opts.topK}${failure ? " [failed]" : ""}`,
         );
       } else {
@@ -392,12 +403,18 @@ async function runBenchmark(opts) {
       sourceStableAcrossAttempts: successful.length ? stableSources : null,
       contextStableAcrossAttempts: successful.length ? contextStable : null,
       latency: latencyStats(successful.map((r) => r.latencyMs).filter((v) => v != null)),
+      clientLatency: latencyStats(successful.map((r) => r.clientLatencyMs).filter((v) => v != null)),
     };
   });
 
   const successfulMeasured = measuredRecords.filter((r) => !r.failure);
   const failureCount = measuredRecords.length - successfulMeasured.length;
-  const stageNames = ["metadataMs", "admissionMs", "configMs", "translationMs", "retrievalMs", "graphMs", "totalMs"];
+  const stageNames = [
+    "metadataMs", "admissionMs", "configMs", "translationMs", "retrievalMs",
+    "embeddingMs", "denseSearchMs", "indexLookupMs", "referenceHeaderMs",
+    "referenceNeighborMs", "referenceScoreMs", "referenceFallbackMs",
+    "graphMs", "totalMs",
+  ];
   const stages = {};
   for (const stage of stageNames) {
     const stats = latencyStats(successfulMeasured.map((r) => r.timings?.[stage]).filter((v) => Number.isFinite(v)));
@@ -412,6 +429,7 @@ async function runBenchmark(opts) {
     groundedQuestions: perQuestion.filter((q) => q.grounded === true).length,
     groundedRate: questions.length ? round(perQuestion.filter((q) => q.grounded === true).length / questions.length, 4) : null,
     latency: latencyStats(successfulMeasured.map((r) => r.latencyMs).filter((v) => v != null)),
+    clientLatency: latencyStats(successfulMeasured.map((r) => r.clientLatencyMs).filter((v) => v != null)),
     stages,
     returnedMoreThanTopKRequests: successfulMeasured.filter((r) => r.returnedMoreThanTopK).length,
   };
@@ -421,6 +439,9 @@ async function runBenchmark(opts) {
     requests: warmupRecords.length,
     failures: warmupRecords.filter((r) => r.failure).length,
     firstSeenLatency: firstSeen,
+    clientFirstSeenLatency: latencyStats(
+      warmupRecords.filter((r) => !r.failure).map((r) => r.clientLatencyMs).filter((v) => v != null),
+    ),
   };
 
   const run = {
@@ -442,8 +463,8 @@ async function runBenchmark(opts) {
     },
     warmup: warmupSummary,
     perQuestion,
-    attempts: measuredRecords.map(({ questionIndex, pass, grounded, latencyMs, timings, failure, sources }) => ({
-      questionIndex, pass, grounded, latencyMs, timings: timings ?? null,
+    attempts: measuredRecords.map(({ questionIndex, pass, grounded, latencyMs, clientLatencyMs, timings, failure, sources }) => ({
+      questionIndex, pass, grounded, latencyMs, clientLatencyMs, timings: timings ?? null,
       sourcesCount: sources?.length ?? 0, failure: failure ? { status: failure.status, message: failure.message } : null,
     })),
     aggregate,
@@ -453,10 +474,18 @@ async function runBenchmark(opts) {
 
   console.log(`\nRun "${run.label}": ${aggregate.successfulRequests}/${aggregate.measuredRequests} measured requests succeeded.`);
   if (aggregate.latency) {
-    console.log(`Measured latency: p50 ${aggregate.latency.p50}ms / p95 ${aggregate.latency.p95}ms (n=${aggregate.latency.n}).`);
+    console.log(`Measured backend latency: p50 ${aggregate.latency.p50}ms / p95 ${aggregate.latency.p95}ms (n=${aggregate.latency.n}).`);
+  }
+  if (aggregate.clientLatency) {
+    console.log(`Measured client HTTP round trip: p50 ${aggregate.clientLatency.p50}ms / p95 ${aggregate.clientLatency.p95}ms (n=${aggregate.clientLatency.n}).`);
   }
   if (stages.retrievalMs) {
     console.log(`Retrieval stage: p50 ${stages.retrievalMs.p50}ms / p95 ${stages.retrievalMs.p95}ms.`);
+  }
+  for (const name of ["embeddingMs", "referenceHeaderMs", "referenceNeighborMs", "referenceScoreMs"]) {
+    if (stages[name]) {
+      console.log(`${name}: p50 ${stages[name].p50}ms / p95 ${stages[name].p95}ms.`);
+    }
   }
   if (firstSeen) {
     console.log(`First-seen (warmup) latency: p50 ${firstSeen.p50}ms / p95 ${firstSeen.p95}ms (n=${firstSeen.n}).`);
@@ -603,6 +632,9 @@ async function compareRuns(opts) {
     latency: {
       baseline: baseline.aggregate?.latency ?? null,
       candidate: candidate.aggregate?.latency ?? null,
+      // Optional for old files: do not interpret backend time as full RTT.
+      baselineClientMs: baseline.aggregate?.clientLatency ?? null,
+      candidateClientMs: candidate.aggregate?.clientLatency ?? null,
       baselineRetrievalMs: baseline.aggregate?.stages?.retrievalMs ?? null,
       candidateRetrievalMs: candidate.aggregate?.stages?.retrievalMs ?? null,
     },
@@ -635,6 +667,11 @@ async function compareRuns(opts) {
   const cl = aggregate.latency.candidate;
   if (bl && cl) {
     console.log(`Measured latency p50: ${bl.p50}ms -> ${cl.p50}ms (${cl.p50 - bl.p50 >= 0 ? "+" : ""}${cl.p50 - bl.p50}ms) | p95: ${bl.p95}ms -> ${cl.p95}ms (${cl.p95 - bl.p95 >= 0 ? "+" : ""}${cl.p95 - bl.p95}ms).`);
+  }
+  const bc = aggregate.latency.baselineClientMs;
+  const cc = aggregate.latency.candidateClientMs;
+  if (bc && cc) {
+    console.log(`Client HTTP round-trip p50: ${bc.p50}ms -> ${cc.p50}ms (${cc.p50 - bc.p50 >= 0 ? "+" : ""}${cc.p50 - bc.p50}ms) | p95: ${bc.p95}ms -> ${cc.p95}ms (${cc.p95 - bc.p95 >= 0 ? "+" : ""}${cc.p95 - bc.p95}ms).`);
   }
   const br = aggregate.latency.baselineRetrievalMs;
   const cr = aggregate.latency.candidateRetrievalMs;
