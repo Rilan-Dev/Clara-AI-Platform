@@ -576,7 +576,7 @@ async function compareRuns(opts) {
   const pairs = shared.map((baseQ) => compareQuestionPair(baseQ, candByQuestion.get(baseQ.question)));
 
   const configMismatch = [];
-  for (const key of ["kbId", "topK", "mode", "scope", "channel"]) {
+  for (const key of ["kbId", "topK", "mode", "scope", "channel", "repeat", "warmup", "gapMs", "baseUrlOrigin"]) {
     const b = JSON.stringify(baseline.config?.[key] ?? null);
     const c = JSON.stringify(candidate.config?.[key] ?? null);
     if (b !== c) configMismatch.push(`${key}: ${b} -> ${c}`);
@@ -592,6 +592,10 @@ async function compareRuns(opts) {
     meanRankTau: round(mean(pairs.map((p) => p.rankTau)), 4),
     contextChangeRate: round(pairs.filter((p) => p.contextChanged).length / pairs.length, 4),
     meanQdrantScoreDrift: round(mean(pairs.map((p) => p.meanQdrantScoreDrift)), 6),
+    qdrantScoreComparison: {
+      comparableQuestions: pairs.filter((p) => p.meanQdrantScoreDrift != null).length,
+      unverifiedQuestions: pairs.filter((p) => p.meanQdrantScoreDrift == null).length,
+    },
     groundedRate: {
       baseline: round(pairs.filter((p) => p.groundedBaseline === true).length / pairs.length, 4),
       candidate: round(pairs.filter((p) => p.groundedCandidate === true).length / pairs.length, 4),
@@ -641,8 +645,12 @@ async function compareRuns(opts) {
   const drift = aggregate.meanQdrantScoreDrift;
   if (drift != null && drift > 0.005) {
     console.log(`VALIDITY WARNING: mean Qdrant score drift ${drift} across common sources — the vector index or embedding backbone changed between arms. Re-run BOTH arms before drawing enablement conclusions.`);
+  } else if (drift == null) {
+    console.log("Qdrant score drift: n/a — cannot verify index stability without common source scores between arms.");
+  } else if (aggregate.qdrantScoreComparison.unverifiedQuestions > 0) {
+    console.log(`Qdrant score drift on common sources: ${drift} (index stable for shared scores only; ${aggregate.qdrantScoreComparison.unverifiedQuestions} question(s) cannot verify index stability).`);
   } else {
-    console.log("Qdrant score drift on common sources: " + (drift == null ? "n/a" : drift) + " (index stable).");
+    console.log(`Qdrant score drift on common sources: ${drift} (index stable across compared source scores).`);
   }
 
   const changedTop1 = pairs.filter((p) => p.top1Changed);
