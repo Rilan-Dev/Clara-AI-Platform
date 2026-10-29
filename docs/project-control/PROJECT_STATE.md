@@ -1,3 +1,11 @@
+## CURRENT AUTHORITATIVE STATE — TOAST CARD OVERFLOW CORRECTION — 2026-10-29
+
+[architect-implemented, not runtime-verified] Shared Sonner toast card now grows as a card on hover with a viewport-safe maximum height and internal scrolling; title/description no longer expand independently beyond the card. Commit: `e05f395cd82fd9c110fad75f3067772d5881f753`.
+
+No tests/build/browser/runtime/CI/Vercel/Gate verification was run or awaited. Continue with the existing active project-control item.
+
+---
+
 ## PLATFORM HEALTH TOAST READABILITY + DISMISSAL — 2026-10-29
 
 - Updated the shared Sonner toast styling so titles and descriptions render in full without hover; long messages wrap and the card grows vertically while the stack can animate layout changes. Close control is anchored inside the card's upper-right with reserved text space.
