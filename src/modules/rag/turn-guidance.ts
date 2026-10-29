@@ -66,6 +66,14 @@ export function buildTurnGuidance(input: TurnGuidanceInput): string {
     lines.push(
       "- Answer from the knowledge-base passages provided for this turn. If they only partly cover the question, answer what they support and say which part is not covered. Do not add facts that are not in them.",
     );
+    // Document-independent completeness: preserve the entirety of numbered
+    // evidence when someone asks about requirements, procedures or conditions.
+    // Voice retains its shorter spoken-response policy below.
+    if (input.channel !== "voice") {
+      lines.push(
+        "- When explaining what a policy, clause, standard, procedure, checklist or similar source requires, include every applicable numbered or bulleted requirement visible in the retrieved evidence. Preserve conditions, exceptions and qualification details. If an excerpt is cut off or only some items are available, say the list may be incomplete rather than silently omitting items. Never invent additional requirements.",
+      );
+    }
   } else {
     lines.push(
       "- No knowledge-base passage matched this message. Decide what it is and respond naturally:",
