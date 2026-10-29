@@ -41,7 +41,7 @@ describe("platform revenue reflects eligible subscriptions and their contracted 
     const [byPlan] = mocks.query.mock.calls.map(([sql]) => String(sql));
     expect(byPlan).toMatch(/os\.status\s*=\s*'active'/);
     expect(byPlan).toMatch(/COALESCE\(os\.price_snapshot,\s*sp\.price_usd\)/);
-    expect(byPlan).toMatch(/CASE\s+WHEN.*?>\s*0/s);
+    expect(byPlan).toMatch(/CASE\s+WHEN[^]*?>\s*0/);
     expect((await response.json())).toMatchObject({ totalMrr: 549, totalArr: 6588 });
   });
 
