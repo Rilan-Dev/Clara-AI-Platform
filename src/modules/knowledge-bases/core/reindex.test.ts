@@ -251,6 +251,10 @@ describe("multilingual knowledge index", () => {
     const mirrored = [...state.collections.get(job.targetCollection)!.values()].find((p) => p.payload.chunk === "new chunk");
     expect(live?.vector).toEqual([1536]);
     expect(mirrored?.vector).toEqual([1024]);
+    expect(live?.payload.referenceIndexed).toBe(true);
+    expect(mirrored?.payload.referenceIndexed).toBe(true);
+    expect(live?.payload.referenceIds).toEqual([]);
+    expect(mirrored?.payload.referenceIds).toEqual([]);
   });
 
   it("refuses the multilingual index when the plan does not include it, and one job at a time", async () => {
