@@ -1,3 +1,12 @@
+## 2026-10-30 — Repair failing Sarvam retrieval-only regression fixture
+
+- Owner ran `npx vitest run src/modules/ai-governance/core/resolver.test.ts src/modules/rag/grounding.test.ts`: **42/43 tests passed**, with the sole failure in the newly added Sarvam retrieval-health test at `resolver.test.ts:288`. `npm run type-check` had no reported errors.
+- Exact cause: the provider-health check correctly stopped the ordinary chat call, but retrieval-only correctly continued to `resolvePlanAIEntitlements`, where the test's initial mock returned `null`. The resulting `Cannot read properties of null (reading 'capabilities')` was a defective test fixture, not a demonstrated production regression.
+- Supplied an explicit entitled Pro plan fixture for the healthy retrieval-only scenario. The existing assertions still prove ordinary chat is blocked when the provider is unhealthy, retrieval-only resolution succeeds with valid entitlements, disabled providers stay blocked, and plan restrictions stay enforced.
+- Also mocked `@/modules/ai-governance/core/live-catalog` at its real import path. The old test mocked a non-imported export on `registry-db`, allowing test-time vendor catalogue syncing and expected `DATABASE_URL is required` warnings despite no actual database dependency for the isolated resolver contract.
+- Only `src/modules/ai-governance/core/resolver.test.ts` changed, plus this worklog entry. Runtime implementation, database, tokens, embedding model, KB vectors, chat/voice behavior and deployment were left untouched. GitHub static inspection confirms the mock and fixture; remote unit execution remains **unverified**.
+- Next operator verification: `git pull --ff-only origin feature/ai-core-from-doable-source && npx vitest run src/modules/ai-governance/core/resolver.test.ts src/modules/rag/grounding.test.ts && npm run type-check`. Once green, rebuild only `clara-backend`, then run one authenticated DO.4.2 RAG probe before rerunning the latency benchmark.
+
 ## 2026-10-30 — RAG 500 when unrelated Sarvam chat provider is unhealthy
 
 - Operator ran six authenticated retrieval-only benchmark requests against one draft knowledge base; all returned HTTP 500. The backend exception was `AIConfigResolutionError: Provider Sarvam AI is currently unhealthy.` PostgreSQL and Qdrant containers were healthy; earlier exact-clause retrieval had passed. This is a config resolution failure, not evidence of corrupt vectors or missing indexes.
