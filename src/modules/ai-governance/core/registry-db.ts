@@ -27,7 +27,7 @@ import type {
 
 type Row = Record<string, unknown>;
 
-const PROVIDER_IDS: GovernanceProviderId[] = ["openai", "gemini", "sarvam", "elevenlabs"];
+const PROVIDER_IDS: GovernanceProviderId[] = ["openai", "gemini", "sarvam", "elevenlabs", "qwen"];
 
 export function isGovernanceProviderId(value: unknown): value is GovernanceProviderId {
   return typeof value === "string" && (PROVIDER_IDS as string[]).includes(value);

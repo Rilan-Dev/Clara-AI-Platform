@@ -286,7 +286,7 @@ export async function validateAgentAISelection(input: {
 }): Promise<AgentAISelectionValidation> {
   const registry = await getPlatformAIRegistry();
   const provider = registry.providers.find((p) => p.providerId === input.provider);
-  const knownProvider = ["openai", "gemini", "sarvam", "elevenlabs"].includes(input.provider);
+  const knownProvider = ["openai", "gemini", "sarvam", "elevenlabs", "qwen"].includes(input.provider);
 
   if (!provider && !knownProvider) {
     return {

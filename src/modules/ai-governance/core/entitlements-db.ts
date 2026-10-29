@@ -14,7 +14,7 @@ import type { AICapability, GovernanceProviderId, PlanAIEntitlements } from "./t
 type Row = Record<string, unknown>;
 type Plan = { planId: string; planName: string; voiceEnabled: boolean };
 
-const PROVIDER_IDS: GovernanceProviderId[] = ["openai", "gemini", "sarvam", "elevenlabs"];
+const PROVIDER_IDS: GovernanceProviderId[] = ["openai", "gemini", "sarvam", "elevenlabs", "qwen"];
 
 async function getFreePlan(): Promise<Plan> {
   const rows = await query<Row>(
