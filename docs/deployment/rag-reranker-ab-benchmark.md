@@ -1,0 +1,180 @@
+# RAG reranker A/B benchmark — production-enablement gate
+
+The optional self-hosted reranker (`clara-reranker`, TEI cross-encoder) is
+**deployed but disabled** on the reference host: `RAG_RERANK_URL` is unset, so
+chat/voice retrieval is unchanged in production. Enabling it permanently is a
+two-part decision that must be backed by measured evidence on the real KB and
+the real traffic shape, not by the smoke probe alone:
+
+1. **Relevance/citation effect** — which cited sources change, which top-1
+   answers change, and whether the changes are improvements.
+2. **Latency effect** — p50/p95 drift of the whole grounding call and of the
+   retrieval stage, under warm-cache (repeat question) and first-seen
+   (new question) conditions.
+
+`scripts/benchmark-rag-ab.mjs` produces both halves. It drives the exact
+authenticated production route (`POST /api/rag/search` → `postRagSearch` →
+`groundClaraContext`) with a fixed query set, records per-question source
+identity/order/scores plus stage timings, and compares two runs arm-to-arm.
+Result files are shareable by design: they contain no snippets, no assembled
+AI context (only lengths + digests) and no credentials.
+
+## Prerequisites
+
+- An authenticated session token with `kb:read` for the target KB
+  (`CLARA_DEBUG_TOKEN`; see `scripts/debug-rag-retrieval.mjs` for the cookie
+  alternative and the same security rules).
+- Node 20+ on the operator machine, or run inside the backend container
+  (the script ships in the image: `docker compose exec clara-backend …`).
+- The TEI container ready when benchmarking the rerank arm (below).
+- Nothing else: the script is zero-dependency Node, like the other Clara
+  operator scripts.
+
+## Building the query set
+
+Use **real user questions**, not synthetic ones — the point is the production
+traffic shape. Two sources:
+
+- **Top real queries** (super admin): `GET /api/analytics/queries?limit=50`
+  returns the most frequent `query_text` values with counts and average
+  latency. Pick 10–20 distinct questions from the target KB's range (filter
+  `orgId` if needed), favouring frequent + long-tail + known-hard questions.
+- **Hand-picked edge cases**: questions that currently cite multiple
+  documents, questions that rely on exact clause IDs (these bypass reranking
+  by design — `extractStructuredReferences`), and out-of-scope questions to
+  confirm the no-evidence path is unaffected.
+
+Save them as `rag-ab-queries.json`:
+
+```json
+{ "questions": [
+  "What does clause DO.2.1 require?",
+  "How do I file a claim for water damage?",
+  "Is dental treatment covered for dependents?"
+] }
+```
+
+Keep the **same file, byte-identical**, for both arms — compare mode aligns
+runs by exact question text.
+
+## Arm A — baseline (reranker off)
+
+The default state (`RAG_RERANK_URL` unset) IS the baseline arm.
+
+```bash
+export CLARA_DEBUG_TOKEN='<your-session-token>'
+node scripts/benchmark-rag-ab.mjs \
+  --kb-id '<KB_ID>' \
+  --queries rag-ab-queries.json \
+  --label rerank-off \
+  --out rag-ab-baseline.json
+```
+
+Defaults: `--top-k 6`, `--scope live`, `--repeat 3` measured passes,
+`--warmup 1` cache-priming pass, `--gap-ms 250`. The warmup pass is reported
+separately as **first-seen latency** (cold embedding + config resolution);
+percentiles come from the measured passes only. Add `--preflight-auth` to
+verify the token via `/api/auth/me` before any quota-consuming request.
+
+Every request consumes embedding usage/quota and records a RAG search audit
+event — the planned request count is printed before the first request fires.
+
+## Arm B — reranker on
+
+1. Start the TEI service (host with ≥ 2.5 GiB free RAM):
+
+   ```bash
+   mkdir -p infra/rag-reranker
+   docker compose --profile rerank up -d clara-reranker
+   docker compose exec clara-backend node scripts/probe-rag-reranker.mjs
+   ```
+
+   The smoke probe must print `RAG reranker smoke PASS` before continuing.
+
+2. Enable the stage in backend `.env`. On the measured CPU host
+   (6 cores, 2-CPU container cap) the safe values are:
+
+   ```dotenv
+   RAG_RERANK_URL=http://clara-reranker:80/rerank
+   RAG_RERANK_ENABLED=true
+   RAG_RERANK_TIMEOUT_MS=6000
+   RAG_RERANK_MAX_CANDIDATES=8
+   ```
+
+   `RAG_RERANK_TIMEOUT_MS=6000` exists because the 1500 ms default only suits
+   short snippets on CPU (measured p50 ≈ 3.9 s for realistic ~900-char
+   chunks; see the `clara-reranker` comment in `docker-compose.yml`). A GPU
+   TEI image can use tighter values.
+
+3. Recreate the backend so it picks up the env, then run arm B:
+
+   ```bash
+   docker compose up -d --no-deps clara-backend
+   node scripts/benchmark-rag-ab.mjs \
+     --kb-id '<KB_ID>' \
+     --queries rag-ab-queries.json \
+     --label rerank-on \
+     --out rag-ab-candidate.json
+   ```
+
+   Use the **same kbId, topK, mode, scope, repeat, warmup and gap-ms** as
+   arm A. Compare mode warns when run configs differ, because then latency
+   deltas are no longer attributable to reranking alone.
+
+## Compare and interpret
+
+```bash
+node scripts/benchmark-rag-ab.mjs \
+  --compare rag-ab-baseline.json rag-ab-candidate.json \
+  --out rag-ab-report.json
+```
+
+| Metric | Reads as | What to look for |
+|---|---|---|
+| `top1ChangeRate` | share of questions whose first cited source changed | every change deserves a manual spot-check (below) |
+| `meanOverlapAtK` / `meanJaccard` | how much of the citation set changed | large drops mean the reranker swaps whole evidence sets, not just order |
+| `meanRankTau` | ordering agreement on common sources (−1…1) | low tau with high overlap = pure reordering, the reranker's intended effect |
+| `contextChangeRate` | share of questions whose assembled AI context changed | directly predicts answer-text changes downstream |
+| `latency` p50/p95 deltas | total grounding call | compare against your latency budget for chat/voice turns |
+| retrieval-stage p50/p95 deltas | the rerank cost specifically | must stay inside `RAG_RERANK_TIMEOUT_MS`; on timeout the stage silently no-ops (fallback) |
+| `meanQdrantScoreDrift` | validity check | **> 0.005 means the index/embedding backbone changed between arms — rerun both arms**, the comparison is invalid |
+| `groundedRate` | answers that still return evidence | any drop means the rerank arm lost retrievable answers |
+
+**Spot-check changed top-1 answers before enabling.** For each question the
+compare output flags, run the debug probe with the same question and read the
+actual evidence text the model would receive:
+
+```bash
+node scripts/debug-rag-retrieval.mjs --kb-id '<KB_ID>' \
+  --question '<the changed question>' --top-k 6
+```
+
+If the new top-1 is clearly more on-topic, that is a win; if it is a
+near-duplicate demoting a better section, note it. The reranker cannot be
+judged from IDs alone.
+
+**Enablement guidance** (the script prints these hints from your data):
+
+- Ordering identical everywhere + latency up → reranking adds nothing for
+  this query set; not justified on this host.
+- Top-1 changes concentrated on multi-document questions with flat cosine
+  scores → the intended use case; verify the changes are improvements.
+- Retrieval p95 approaching the configured timeout → the stage will start
+  silently no-oping under load (safe, but the benefit disappears); raise the
+  timeout, lower `RAG_RERANK_MAX_CANDIDATES`, or move TEI to GPU.
+
+## Rollback
+
+Reranking is env-gated and fail-open: unset `RAG_RERANK_URL` (or set
+`RAG_RERANK_ENABLED=false`) in `.env`, `docker compose up -d --no-deps
+clara-backend`, and retrieval is byte-identical to baseline again. The TEI
+container can stay stopped: `docker compose stop clara-reranker` — the image
+and model cache remain on the host for one-command re-enablement.
+
+## Scope and non-goals
+
+The benchmark measures the **retrieval** layer only: sources, ordering and
+latency of the grounding call. It does not generate answers, so it cannot
+measure final answer quality — that is what the top-1 spot-checks are for.
+It deliberately records no snippet or context text, so sharing result files
+in issues or review threads never leaks tenant content.
