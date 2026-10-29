@@ -66,6 +66,7 @@ async function readAgentCurrentSelection(
 function providerUsable(
   provider: Awaited<ReturnType<typeof getPlatformAIRegistry>>["providers"][number],
   capability: AICapability,
+  ignoreHealthForRetrieval = false,
 ): { usable: true } | { usable: false; reason: ResolvedAIOptionBlocked["reason"] } {
   if (!provider.enabled) return { usable: false, reason: "provider_disabled" };
   if (!provider.configured) return { usable: false, reason: "provider_not_configured" };
@@ -73,7 +74,11 @@ function providerUsable(
   if (!cap?.supported) return { usable: false, reason: "provider_capability_unsupported" };
   // Health posture: 'healthy'/'unknown' pass; 'degraded'/'down' are surfaced as
   // unavailable with the health reason (operator runs a connection test).
-  if (provider.health?.status === "down" || provider.health?.status === "degraded") {
+  // The retrieval-only surface does not invoke the chat generation provider.
+  // Its health check must not block a separately pinned KB embedding index.
+  // This exception NEVER relaxes disabled/configured/capability checks.
+  if (!ignoreHealthForRetrieval &&
+      (provider.health?.status === "down" || provider.health?.status === "degraded")) {
     return { usable: false, reason: "provider_unhealthy" };
   }
   return { usable: true };
@@ -300,6 +305,9 @@ export async function validateAgentAISelection(input: {
   provider: string;
   capability: AICapability;
   modelId?: string | null;
+  /** Only for surface=rag-embedding. Keep all platform and plan gates except
+   * health of the unrelated chat-generation provider. */
+  ignoreHealthForRetrieval?: boolean;
 }): Promise<AgentAISelectionValidation> {
   const registry = await getPlatformAIRegistry();
   const provider = registry.providers.find((p) => p.providerId === input.provider);
@@ -317,7 +325,7 @@ export async function validateAgentAISelection(input: {
   // Skip only the platform-registry check for known providers; continue below
   // to enforce current plan/capability/model entitlements for the organisation.
   if (provider) {
-    const gate = providerUsable(provider, input.capability);
+    const gate = providerUsable(provider, input.capability, input.ignoreHealthForRetrieval === true);
     if (!gate.usable) {
       const label =
         gate.reason === "provider_disabled"
