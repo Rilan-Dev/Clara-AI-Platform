@@ -6,6 +6,7 @@ const originals = {
   enabled: process.env.RAG_RERANK_ENABLED,
   timeout: process.env.RAG_RERANK_TIMEOUT_MS,
   apiKey: process.env.RAG_RERANK_API_KEY,
+  maxCandidates: process.env.RAG_RERANK_MAX_CANDIDATES,
 };
 const candidates = [
   { id: "a", snippet: "Unrelated high similarity", score: 0.94 },
@@ -22,6 +23,7 @@ afterEach(() => {
     RAG_RERANK_ENABLED: originals.enabled,
     RAG_RERANK_TIMEOUT_MS: originals.timeout,
     RAG_RERANK_API_KEY: originals.apiKey,
+    RAG_RERANK_MAX_CANDIDATES: originals.maxCandidates,
   })) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -29,6 +31,20 @@ afterEach(() => {
 });
 
 describe("optional model-based reranking", () => {
+  it("bounds multilingual candidate batches without losing tail evidence", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    process.env.RAG_RERANK_MAX_CANDIDATES = "2";
+    const request = vi.fn(async (_url: string, _init: RequestInit) => ({
+      ok: true,
+      json: async () => [{ index: 1, score: 0.9 }, { index: 0, score: 0.1 }],
+    }));
+    vi.stubGlobal("fetch", request);
+    const ranked = await run();
+    expect(ranked.map((hit) => hit.id)).toEqual(["b", "a", "c"]);
+    expect(ranked[2]?.rerankScore).toBeUndefined();
+    expect(JSON.parse(String(request.mock.calls[0]![1]?.body)).texts).toHaveLength(2);
+  });
+
   it("does not contact a model without an operator-configured endpoint", async () => {
     delete process.env.RAG_RERANK_URL;
     const request = vi.fn();

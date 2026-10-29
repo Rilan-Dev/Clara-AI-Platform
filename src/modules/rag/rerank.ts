@@ -39,8 +39,16 @@ export async function rerankCandidates<T>(
   const timeoutMs = Number.isFinite(timeout) && timeout > 0
     ? Math.min(Math.max(timeout, 100), 15_000)
     : 1_500;
-  const maxChars = 4_000; // Bound inference cost and outbound content size.
-  const texts = candidates.map((item) => getText(item).slice(0, maxChars));
+  // Bound CPU cost: a multilingual search may yield up to 60 candidates.
+  // Keep the unscored tail, which document diversification can still select.
+  const configuredLimit = Number(process.env.RAG_RERANK_MAX_CANDIDATES);
+  const maxCandidates = Number.isFinite(configuredLimit) && configuredLimit >= 2
+    ? Math.min(Math.floor(configuredLimit), 30)
+    : 12;
+  const head = candidates.slice(0, maxCandidates);
+  const tail = candidates.slice(maxCandidates);
+  const maxChars = 2_000; // Bound inference cost and outbound content size.
+  const texts = head.map((item) => getText(item).slice(0, maxChars));
   if (texts.some((text) => !text.trim())) return fallback;
 
   try {
@@ -69,7 +77,7 @@ export async function rerankCandidates<T>(
       : data && typeof data === "object" && "ranks" in data
         ? (data as { ranks: unknown }).ranks
         : null;
-    if (!Array.isArray(ranks) || ranks.length !== candidates.length) return fallback;
+    if (!Array.isArray(ranks) || ranks.length !== head.length) return fallback;
     const scores = new Map<number, number>();
     for (const rank of ranks) {
       if (!rank || typeof rank !== "object") return fallback;
@@ -78,7 +86,7 @@ export async function rerankCandidates<T>(
         typeof index !== "number" ||
         !Number.isInteger(index) ||
         index < 0 ||
-        index >= candidates.length ||
+        index >= head.length ||
         typeof score !== "number" ||
         !Number.isFinite(score) ||
         scores.has(index)
@@ -87,10 +95,11 @@ export async function rerankCandidates<T>(
     }
     // Every input must have exactly one valid score. Stable tie-break uses
     // original vector rank; keep Qdrant scores unchanged for citations.
-    return candidates
+    const scoredHead = head
       .map((candidate, index) => ({ candidate, index, score: scores.get(index)! }))
       .sort((a, b) => b.score - a.score || a.index - b.index)
       .map(({ candidate, score }) => ({ ...candidate, rerankScore: score }));
+    return [...scoredHead, ...tail];
   } catch {
     // Timeouts, connection errors or invalid responses do not break chat/voice.
     return fallback;

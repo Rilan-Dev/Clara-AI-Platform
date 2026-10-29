@@ -660,9 +660,12 @@ async function searchKbCollection(
 
   if (documentScoped) return ranked.slice(0, topK);
 
+  // Use the complete model ordering rather than mixing cross-encoder logits
+  // with cosine scores for unscored tail candidates.
+  const rankOrder = new Map(ranked.map((hit, index) => [hit.id, -index]));
   return diversifyByDocument(ranked, {
     getDocId: (r) => (r.payload?.documentId ? String(r.payload.documentId) : undefined),
-    getScore: (r) => r.rerankScore ?? r.score,
+    getScore: (r) => rankOrder.get(r.id) ?? -Infinity,
     topK,
   });
 }

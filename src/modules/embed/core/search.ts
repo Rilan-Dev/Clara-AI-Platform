@@ -60,9 +60,12 @@ export async function searchKbEmbedded(
 
   if (options?.filter || options?.realtimeVoice) return ranked.slice(0, topK);
 
+  // Tail candidates have no cross-encoder score; use their stable rank order
+  // rather than comparing model logits and vector similarities directly.
+  const rankOrder = new Map(ranked.map((hit, index) => [hit.id, -index]));
   return diversifyByDocument(ranked, {
     getDocId: (r) => r.documentId,
-    getScore: (r) => r.rerankScore ?? r.score,
+    getScore: (r) => rankOrder.get(r.id) ?? -Infinity,
     topK,
   });
 }
