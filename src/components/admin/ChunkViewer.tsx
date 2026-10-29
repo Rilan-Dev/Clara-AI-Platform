@@ -7,6 +7,7 @@
 import { useState, useCallback } from "react";
 import * as api from "@/modules/admin-ui/api";
 import type { KbChunk } from "@/modules/admin-ui/api";
+import { formatChunkDebugExport, type DebugExportFormat } from "@/modules/admin-ui/rag-debug-export";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 
 type Props = { kbId: string; docId: string; chunkCount: number | null };
@@ -55,7 +56,7 @@ function ChunkRow({ chunk, kbId, docId, onUpdated, onDeleted }: {
     <div className="group border border-border rounded-lg bg-card p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <span className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">
-          #{chunk.chunkIndex + 1}
+          #{chunk.chunkIndex + 1}{chunk.pageNumber != null ? ` · p.${chunk.pageNumber}` : ""}
         </span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {!editing && (
@@ -106,6 +107,8 @@ export function ChunkViewer({ kbId, docId, chunkCount }: Props) {
   const [newText, setNewText] = useState("");
   const [saving, setSaving]   = useState(false);
   const [search, setSearch]   = useState("");
+  const [includeExportText, setIncludeExportText] = useState(true);
+  const [exporting, setExporting] = useState<DebugExportFormat | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -129,6 +132,28 @@ export function ChunkViewer({ kbId, docId, chunkCount }: Props) {
       setNewText(""); setAdding(false);
     } catch (e) { setError((e as Error).message); }
     finally { setSaving(false); }
+  };
+
+  const exportChunks = async (format: DebugExportFormat) => {
+    setExporting(format);
+    setError(null);
+    try {
+      // Always re-read ALL currently stored points, not the filtered UI list,
+      // so a shared artifact is an accurate current snapshot.
+      const snapshot = await api.fetchDocumentChunkDebug(kbId, docId);
+      const output = formatChunkDebugExport(snapshot, format, includeExportText);
+      const blob = new Blob([output], { type: format === "json" ? "application/json;charset=utf-8" : "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const cleanName = snapshot.document.originalFilename.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 70);
+      anchor.href = url;
+      anchor.download = `clara-chunks-${cleanName || docId}.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setError((e as Error).message); }
+    finally { setExporting(null); }
   };
 
   const filtered = search
@@ -157,7 +182,7 @@ export function ChunkViewer({ kbId, docId, chunkCount }: Props) {
       {open && (
         <div className="px-4 pb-4 space-y-3 border-t border-border bg-muted/10">
           {/* Toolbar */}
-          <div className="flex items-center gap-2 pt-3">
+          <div className="flex flex-wrap items-center gap-2 pt-3">
             <div className="relative flex-1">
               <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground"
                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,6 +203,21 @@ export function ChunkViewer({ kbId, docId, chunkCount }: Props) {
               )}
               Refresh
             </button>
+            <label className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Text may contain customer information; review before sharing outside your organisation.">
+              <input type="checkbox" checked={includeExportText}
+                onChange={(e) => setIncludeExportText(e.target.checked)} />
+              Include text
+            </label>
+            <button onClick={() => exportChunks("json")} disabled={exporting !== null}
+              title="Export all live Qdrant chunks and metadata to share for debugging (no numeric vectors)"
+              className="text-xs text-muted-foreground px-2 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50">
+              {exporting === "json" ? "Exporting…" : "Export JSON"}
+            </button>
+            <button onClick={() => exportChunks("txt")} disabled={exporting !== null}
+              title="Export indexed chunks in a readable UTF-8 text format"
+              className="text-xs text-muted-foreground px-2 py-1.5 rounded border border-border hover:bg-muted disabled:opacity-50">
+              {exporting === "txt" ? "Exporting…" : "Export TXT"}
+            </button>
             <button onClick={() => setAdding((v) => !v)}
               className="flex items-center gap-1 text-xs text-primary px-2 py-1.5 rounded border border-primary/30 hover:bg-primary/10 transition-colors">
               <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,6 +226,10 @@ export function ChunkViewer({ kbId, docId, chunkCount }: Props) {
               Add chunk
             </button>
           </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            Debug export uses the full authorized Qdrant chunk list, not the search filter. May contain sensitive document text; numeric vectors and credentials are not exported.
+          </p>
 
           {/* Add chunk form */}
           {adding && (
