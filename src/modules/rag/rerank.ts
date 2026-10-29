@@ -8,15 +8,37 @@
  */
 export type Reranked<T> = T & { rerankScore?: number };
 
+/** Content-free, per-retrieval outcome, never logged with query or KB excerpts. */
+export type RerankStatus = "skipped" | "applied" | "timeout" | "fallback";
+export type RerankObservation = {
+  status: RerankStatus;
+  /** Total optional reranking wall time, including service wait and validation. */
+  ms: number;
+  candidateCount: number;
+};
+
 export async function rerankCandidates<T>(
   query: string,
   candidates: readonly T[],
   getText: (candidate: T) => string,
-  options: { disabled?: boolean } = {},
+  options: { disabled?: boolean; onObservation?: (observation: RerankObservation) => void } = {},
 ): Promise<Array<Reranked<T>>> {
   // `rerankScore` is an optional marker property, so every T is a valid
   // Reranked<T>; the assertion only informs the checker of that invariant.
   const fallback = [...candidates] as Array<Reranked<T>>;
+  const started = Date.now();
+  const observe = (status: RerankStatus) => {
+    // Diagnostics are best-effort and cannot break or alter retrieved evidence.
+    try {
+      options.onObservation?.({ status, ms: Date.now() - started, candidateCount: candidates.length });
+    } catch {
+      // Ignore a consumer's instrumentation failure.
+    }
+  };
+  const returnFallback = (status: RerankStatus): Array<Reranked<T>> => {
+    observe(status);
+    return fallback;
+  };
   const url = process.env.RAG_RERANK_URL?.trim();
   const enabled = process.env.RAG_RERANK_ENABLED?.trim().toLowerCase();
   if (
@@ -27,14 +49,14 @@ export async function rerankCandidates<T>(
     enabled === "off" ||
     !query.trim() ||
     candidates.length < 2
-  ) return fallback;
+  ) return returnFallback("skipped");
 
   // The URL is deployment-owned, never accepted from a user/tenant request.
   try {
     const target = new URL(url);
-    if (target.protocol !== "http:" && target.protocol !== "https:") return fallback;
+    if (target.protocol !== "http:" && target.protocol !== "https:") return returnFallback("skipped");
   } catch {
-    return fallback;
+    return returnFallback("skipped");
   }
 
   const timeout = Number(process.env.RAG_RERANK_TIMEOUT_MS);
@@ -61,12 +83,14 @@ export async function rerankCandidates<T>(
       return typeof text === "string" ? text.slice(0, maxChars) : "";
     });
   } catch {
-    return fallback;
+    return returnFallback("skipped");
   }
-  if (texts.some((text) => !text.trim())) return fallback;
+  if (texts.some((text) => !text.trim())) return returnFallback("skipped");
 
+  let signal: AbortSignal | undefined;
   try {
     const apiKey = process.env.RAG_RERANK_API_KEY?.trim();
+    signal = AbortSignal.timeout(timeoutMs);
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -80,12 +104,12 @@ export async function rerankCandidates<T>(
         raw_scores: false,
         return_text: false,
       }),
-      signal: AbortSignal.timeout(timeoutMs),
+      signal,
       // Never forward KB excerpts to a Location chosen by the endpoint.
       redirect: "error",
       cache: "no-store",
     });
-    if (!response.ok) return fallback;
+    if (!response.ok) return returnFallback("fallback");
     // TEI returns [{ index, score }]; accept an envelope for proxy compatibility.
     const data: unknown = await response.json();
     const ranks: unknown = Array.isArray(data)
@@ -93,10 +117,10 @@ export async function rerankCandidates<T>(
       : data && typeof data === "object" && "ranks" in data
         ? (data as { ranks: unknown }).ranks
         : null;
-    if (!Array.isArray(ranks) || ranks.length !== head.length) return fallback;
+    if (!Array.isArray(ranks) || ranks.length !== head.length) return returnFallback("fallback");
     const scores = new Map<number, number>();
     for (const rank of ranks) {
-      if (!rank || typeof rank !== "object") return fallback;
+      if (!rank || typeof rank !== "object") return returnFallback("fallback");
       const { index, score } = rank as { index?: unknown; score?: unknown };
       if (
         typeof index !== "number" ||
@@ -106,7 +130,7 @@ export async function rerankCandidates<T>(
         typeof score !== "number" ||
         !Number.isFinite(score) ||
         scores.has(index)
-      ) return fallback;
+      ) return returnFallback("fallback");
       scores.set(index, score);
     }
     // Every input must have exactly one valid score. Stable tie-break uses
@@ -115,9 +139,11 @@ export async function rerankCandidates<T>(
       .map((candidate, index) => ({ candidate, index, score: scores.get(index)! }))
       .sort((a, b) => b.score - a.score || a.index - b.index)
       .map(({ candidate, score }) => ({ ...candidate, rerankScore: score }));
+    observe("applied");
     return [...scoredHead, ...tail];
   } catch {
-    // Timeouts, connection errors or invalid responses do not break chat/voice.
-    return fallback;
+    // A model timeout is distinct from an HTTP/validation outage. Both fail open.
+    const timedOut = signal?.aborted && (signal.reason as { name?: string } | undefined)?.name === "TimeoutError";
+    return returnFallback(timedOut ? "timeout" : "fallback");
   }
 }
