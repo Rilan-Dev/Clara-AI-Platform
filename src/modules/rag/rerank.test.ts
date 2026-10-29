@@ -104,6 +104,44 @@ describe("optional model-based reranking", () => {
     expect(await run()).toEqual(candidates);
   });
 
+  it("rejects HTTP redirects to prevent KB snippets from reaching a second endpoint", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    const request = vi.fn(async (_url: string, init: RequestInit) => {
+      expect(init.redirect).toBe("error");
+      return { ok: false };
+    });
+    vi.stubGlobal("fetch", request);
+    expect(await run()).toEqual(candidates);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to vector order if snippet extraction throws", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    await expect(rerankCandidates("contract clause", candidates, () => {
+      throw new Error("invalid retrieved payload");
+    })).resolves.toEqual(candidates);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("bounds long multilingual query and candidate text before sending to TEI", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    const request = vi.fn(async (_url: string, _init: RequestInit) => ({
+      ok: true,
+      json: async () => [{ index: 0, score: 0.7 }, { index: 1, score: 0.8 }],
+    }));
+    vi.stubGlobal("fetch", request);
+    await rerankCandidates("Q".repeat(4_000), [
+      { id: "first", score: 0.9, snippet: "A".repeat(6_000) },
+      { id: "second", score: 0.8, snippet: "B".repeat(6_000) },
+    ], (hit) => hit.snippet);
+    const body = JSON.parse(String(request.mock.calls[0]![1]?.body));
+    expect(body.query).toHaveLength(2_000);
+    expect(body.texts).toHaveLength(2);
+    expect(body.texts.every((item: string) => item.length === 2_000)).toBe(true);
+  });
+
   it("never sends a request to an invalid or non-HTTP endpoint", async () => {
     process.env.RAG_RERANK_URL = "file:///etc/passwd";
     const request = vi.fn();
