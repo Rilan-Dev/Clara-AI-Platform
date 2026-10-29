@@ -119,7 +119,7 @@ vi.mock("@/modules/rag/diversify", () => ({
   diversifyByDocument: (results: unknown[]) => results,
 }));
 
-import { groundClaraContext, resetGroundingCaches } from "./grounding";
+import { groundClaraContext, groundingServerTiming, resetGroundingCaches } from "./grounding";
 import { clearQueryEmbeddingCache } from "./query-embedding-cache";
 import { clearRetrievalTranslationCache } from "./cross-lingual";
 import { clearKnowledgeTopicsCache } from "./knowledge-topics";
@@ -188,6 +188,10 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
       if (!outcome.ok) return;
       expect(outcome.result.sources[0]?.id).toBe("point-2");
       expect(outcome.result.sources[0]?.score).toBeCloseTo(0.7);
+      expect(outcome.result.timings?.rerankStatus).toBe("applied");
+      expect(outcome.result.timings?.rerankMs).toBeGreaterThanOrEqual(0);
+      expect(groundingServerTiming(outcome.result.timings)).toContain("rerank;dur=");
+      expect(groundingServerTiming(outcome.result.timings)).not.toContain("rerankStatus;dur=");
     } finally {
       vi.unstubAllGlobals();
       if (priorUrl === undefined) delete process.env.RAG_RERANK_URL;
