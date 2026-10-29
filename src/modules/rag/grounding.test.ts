@@ -155,6 +155,9 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.binding.agentId).toBe("agent-fixture-1");
     expect(outcome.result.binding.kbId).toBe(KB_FIXTURE.id);
     expect(outcome.result.kb.collection).toBe("kb_fixture_1");
+    // With Graph RAG disabled in this fixture, vector latency must not be
+    // misleadingly attributed to graph retrieval.
+    expect(outcome.result.timings?.graphMs).toBe(0);
   });
 
   it("does not treat unrelated high-cosine evidence as a grounded answer for a nonexistent clause", async () => {
