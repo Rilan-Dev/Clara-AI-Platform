@@ -24,7 +24,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
 
   return (
     <Sonner
-      expand={false}
+      // Let Sonner recalculate stack offsets when one card grows on hover.
+      // Non-hovered cards stay compact; the stack reflows instead of overlapping.
+      expand={true}
       theme={theme}
       className="toaster group clara-responsive-toaster"
       toastOptions={{
@@ -32,9 +34,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
           toast:
             "group toast relative box-border w-[calc(100vw-2rem)] min-w-0 max-w-[min(28rem,calc(100vw-2rem))] sm:w-[min(28rem,calc(100vw-3rem))] min-h-20 max-h-24 overflow-hidden pr-11 break-words [overflow-wrap:anywhere] whitespace-normal transition-[max-height,transform,opacity,box-shadow] duration-300 ease-in-out hover:z-50 hover:max-h-[min(70vh,32rem)] hover:overflow-y-auto hover:overscroll-contain hover:shadow-xl group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
           title:
-            "block max-h-10 overflow-hidden whitespace-normal break-words [overflow-wrap:anywhere] pr-1 leading-5 transition-[max-height] duration-300 ease-in-out group-hover:max-h-none group-hover:overflow-visible",
+            "block max-h-5 overflow-hidden whitespace-normal break-words [overflow-wrap:anywhere] pr-1 leading-5 transition-[max-height] duration-300 ease-in-out group-hover:max-h-none group-hover:overflow-visible",
           description:
-            "block max-h-12 overflow-hidden whitespace-normal break-words [overflow-wrap:anywhere] pr-1 leading-5 transition-[max-height] duration-300 ease-in-out group-hover:max-h-[1000px] group-hover:overflow-visible",
+            "block max-h-10 overflow-hidden whitespace-normal break-words [overflow-wrap:anywhere] pr-1 leading-5 transition-[max-height] duration-300 ease-in-out group-hover:max-h-[1000px] group-hover:overflow-visible",
           closeButton:
             "!left-auto !right-2 !top-2 !translate-x-0 !translate-y-0 z-10 flex size-6 items-center justify-center rounded-full border border-current/20 bg-background/90 p-0 shadow-sm",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
