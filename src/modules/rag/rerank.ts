@@ -48,7 +48,17 @@ export async function rerankCandidates<T>(
   const head = candidates.slice(0, maxCandidates);
   const tail = candidates.slice(maxCandidates);
   const maxChars = 2_000; // Bound inference cost and outbound content size.
-  const texts = head.map((item) => getText(item).slice(0, maxChars));
+  // A malformed/legacy Qdrant payload or extractor must never turn an
+  // optional inference stage into a chat retrieval failure.
+  let texts: string[];
+  try {
+    texts = head.map((item) => {
+      const text = getText(item);
+      return typeof text === "string" ? text.slice(0, maxChars) : "";
+    });
+  } catch {
+    return fallback;
+  }
   if (texts.some((text) => !text.trim())) return fallback;
 
   try {
@@ -67,6 +77,8 @@ export async function rerankCandidates<T>(
         return_text: false,
       }),
       signal: AbortSignal.timeout(timeoutMs),
+      // Never forward KB excerpts to a Location chosen by the endpoint.
+      redirect: "error",
       cache: "no-store",
     });
     if (!response.ok) return fallback;
