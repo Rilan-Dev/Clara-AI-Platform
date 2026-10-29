@@ -143,6 +143,56 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.kb.collection).toBe("kb_fixture_1");
   });
 
+  it("recovers a clause missed by semantic Top-K, preserving adjacent numbered requirements", async () => {
+    const scanned = [
+      { id: "exact-one", payload: { kbId: KB_FIXTURE.id, documentId: "arabic",
+        chunkIndex: 110, title: "Policy", chunk: "DO.4.2 Disaster recovery: 1 priority" } },
+      { id: "exact-two", payload: { kbId: KB_FIXTURE.id, documentId: "arabic",
+        chunkIndex: 111, title: "Policy", chunk: "DO.4.2: 1 priority 2 owners 3 activation" } },
+      { id: "continuation", payload: { kbId: KB_FIXTURE.id, documentId: "arabic",
+        chunkIndex: 112, title: "Policy", chunk: "4 impact 5 RPO 6 RTO 7 recovery actions DO.4.3 different topic" } },
+      { id: "unrelated", payload: { kbId: KB_FIXTURE.id, documentId: "english",
+        chunkIndex: 56, title: "Policy", chunk: "FOI.1.1 unrelated" } },
+    ];
+    const q = vi.fn(async (_collection: string, params: Record<string, unknown>) => {
+      const filter = params.filter as { must?: Array<{ has_id?: string[] }> };
+      const selected = filter?.must?.find((condition) => condition.has_id)?.has_id;
+      if (selected) {
+        return { points: scanned.filter((p) => selected.includes(p.id))
+          .map((p, i) => ({ ...p, score: 0.79 - i * 0.01 })) };
+      }
+      return { points: [{
+        id: "wrong-semantic", score: 0.85,
+        payload: { kbId: KB_FIXTURE.id, documentId: "english", chunk: "FOI.1.1 unrelated", title: "Not the requested clause" },
+      }] };
+    });
+    const scroll = vi.fn(async (_collection: string, opts: Record<string, unknown>) => {
+      if (!opts.filter) return { points: [], next_page_offset: null };
+      return { points: scanned, next_page_offset: null };
+    });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ query: q, scroll });
+    const outcome = await groundClaraContext({
+      kbId: KB_FIXTURE.id, query: "List all requirements of control DO.4.2",
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.sources.map((source) => source.id))
+      .toEqual(["exact-one", "exact-two", "continuation"]);
+    expect(outcome.result.context).toContain("7 recovery actions");
+    expect(outcome.result.context).not.toContain("DO.4.3");
+    expect(outcome.result.context).not.toContain("FOI.1.1");
+    expect(scroll).toHaveBeenCalledWith("kb_fixture_1", expect.objectContaining({
+      filter: { must: [{ key: "kbId", match: { value: KB_FIXTURE.id } }] },
+      with_vector: false,
+    }));
+    expect(q).toHaveBeenCalledWith("kb_fixture_1", expect.objectContaining({
+      filter: { must: [
+        { key: "kbId", match: { value: KB_FIXTURE.id } },
+        { has_id: ["exact-one", "exact-two", "continuation"] },
+      ] },
+    }));
+  });
+
   it("focuses exact-reference questions on supporting policy chunks, not high-score unrelated sections", async () => {
     const q = vi.fn(async (_collection: string, _params: Record<string, unknown>) => ({
       points: [
