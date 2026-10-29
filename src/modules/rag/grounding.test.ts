@@ -207,6 +207,45 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.context).not.toContain("DO.1.1");
   });
 
+  it("retrieves indexed exact references and neighbors without a full-KB scroll", async () => {
+    const rows = [
+      { id: "head", payload: { kbId: KB_FIXTURE.id, documentId: "en", chunkIndex: 10,
+        referenceIndexed: true, referenceIds: ["SYS-4.2"],
+        chunk: "SYS-4.2 Procedure includes steps 1, 2, and 3", title: "Procedure" } },
+      { id: "tail", payload: { kbId: KB_FIXTURE.id, documentId: "en", chunkIndex: 11,
+        referenceIndexed: true, referenceIds: [],
+        chunk: "4. notify 5. confirm 6. close 7. archive SYS-4.3 Next", title: "Procedure" } },
+    ];
+    const scroll = vi.fn(async (_collection: string, opts: Record<string, unknown>) => {
+      const must = ((opts.filter as { must?: Array<{ key?: string }> })?.must ?? []);
+      if (must.some((condition) => condition.key === "referenceIds")) {
+        return { points: [rows[0]], next_page_offset: null };
+      }
+      if (must.some((condition) => condition.key === "chunkIndex")) {
+        return { points: rows, next_page_offset: null };
+      }
+      throw new Error("Unexpected full collection payload scroll");
+    });
+    const q = vi.fn(async (_collection: string, opts: Record<string, unknown>) => {
+      const must = ((opts.filter as { must?: Array<{ has_id?: string[] }> })?.must ?? []);
+      return must.some((condition) => condition.has_id)
+        ? { points: [...rows].reverse().map((row, i) => ({ ...row, score: 0.82 + i * 0.01 })) }
+        : { points: [{ id: "semantic-noise", score: 0.92, payload: {
+          kbId: KB_FIXTURE.id, documentId: "other", chunk: "Unrelated descriptions",
+        } }] };
+    });
+    const count = vi.fn();
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({ scroll, query: q, count });
+    const outcome = await groundClaraContext({ kbId: KB_FIXTURE.id, query: "List SYS-4.2 requirements" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.sources.map((source) => source.id)).toEqual(["head", "tail"]);
+    expect(outcome.result.context).toContain("7. archive");
+    expect(outcome.result.context).not.toContain("SYS-4.3");
+    expect(scroll).toHaveBeenCalledTimes(2);
+    expect(count).not.toHaveBeenCalled();
+  });
+
   it("recovers a clause missed by semantic Top-K, preserving adjacent numbered requirements", async () => {
     const scanned = [
       { id: "exact-one", payload: { kbId: KB_FIXTURE.id, documentId: "arabic",
