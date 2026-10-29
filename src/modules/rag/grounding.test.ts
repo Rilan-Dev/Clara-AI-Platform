@@ -143,7 +143,7 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.kb.collection).toBe("kb_fixture_1");
   });
 
-  it("always filters Qdrant by the server-resolved KB, even without a document ID", async () => {
+  it("always filters Qdrant by the server-resolved KB, even without a document ID", async (_collection: string, _params: Record<string, unknown>) => {
     const q = vi.fn(async () => ({
       points: [{
         id: "allowed-point", score: 0.91,
@@ -162,7 +162,7 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     });
   });
 
-  it("ANDs an optional document scope with KB identity rather than replacing KB filtering", async () => {
+  it("ANDs an optional document scope with KB identity rather than replacing KB filtering", async (_collection: string, _params: Record<string, unknown>) => {
     const q = vi.fn(async () => ({ points: [] }));
     (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({
       query: q,
