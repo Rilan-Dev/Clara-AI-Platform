@@ -516,7 +516,7 @@ async function lookupIndexedReferencePoints(
 
   const lookup: ReferencePoint[] = [];
   const seen = new Set<string>();
-  await Promise.all([...rangesByDocument.entries()].map(async ([documentId, ranges]) => {
+  const batches = await Promise.all([...rangesByDocument.entries()].map(async ([documentId, ranges]) => {
     const page = await client.scroll(collectionName, {
       // Each header contributes no more than four indices. All ranges have a
       // hard upper bound because the header scan itself is capped at 24.
@@ -528,7 +528,12 @@ async function lookupIndexedReferencePoints(
       with_payload: ["chunk", "chunkIndex", "documentId", "kbId"],
       with_vector: false,
     });
-    for (const point of page.points) {
+    return { documentId, ranges, points: page.points };
+  }));
+  // The network requests may settle in any order. Keep the source-document
+  // grouping deterministic instead of letting completion order reorder cites.
+  for (const { documentId, ranges, points } of batches) {
+    for (const point of points) {
       const id = String(point.id);
       const payload = (point.payload ?? {}) as Record<string, unknown>;
       if (payload.documentId !== documentId || !Number.isSafeInteger(payload.chunkIndex)) continue;
@@ -540,7 +545,7 @@ async function lookupIndexedReferencePoints(
       seen.add(id);
       lookup.push({ id, payload });
     }
-  }));
+  }
   return lookup;
 }
 
