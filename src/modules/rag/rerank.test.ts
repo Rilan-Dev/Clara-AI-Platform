@@ -40,7 +40,7 @@ describe("optional model-based reranking", () => {
   it("orders by cross-encoder relevance, preserving Qdrant citation scores", async () => {
     process.env.RAG_RERANK_URL = "http://tei.local:8080/rerank";
     process.env.RAG_RERANK_ENABLED = "true";
-    const request = vi.fn(async () => ({
+    const request = vi.fn(async (_url: string, _init: RequestInit) => ({
       ok: true,
       json: async () => [
         { index: 1, score: 0.99 },
@@ -53,7 +53,7 @@ describe("optional model-based reranking", () => {
     expect(actual.map((hit) => hit.id)).toEqual(["b", "a", "c"]);
     expect(actual[0]?.score).toBe(0.73);
     expect(actual[0]?.rerankScore).toBe(0.99);
-    expect(JSON.parse(request.mock.calls[0]![1]!.body).texts).toEqual(
+    expect(JSON.parse(String(request.mock.calls[0]![1]?.body)).texts).toEqual(
       candidates.map((hit) => hit.snippet),
     );
   });
