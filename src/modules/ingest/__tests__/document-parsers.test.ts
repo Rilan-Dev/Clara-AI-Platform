@@ -15,7 +15,7 @@ function buildTestPdf(pageCount: 1 | 2 = 1): Buffer {
 
   if (pageCount === 2) {
     objects[1] = '<< /Type /Pages /Kids [3 0 R 6 0 R] /Count 2 >>';
-    const secondText = 'BT\n/F1 18 Tf\n72 720 Td\n(Second PDF page) Tj\nET\n'.replace(/\\\n/g, '\n');
+    const secondText = 'BT\n/F1 18 Tf\n72 720 Td\n(Second PDF page) Tj\nET\n';
     objects.push(
       '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 7 0 R >>',
       `<< /Length ${Buffer.byteLength(secondText, 'ascii')} >>\nstream\n${secondText}endstream`,
@@ -69,7 +69,7 @@ describe('document ingestion validation', () => {
     expect(parsed.text).toContain('Clara PDF test');
     expect(parsed.text).toContain('Second PDF page');
     expect(parsed.text.indexOf('Clara PDF test')).toBeLessThan(parsed.text.indexOf('Second PDF page'));
-    expect(parsed.text).not.toMatch(/--\\s*\\d+\\s+of\\s+2\\s*--/);
+    expect(parsed.text).not.toMatch(/--\s*\d+\s+of\s+2\s*--/);
     expect(parsed.metadata.pageCount).toBe(2);
   });
 
