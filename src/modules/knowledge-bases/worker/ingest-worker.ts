@@ -19,7 +19,7 @@
 import { ensureMigrated } from "@/lib/db/migrate";
 import { recordEmbeddingRuntimeFailure } from "@/modules/platform-health/core/incidents";
 import { parseDocumentFromBuffer } from "@/modules/admin/core/ingest/document-loader";
-import { chunkText } from "@/modules/admin/core/ingest/chunker";
+import { chunkText, chunkDocumentWithPages } from "@/modules/admin/core/ingest/chunker";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
@@ -112,7 +112,12 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
       throw new Error("Document parsed successfully but contained no extractable text");
     }
 
-    const chunks = chunkText(parsed.text);
+    // Feature-flagged rollout: legacy indexing is unchanged until canary QA.
+    const pageAware = process.env.RAG_SOURCE_PAGE_CHUNKING === "true";
+    const sourcedChunks = pageAware
+      ? chunkDocumentWithPages(parsed)
+      : chunkText(parsed.text).map((text) => ({ text }));
+    const chunks = sourcedChunks.map((entry) => entry.text);
     if (chunks.length === 0) {
       throw new Error("Chunking produced 0 chunks — document may be empty or corrupt");
     }
@@ -128,6 +133,11 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
       documentId,
       title: parsed.title || filePayload.filename,
       originalFilename: filePayload.filename,
+      ...(pageAware ? {
+        chunkLocations: sourcedChunks.map((entry) => ({
+          pageNumber: "pageNumber" in entry ? entry.pageNumber : undefined,
+        })),
+      } : {}),
     });
 
     await updateDocumentStatus(documentId, "ready", { chunkCount: chunks.length });
