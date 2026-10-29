@@ -22,7 +22,7 @@
 import { randomUUID } from "node:crypto";
 import { query, queryOne, withTransaction } from "@/lib/db";
 import { ensureCollectionExists, getQdrantClient } from "@/modules/admin/core/vector-store";
-import { embedBatches, ensureDocumentIdIndex } from "@/modules/admin/core/vector-store-kb";
+import { embedBatches, ensureDocumentIdIndex, ensureReferencePayloadIndexes } from "@/modules/admin/core/vector-store-kb";
 import { recordEmbeddingRuntimeFailure } from "@/modules/platform-health/core/incidents";
 import {
   ensureRuntimeSettings,
@@ -105,6 +105,7 @@ export async function startReindex(input: {
   const targetCollection = targetCollectionName(context.collection, input.index);
   await ensureCollectionExists(targetCollection, { vectorSize: target.dimension });
   await ensureDocumentIdIndex(targetCollection);
+  await ensureReferencePayloadIndexes(targetCollection);
   await registerCollectionEmbedding({
     collectionName: targetCollection,
     kbId: input.kbId,
