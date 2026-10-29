@@ -45,6 +45,53 @@ describe("optional model-based reranking", () => {
     expect(JSON.parse(String(request.mock.calls[0]![1]?.body)).texts).toHaveLength(2);
   });
 
+  it("reports only privacy-safe outcomes: applied, skipped and upstream fallback", async () => {
+    const observed = vi.fn();
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { index: 0, score: 0.2 },
+        { index: 1, score: 0.9 },
+        { index: 2, score: 0.1 },
+      ],
+    })));
+    await rerankCandidates("contract clause", candidates, (hit) => hit.snippet, { onObservation: observed });
+    expect(observed).toHaveBeenLastCalledWith({
+      status: "applied", ms: expect.any(Number), candidateCount: 3,
+    });
+    process.env.RAG_RERANK_ENABLED = "false";
+    await rerankCandidates("contract clause", candidates, (hit) => hit.snippet, { onObservation: observed });
+    expect(observed).toHaveBeenLastCalledWith({
+      status: "skipped", ms: expect.any(Number), candidateCount: 3,
+    });
+    process.env.RAG_RERANK_ENABLED = "true";
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false })));
+    await rerankCandidates("contract clause", candidates, (hit) => hit.snippet, { onObservation: observed });
+    expect(observed).toHaveBeenLastCalledWith({
+      status: "fallback", ms: expect.any(Number), candidateCount: 3,
+    });
+    // A faulty diagnostic callback must never make optional reranking fail.
+    await expect(rerankCandidates("contract clause", candidates, (hit) => hit.snippet, {
+      onObservation: () => { throw new Error("telemetry unavailable"); },
+    })).resolves.toEqual(candidates);
+  });
+
+  it("distinguishes TEI timeout from other fail-open retrieval outcomes", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    process.env.RAG_RERANK_TIMEOUT_MS = "100";
+    const observed = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(init.signal instanceof AbortSignal ? init.signal.reason : new Error("aborted")), { once: true });
+    })));
+    await expect(rerankCandidates("contract clause", candidates, (hit) => hit.snippet, {
+      onObservation: observed,
+    })).resolves.toEqual(candidates);
+    expect(observed).toHaveBeenCalledWith({
+      status: "timeout", ms: expect.any(Number), candidateCount: 3,
+    });
+  });
+
   it("does not contact a model without an operator-configured endpoint", async () => {
     delete process.env.RAG_RERANK_URL;
     const request = vi.fn();
