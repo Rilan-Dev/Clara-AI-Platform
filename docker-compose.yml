@@ -193,6 +193,33 @@ services:
       retries: 3
       start_period: 90s
 
+  # ─────────────── Self-hosted multilingual RAG reranker (OPT-IN) ─────────────
+  # TEI cross-encoder on the private Compose network, never exposed publicly.
+  # Start only on hosts with enough free RAM/CPU:
+  #   docker compose --profile rerank up -d clara-reranker
+  # Then set RAG_RERANK_URL=http://clara-reranker:80/rerank in backend .env,
+  # recreate clara-backend, and run scripts/probe-rag-reranker.mjs.
+  # Plain 'docker compose up' does not start this resource-heavy service.
+  clara-reranker:
+    profiles: ["rerank"]
+    image: ${RAG_RERANK_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.9}
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: "2560M"
+          pids: 256
+        reservations:
+          memory: "768M"
+    memswap_limit: "2560M"
+    command:
+      - --model-id
+      - ${RAG_RERANK_MODEL:-Alibaba-NLP/gte-multilingual-reranker-base}
+    volumes:
+      - ./infra/rag-reranker:/data
+
   # ──────────────── Local RabbitMQ ────────────────
   # Kept inside the Clara Docker network so the bridge connects by the
   # service name "rabbitmq". Management UI: http://127.0.0.1:15672 (tunnel).
