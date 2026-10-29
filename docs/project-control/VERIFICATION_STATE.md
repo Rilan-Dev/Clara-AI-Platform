@@ -1,3 +1,9 @@
+## TOAST CARD EXPANSION + OVERFLOW CORRECTION — 2026-10-29
+
+Source change committed: `e05f395cd82fd9c110fad75f3067772d5881f753`. The toast card now expands on hover up to a viewport-safe maximum and uses internal scrolling for unusually long messages; the whole stack remains non-expanded. This is source-level implementation only. No browser check, tests, type-check, build, CI, Vercel, or Gate was run or awaited. No runtime PASS is claimed.
+
+---
+
 ## PLATFORM HEALTH TOAST READABILITY + DISMISSAL — 2026-10-29
 
 - Updated the shared Sonner toast styling so titles and descriptions render in full without hover; long messages wrap and the card grows vertically while the stack can animate layout changes. Close control is anchored inside the card's upper-right with reserved text space.
