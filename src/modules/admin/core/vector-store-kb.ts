@@ -69,6 +69,8 @@ export type KbChunkMeta = {
   documentId:       string;
   title:            string;
   originalFilename: string;
+  /** Optional per-chunk source location; remains absent for legacy content. */
+  chunkLocations?: ReadonlyArray<{ pageNumber?: number }>;
 };
 
 // ── embed with retry ──────────────────────────────────────────────────────────
@@ -311,7 +313,9 @@ export async function upsertDocumentsKb(
   const embeddings = await embedBatches(textChunks, providerConfig, metering);
   const uploadedAt = new Date().toISOString();
 
-  const points = textChunks.map((chunk, index) => ({
+  const points = textChunks.map((chunk, index) => {
+    const pageNumber = meta.chunkLocations?.[index]?.pageNumber;
+    return {
     id: randomUUID(),
     vector: embeddings[index]!,
     payload: {
@@ -324,8 +328,11 @@ export async function upsertDocumentsKb(
       chunk,
       chunkIndex: index,
       uploadedAt,
+      ...(typeof pageNumber === "number" && Number.isSafeInteger(pageNumber) && pageNumber > 0
+        ? { pageNumber } : {}),
     },
-  }));
+    };
+  });
 
   await upsertPointBatches(collectionName, points);
   console.log(`[vs-kb] ✅ upserted ${points.length} points into "${collectionName}"`);
@@ -444,6 +451,7 @@ export type KbChunk = {
   title:            string;
   originalFilename: string;
   documentId:       string;
+  pageNumber?:      number;
 };
 
 function qdrantErrorMessage(err: unknown): string {
@@ -536,6 +544,8 @@ export async function listDocumentChunks(
         title:            String(p.title ?? ""),
         originalFilename: String(p.originalFilename ?? ""),
         documentId:       String(p.documentId ?? documentId),
+        ...(typeof p.pageNumber === "number" && Number.isSafeInteger(p.pageNumber) && p.pageNumber > 0
+          ? { pageNumber: p.pageNumber } : {}),
       });
     }
 
@@ -581,7 +591,18 @@ export async function updateChunk(
   const embedding = await embedWithRetry(newText, providerConfig);
 
   const client = getQdrantClient();
+  // Preserve future structured metadata, including source-page provenance.
+  const existing = await client.retrieve(collectionName, {
+    ids: [pointId],
+    with_payload: true,
+    with_vector: false,
+  });
+  const original = (existing[0]?.payload ?? {}) as Record<string, unknown>;
+  if (original.kbId !== meta.kbId || original.documentId !== meta.documentId) {
+    throw new Error("Chunk no longer belongs to the requested document");
+  }
   const payload = {
+    ...original,
     kbId:             meta.kbId,
     documentId:       meta.documentId,
     title:            meta.title,
