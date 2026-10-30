@@ -55,6 +55,22 @@ describe("bounded exact-clause recovery and multi-chunk continuity", () => {
     expect(windows.map((w) => w.id)).toEqual(["en1", "ar1", "en2"]);
   });
 
+  it("retains an immediately preceding priority tag without leaking prior control text", () => {
+    const rows = [
+      point("ar", "arabic", 110,
+        "DO.4.1 previous backup instructions. أولوية 2 DO.4.2 التعافي من الكوارث: 1. أنظمة المعلومات"),
+      point("en", "english", 122,
+        "DO.4.1 old backup instructions. P2 DO.4.2 Disaster Recovery: 1. system priorities"),
+      point("far", "other", 6,
+        "P3 previous content with lots of unrelated words. DO.4.2 Disaster Recovery"),
+    ];
+    const windows = buildReferenceWindows(rows, "What priority is DO.4.2?", 6);
+    expect(windows.find(w => w.id === "ar")?.text).toMatch(/أولوية 2\\s+DO\\.4\\.2/);
+    expect(windows.find(w => w.id === "en")?.text).toMatch(/P2\\s+DO\\.4\\.2/);
+    expect(windows.find(w => w.id === "far")?.text).toMatch(/^DO\\.4\\.2/);
+    expect(windows.map(w => w.text).join(" ")).not.toContain("old backup instructions");
+  });
+
   it("does not trigger lexical recovery on ordinary questions", () => {
     expect(buildReferenceWindows(rows, "What are your opening hours?", 6)).toEqual([]);
     expect(REFERENCE_SCAN_LIMIT).toBeLessThanOrEqual(2048);
