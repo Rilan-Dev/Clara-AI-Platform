@@ -41,10 +41,13 @@ describe("buildTurnGuidance — provider-neutral, no canned refusal", () => {
     expect(text).toContain("Never invent additional requirements");
   });
 
-  it("spoken answers retain their own brevity policy without forced long lists", () => {
+  it("spoken answers preserve every evidenced requirement for explicit complete-list requests", () => {
     const text = buildTurnGuidance({ grounded: true, intent: "knowledge", channel: "voice" });
-    expect(text).not.toContain("every applicable numbered or bulleted requirement");
-    expect(text).toMatch(/offer to continue/);
+    expect(text).toContain("every applicable numbered or bulleted requirement");
+    expect(text).toContain("never present examples or a partial top-K retrieval as the full set");
+    expect(text).toContain("enumerate all items supported by the retrieved evidence");
+    expect(text).toContain("only a partial answer");
+    expect(text).toContain("never silently imply the list is complete");
   });
 
   it("voice: spoken replies always end on complete sentences", () => {
