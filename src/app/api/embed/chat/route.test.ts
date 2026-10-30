@@ -12,7 +12,7 @@ vi.mock("@/modules/knowledge-bases/core/db", () => ({
   getAssistantConfigByKb: vi.fn(async () => ({ maxTokens: 500, temperature: 0.2, outOfScopeReply: "n/a" })),
 }));
 const order: string[] = [];
-const groundClaraContext = vi.fn(async (...args: unknown[]) => {
+const groundClaraContext = vi.fn(async (...args: unknown[]): Promise<unknown> => {
   void args;
   order.push("grounding");
   return {
@@ -46,7 +46,7 @@ vi.mock("@/lib/quota-admission", () => ({
 }));
 vi.mock("@/modules/knowledge-bases/core/analytics-db", () => ({ finalizeQueryEvent: vi.fn() }));
 vi.mock("@/modules/knowledge-bases/core/config-builder", () => ({ buildSystemPrompt: vi.fn(() => "SYSTEM") }));
-const chatStream = vi.fn(async function* () { yield "Hello"; });
+const chatStream = vi.fn(async function* (_messages?: unknown) { yield "Hello"; });
 const getProvider = vi.fn((config: unknown) => { void config; return { chatStream, getModelName: () => "m" }; });
 vi.mock("@/modules/ai-core/factory", () => ({ ProviderFactory: { getProvider: (c: unknown) => getProvider(c) } }));
 
