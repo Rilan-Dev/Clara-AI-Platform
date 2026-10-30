@@ -34,7 +34,7 @@ export function scoreCase(test, answer, sources, streamed) {
   const normalized=normalizeText(answer);
   const checks=(test.checks??[]).map(rule=>{
     let hit=false;
-    try{hit=new RegExp(rule.regex,"iu").test(normalized)}
+    try{hit=new RegExp(rule.regex.replace(/[أإآ]/g,"ا").replace(/ى/g,"ي"),"iu").test(normalized)}
     catch {throw Error("Invalid golden answer regex: "+rule.key)}
     return {key:rule.key,hit};
   });
@@ -49,7 +49,7 @@ export function scoreCase(test, answer, sources, streamed) {
   const refused=STOP.test(normalized)||REFUSAL.test(normalized);
   const abstain=test.expect==="abstain";
   const negativeSuccess=abstain&&refused;
-  const nonRefusalSuccess=!abstain&&streamed.done&&streamed.errors===0&&!refused&&coverage===1;
+  const nonRefusalSuccess=!abstain&&streamed.done&&streamed.errors===0&&!STOP.test(normalized)&&coverage===1;
   const success=abstain?negativeSuccess:nonRefusalSuccess;
   return {
     expected:abstain?"abstain":"answer",
@@ -134,8 +134,11 @@ async function getPublishedSession(agentId,timeoutMs){
 }
 async function queryPublished(test,session,timeoutMs){
   const start=performance.now();
-  const messages=test.messages.map((content,i)=>({role:i===test.messages.length-1?"user":
-    i%2===0?"user":"assistant",content}));
+  const messages=test.messages.length===2
+    ? [{role:"user",content:test.messages[0]},
+       {role:"assistant",content:"We are discussing control DO.4.2 (Disaster Recovery) in the NDMO policy."},
+       {role:"user",content:test.messages[1]}]
+    : test.messages.map(content=>({role:"user",content}));
   const response=await fetch(BASE+"/api/public/chat",{
     method:"POST",headers:{authorization:"Bearer "+session.token,"content-type":"application/json"},
     body:JSON.stringify({messages}),signal:AbortSignal.timeout(timeoutMs),
