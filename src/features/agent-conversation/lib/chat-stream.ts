@@ -21,6 +21,12 @@
 
 import { apiUrl } from "@/lib/runtime";
 
+export interface ChatStreamTiming {
+  phase: "headers" | "first_token" | "complete";
+  elapsedMs: number;
+  serverTiming?: string | null;
+}
+
 export interface ChatStreamCallbacks {
   onSources: (sources: Array<{ title: string; snippet: string; index: number }>) => void;
   onToken: (token: string) => void;
@@ -29,6 +35,8 @@ export interface ChatStreamCallbacks {
   onRetrievalDegraded?: (payload: { message?: string }) => void;
   onError: (message: string) => void;
   onDone: () => void;
+  /** Client-observed milestones; elapsed includes network, RAG and generation. */
+  onTiming?: (timing: ChatStreamTiming) => void;
 }
 
 export interface ChatStreamOptions {
@@ -47,6 +55,15 @@ export async function streamAgentChat(
   callbacks: ChatStreamCallbacks,
 ): Promise<void> {
   const { kbId, messages, endpoint, extraBody, signal } = options;
+  const startedAt = performance.now();
+  let sawFirstToken = false;
+  let serverTiming: string | null = null;
+  const mark = (phase: ChatStreamTiming["phase"]) =>
+    callbacks.onTiming?.({
+      phase,
+      elapsedMs: Math.round(performance.now() - startedAt),
+      serverTiming,
+    });
 
   const requestHeaders = new Headers({ "Content-Type": "application/json" });
   if (options.headers) {
@@ -71,6 +88,9 @@ export async function streamAgentChat(
     callbacks.onDone();
     return;
   }
+
+  serverTiming = response.headers.get("server-timing");
+  mark("headers");
 
   if (!response.ok || !response.body) {
     let message = `Chat request failed (HTTP ${response.status})`;
@@ -120,7 +140,13 @@ export async function streamAgentChat(
             break;
           }
           case "token":
-            if (typeof event.payload === "string" && event.payload) callbacks.onToken(event.payload);
+            if (typeof event.payload === "string" && event.payload) {
+              if (!sawFirstToken) {
+                sawFirstToken = true;
+                mark("first_token");
+              }
+              callbacks.onToken(event.payload);
+            }
             break;
           case "retrieval_degraded":
             callbacks.onRetrievalDegraded?.((event.payload ?? {}) as { message?: string });
@@ -133,6 +159,7 @@ export async function streamAgentChat(
             callbacks.onError(String(event.payload ?? "The assistant could not answer."));
             break;
           case "done":
+            mark("complete");
             callbacks.onDone();
             return;
           default:
@@ -141,8 +168,8 @@ export async function streamAgentChat(
       }
     }
     // Stream ended without an explicit done event.
-    if (!sawError) callbacks.onDone();
-    else callbacks.onDone();
+    mark("complete");
+    callbacks.onDone();
   } catch (err) {
     if ((err as Error)?.name === "AbortError") {
       callbacks.onDone();
