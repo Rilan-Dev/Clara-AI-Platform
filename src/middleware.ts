@@ -101,7 +101,7 @@ export function middleware(request: NextRequest): NextResponse {
   const publishedAgentTransport =
     request.method === "POST" &&
     (pathname === "/api/embed/chat" || pathname === "/api/embed/session") &&
-    /^Bearer pub_v1\\.[^.\\s]+\\.[^.\\s]+$/.test(header);
+    /^Bearer pub_v1\.[^.\s]+\.[^.\s]+$/.test(header);
   if (gatedFeature && !publishedAgentTransport && !isPlatformFeatureEnabled(gatedFeature)) {
     const response = pathname.startsWith("/api/")
       ? NextResponse.json(
