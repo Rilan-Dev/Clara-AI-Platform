@@ -127,6 +127,13 @@ test("evidence score counts exact source clause text and both page citations",()
   assert.equal(result.expectedPagesCovered,2);
 });
 
+
+test("does not fabricate evidence by joining the end of one excerpt to the next",()=>{
+  const excerpts=[{snippet:"prioritized list of",pageNumber:60},
+    {snippet:"information systems",pageNumber:60}];
+  assert.equal(scoreEvidence(excerpts).covered,0);
+});
+
 test("CLI missing session in non-interactive context fails without making requests",()=>{
   const env={...process.env};
   delete env.CLARA_DEBUG_TOKEN;
