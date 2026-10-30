@@ -112,3 +112,93 @@ test('stops further quota use immediately on auth failure', async () => {
     await close(localServer.server);
   }
 });
+
+
+test('auth-only preflight checks both origins without RAG quota or leaking identity', async () => {
+  const calls = [];
+  const createAuthServer = (status, error) => createServer((req, res) => {
+    calls.push({ url: req.url, method: req.method, auth: req.headers.authorization, status });
+    res.writeHead(status, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(status === 200
+      ? { user: { email: 'PRIVATE-EMAIL', id: 'PRIVATE-USER' }, session: { id: 'PRIVATE-SESSION' } }
+      : { error, privateDetail: 'PRIVATE-ERROR-DETAIL' }));
+  });
+  const publicServer = createAuthServer(403, 'Account is suspended');
+  const localServer = createAuthServer(200);
+  try {
+    await listen(publicServer);
+    await listen(localServer);
+    const r = await exec([
+      '--auth-only',
+      '--public-url', 'http://127.0.0.1:' + publicServer.address().port,
+      '--local-url', 'http://127.0.0.1:' + localServer.address().port,
+    ]);
+    assert.equal(r.code, 2);
+    assert.equal(calls.length, 2);
+    assert.ok(calls.every(c => c.url === '/api/auth/me' && c.method === 'GET'));
+    assert.ok(calls.every(c => c.auth === 'Bearer secret-fixture-token'));
+    assert.match(r.stdout, /public auth: HTTP 403/);
+    assert.match(r.stdout, /reason: account suspended/);
+    assert.match(r.stdout, /local\s+auth: HTTP 200/);
+    assert.match(r.stdout, /session valid/);
+    assert.doesNotMatch(r.stdout + r.stderr,
+      /secret-fixture-token|PRIVATE-EMAIL|PRIVATE-USER|PRIVATE-SESSION|PRIVATE-ERROR-DETAIL/);
+  } finally {
+    await close(publicServer);
+    await close(localServer);
+  }
+});
+
+test('auth-only success performs only GET /api/auth/me on each origin', async () => {
+  const seen = [];
+  const authServer = createServer((req, res) => {
+    seen.push(req.url + ':' + req.method);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ user: { id: 'private' } }));
+  });
+  try {
+    await listen(authServer);
+    const origin = 'http://127.0.0.1:' + authServer.address().port;
+    const r = await exec(['--auth-only', '--public-url', origin, '--local-url', origin]);
+    assert.equal(r.code, 0, r.stderr);
+    assert.deepEqual(seen, ['/api/auth/me:GET', '/api/auth/me:GET']);
+    assert.match(r.stdout, /public auth: HTTP 200/);
+    assert.match(r.stdout, /local\s+auth: HTTP 200/);
+    assert.doesNotMatch(r.stdout, /private/);
+  } finally {
+    await close(authServer);
+  }
+});
+
+test('RAG 403 diagnoses a missing draft permission without echoing response bodies', async () => {
+  const seen = [];
+  const publicServer = createServer((req, res) => {
+    seen.push(req.url);
+    req.resume();
+    res.writeHead(403, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({
+      error: 'Forbidden — requires permission: kb:update',
+      privatePayload: 'PRIVATE DOCUMENT CONTENT',
+    }));
+  });
+  const localServer = fixture();
+  try {
+    await listen(publicServer);
+    await listen(localServer.server);
+    const r = await exec([
+      '--kb-id', 'private-kb', '--question', 'private-question',
+      '--public-url', 'http://127.0.0.1:' + publicServer.address().port,
+      '--local-url', 'http://127.0.0.1:' + localServer.server.address().port,
+      '--warmup', '0', '--repeat', '2',
+    ]);
+    assert.equal(r.code, 2);
+    assert.deepEqual(seen, ['/api/rag/search']);
+    assert.equal(localServer.calls.length, 0);
+    assert.match(r.stdout, /reason: KB draft edit permission missing/);
+    assert.match(r.stderr, /Use --auth-only/);
+    assert.doesNotMatch(r.stdout + r.stderr, /PRIVATE DOCUMENT CONTENT|private-question|private-kb/);
+  } finally {
+    await close(publicServer);
+    await close(localServer.server);
+  }
+});
