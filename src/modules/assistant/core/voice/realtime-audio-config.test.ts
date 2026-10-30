@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   buildMicrophoneConstraints,
+  buildOpenAIClientAudioUpdate,
   getRealtimeAudioPolicy,
   hasUsableTranscript,
 } from "./realtime-audio-config";
@@ -72,6 +73,34 @@ describe("realtime audio policy", () => {
       autoGainControl: false,
       channelCount: 1,
     });
+  });
+});
+
+describe("OpenAI client session update retains server authorization", () => {
+  it("only updates audio settings, never replacing tenant prompt, tools, or output limit", () => {
+    const event = buildOpenAIClientAudioUpdate({
+      voice: "marin",
+      threshold: 0.5,
+      prefixPaddingMs: 300,
+      silenceDurationMs: 700,
+      transcriptionModel: "gpt-4o-mini-transcribe",
+      transcriptionLanguage: "ar",
+    });
+    expect(event).toMatchObject({
+      type: "session.update",
+      session: {
+        type: "realtime",
+        audio: {
+          output: { voice: "marin" },
+          input: {
+            turn_detection: { type: "server_vad", create_response: false },
+            transcription: { model: "gpt-4o-mini-transcribe", language: "ar" },
+          },
+        },
+      },
+    });
+    expect(Object.keys(event.session)).toEqual(["type", "audio"]);
+    expect(JSON.stringify(event)).not.toMatch(/instructions|tools|tool_choice|max_output_tokens/);
   });
 });
 
