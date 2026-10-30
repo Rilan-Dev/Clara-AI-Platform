@@ -95,7 +95,14 @@ export async function rerankCandidates<T>(
   // Same optional-marker invariant as `fallback` above: the unscored tail
   // stays a valid Reranked<T> (diversification may still select it).
   const tail = candidates.slice(maxCandidates) as Array<Reranked<T>>;
-  const maxChars = 2_000; // Bound inference cost and outbound content size.
+  // An experiment-only operator bound for TEI payload size. Keep the existing
+  // 2000-character production default and require a valid integer override.
+  // Truncation affects only TEI input, never the source excerpts shown to AI
+  // or the original Qdrant/citation scores.
+  const maxTextChars = Number(process.env.RAG_RERANK_MAX_TEXT_CHARS);
+  const maxChars = Number.isSafeInteger(maxTextChars) && maxTextChars >= 128
+    ? Math.min(maxTextChars, 2_000)
+    : 2_000;
   // A malformed/legacy Qdrant payload or extractor must never turn an
   // optional inference stage into a chat retrieval failure.
   let texts: string[];
