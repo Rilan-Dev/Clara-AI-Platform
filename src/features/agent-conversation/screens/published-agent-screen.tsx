@@ -169,7 +169,7 @@ export default function PublishedAgentScreen() {
     language: config?.assistant
       ? { assistant: config.assistant.defaultLanguage || "en", customer: config.assistant.allowedLanguages }
       : undefined,
-    chatEndpoint: "/api/embed/chat",
+    chatEndpoint: "/api/public/chat",
     chatHeaders,
   });
 
