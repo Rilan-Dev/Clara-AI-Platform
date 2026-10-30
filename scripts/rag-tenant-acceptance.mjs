@@ -96,8 +96,9 @@ export function parseArgs(args) {
   let url;
   try{url=new URL(opts.baseUrl)}catch{throw new Error("Invalid origin")}
   if(url.pathname!=="/" || url.username || url.password || url.search || url.hash ||
-     !(url.protocol==="https:" || (url.protocol==="http:" && url.hostname==="127.0.0.1")))
-    throw new Error("Only HTTPS origin or loopback HTTP is allowed");
+     !(url.origin===DEFAULT_URL ||
+       (url.protocol==="http:" && url.hostname==="127.0.0.1" && url.port==="4000")))
+    throw new Error("Only the verified Clara HTTPS origin or local loopback backend is allowed");
   opts.baseUrl=url.origin;
   return opts;
 }
