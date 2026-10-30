@@ -48,7 +48,10 @@ export function selectNumberedTableEvidence(
       const lowered = value.toLowerCase();
       const hasCount = lowered.includes(num + " " + intent.subject) ||
         new RegExp("\\b" + num + "\\s+(?:domain|category|section|policy|standard|chapter|area|type|control|requirement)s?\\b", "i").test(value) ||
-        new RegExp("المجالات[^0-9]{0,6}" + num, "u").test(value);
+        // OCR frequently reorders the alif/lam in Arabic "domains":
+        // المجاالت / المجالات. Require adjacency to the stated count,
+        // plus a recognized table header below, rather than one spelling.
+        new RegExp("المجا[^0-9]{0,14}" + num, "u").test(value);
       const isTable = /\bID\s+Domain\s+#|\bDomain\s+#\s+of\s+Controls|الرقم\s+المجال|الرقم\s+المجالات/i.test(value);
       if (!hasCount || !isTable) continue;
       const inArabic = /[\u0600-\u06FF]/.test(value);
@@ -63,8 +66,17 @@ export function selectNumberedTableEvidence(
   for (let n = 1; n <= 2; n++) {
     const following = best.group[best.position + n];
     if (!following || following.chunkIndex !== row.chunkIndex + n) break;
-    if (/^\s*(?:8\.2\.|9\.\d+\.\s+\w+\s+Domain)/i.test(following.text)) break;
-    answer.push(following);
+    // Stop at the next numbered *section* header, even if it starts after
+    // the table's final row in the SAME OCR/PDF chunk. Numbered table
+    // columns lack dots, so a heading like "8.2. Implementation Plan" is
+    // a reliable generic section boundary rather than a policy code.
+    const sectionBoundary = following.text.search(/\b\d{1,2}\.\d{1,2}\.\s+[A-Za-z\u0600-\u06FF]/u);
+    if (sectionBoundary === 0) break;
+    const selected = sectionBoundary > 0
+      ? { ...following, text: following.text.slice(0, sectionBoundary).trim() }
+      : following;
+    if (selected.text) answer.push(selected);
+    if (sectionBoundary > 0) break;
     if (answer.reduce((t, c) => t + c.text.length, 0) >= 4500) break;
   }
   return answer;
