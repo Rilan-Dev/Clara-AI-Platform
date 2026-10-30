@@ -504,6 +504,79 @@
       ],
       "expect": "abstain",
       "checks": []
+    },
+    {
+      "id": "all-fifteen-domains",
+      "category": "cross-document-enumeration",
+      "language": "en",
+      "pages": [
+        14
+      ],
+      "messages": [
+        "What are all 15 domains in the NDMO national data management and personal data protection standards? List each, not just examples."
+      ],
+      "checks": [
+        {
+          "key": "governance",
+          "regex": "data governance|حوكمة البيانات"
+        },
+        {
+          "key": "metadata",
+          "regex": "metadata|data catalog|البيانات الوصفية|دليل البيانات"
+        },
+        {
+          "key": "quality",
+          "regex": "data quality|جودة البيانات"
+        },
+        {
+          "key": "storage",
+          "regex": "data operations|data storage|تخزين البيانات"
+        },
+        {
+          "key": "content",
+          "regex": "document and content management|إدارة المحتوى|ادارة المحتوى"
+        },
+        {
+          "key": "architecture",
+          "regex": "data architecture|modeling|modelling|النمذجة"
+        },
+        {
+          "key": "integration",
+          "regex": "data integration|data sharing|تكامل البيانات|مشاركتها"
+        },
+        {
+          "key": "master",
+          "regex": "master data|reference data|البيانات المرجعية|البيانات الرئيسية"
+        },
+        {
+          "key": "businessAnalytics",
+          "regex": "business intelligence|analytics|ذكاء الأعمال|التحليلات"
+        },
+        {
+          "key": "value",
+          "regex": "data value realization|data monetization|تحقيق القيمة"
+        },
+        {
+          "key": "open",
+          "regex": "open data|البيانات المفتوحة"
+        },
+        {
+          "key": "freedom",
+          "regex": "freedom of information|حرية المعلومات"
+        },
+        {
+          "key": "classification",
+          "regex": "data classification|تصنيف البيانات"
+        },
+        {
+          "key": "personal",
+          "regex": "personal data protection|حماية البيانات الشخصية"
+        },
+        {
+          "key": "security",
+          "regex": "data security|data protection|أمن البيانات|امن البيانات"
+        }
+      ]
     }
   ]
 }
