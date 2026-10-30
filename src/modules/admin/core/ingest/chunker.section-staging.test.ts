@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertLocalStagingUrl, evidenceCoverageAtK, pageHitRanks, validateQuestions } from "../../../../../scripts/benchmark-rag-section-staging";
+import { assertLocalStagingUrl, evidenceCoverageAtK, pageSetCoverageAtK, pageHitRanks, validateQuestions } from "../../../../../scripts/benchmark-rag-section-staging";
 
 describe("disposable real-PDF retrieval benchmark scoring", () => {
   it("reports first relevant page rank, recall@3 and reciprocal rank", () => {
@@ -40,7 +40,7 @@ describe("disposable real-PDF retrieval benchmark scoring", () => {
       .toEqual({ required: 2, covered: 1, recall: 0.5, complete: false });
     expect(evidenceCoverageAtK(chunks, ["Recovery Point Objectives", "incident response roles"], 3))
       .toEqual({ required: 2, covered: 2, recall: 1, complete: true });
-    expect(evidenceCoverageAtK(["Recovery\\n Point  Objectives"], ["recovery point objectives"], 1).recall).toBe(1);
+    expect(evidenceCoverageAtK(["Recovery\n Point  Objectives"], ["recovery point objectives"], 1).recall).toBe(1);
   });
   it("does not count page-matching evidence when its clause is absent", () => {
     const result = evidenceCoverageAtK(["DO.4.2 Disaster Recovery"], ["Recovery Time Objectives"], 1);
@@ -55,6 +55,19 @@ describe("disposable real-PDF retrieval benchmark scoring", () => {
     expect(()=>validateQuestions([{...q,expectedEvidence:["Recovery Point Objectives","recovery   point objectives"]}],[60])).toThrow();
     expect(()=>validateQuestions([{...q,expectedEvidence:["x"]}],[60])).toThrow();
     expect(()=>evidenceCoverageAtK([], [], 3)).toThrow();
+  });
+  it("records cross-page evidence completeness separately from a page hit", () => {
+    expect(pageSetCoverageAtK([60,60,61],[60,61],2)).toEqual({required:2,matched:1,complete:false});
+    expect(pageSetCoverageAtK([60,60,61],[60,61],3)).toEqual({required:2,matched:2,complete:true});
+    expect(pageSetCoverageAtK([60,60],[60,61],6).complete).toBe(false);
+    expect(()=>pageSetCoverageAtK([60],[],3)).toThrow();
+  });
+  it("rejects invalid page-label lists and references to unknown PDF pages", () => {
+    const valid={id:"do42",question:"Explain disaster recovery",expectedPage:60,expectedPages:[60,61]};
+    expect(()=>validateQuestions([valid],[60,61])).not.toThrow();
+    expect(()=>validateQuestions([{...valid,expectedPages:[60,60]}],[60,61])).toThrow();
+    expect(()=>validateQuestions([{...valid,expectedPages:[61]}],[60,61])).toThrow();
+    expect(()=>validateQuestions([{...valid,expectedPages:[60,62]}],[60,61])).toThrow();
   });
   it("rejects empty benchmark sets", () => {
     expect(()=>validateQuestions([], [1])).toThrow();

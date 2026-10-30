@@ -30,7 +30,12 @@ const MAX_FILE_BYTES = 5_000_000;
 const CHUNK_SIZE = 900;
 const OVERLAP = 150;
 
-export type StagingQuestion = { id: string; question: string; expectedPage: number; expectedEvidence?: string[] };
+export type StagingQuestion = {
+  id: string; question: string; expectedPage: number;
+  expectedEvidence?: string[];
+  /** Optional multiple page labels for cross-page source-evidence support. */
+  expectedPages?: number[];
+};
 type Chunk = { text: string; pageNumber?: number };
 type Rank = { id: number | string; score: number; payload?: { pageNumber?: number } };
 
@@ -77,6 +82,12 @@ export function validateQuestions(questions: StagingQuestion[], pageNumbers: num
         throw new Error("Invalid expected evidence labels");
       }
     }
+    if (q.expectedPages !== undefined && (
+      !Array.isArray(q.expectedPages) || !q.expectedPages.length || q.expectedPages.length > 12 ||
+      !q.expectedPages.includes(q.expectedPage) ||
+      new Set(q.expectedPages).size !== q.expectedPages.length ||
+      q.expectedPages.some(p => !Number.isSafeInteger(p) || !pages.has(p))
+    )) throw new Error("Invalid cross-page evidence labels");
     ids.add(q.id);
   }
 }
@@ -101,6 +112,18 @@ export function evidenceCoverageAtK(
   }).length;
   return { required: expectedEvidence.length, covered, recall: covered / expectedEvidence.length,
     complete: covered === expectedEvidence.length };
+}
+
+/** Verifies that the returned evidence spans EVERY declared source page.
+ * This is not validation of generated citations: it checks source metadata.
+ */
+export function pageSetCoverageAtK(
+  rankedPages: readonly (number | undefined)[], expectedPages: readonly number[], k=6,
+) {
+  if (!expectedPages.length || !Number.isInteger(k) || k < 1) throw new Error("Invalid page-set labels or rank limit");
+  const foundPages=new Set(rankedPages.slice(0,k));
+  const matched=expectedPages.filter(p=>foundPages.has(p)).length;
+  return {required:expectedPages.length,matched,complete:matched===expectedPages.length};
 }
 
 export function pageHitRanks(ranks: Array<{pageNumber?:number}>, expectedPage:number, k=3) {
@@ -187,6 +210,8 @@ async function run() {
   const rankings:Record<string,Array<{
     id:string;ranking:number;matchedPage:boolean;
     coverageAt1?:number;coverageAt3?:number;coverageAt6?:number;fullCoverageAt6?:boolean;
+    sourcePagesAt3?:ReturnType<typeof pageSetCoverageAtK>;
+    sourcePagesAt6?:ReturnType<typeof pageSetCoverageAtK>;
   }>>={};
   let modelDimension:number|null=null;
   try {
@@ -217,6 +242,10 @@ async function run() {
         const pages=ranked.map((r)=>({pageNumber:r.payload?.pageNumber}));
         const rank=pageHitRanks(pages,question.expectedPage);
         results[arm.name]!.push(rank);
+        const pageSet = question.expectedPages?.length ? {
+          sourcePagesAt3:pageSetCoverageAtK(pages.map(p=>p.pageNumber),question.expectedPages,3),
+          sourcePagesAt6:pageSetCoverageAtK(pages.map(p=>p.pageNumber),question.expectedPages,6),
+        } : {};
         const evidence = question.expectedEvidence?.length
           ? [1,3,6].map(k => evidenceCoverageAtK(
               ranked.slice(0,k).map(point => indexedText.get(String(point.id)) || ""),
@@ -225,6 +254,7 @@ async function run() {
         rankings[arm.name]!.push({
           id:question.id,ranking:rank.reciprocalRank?Math.round(1/rank.reciprocalRank):0,
           matchedPage:rank.hitAt3,
+          ...pageSet,
           ...(evidence ? {coverageAt1:evidence[0]!.recall,
             coverageAt3:evidence[1]!.recall,coverageAt6:evidence[2]!.recall,
             fullCoverageAt6:evidence[2]!.complete} : {}),
@@ -244,6 +274,12 @@ async function run() {
       case:q.id, baselineRank:rankings.legacy![i]!.ranking,candidateRank:rankings.sectionAware![i]!.ranking,
       ...(q.expectedEvidence?.length ? { baselineEvidenceRecallAt6:rankings.legacy![i]!.coverageAt6,
         candidateEvidenceRecallAt6:rankings.sectionAware![i]!.coverageAt6 } : {}),
+      ...(q.expectedPages?.length ? {
+        baselineSourcePagesAt3:rankings.legacy![i]!.sourcePagesAt3,
+        candidateSourcePagesAt3:rankings.sectionAware![i]!.sourcePagesAt3,
+        baselineSourcePagesAt6:rankings.legacy![i]!.sourcePagesAt6,
+        candidateSourcePagesAt6:rankings.sectionAware![i]!.sourcePagesAt6,
+      } : {}),
     }));
     console.log(JSON.stringify({
       kind:"isolated-local-qwen-qdrant-pdf-staging",
