@@ -232,13 +232,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       sourceCount: groundedResult?.sources.length ?? 0,
     });
 
+    // Exhaustive enumeration has an explicitly assembled, KB-authorized
+    // evidence context which cannot be reconstructed from the first six
+    // ANN hits. Keep its original [S#] indices and structural source table.
+    // Ordinary answers retain the historical six-source public limit.
+    const useFullEvidence = Boolean(groundedResult &&
+      (groundedResult.sources.some((result) => result.sourceType === "structural") ||
+       groundedResult.context.startsWith("[Exhaustive identifier inventory")));
     const seen = new Set<string>();
-    const sources = (groundedResult?.sources ?? []).filter((result) => {
-      const key = result.snippet.slice(0, 100).toLowerCase().replace(/\s+/g, " ");
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).slice(0, 6);
+    const sources = useFullEvidence
+      ? groundedResult!.sources
+      : (groundedResult?.sources ?? []).filter((result) => {
+          const key = result.snippet.slice(0, 100).toLowerCase().replace(/\s+/g, " ");
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, 6);
 
     // A retrieval miss is not a conversation failure. Let the configured provider
     // handle ordinary conversation naturally; the shared system prompt still
@@ -268,8 +277,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         topics: kb.description ?? null,
         channel: realtimeVoice ? "voice" : "chat",
       });
-    const evidence = groundedResult?.intent === "capability"
-      ? groundedResult.context
+    const evidence = groundedResult?.intent === "capability" || useFullEvidence
+      ? groundedResult?.context ?? ""
       : sources.map((result, index) => `[S${index + 1}] ${result.snippet}`).join("\n\n");
     const context = [guidance, evidence].filter(Boolean).join("\n\n");
 
