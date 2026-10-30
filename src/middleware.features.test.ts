@@ -24,6 +24,29 @@ describe("deployment feature switches at request boundary", () => {
     expect(post.headers.get("cache-control")).toContain("no-store");
   });
 
+  it("allows signed published session chat and voice while external widgets stay gated", async () => {
+    vi.stubEnv("CLARA_ENV", "production");
+    vi.stubEnv("CLARA_FEATURE_EMBEDDABLE_WIDGET", "false");
+    const req=(path:string, method:string, authorization:string)=>
+      new NextRequest("https://clara.example.test"+path,{
+        method, headers:{authorization,origin:"https://clara.example.test"},
+      });
+    const signedShape="Bearer pub_v1.payload.signature";
+    for(const path of ["/api/embed/chat","/api/embed/session"]) {
+      // This is transport admission only. Full signed-token verification
+      // is performed by validateEmbedRequest in both route handlers.
+      expect(middleware(req(path,"POST",signedShape)).status).toBe(200);
+      const external=middleware(req(path,"POST","Bearer clr_widget-key"));
+      expect(external.status).toBe(404);
+      expect(await external.json()).toMatchObject({code:"FEATURE_DISABLED"});
+      expect(middleware(req(path,"POST","Bearer pub_v1.malformed")).status).toBe(404);
+      expect(middleware(req(path,"GET",signedShape)).status).toBe(404);
+      expect(middleware(req(path,"OPTIONS",signedShape)).status).toBe(404);
+    }
+    expect(middleware(req("/api/embed/search","POST",signedShape)).status).toBe(404);
+    expect(middleware(req("/api/embed/design","POST",signedShape)).status).toBe(404);
+  });
+
   it("rejects WhatsApp webhook and MCP configuration in production", () => {
     vi.stubEnv("CLARA_ENV", "production");
     expect(middleware(request("/api/webhooks/whatsapp", "POST")).status).toBe(404);
