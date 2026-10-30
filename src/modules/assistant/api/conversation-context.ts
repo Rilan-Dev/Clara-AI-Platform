@@ -178,19 +178,14 @@ export function buildRecentConversationContext(messages: ConversationMessage[]):
 }
 
 /**
- * D-zero vs D-letter-O is a common human/OCR typo in document control IDs.
- * Append the searchable spelling without changing the user's question or
- * claiming the guessed code is necessarily correct. Other codes are untouched.
+ * Fix an OCR/operator zero-for-letter-O typo only in RAG retrieval wording.
+ * The original user question remains intact in the LLM and audit trail.
+ * An appended alias diluted embedding search in live tests; use the canonical
+ * code directly in the retrieval text instead. Other identifiers are intact.
  */
-export function appendDocumentControlSearchAliases(text: string): string {
-  const matches=[...text.matchAll(/\bD0\.(\d{1,3})\.(\d{1,3})(?!\.\d|[A-Za-z0-9_])/gi)]
-    .slice(0,3).map(m=>"DO."+m[1]+"."+m[2]);
-  const aliases=[...new Set(matches)];
-  return aliases.length
-    ? [text,"Possible document control identifier for search: "+aliases.join(", ")]
-        .join("\n")
-        .slice(0,MAX_SEARCH_QUERY_CHARS)
-    : text;
+export function normalizeDocumentControlSearchQuery(text: string): string {
+  return text.replace(/\bD0\.(\d{1,3})\.(\d{1,3})(?!\.\d|[A-Za-z0-9_])/gi,
+    (_value, major: string, minor: string) => "DO." + major + "." + minor);
 }
 
 export function buildConversationAwareSearchQuery(
@@ -201,14 +196,14 @@ export function buildConversationAwareSearchQuery(
   const recentConversation = buildRecentConversationContext(messages);
 
   if (!recentConversation) {
-    return appendDocumentControlSearchAliases(query);
+    return normalizeDocumentControlSearchQuery(query);
   }
 
   if (!FOLLOW_UP_OR_VISUALIZATION_PATTERN.test(query) && query.length >= 80) {
-    return appendDocumentControlSearchAliases(query);
+    return normalizeDocumentControlSearchQuery(query);
   }
 
-  return appendDocumentControlSearchAliases([
+  return normalizeDocumentControlSearchQuery([
     `Latest user request: ${query}`,
     "Use the recent conversation to resolve references like now, this, these, those, above, same, chart view, compose chart, cost, price, course, or variants.",
     "Recent conversation:",
