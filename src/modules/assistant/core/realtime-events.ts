@@ -56,6 +56,37 @@ export const isAssistantAudioDone = (type: unknown): boolean =>
   typeof type === "string" && ASSISTANT_AUDIO_DONE_EVENTS.has(type);
 
 /**
+ * Realtime response.done is a terminal GENERATION event, not evidence that
+ * audio finished playing. It fires for cancelled, incomplete and failed turns
+ * too. Read the provider's explicit status before treating an answer as done.
+ * No content, transcript, or provider error message is returned here.
+ */
+export type RealtimeCompletionStatus = "completed" | "cancelled" | "incomplete" | "failed" | "unknown";
+
+export function realtimeCompletionOutcome(response: unknown): {
+  status: RealtimeCompletionStatus;
+  reason: string | null;
+} {
+  if (!response || typeof response !== "object") return { status: "unknown", reason: null };
+  const data = response as { status?: unknown; status_details?: { reason?: unknown } | null };
+  const status: RealtimeCompletionStatus =
+    data.status === "completed" || data.status === "cancelled" ||
+    data.status === "incomplete" || data.status === "failed"
+      ? data.status : "unknown";
+  const reason = typeof data.status_details?.reason === "string"
+    ? data.status_details.reason.slice(0, 80) : null;
+  return { status, reason };
+}
+
+export function realtimeCompletionNotice(response: unknown): string {
+  const { status } = realtimeCompletionOutcome(response);
+  if (status === "incomplete") return "The spoken answer ended before completion. You can ask me to continue.";
+  if (status === "failed") return "The spoken answer was interrupted by a generation error. Please try again.";
+  if (status === "cancelled") return "This spoken response was interrupted.";
+  return "";
+}
+
+/**
  * The assistant's full text from a `response.done` event — transcript of
  * audio parts and plain text parts, in order. A fallback for when no delta
  * was received (an unknown future event name, a dropped frame).
