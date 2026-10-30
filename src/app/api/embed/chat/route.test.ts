@@ -82,6 +82,33 @@ describe("embed chat — realtime voice turns", () => {
     expect(res.headers.get("Server-Timing")).toContain("rag-retrieval;dur=5");
   });
 
+  it("disables default Sarvam reasoning for responsive text replies", async () => {
+    resolveAIConfig.mockResolvedValue({
+      provider: "sarvam", chatModel: "sarvam-105b",
+      flags: { publicEmbedEnabled: true }, allowedLanguages: ["en"],
+    });
+    const res = await POST(req({ messages: [{ role: "user", content: "List policies" }] }));
+    const body = await res.text();
+    expect(res.status).toBe(200);
+    expect(body).toContain('"type":"token"');
+    expect(chatStream).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({
+      reasoningEffort: null,
+    }));
+  });
+
+  it("emits an error event instead of treating an empty model response as success", async () => {
+    resolveAIConfig.mockResolvedValue({
+      provider: "sarvam", chatModel: "sarvam-105b",
+      flags: { publicEmbedEnabled: true }, allowedLanguages: ["en"],
+    });
+    chatStream.mockImplementationOnce(async function* () {});
+    const res = await POST(req({ messages: [{ role: "user", content: "List policies" }] }));
+    const body = await res.text();
+    expect(body).toContain('"type":"error"');
+    expect(body).toContain('"type":"done"');
+    expect(body).not.toContain('"type":"token"');
+  });
+
   it("starts retrieval before the admission transaction instead of after it", async () => {
     resolveAIConfig.mockResolvedValue({
       provider: "openai", chatModel: "gpt", flags: { publicEmbedEnabled: true }, allowedLanguages: ["en"],
