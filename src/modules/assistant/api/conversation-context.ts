@@ -191,6 +191,18 @@ export function normalizeDocumentControlSearchQuery(text: string): string {
     /\bD0\.(\d{1,3})(?:\.(\d{1,3}))?(?!\.\d|[A-Za-z0-9_])/gi,
     (_raw, major: string, minor?: string) => "DO." + major + (minor ? "." + minor : ""),
   );
+  // Speech recognition may spell a small numeral as an English word.
+  // Restrict this expansion to the explicit "D zero point NUMBER" pattern.
+  normalized = normalized.replace(
+    /\bD\s+zero\s+point\s+(one|two|three|four|five|six|seven|eight|nine|ten)\b/gi,
+    (_raw, word: string) => {
+      const digits: Record<string, number> = {
+        one: 1, two: 2, three: 3, four: 4, five: 5,
+        six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+      };
+      return "DO." + digits[word.toLowerCase()];
+    },
+  );
   normalized = normalized.replace(
     /\bD\s+zero\s+point\s+(\d{1,3})\b/gi,
     (_raw, major: string) => "DO." + major,
