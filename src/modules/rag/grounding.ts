@@ -1197,6 +1197,14 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const numberedTableEvidence = numberedTableIntent && completeEvidence
     ? selectNumberedTableEvidence(completeEvidence, numberedTableIntent, query)
     : [];
+  // A complete bounded inventory is stronger evidence than unrelated ANN hits.
+  // Never allow the six most similar but unrelated DG/PDP passages to obscure
+  // a source-backed DO family listing. Retain a separate citation for each
+  // catalog entry, under the existing authorized KB/document filter.
+  const completeInventory = identifierInventory?.complete === true;
+  const inventoryEvidence = completeInventory
+    ? identifierInventory.entries.slice(0, 40) : [];
+  if (completeInventory) vectorResults = [];
   // Graph and vector work overlap. Measuring graph AFTER awaiting vector
   // wrongly attributes the entire Qdrant request to graphMs (even with graph
   // disabled), making stage-level latency diagnoses misleading.
@@ -1260,13 +1268,19 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   const contextParts = [
     inventoryIntent && identifierInventory
-      ? formatIdentifierInventory(inventoryIntent.prefix, identifierInventory) : "",
+      ? [
+          formatIdentifierInventory(inventoryIntent.prefix, identifierInventory),
+          ...inventoryEvidence.map((entry, i) =>
+            "[S" + (i + 1) + "] " + entry.title +
+            (entry.pageNumber == null ? "" : " (page " + entry.pageNumber + ")") +
+            ": " + (entry.excerpt || entry.identifier)),
+        ].join("\n\n") : "",
     numberedTableEvidence.length
       ? [
           "[Verified contiguous source table excerpt. Use it to enumerate the requested source items. It is not an independent completeness certificate: distinguish any missing or unreadable rows.]",
           ...numberedTableEvidence.map((hit, i) => {
             const location = hit.pageNumber == null ? "" : " (page " + hit.pageNumber + ")";
-            return "[S" + (vectorResults.length + i + 1) + "] " + hit.title + location + "\n" + hit.text;
+            return "[S" + (vectorResults.length + inventoryEvidence.length + i + 1) + "] " + hit.title + location + "\n" + hit.text;
           }),
         ].join("\n\n")
       : "",
@@ -1304,9 +1318,21 @@ ${graphContext}`);
     snippet: r.snippet,
     sourceType: "vector",
   }));
-  for (const [i, evidence] of numberedTableEvidence.entries()) {
+  for (const [i, entry] of inventoryEvidence.entries()) {
     sources.push({
       index: vectorResults.length + i + 1,
+      id: entry.pointId,
+      title: entry.title,
+      ...(entry.documentId ? { documentId: entry.documentId } : {}),
+      ...(entry.pageNumber ? { pageNumber: entry.pageNumber } : {}),
+      score: 0, // An exact catalog entry is not a cosine similarity score.
+      snippet: entry.excerpt || entry.identifier,
+      sourceType: "structural",
+    });
+  }
+  for (const [i, evidence] of numberedTableEvidence.entries()) {
+    sources.push({
+      index: vectorResults.length + inventoryEvidence.length + i + 1,
       id: evidence.id,
       title: evidence.title,
       documentId: evidence.documentId,
