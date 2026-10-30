@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {spawnSync} from "node:child_process";
-import {parseArgs,runSetup,validateWorkerStage} from "./rag-staging-setup.mjs";
+import {parseArgs,runSetup,validateWorkerStage,validateIngestConsumers} from "./rag-staging-setup.mjs";
 
 const AGENT="11111111-2222-4333-8444-555555555555";
 const ORG="22222222-3333-4444-8555-666666666666";
@@ -155,6 +155,16 @@ test("worker verification forbids production global flags and unrelated stage id
     {...good,globalPage:true},{...good,globalSection:true},{...good,stageId:""},
   ])assert.throws(()=>validateWorkerStage(bad,STAGE));
   assert.throws(()=>validateWorkerStage("not json",STAGE));
+});
+
+test("requires BOTH backend and worker to have the same exact staging override",()=>{
+  const good={stageEnabled:true,stageId:STAGE,globalPage:false,globalSection:false};
+  const bad={...good,stageEnabled:false};
+  assert.equal(validateIngestConsumers([JSON.stringify(good),JSON.stringify(good)],STAGE),true);
+  for(const readings of [[good],[good,bad],[bad,good],
+     [good,{...good,stageId:AGENT}],[good,{...good,globalPage:true}]]){
+    assert.throws(()=>validateIngestConsumers(readings,STAGE));
+  }
 });
 
 test("rejects a fabricated PDF or unapproved filename",async()=>{
