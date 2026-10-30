@@ -65,7 +65,7 @@ async function main() {
       window._dc = window._p.createDataChannel("oai-events");
       window._ob = { created: 0, generated: 0, done: 0, started: 0, stopped: 0,
         cleared: 0, status: null, reason: null, transcript: "", media: false,
-        autoplay: false, errors: [], bufferStopHasResponseId: 0, bufferStopMissingResponseId: 0,
+        playbackStartMs: 0, playbackStopMs: 0, autoplay: false, errors: [], bufferStopHasResponseId: 0, bufferStopMissingResponseId: 0,
         bufferStartHasResponseId: 0, bufferStartMissingResponseId: 0 };
       window._p.ontrack = ({ track, streams }) => {
         window._ob.media = track.readyState === "live";
@@ -90,11 +90,13 @@ async function main() {
         if (type === "response.output_audio.done") state.generated++;
         if (type === "output_audio_buffer.started") {
           state.started++;
+          if (!state.playbackStartMs) state.playbackStartMs = performance.now();
           if (typeof event.response_id === "string") state.bufferStartHasResponseId++;
           else state.bufferStartMissingResponseId++;
         }
         if (type === "output_audio_buffer.stopped") {
           state.stopped++;
+          state.playbackStopMs = performance.now();
           if (typeof event.response_id === "string") state.bufferStopHasResponseId++;
           else state.bufferStopMissingResponseId++;
         }
@@ -120,7 +122,7 @@ async function main() {
       await page.evaluate(question => {
         window._ob = { ...window._ob, created: 0, generated: 0, done: 0,
           started: 0, stopped: 0, cleared: 0, status: null, reason: null,
-          transcript: "", errors: [], bufferStopHasResponseId: 0, bufferStopMissingResponseId: 0,
+          transcript: "", errors: [], playbackStartMs: 0, playbackStopMs: 0, bufferStopHasResponseId: 0, bufferStopMissingResponseId: 0,
           bufferStartHasResponseId: 0, bufferStartMissingResponseId: 0 };
         window._dc.send(JSON.stringify({ type: "conversation.item.create",
           item: { type: "message", role: "user", content: [{ type: "input_text", text: question }] } }));
@@ -140,6 +142,8 @@ async function main() {
           bufferDrained: s.stopped, bufferCleared: s.cleared,
           receivedMediaTrack: s.media, autoplayStarted: s.autoplay,
           transcriptCharacters: s.transcript.length, errors: s.errors,
+          playbackDurationMs: s.playbackStartMs && s.playbackStopMs
+            ? Math.round(s.playbackStopMs - s.playbackStartMs) : null,
           bufferStopHasResponseId: s.bufferStopHasResponseId,
           bufferStopMissingResponseId: s.bufferStopMissingResponseId,
           bufferStartHasResponseId: s.bufferStartHasResponseId,
