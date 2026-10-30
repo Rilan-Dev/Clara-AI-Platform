@@ -7,6 +7,7 @@ const originals = {
   timeout: process.env.RAG_RERANK_TIMEOUT_MS,
   apiKey: process.env.RAG_RERANK_API_KEY,
   maxCandidates: process.env.RAG_RERANK_MAX_CANDIDATES,
+  languagePolicy: process.env.RAG_RERANK_LANGUAGE_POLICY,
 };
 const candidates = [
   { id: "a", snippet: "Unrelated high similarity", score: 0.94 },
@@ -24,6 +25,7 @@ afterEach(() => {
     RAG_RERANK_TIMEOUT_MS: originals.timeout,
     RAG_RERANK_API_KEY: originals.apiKey,
     RAG_RERANK_MAX_CANDIDATES: originals.maxCandidates,
+    RAG_RERANK_LANGUAGE_POLICY: originals.languagePolicy,
   })) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -90,6 +92,69 @@ describe("optional model-based reranking", () => {
     expect(observed).toHaveBeenCalledWith({
       status: "timeout", ms: expect.any(Number), candidateCount: 3,
     });
+  });
+
+  it("skips Arabic and mixed-script questions for the opt-in Latin-only model policy", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    process.env.RAG_RERANK_LANGUAGE_POLICY = "latin-only";
+    const request = vi.fn();
+    const observed = vi.fn();
+    vi.stubGlobal("fetch", request);
+    const arabic = "ما أنشطة التعافي المطلوبة؟";
+    for (const query of [arabic, "Explain " + arabic, "需要哪些恢复步骤？"]) {
+      const ranked = await rerankCandidates(query, candidates, (hit) => hit.snippet, {
+        onObservation: observed,
+      });
+      expect(ranked).toEqual(candidates);
+      expect(observed).toHaveBeenLastCalledWith({
+        status: "skipped", ms: expect.any(Number), candidateCount: 3,
+      });
+    }
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("also skips English questions when source candidates contain unsupported script", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    process.env.RAG_RERANK_LANGUAGE_POLICY = "latin-only";
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    const mixedEvidence = [
+      { id: "a", score: 0.9, snippet: "Recovery plan" },
+      { id: "b", score: 0.8, snippet: "خطة التعافي" },
+    ];
+    expect(await rerankCandidates("What is the recovery plan?", mixedEvidence, (hit) => hit.snippet))
+      .toEqual(mixedEvidence);
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("keeps English and accented Latin retrieval eligible, and can explicitly allow multilingual models", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    process.env.RAG_RERANK_LANGUAGE_POLICY = "latin-only";
+    const request = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { index: 1, score: 0.9 },
+        { index: 0, score: 0.1 },
+        { index: 2, score: 0.2 },
+      ],
+    }));
+    vi.stubGlobal("fetch", request);
+    expect((await rerankCandidates("Résumé requirements", candidates, (hit) => hit.snippet))
+      .map((hit) => hit.id)).toEqual(["b", "c", "a"]);
+    expect(request).toHaveBeenCalledTimes(1);
+    process.env.RAG_RERANK_LANGUAGE_POLICY = "all";
+    expect((await rerankCandidates("ما متطلبات التعافي؟", candidates, (hit) => hit.snippet))
+      .map((hit) => hit.id)).toEqual(["b", "c", "a"]);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed on unknown language policy instead of sending KB content to a model", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    process.env.RAG_RERANK_LANGUAGE_POLICY = "unsupported-value";
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    expect(await run()).toEqual(candidates);
+    expect(request).not.toHaveBeenCalled();
   });
 
   it("does not contact a model without an operator-configured endpoint", async () => {
