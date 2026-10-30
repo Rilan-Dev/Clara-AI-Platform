@@ -65,7 +65,8 @@ async function main() {
       window._dc = window._p.createDataChannel("oai-events");
       window._ob = { created: 0, generated: 0, done: 0, started: 0, stopped: 0,
         cleared: 0, status: null, reason: null, transcript: "", media: false,
-        autoplay: false, errors: [] };
+        autoplay: false, errors: [], bufferStopHasResponseId: 0, bufferStopMissingResponseId: 0,
+        bufferStartHasResponseId: 0, bufferStartMissingResponseId: 0 };
       window._p.ontrack = ({ track, streams }) => {
         window._ob.media = track.readyState === "live";
         const audio = document.createElement("audio");
@@ -87,8 +88,16 @@ async function main() {
           state.reason = event.response?.status_details?.reason ?? null;
         }
         if (type === "response.output_audio.done") state.generated++;
-        if (type === "output_audio_buffer.started") state.started++;
-        if (type === "output_audio_buffer.stopped") state.stopped++;
+        if (type === "output_audio_buffer.started") {
+          state.started++;
+          if (typeof event.response_id === "string") state.bufferStartHasResponseId++;
+          else state.bufferStartMissingResponseId++;
+        }
+        if (type === "output_audio_buffer.stopped") {
+          state.stopped++;
+          if (typeof event.response_id === "string") state.bufferStopHasResponseId++;
+          else state.bufferStopMissingResponseId++;
+        }
         if (type === "output_audio_buffer.cleared") state.cleared++;
         if (type === "response.output_audio_transcript.delta")
           state.transcript += event.delta || "";
@@ -111,7 +120,8 @@ async function main() {
       await page.evaluate(question => {
         window._ob = { ...window._ob, created: 0, generated: 0, done: 0,
           started: 0, stopped: 0, cleared: 0, status: null, reason: null,
-          transcript: "", errors: [] };
+          transcript: "", errors: [], bufferStopHasResponseId: 0, bufferStopMissingResponseId: 0,
+          bufferStartHasResponseId: 0, bufferStartMissingResponseId: 0 };
         window._dc.send(JSON.stringify({ type: "conversation.item.create",
           item: { type: "message", role: "user", content: [{ type: "input_text", text: question }] } }));
         window._dc.send(JSON.stringify({ type: "response.create", response: { tool_choice: "none" } }));
@@ -129,7 +139,11 @@ async function main() {
           audioGenerated: s.generated, audioStarted: s.started,
           bufferDrained: s.stopped, bufferCleared: s.cleared,
           receivedMediaTrack: s.media, autoplayStarted: s.autoplay,
-          transcriptCharacters: s.transcript.length, errors: s.errors };
+          transcriptCharacters: s.transcript.length, errors: s.errors,
+          bufferStopHasResponseId: s.bufferStopHasResponseId,
+          bufferStopMissingResponseId: s.bufferStopMissingResponseId,
+          bufferStartHasResponseId: s.bufferStartHasResponseId,
+          bufferStartMissingResponseId: s.bufferStartMissingResponseId };
       });
       const ok = !timedOut && result.status === "completed" &&
         result.audioStarted > 0 && result.bufferDrained > 0 && result.receivedMediaTrack &&
