@@ -167,12 +167,12 @@ describe("embed chat — realtime voice turns", () => {
     } });
     const response = await POST(req({ messages: [{ role: "user", content: "List all 15 domains." }] }));
     expect(response.status).toBe(200);
-    const events = (await response.text()).trim().split("\\n").filter(Boolean).map(x => JSON.parse(x));
+    const events = (await response.text()).trim().split("\n").filter(Boolean).map(x => JSON.parse(x));
     const displayed = events.find(x => x.type === "sources")?.payload;
     expect(displayed).toHaveLength(10);
     expect(displayed[9]).toMatchObject({ index: 10 });
     const generation = chatStream.mock.calls.at(-1)?.[0] as Array<{role:string; content:string}>;
-    expect(generation.map(x => x.content).join("\\n")).toContain("[S10] Source table row 10 through 15");
+    expect(generation.map(x => x.content).join("\n")).toContain("[S10] Source table row 10 through 15");
   });
 
   it("starts retrieval before the admission transaction instead of after it", async () => {
