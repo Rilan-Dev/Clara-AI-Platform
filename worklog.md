@@ -1,3 +1,12 @@
+## 2026-10-30 — Owner verified Latin-only guard tests; v3 run output collision
+
+- Owner ran `npx vitest run src/modules/rag/rerank.test.ts src/modules/rag/grounding.test.ts` on the feature branch: **16/16** reranker tests, **27/27** grounding tests, **43/43** total, zero failures. `npm run type-check` reported **TYPECHECK PASS**. These are operator-supplied execution results, not checks executed through the GitHub connector.
+- The optional `RAG_RERANK_LANGUAGE_POLICY=latin-only` v3 controlled benchmark was **not completed** in the latest pasted logs. The first attempt failed before startup due to missing `CLARA_DEBUG_TOKEN` or cookie in the current shell. The next attempt, with credentials set inline, refused to overwrite existing private artifact `rag-ab-v3-latin-off.json`; the file's source and completeness are unknown, so do not assume it proves an arm has completed. No new A/B comparison metrics were provided by this operator run.
+- The inline auth token exposed in terminal output and chat must be **revoked/rotated**. Do not reproduce it in worklogs or commands; use `read -r -s` and `export CLARA_DEBUG_TOKEN` securely, then `unset CLARA_DEBUG_TOKEN` after the run. Choose a fresh `RAG_AB_PREFIX` (e.g. `rag-ab-v4-latin`) for a clean same-image pair without modifying previous private JSON.
+- Production reranking remains disabled; no RAG environment or production changes were performed in this documentation update.
+
+---
+
 ## 2026-10-30 — RAG latency analysis: platform admin RBAC and public HTTPS 5-second stalls
 
 - Owner verified `node --test scripts/rag-latency-path-check.test.mjs`: **8/8 passed** on their VPS at commit `93492b657c51`.
