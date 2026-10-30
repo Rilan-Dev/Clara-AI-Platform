@@ -73,8 +73,19 @@ export function formatIdentifierInventory(prefix: string, inventory: ReturnType<
   if (!inventory.complete) return "";
   if (!inventory.entries.length)
     return `[Exhaustive identifier inventory] No identifiers with prefix ${prefix} were found in the fully scanned authorized knowledge-base scope. Do not substitute a different prefix without asking the user to confirm it.`;
+  // Hierarchical identifiers may include both a parent heading (DO.1)
+  // and individually numbered entries below it (DO.1.1). Do not report
+  // parent headings as additional standalone policies without qualification.
+  const hasChildren = (identifier: string) => inventory.entries.some(e =>
+    e.identifier !== identifier &&
+    (e.identifier.startsWith(identifier + ".") ||
+     e.identifier.startsWith(identifier + "_") ||
+     e.identifier.startsWith(identifier + "-")));
+  const leaves = inventory.entries.filter(e => !hasChildren(e.identifier));
+  const parents = inventory.entries.filter(e => hasChildren(e.identifier));
   return [
-    `[Exhaustive identifier inventory — ${inventory.total} distinct ${prefix} identifiers in the fully scanned authorized KB scope. These are identifiers, not proof of the full requirements of each control. Cite the document locations; do not claim there are additional items.]`,
-    ...inventory.entries.map(e => `- ${e.identifier} — ${e.title}${e.pageNumber ? ` (page ${e.pageNumber})` : ""}${e.excerpt ? `: ${e.excerpt}` : ""}`),
+    `[Exhaustive identifier inventory — ${inventory.total} distinct ${prefix} identifiers in the fully scanned authorized KB scope; ${leaves.length} leaf identifiers and ${parents.length} parent/group identifiers. When asked for individual policies or specifications, distinguish parent headings from their children. These are identifiers, not proof of each control's complete requirements. Cite document locations.]`,
+    ...leaves.map(e => `- Leaf ${e.identifier} — ${e.title}${e.pageNumber ? ` (page ${e.pageNumber})` : ""}${e.excerpt ? `: ${e.excerpt}` : ""}`),
+    ...parents.map(e => `- Parent ${e.identifier} — ${e.title}${e.pageNumber ? ` (page ${e.pageNumber})` : ""}`),
   ].join("\n");
 }
