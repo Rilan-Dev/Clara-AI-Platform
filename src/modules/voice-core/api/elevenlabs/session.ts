@@ -37,6 +37,7 @@ import { VoiceConfigResolutionError, resolveVoiceConfigCached } from "../../reso
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import { mintElevenLabsRealtimeToken } from "./realtime-auth";
 import { embedVoiceGuard } from "./embed-auth";
+import { classifyVoicePipelineSession } from "../pipeline-chat-audience";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import type { ElevenLabsSessionPayload } from "../../config-types";
 
@@ -71,7 +72,8 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
     // Without this boundary, knowing a KB UUID would be enough to mint a
     // realtime capability token and consume ElevenLabs STT/TTS against that
     // organisation's plan.
-    const isEmbedSession = (request.headers.get("authorization") ?? "").startsWith("Bearer clr_");
+    const audience = classifyVoicePipelineSession(request.headers.get("authorization"));
+    const isEmbedSession = audience.isExternalSession;
     let authorizedOrgId: string | null = null;
     if (!isEmbedSession) {
       const auth = await requireAuth(request);
@@ -184,9 +186,9 @@ export async function postElevenLabsSession(request: NextRequest): Promise<NextR
         voiceSettings: resolved.elevenlabs.voiceSettings,
       },
       chat: {
-        // Embed sessions run the whole pipeline on the clr_ credential — the
-        // public chat endpoint carries the org's embed rate/quota accounting.
-        endpoint: isEmbedSession ? "/api/embed/chat" : "/api/chat",
+        // Published visitors use signed public chat, widget users use embed chat;
+        // Preview and native workspace clients require tenant-authenticated chat.
+        endpoint: audience.chatEndpoint,
         kbId,
         ragMode,
       },
