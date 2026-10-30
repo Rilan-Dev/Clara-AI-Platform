@@ -177,6 +177,22 @@ export function buildRecentConversationContext(messages: ConversationMessage[]):
     .slice(-MAX_CONTEXT_CHARS);
 }
 
+/**
+ * D-zero vs D-letter-O is a common human/OCR typo in document control IDs.
+ * Append the searchable spelling without changing the user's question or
+ * claiming the guessed code is necessarily correct. Other codes are untouched.
+ */
+export function appendDocumentControlSearchAliases(text: string): string {
+  const matches=[...text.matchAll(/\bD0\.(\d{1,3})\.(\d{1,3})(?!\.\d|[A-Za-z0-9_])/gi)]
+    .slice(0,3).map(m=>"DO."+m[1]+"."+m[2]);
+  const aliases=[...new Set(matches)];
+  return aliases.length
+    ? [text,"Possible document control identifier for search: "+aliases.join(", ")]
+        .join("\n")
+        .slice(0,MAX_SEARCH_QUERY_CHARS)
+    : text;
+}
+
 export function buildConversationAwareSearchQuery(
   messages: ConversationMessage[],
   latestUserContent: string,
@@ -185,21 +201,21 @@ export function buildConversationAwareSearchQuery(
   const recentConversation = buildRecentConversationContext(messages);
 
   if (!recentConversation) {
-    return query;
+    return appendDocumentControlSearchAliases(query);
   }
 
   if (!FOLLOW_UP_OR_VISUALIZATION_PATTERN.test(query) && query.length >= 80) {
-    return query;
+    return appendDocumentControlSearchAliases(query);
   }
 
-  return [
+  return appendDocumentControlSearchAliases([
     `Latest user request: ${query}`,
     "Use the recent conversation to resolve references like now, this, these, those, above, same, chart view, compose chart, cost, price, course, or variants.",
     "Recent conversation:",
     recentConversation,
   ]
     .join("\n\n")
-    .slice(0, MAX_SEARCH_QUERY_CHARS);
+    .slice(0, MAX_SEARCH_QUERY_CHARS));
 }
 
 /**
