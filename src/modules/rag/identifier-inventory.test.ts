@@ -7,6 +7,10 @@ describe("format-agnostic exhaustive identifier inventory", () => {
     expect(detectIdentifierInventoryIntent("Can you list all T0 policies?")).toEqual({ prefix: "T0" });
     expect(detectIdentifierInventoryIntent("Show every ISO controls")).toEqual({ prefix: "ISO" });
     expect(detectIdentifierInventoryIntent("Which DO.4.2 control?")).toBeNull();
+    expect(detectIdentifierInventoryIntent("List all DO relevant policies")).toEqual({ prefix: "DO" });
+    expect(detectIdentifierInventoryIntent("List the available DO.4 series")).toEqual({ prefix: "DO.4" });
+    expect(detectIdentifierInventoryIntent("What are the DO.4 family controls?")).toEqual({ prefix: "DO.4" });
+    expect(detectIdentifierInventoryIntent("List all DO.4.2 requirements")).toBeNull();
     expect(detectIdentifierInventoryIntent("What policies are available?")).toBeNull();
     expect(detectIdentifierInventoryIntent("List all the controls")).toBeNull();
   });
