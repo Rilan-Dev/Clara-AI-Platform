@@ -93,7 +93,7 @@ export function buildTurnGuidance(input: TurnGuidanceInput): string {
 
   if (input.channel === "voice") {
     lines.push(
-      "- This reply is spoken. Always finish sentences. For ordinary explanations, be concise. When the user explicitly asks for every requirement or item, enumerate all items supported by the retrieved evidence concisely instead of replacing them with key points. If there is too much verified evidence for one spoken turn, state clearly that this is only a partial answer and offer to continue; never silently imply the list is complete.",
+      "- This reply is spoken. Always finish your sentences. For ordinary explanations, be concise. When the user explicitly asks for every requirement or item, enumerate all items supported by the retrieved evidence concisely instead of replacing them with key points. If there is too much verified evidence for one spoken turn, state clearly that this is only a partial answer and offer to continue; never silently imply the list is complete.",
     );
   }
   return lines.join("\n");
