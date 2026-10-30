@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { request as httpsRequest } from 'node:https';
 /**
  * Compare Clara's authenticated RAG public HTTPS and localhost HTTP paths.
  * Nothing writes credentials, questions, source IDs, or response bodies to disk.
@@ -16,6 +17,9 @@ const HELP = [
   '  --repeat N        1..10, default 3 per origin',
   '  --timeout-ms N    1000..300000, default 90000',
   '  --auth-only       Compare GET /api/auth/me at both origins; NO RAG quota used',
+  '  --trace-https     Instrument fresh public HTTPS DNS/TCP/TLS/response timings',
+  '                    Uses GET /api/auth/me; no RAG quota, no request content logged',
+  '  --family F        For --trace-https: auto (default), 4 (IPv4), or 6 (IPv6)',
   '                    Defaults to 1 request per origin. Add --warmup/--repeat for trends.',
   '  --help            Print usage',
   '',
@@ -29,7 +33,7 @@ const defaults = {
   publicUrl: 'https://clara.ai.amazetechclans.com',
   localUrl: 'http://127.0.0.1:4000',
   scope: 'draft', mode: 'agentic', topK: 6,
-  warmup: 1, repeat: 3, timeoutMs: 90000,
+  warmup: 1, repeat: 3, timeoutMs: 90000, family: 'auto',
 };
 function argsOf(argv) {
   const opts = { ...defaults };
@@ -38,11 +42,13 @@ function argsOf(argv) {
     '--kb-id': 'kbId', '--question': 'question',
     '--scope': 'scope', '--mode': 'mode', '--top-k': 'topK',
     '--warmup': 'warmup', '--repeat': 'repeat', '--timeout-ms': 'timeoutMs',
+    '--family': 'family',
   };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     if (flag === '--help' || flag === '-h') return { help: true };
     if (flag === '--auth-only') { opts.authOnly = true; continue; }
+    if (flag === '--trace-https') { opts.traceHttps = true; continue; }
     if (!Object.hasOwn(fields, flag)) throw new Error('Unknown option: ' + flag);
     const value = argv[++i];
     if (!value || value.startsWith('--')) throw new Error('Missing value for ' + flag);
@@ -52,8 +58,14 @@ function argsOf(argv) {
   // flags are supplied. Explicit --warmup/--repeat allow an auth-only trend.
   if (opts.authOnly && !argv.includes('--warmup')) opts.warmup = 0;
   if (opts.authOnly && !argv.includes('--repeat')) opts.repeat = 1;
-  if (!opts.authOnly && !opts.kbId?.trim()) throw new Error('--kb-id is required');
-  if (!opts.authOnly && !opts.question?.trim()) throw new Error('--question is required');
+  if (opts.traceHttps && opts.authOnly) throw new Error('Choose --trace-https or --auth-only, not both');
+  if (opts.traceHttps && !argv.includes('--warmup')) opts.warmup = 0;
+  if (opts.traceHttps && !argv.includes('--repeat')) opts.repeat = 5;
+  if (!['auto', '4', '6'].includes(String(opts.family))) throw new Error('--family must be auto, 4 or 6');
+  if (!opts.traceHttps && String(opts.family) !== 'auto')
+    throw new Error('--family applies only to --trace-https');
+  if (!opts.authOnly && !opts.traceHttps && !opts.kbId?.trim()) throw new Error('--kb-id is required');
+  if (!opts.authOnly && !opts.traceHttps && !opts.question?.trim()) throw new Error('--question is required');
   if (!['draft', 'live'].includes(opts.scope)) throw new Error('Invalid --scope');
   if (!['agentic', 'classic', 'hybrid'].includes(opts.mode)) throw new Error('Invalid --mode');
   for (const [key, min, max] of [
@@ -74,6 +86,8 @@ function argsOf(argv) {
       throw new Error(key + ' must be a bare HTTPS origin (HTTP only on loopback)');
     opts[key] = u.origin;
   }
+  if (opts.traceHttps && !opts.publicUrl.startsWith('https://'))
+    throw new Error('--trace-https requires a public HTTPS origin with valid TLS');
   return opts;
 }
 
@@ -209,7 +223,107 @@ async function probe(origin, token, body, timeoutMs) {
     };
   }
 }
+
+/**
+ * Fresh-connection HTTPS trace. Built-in https.request is intentionally distinct
+ * from fetch's Undici connection pool. It isolates DNS/connect/TLS/first byte
+ * per request; it cannot by itself explain the reuse policy of fetch.
+ * Never print response content, TLS peer certificates, addresses, or tokens.
+ */
+function traceHttpsAuth(origin, token, timeoutMs, family) {
+  return new Promise(resolve => {
+    const start = performance.now();
+    const t = {};
+    let finished = false;
+    const done = (data) => {
+      if (finished) return;
+      finished = true;
+      resolve(data);
+    };
+    let req;
+    try {
+      req = httpsRequest(origin + '/api/auth/me', {
+        method: 'GET',
+        agent: false, // new connection for EACH trial, intentionally no pooling
+        ...(family !== 'auto' ? { family: Number(family) } : {}),
+        headers: bearerHeaders(token),
+        signal: AbortSignal.timeout(timeoutMs),
+      }, res => {
+        t.firstByte = performance.now();
+        res.resume(); // discard without printing identity or response body
+        res.on('end', () => {
+          const end = performance.now();
+          const finalHandshake = t.tls ?? t.tcp ?? t.socket ?? start;
+          done({
+            status: res.statusCode,
+            family: res.socket?.remoteFamily ?? 'n/a',
+            dnsMs: t.dns !== undefined && t.socket !== undefined ? t.dns - t.socket : null,
+            tcpMs: t.tcp !== undefined ? t.tcp - (t.dns ?? t.socket ?? start) : null,
+            tlsMs: t.tls !== undefined && t.tcp !== undefined ? t.tls - t.tcp : null,
+            waitMs: t.firstByte - finalHandshake,
+            totalMs: end - start,
+            ok: res.statusCode === 200,
+          });
+        });
+        res.on('error', () => done({ status: 'network-error', ok: false, reason: 'response stream error' }));
+      });
+      req.on('socket', socket => {
+        t.socket = performance.now();
+        socket.once('lookup', () => { t.dns = performance.now(); });
+        socket.once('connect', () => { t.tcp = performance.now(); });
+        socket.once('secureConnect', () => { t.tls = performance.now(); });
+      });
+      req.on('error', error => {
+        const safeCodes = new Set(['ENETUNREACH', 'ECONNREFUSED', 'ETIMEDOUT',
+          'EHOSTUNREACH', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET']);
+        done({
+          status: 'network-error', ok: false,
+          totalMs: performance.now() - start,
+          reason: error?.name === 'TimeoutError' || error?.name === 'AbortError'
+            ? 'timeout' : safeCodes.has(error?.code) ? error.code : 'network/TLS error',
+        });
+      });
+      req.end();
+    } catch {
+      done({ status: 'network-error', ok: false, reason: 'request setup failed' });
+    }
+  });
+}
+
 async function run(opts, token) {
+  if (opts.traceHttps) {
+    const total = opts.warmup + opts.repeat;
+    const samples = [];
+    let passed = true;
+    console.log('Fresh-connection HTTPS auth trace (Node https.request, not fetch): ' +
+      opts.warmup + ' warmup + ' + opts.repeat + ' measured; DNS family ' + opts.family +
+      '. No RAG quota consumed.');
+    for (let i = 0; i < total; i++) {
+      const warm = i < opts.warmup;
+      const data = await traceHttpsAuth(opts.publicUrl, token, opts.timeoutMs, opts.family);
+      console.log((warm ? 'warmup ' : 'measure ') +
+        String(warm ? i + 1 : i - opts.warmup + 1) +
+        ': HTTP ' + data.status + ' | family ' + (data.family ?? 'n/a') +
+        ' | dns ' + showMs(data.dnsMs) +
+        ' | tcp ' + showMs(data.tcpMs) +
+        ' | tls ' + showMs(data.tlsMs) +
+        ' | server-wait ' + showMs(data.waitMs) +
+        ' | total ' + showMs(data.totalMs) +
+        (data.reason ? ' | reason: ' + data.reason : ''));
+      if (!data.ok) passed = false;
+      if (!warm && data.ok) samples.push(data);
+    }
+    const fields = [['total', 'totalMs'], ['dns', 'dnsMs'],
+      ['tcp', 'tcpMs'], ['tls', 'tlsMs'], ['server-wait', 'waitMs']];
+    console.log('HTTPS fresh-connection summary (' + samples.length + '/' + opts.repeat +
+      ' successful measured):');
+    for (const [label, key] of fields) {
+      const m = summary(samples.map(x => x[key]));
+      console.log(label + ' p50 ' + showMs(m?.p50) + ' p95 ' + showMs(m?.p95));
+    }
+    if (!passed) process.exitCode = 2;
+    return;
+  }
   if (opts.authOnly) {
     const targets = [['public', opts.publicUrl], ['local', opts.localUrl]];
     const total = opts.warmup + opts.repeat;
