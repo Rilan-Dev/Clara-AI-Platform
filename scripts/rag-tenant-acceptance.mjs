@@ -40,10 +40,10 @@ export const MARKERS = [
 const normalize = s => String(s || "").normalize("NFKC").replace(/\s+/g," ").trim().toLowerCase();
 export function scoreEvidence(sources, markers = MARKERS) {
   if (!Array.isArray(sources)) return {covered:0,required:markers.length,withPage:0,total:0,expectedPagesCovered:0};
-  const text = sources.map(s => normalize(s?.snippet)).join(" ");
+  const excerpts = sources.map(s => normalize(s?.snippet));
   const pages = new Set(sources.filter(s=>Number.isSafeInteger(s?.pageNumber)&&s.pageNumber>0).map(s=>s.pageNumber));
   return {
-    required:markers.length, covered:markers.filter(m=>text.includes(normalize(m))).length,
+    required:markers.length, covered:markers.filter(m=>excerpts.some(e=>e.includes(normalize(m)))).length,
     withPage:sources.filter(s=>Number.isSafeInteger(s?.pageNumber)&&s.pageNumber>0).length,
     total:sources.length, expectedPagesCovered:[60,61].filter(p=>pages.has(p)).length,
   };
