@@ -22,8 +22,8 @@ describe("streamAgentChat — never leaves the chat stuck", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream({
       start(controller) {
         controller.enqueue(encoder.encode('{"type":"token","payload":"Hel'));
-        controller.enqueue(encoder.encode('lo"}\\n{"type":"token","payload":" world"}\\n'));
-        controller.enqueue(encoder.encode('{"type":"done"}\\n'));
+        controller.enqueue(encoder.encode('lo"}\n{"type":"token","payload":" world"}\n'));
+        controller.enqueue(encoder.encode('{"type":"done"}\n'));
         controller.close();
       },
     }), { status: 200, headers: {
