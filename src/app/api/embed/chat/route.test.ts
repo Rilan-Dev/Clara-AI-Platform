@@ -133,7 +133,7 @@ describe("embed chat — realtime voice turns", () => {
     });
     const response = await POST(req({ messages: [{ role: "user", content: "List DO.4.2." }] }));
     expect(response.status).toBe(200);
-    const events = (await response.text()).trim().split("\\n")
+    const events = (await response.text()).trim().split("\n")
       .filter(Boolean).map((line) => JSON.parse(line));
     const sourceEvent = events.find((event) => event.type === "sources");
     expect(sourceEvent.payload[0]).toMatchObject({
