@@ -81,23 +81,25 @@ export function parseStream(body) {
   return {answer,sources,done,errors,tokenEvents,unknown};
 }
 export function parseArgs(args){
-  const o={limit:12,repeats:1,delayMs:850,timeoutMs:85000,dryRun:false,caseId:null,out:null};
+  const o={limit:12,offset:0,repeats:1,delayMs:850,timeoutMs:85000,dryRun:false,caseId:null,out:null};
   for(let i=0;i<args.length;i++){
     const flag=args[i];
     if(flag==="--help")return {help:true};
     if(flag==="--dry-run"){o.dryRun=true;continue}
-    if(!["--limit","--repeats","--delay-ms","--timeout-ms","--case","--out"].includes(flag))
+    if(!["--limit","--offset","--repeats","--delay-ms","--timeout-ms","--case","--out"].includes(flag))
       throw Error("Unknown option");
     const value=args[++i];
     if(!value||value.startsWith("--"))throw Error("Missing option value");
     if(flag==="--case")o.caseId=value;
     if(flag==="--out")o.out=value;
     if(flag==="--limit")o.limit=Number(value);
+    if(flag==="--offset")o.offset=Number(value);
     if(flag==="--repeats")o.repeats=Number(value);
     if(flag==="--delay-ms")o.delayMs=Number(value);
     if(flag==="--timeout-ms")o.timeoutMs=Number(value);
   }
   if(!Number.isSafeInteger(o.limit)||o.limit<1||o.limit>40||
+    !Number.isSafeInteger(o.offset)||o.offset<0||o.offset>100||
     !Number.isSafeInteger(o.repeats)||o.repeats<1||o.repeats>5||
     !Number.isSafeInteger(o.delayMs)||o.delayMs<500||o.delayMs>30000||
     !Number.isSafeInteger(o.timeoutMs)||o.timeoutMs<5000||o.timeoutMs>120000)
@@ -153,11 +155,11 @@ async function queryPublished(test,session,timeoutMs){
 async function main(argv){
   const opts=parseArgs(argv);
   if(opts.help){
-    console.log("Usage: node scripts/rag-public-conversation-benchmark.mjs [--dry-run] [--limit 12] [--case id] [--repeats 1] [--delay-ms 850] [--out /tmp/report.json]");
+    console.log("Usage: node scripts/rag-public-conversation-benchmark.mjs [--dry-run] [--limit 12] [--offset 0] [--case id] [--repeats 1] [--delay-ms 850] [--out /tmp/report.json]");
     return;
   }
   const fixture=validateFixture(JSON.parse(await readFile(FIXTURE,"utf8")));
-  const selected=opts.caseId?fixture.cases.filter(c=>c.id===opts.caseId):fixture.cases.slice(0,opts.limit);
+  const selected=opts.caseId?fixture.cases.filter(c=>c.id===opts.caseId):fixture.cases.slice(opts.offset,opts.offset+opts.limit);
   if(selected.length===0)throw Error("Unknown golden case ID");
   console.log(JSON.stringify({event:"benchmark_plan",cases:selected.length,repeats:opts.repeats,
     sourceSha256:fixture.source.sha256,agent:fixture.target.agentId,dryRun:opts.dryRun}));
