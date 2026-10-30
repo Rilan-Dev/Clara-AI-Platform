@@ -651,7 +651,9 @@ async function postChatKb(
             // (Tamil/Indic scripts use several tokens per word); brevity for
             // voice comes from the prompt, not truncation.
             maxTokens: resolved.maxTokens ?? config.maxTokens,
-            reasoningEffort: realtimeVoice ? null : undefined,
+            // Sarvam-105B's default reasoning consumes the same output budget;
+            // disabling it for text chat avoids lengthy reasoning-only replies.
+            reasoningEffort: realtimeVoice || resolved.provider === "sarvam" ? null : undefined,
             onUsage: (u: { promptTokens: number; completionTokens: number }) => { usageRef.value = u; },
           };
           const canCallTools =
@@ -745,6 +747,10 @@ async function postChatKb(
             } catch (flushErr) {
               console.warn("[chat] answer translation flush failed:", (flushErr as Error).message);
             }
+          }
+          if (!streamError && answerBuffer.length === 0 && !request.signal.aborted) {
+            streamError = "The assistant did not return an answer.";
+            write({ type: "error", payload: "The assistant did not return an answer. Please try again." });
           }
           // A completed stream proves the brain provider is alive — clear
           // any runtime-failing answer-engine incident (rate-limited no-op).
