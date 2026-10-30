@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
@@ -85,7 +85,7 @@ describe("actual realtime session chat endpoint contracts", () => {
       expect(response.status).toBe(200);
       const payload = await response.json();
       expect(payload.chat.endpoint).toBe("/api/public/chat");
-      if (provider === "elevenlabs") expect(mocks.auth).not.toHaveBeenCalled();
+      expect(mocks.auth).not.toHaveBeenCalled();
     });
     it(provider + ": widget and workspace receive their own chat routes", async () => {
       for (const [credential, expected] of [
@@ -96,7 +96,23 @@ describe("actual realtime session chat endpoint contracts", () => {
         expect(response.status).toBe(200);
         expect((await response.json()).chat.endpoint).toBe(expected);
       }
-      if (provider === "elevenlabs") expect(mocks.auth).toHaveBeenCalledOnce();
+      expect(mocks.auth).toHaveBeenCalledOnce();
     });
   }
+
+  it("Sarvam Preview returns 401 instead of leaking an anonymous public session", async () => {
+    mocks.auth.mockRejectedValueOnce(
+      NextResponse.json({ error: "Session expired or invalid" }, { status: 401 }),
+    );
+    const response = await postSarvamSession(request("not-an-active-workspace-session", "sarvam"));
+    expect(response.status).toBe(401);
+  });
+
+  it("Sarvam Preview returns 403 when the user cannot read the requested KB", async () => {
+    mocks.permission.mockRejectedValueOnce(
+      NextResponse.json({ error: "Knowledge base access denied" }, { status: 403 }),
+    );
+    const response = await postSarvamSession(request("workspace.jwt", "sarvam"));
+    expect(response.status).toBe(403);
+  });
 });
