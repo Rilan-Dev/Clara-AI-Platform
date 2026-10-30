@@ -73,6 +73,31 @@ rerank correctly. A multilingual Clara deployment must evaluate each language
 and choose a TEI-compatible model with verified multilingual relevance and
 hardware support before permanent enablement.
 
+### Explicit script guard for English-only inference
+
+Set `RAG_RERANK_LANGUAGE_POLICY=latin-only` on a **test backend** using the
+current English-only CPU model. This conservatively skips TEI when either the
+original query or any selected source excerpt contains non-Latin letters
+(Arabic, Tamil, Hindi, Chinese, etc.); original Qdrant ordering and grounding
+remain available. Skipped requests retain `rerankStatus=skipped` and
+`rerankMs=0` in diagnostics. This does **not** skip multilingual embedding,
+cross-language query translation, or lexical/exact-reference recovery.
+
+This is a **script check, not full language identification**. Latin-script
+non-English and romanized text may still pass, and English questions whose
+source excerpts include non-Latin text are intentionally skipped. It cannot
+replace relevance testing. The default policy is `all` for compatibility with
+deployed multilingual models; an unknown nonempty policy value skips model
+inference (fails closed). Use `RAG_RERANK_LANGUAGE_POLICY=all` **only** when
+the configured model has verified multilingual capabilities. Leave the
+production reranker disabled until the latency and relevance gates are met.
+
+The isolated operator runner `scripts/run-rag-ab-controlled.sh` defaults to
+the conservative `latin-only` policy for its candidate. Override with
+`RAG_AB_LANGUAGE_POLICY=all` only for a validated multilingual model.
+The two arms use the same Docker image and localhost origin; do not overwrite
+previous private run JSON files (`RAG_AB_PREFIX` controls the output names).
+
 ## Arm A — baseline (reranker off)
 
 The default state (`RAG_RERANK_URL` unset) IS the baseline arm.
@@ -116,6 +141,7 @@ event — the planned request count is printed before the first request fires.
    RAG_RERANK_ENABLED=true
    RAG_RERANK_TIMEOUT_MS=6000
    RAG_RERANK_MAX_CANDIDATES=8
+   RAG_RERANK_LANGUAGE_POLICY=latin-only
    ```
 
    `RAG_RERANK_TIMEOUT_MS=6000` exists because the 1500 ms default only suits
