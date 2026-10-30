@@ -42,10 +42,13 @@ function provider({
 test("parseArgs enforces tenant KB ID and secure origin without accepting CLI credentials",()=>{
   assert.equal(parseArgs(["--kb-id",ID]).execute,false);
   assert.equal(parseArgs(["--kb-id",ID,"--execute"]).execute,true);
+  assert.equal(parseArgs(["--kb-id",ID,"--base-url","http://127.0.0.1:4000"]).baseUrl,"http://127.0.0.1:4000");
   for(const argv of [
     ["--kb-id",ID,"--token","secret"],
     ["--kb-id",ID,"--base-url","http://example.com"],
     ["--kb-id",ID,"--base-url","https://example.com/stage"],
+    ["--kb-id",ID,"--base-url","https://attacker.example"],
+    ["--kb-id",ID,"--base-url","https://clara.ai.amazetechclans.com:444"],
     ["--kb-id","bad"],
     ["--kb-id",ID,"--top-k","2"],
   ])assert.throws(()=>parseArgs(argv));
