@@ -184,8 +184,26 @@ export function buildRecentConversationContext(messages: ConversationMessage[]):
  * code directly in the retrieval text instead. Other identifiers are intact.
  */
 export function normalizeDocumentControlSearchQuery(text: string): string {
-  return text.replace(/\bD0\.(\d{1,3})\.(\d{1,3})(?!\.\d|[A-Za-z0-9_])/gi,
-    (_value, major: string, minor: string) => "DO." + major + "." + minor);
+  // A speech transcript often renders the letter O as the digit zero.
+  // Normalize dotted D-zero family/leaf references, but do not rewrite
+  // ordinary words, unrelated identifiers or standalone D0 business codes.
+  let normalized = text.replace(
+    /\bD0\.(\d{1,3})(?:\.(\d{1,3}))?(?!\.\d|[A-Za-z0-9_])/gi,
+    (_raw, major: string, minor?: string) => "DO." + major + (minor ? "." + minor : ""),
+  );
+  normalized = normalized.replace(
+    /\bD\s+zero\s+point\s+(\d{1,3})\b/gi,
+    (_raw, major: string) => "DO." + major,
+  ).replace(
+    /\bD\s+zero\s*\.\s*(\d{1,3})\b/gi,
+    (_raw, major: string) => "DO." + major,
+  );
+  // Spoken bare "D zero" is only a code alias if it is followed by a
+  // policy/control family word. Never rewrite ordinary D-zero statements.
+  return normalized.replace(
+    /\bD\s+zero(?=\s+(?:(?:relevant|related|available|applicable)\s+)?(?:polic\w*|controls?|specifications?|series|requirements?|standards?))/gi,
+    "DO",
+  );
 }
 
 export function buildConversationAwareSearchQuery(
