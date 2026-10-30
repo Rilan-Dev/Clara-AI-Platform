@@ -488,6 +488,41 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(result.result.context).not.toContain("DO.4.3");
   });
 
+
+  it("enumerates the DO.4 family from the current spoken turn despite unrelated history codes", async () => {
+    const rows = [1, 2, 3].map((minor) => ({
+      id: "do4-" + minor,
+      payload: { kbId: KB_FIXTURE.id, documentId: "published-doc",
+        chunkIndex: 20 + minor, title: "Standards",
+        referenceIds: ["DO.4." + minor],
+        chunk: "DO.4." + minor + " policy entry " + minor },
+    }));
+    const scroll = vi.fn(async (_collection: string, opts: Record<string, unknown>) => {
+      const filter = opts.filter as { must?: Array<{ key?: string }> };
+      if (filter?.must?.some((x) => x.key === "referenceIds")) {
+        return { points: [], next_page_offset: null };
+      }
+      return { points: rows, next_page_offset: null };
+    });
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({
+      query: vi.fn(async () => ({ points: [] })), scroll,
+    });
+    const outcome = await groundClaraContext({
+      kbId: KB_FIXTURE.id,
+      query: "I want to know about available D0.4 series",
+      searchQuery: "Previous conversation DG.2, PDP.4.1. Latest: available D0.4 series",
+    });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(outcome.result.context).toContain("DO.4.1");
+    expect(outcome.result.context).toContain("DO.4.2");
+    expect(outcome.result.context).toContain("DO.4.3");
+    expect(outcome.result.context).not.toContain("PDP.4.1");
+    expect(scroll).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      filter: { must: [{ key: "kbId", match: { value: KB_FIXTURE.id } }] },
+    }));
+  });
+
   it("always filters Qdrant by the server-resolved KB, even without a document ID", async () => {
     const q = vi.fn(async (_collection: string, _params: Record<string, unknown>) => ({
       points: [{
