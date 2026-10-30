@@ -39,7 +39,9 @@ export function parseArgs(argv) {
      !UUID.test(o["--kb-id"]||"") || o["--agent-id"] ||
        (action==="upload" ? !o["--source"] : !!o["--source"]))
     throw Error("Missing or conflicting stage arguments");
-  return {action,agentId:o["--agent-id"],kbId:o["--kb-id"],source:o["--source"]};
+  return {action, ...(o["--agent-id"]?{agentId:o["--agent-id"]}:{}),
+    ...(o["--kb-id"]?{kbId:o["--kb-id"]}:{}),
+    ...(o["--source"]?{source:o["--source"]}:{})};
 }
 
 export function validateWorkerStage(raw, kbId) {
