@@ -59,3 +59,42 @@ export function hasUsableTranscript(text: string, minLength: number): boolean {
   if (normalized.length < minLength) return false;
   return normalized.split(" ").filter(Boolean).length >= 1;
 }
+
+/**
+ * Reconfigure only device/audio settings, NEVER the server-supplied
+ * tenant-specific system instructions, tools or model output budget.
+ * Re-sending a generic client prompt overwrote buildSystemPrompt() and
+ * caused domain/agent behavior to disappear after the SDP connection.
+ */
+export function buildOpenAIClientAudioUpdate(settings: {
+  voice: string;
+  threshold: number;
+  prefixPaddingMs: number;
+  silenceDurationMs: number;
+  transcriptionModel: string;
+  transcriptionLanguage?: string;
+}) {
+  return {
+    type: "session.update" as const,
+    session: {
+      type: "realtime" as const,
+      audio: {
+        output: { voice: settings.voice },
+        input: {
+          turn_detection: {
+            type: "server_vad" as const,
+            threshold: settings.threshold,
+            prefix_padding_ms: settings.prefixPaddingMs,
+            silence_duration_ms: settings.silenceDurationMs,
+            create_response: false,
+          },
+          transcription: {
+            model: settings.transcriptionModel,
+            ...(settings.transcriptionLanguage
+              ? { language: settings.transcriptionLanguage } : {}),
+          },
+        },
+      },
+    },
+  };
+}
