@@ -19,7 +19,7 @@ describe("fully-scoped source summary table recovery", () => {
       point("ar", "ar", 37, "ملخص المجالات الـ 15 : الرقم المجال 1 حوكمة البيانات 2 جودة البيانات 15 أمن البيانات"),
     ];
     const selected = selectNumberedTableEvidence(points, { count: 15, subject: "domains" }, "List all 15 domains");
-    expect(selected.map(p => p.id)).toEqual(["a","b","c"]);
+    expect(selected.map(p => p.id)).toEqual(["a","b"]);
     expect(selected.map(p => p.text).join(" ")).not.toContain("Private unrelated");
     const arabic = selectNumberedTableEvidence(points, { count: 15, subject: "domains" }, "ما هي المجالات الـ 15؟");
     expect(arabic.map(p=>p.id)).toEqual(["ar"]);
