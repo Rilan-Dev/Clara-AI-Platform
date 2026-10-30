@@ -42,6 +42,7 @@ import {
 import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import { embedVoiceGuard } from "../elevenlabs/embed-auth";
+import { classifyVoicePipelineSession } from "../pipeline-chat-audience";
 import { mintSarvamRealtimeToken } from "./realtime-auth";
 import type { SarvamSessionPayload } from "../../config-types";
 
@@ -64,7 +65,7 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
     // scoped to this KB before anything else runs.
     const embedDenied = await embedVoiceGuard(request, kbId);
     if (embedDenied) return embedDenied;
-    const isEmbedSession = (request.headers.get("authorization") ?? "").startsWith("Bearer clr_");
+    const audience = classifyVoicePipelineSession(request.headers.get("authorization"));
 
     const orgRows = await dbQuery<{ org_id: string }>(
       `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
@@ -160,8 +161,8 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
         language: resolved.sarvam.language,
       },
       chat: {
-        // Embed sessions run the whole pipeline on the clr_ credential.
-        endpoint: isEmbedSession ? "/api/embed/chat" : "/api/chat",
+        // Public visitors use /api/public/chat; widget users use /api/embed/chat; authenticated Preview keeps /api/chat.
+        endpoint: audience.chatEndpoint,
         kbId,
         ragMode,
       },
