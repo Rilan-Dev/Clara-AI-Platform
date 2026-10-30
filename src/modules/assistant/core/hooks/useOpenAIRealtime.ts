@@ -12,7 +12,7 @@ import {
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
-import { extractResponseText, isAssistantAudioDelta, isAssistantTranscriptDelta } from "../realtime-events";
+import { extractResponseText, isAssistantAudioDelta, isAssistantTranscriptDelta, realtimeCompletionOutcome, realtimeCompletionNotice } from "../realtime-events";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { LatencyTracker, mintSessionId } from "@/modules/voice-core/realtime";
 import type { LatencyStage, TurnLatencyHandle } from "@/modules/voice-core/realtime/latency-tracker";
@@ -1035,6 +1035,15 @@ export function useOpenAIRealtime(opts?: Options) {
           // single-path design, RESPONSE_DONE only needs to mark the turn
           // done and reset speaking state — nothing more.
           if (type === RT_EVENTS.RESPONSE_DONE) {
+            const terminal = realtimeCompletionOutcome(msg.response);
+            const terminalNotice = realtimeCompletionNotice(msg.response);
+            if (terminal.status === "incomplete" || terminal.status === "failed" || terminal.status === "cancelled") {
+              // Diagnostic metadata only: never log audio, transcript, knowledge or tokens.
+              console.warn("[Realtime] response ended without successful completion", {
+                status: terminal.status,
+                reason: terminal.reason,
+              });
+            }
             markTurn("turn.complete");
             emitLatencyTelemetry();
             // The record has been emitted; a later utterance's interim record
@@ -1051,7 +1060,12 @@ export function useOpenAIRealtime(opts?: Options) {
               if (!targetId) return prev;
               return prev.map((t) =>
                 t.id === targetId
-                  ? { ...t, answer: t.answer.trim() ? t.answer : finalText || t.answer, status: "done" }
+                  ? {
+                      ...t,
+                      answer: [t.answer.trim() ? t.answer : finalText || t.answer, terminalNotice]
+                        .filter(Boolean).join("\\n\\n"),
+                      status: "done",
+                    }
                   : t
               );
             });
