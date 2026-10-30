@@ -20,14 +20,17 @@
  *   • key → (kbId, orgId, allowedOrigins) resolution + origin check only,
  *     TTL-cached (5 s) because these routes fire per utterance/sentence
  *
- * Anything that is NOT a clr_ bearer token (platform JWT, no auth) keeps the
- * routes' existing behaviour — resolution + rate limits + planGuard.
+ * Signed pub_v1 published sessions are verified for HMAC, expiry, KB and
+ * active public deployment without charging widget-key hourly quota.
+ * Platform JWT / no-auth native legacy traffic preserves prior behaviour.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey } from "@/modules/embed/core/api-keys-db";
 import { isOriginAllowedForEmbed } from "@/modules/embed/core/validate-embed";
 import type { ValidatedKey } from "@/modules/embed/core/api-keys-db";
+import { verifyPublicSessionToken } from "@/modules/embed/core/public-token";
+import { getActiveDeploymentCached } from "@/modules/agent-versioning/core/db";
 
 const CACHE_TTL_MS = 5_000;
 const keyCache = new Map<string, { expiresAt: number; value: ValidatedKey | null }>();
@@ -86,6 +89,28 @@ export async function embedVoiceGuard(
   // EVERY logged-in Mode A session (session/tts/transcribe) — a regression
   // introduced when the guard was wired into the routes.
   const authHeader = request.headers.get("authorization") ?? "";
+  const credential = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+  // Public published-page sessions are HMAC signed, KB-bound and linked to
+  // the exact live public deployment. Never treat pub_v1 as a platform JWT:
+  // otherwise an arbitrary KB could be used for billable STT/TTS requests.
+  if (credential.startsWith("pub_v1.")) {
+    const verified = verifyPublicSessionToken(credential);
+    if (!verified) {
+      return NextResponse.json({ error: "Invalid or expired public session." }, { status: 401 });
+    }
+    if (verified.payload.k !== kbId) {
+      return NextResponse.json({ error: "Public session is not valid for this knowledge base." }, { status: 403 });
+    }
+    const active = await getActiveDeploymentCached(verified.payload.a);
+    if (!active || !active.publicAccess || active.id !== verified.payload.d) {
+      return NextResponse.json({ error: "The assistant is no longer publicly available." }, { status: 403 });
+    }
+    return null;
+  }
+
+  // Preserve existing platform JWT and anonymous/native-app behaviour.
+  // Legacy external widget credentials are independently checked below.
   if (!authHeader.startsWith("Bearer clr_")) return null;
 
   const key = await resolveEmbedVoiceKey(request);
