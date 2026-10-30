@@ -350,6 +350,10 @@ services:
       REDIS_PORT: 6379
       CRAWL_WORKER_CONCURRENCY: ${CRAWL_WORKER_CONCURRENCY:-1}
       RETRY_WORKER_CONCURRENCY: ${RETRY_WORKER_CONCURRENCY:-1}
+      # Exact disposable-KB canary only. Both defaults leave the feature OFF.
+      # Configure these only after the tenant has created RAG-STAGING-* via RBAC.
+      RAG_STAGING_PAGE_SECTION_CHUNKING: ${RAG_STAGING_PAGE_SECTION_CHUNKING:-false}
+      RAG_STAGING_KB_ID: ${RAG_STAGING_KB_ID:-}
     depends_on:
       redis:
         condition: service_healthy
