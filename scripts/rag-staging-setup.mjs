@@ -137,7 +137,8 @@ export async function runSetup(opts,token,{
     throw Error("Source filename must be the original PoliciesEn001.pdf");
   // Check before reading or sending any data: never silently index with the
   // legacy worker if the exact stage override was not applied.
-  await checkWorker(opts.kbId);
+  if ((await checkWorker(opts.kbId)) !== true)
+    throw Error("Worker not exclusively configured for this staging KB");
   const file=resolve(opts.source);
   const info=await statSource(file);
   if(!info.isFile()||info.size<1000||info.size>MAX_UPLOAD)
