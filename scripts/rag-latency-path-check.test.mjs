@@ -240,3 +240,33 @@ test('auth-only explicit warmup and repeats measure both origins without RAG cal
     await close(serverB);
   }
 });
+
+
+test('fresh HTTPS trace rejects incompatible modes, invalid DNS family and non-TLS origins', async () => {
+  const cases = [
+    [['--trace-https', '--auth-only'], /Choose --trace-https or --auth-only/],
+    [['--trace-https', '--family', 'invalid'], /--family must be auto, 4 or 6/],
+    [['--family', '4'], /--family applies only to --trace-https/],
+    [['--trace-https', '--public-url', 'http://127.0.0.1:4000'], /requires a public HTTPS origin/],
+  ];
+  for (const [flags, expected] of cases) {
+    const r = await exec(flags);
+    assert.equal(r.code, 1);
+    assert.match(r.stderr, expected);
+    assert.doesNotMatch(r.stdout + r.stderr, /secret-fixture-token/);
+  }
+});
+
+test('fresh HTTPS trace handles an unreachable endpoint without exposing token or request details', async () => {
+  // Port 1 on loopback is not an authentication service. The trace must report
+  // a controlled network error and never send a RAG request or leak tokens.
+  const r = await exec([
+    '--trace-https', '--public-url', 'https://127.0.0.1:1',
+    '--warmup', '0', '--repeat', '1', '--timeout-ms', '1000',
+  ]);
+  assert.equal(r.code, 2, r.stderr);
+  assert.match(r.stdout, /Fresh-connection HTTPS auth trace/);
+  assert.match(r.stdout, /measure 1: HTTP network-error/);
+  assert.match(r.stdout, /HTTPS fresh-connection summary \(0\/1 successful measured\)/);
+  assert.doesNotMatch(r.stdout + r.stderr, /secret-fixture-token|Bearer/);
+});
