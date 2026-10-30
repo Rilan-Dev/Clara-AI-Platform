@@ -66,14 +66,12 @@ export function buildTurnGuidance(input: TurnGuidanceInput): string {
     lines.push(
       "- Answer from the knowledge-base passages provided for this turn. If they only partly cover the question, answer what they support and say which part is not covered. Do not add facts that are not in them.",
     );
-    // Document-independent completeness: preserve the entirety of numbered
-    // evidence when someone asks about requirements, procedures or conditions.
-    // Voice retains its shorter spoken-response policy below.
-    if (input.channel !== "voice") {
-      lines.push(
-        "- When explaining what a policy, clause, standard, procedure, checklist or similar source requires, include every applicable numbered or bulleted requirement visible in the retrieved evidence. Preserve conditions, exceptions and qualification details. If an excerpt is cut off or only some items are available, say the list may be incomplete rather than silently omitting items. Never invent additional requirements.",
-      );
-    }
+    // Completeness applies to every channel, including voice. Spoken brevity
+    // must not convert an explicit "all requirements" request into examples.
+    lines.push(
+      "- When explaining what a policy, clause, standard, procedure, checklist or similar source requires, include every applicable numbered or bulleted requirement visible in the retrieved evidence. Preserve identifiers, conditions, exceptions and qualification details. If an excerpt is cut off or only some items are available, say the list may be incomplete rather than silently omitting items. Never invent additional requirements.",
+      "- For requests asking for ALL items or a complete list, never present examples or a partial top-K retrieval as the full set. Give a complete list only when the retrieved evidence establishes completeness; otherwise explicitly say that the available excerpts do not establish the complete list.",
+    );
   } else {
     lines.push(
       "- No knowledge-base passage matched this message. Decide what it is and respond naturally:",
@@ -95,7 +93,7 @@ export function buildTurnGuidance(input: TurnGuidanceInput): string {
 
   if (input.channel === "voice") {
     lines.push(
-      "- This reply is spoken. Always finish your sentences. If the full answer is long, give the key points and offer to continue, unless the operator instructions say otherwise.",
+      "- This reply is spoken. Always finish sentences. For ordinary explanations, be concise. When the user explicitly asks for every requirement or item, enumerate all items supported by the retrieved evidence concisely instead of replacing them with key points. If there is too much verified evidence for one spoken turn, state clearly that this is only a partial answer and offer to continue; never silently imply the list is complete.",
     );
   }
   return lines.join("\n");
