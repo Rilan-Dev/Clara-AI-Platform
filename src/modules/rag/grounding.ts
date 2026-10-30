@@ -66,6 +66,7 @@ import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
 import { rerankCandidates, type RerankStatus } from "@/modules/rag/rerank";
 import { extractStructuredReferences, matchingExactReferenceEvidence } from "@/modules/rag/reference-evidence";
+import { detectIdentifierInventoryIntent, buildIdentifierInventory, formatIdentifierInventory, type IdentifierInventoryPoint, type IdentifierInventoryIntent } from "@/modules/rag/identifier-inventory";
 import {
   REFERENCE_SCAN_LIMIT,
   REFERENCE_SCAN_PAGE_SIZE,
@@ -458,6 +459,47 @@ type SearchHit = {
  * Re-score the selected IDs using the original query embedding so exported
  * scores remain real Qdrant similarities rather than invented keyword scores.
  */
+/**
+ * Explicit exhaustive-list queries require a complete authorized scan.
+ * A dense topK result is NEVER proof of a complete document-wide inventory.
+ * Bounded, payload-only, KB-filtered scans avoid cross-tenant exposure and
+ * avoid changing Qdrant's stored vectors or live collection schema.
+ */
+async function enumerateAuthorizedIdentifiers(
+  client: ReturnType<typeof getQdrantClient>,
+  collectionName: string,
+  filter: Record<string, unknown>,
+  intent: IdentifierInventoryIntent,
+): Promise<ReturnType<typeof buildIdentifierInventory> | null> {
+  if (typeof client.scroll !== "function") return null;
+  const points: IdentifierInventoryPoint[] = [];
+  let offset: string | number | undefined;
+  try {
+    while (true) {
+      const page = await client.scroll(collectionName, {
+        ...(offset === undefined ? {} : { offset }),
+        limit: REFERENCE_SCAN_PAGE_SIZE,
+        filter: filter as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
+        with_payload: ["kbId","documentId","title","chunk","referenceIds","pageNumber"],
+        with_vector: false,
+      });
+      for (const item of page.points) {
+        points.push({ id: String(item.id), payload: (item.payload ?? {}) as Record<string, unknown> });
+      }
+      // Do not return a partial catalog as the "full set".
+      if (points.length > REFERENCE_SCAN_LIMIT) return null;
+      const next = page.next_page_offset;
+      if (typeof next !== "string" && typeof next !== "number")
+        return buildIdentifierInventory(points, intent, true);
+      if (points.length === REFERENCE_SCAN_LIMIT) return null;
+      offset = next;
+    }
+  } catch (error) {
+    console.warn("[grounding] exhaustive identifier inventory unavailable:", (error as Error).message);
+    return null;
+  }
+}
+
 /** Preserve source order while using the collection's true vector scores. */
 async function scoreReferenceWindows(
   client: ReturnType<typeof getQdrantClient>,
@@ -1065,6 +1107,13 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     ],
   };
 
+  // Exhaustive enumeration is opt-in by user intent, never a replacement
+  // for semantic QA. Reuse the resolved KB and document authorization filter.
+  const inventoryIntent = detectIdentifierInventoryIntent(searchText);
+  const inventoryPromise = inventoryIntent
+    ? enumerateAuthorizedIdentifiers(getQdrantClient(), searchCollection, filter, inventoryIntent)
+    : Promise.resolve(null);
+
   const graphStarted = Date.now();
   let graphSettledAt = graphStarted;
   const graphPromise = runtime.enableGraphRag
@@ -1135,6 +1184,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const retrievalMs = Date.now() - retrievalStarted;
   const translation = await translationPromise;
   const graphHits = await graphPromise;
+  const identifierInventory = await inventoryPromise;
   // Graph and vector work overlap. Measuring graph AFTER awaiting vector
   // wrongly attributes the entire Qdrant request to graphMs (even with graph
   // disabled), making stage-level latency diagnoses misleading.
@@ -1197,6 +1247,8 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   }
 
   const contextParts = [
+    inventoryIntent && identifierInventory
+      ? formatIdentifierInventory(inventoryIntent.prefix, identifierInventory) : "",
     vectorResults
       .map((r, i) => {
         const title = r.payload?.title ? String(r.payload.title) : "Document";
@@ -1246,7 +1298,8 @@ ${graphContext}`);
     relations: hit.relations,
   }));
 
-  const grounded = sources.length > 0 || graphSources.length > 0;
+  const grounded = sources.length > 0 || graphSources.length > 0 ||
+    Boolean(identifierInventory?.complete && identifierInventory.entries.length > 0);
   // Topics only matter when there is no evidence (to steer the visitor to
   // what the KB covers); the summary is usually cached or already computing.
   if (!grounded) scope.topics = await topicsFor(TOPICS_WAIT_MS / 2);
