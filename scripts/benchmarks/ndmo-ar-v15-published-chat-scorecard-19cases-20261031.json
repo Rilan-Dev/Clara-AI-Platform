@@ -1,0 +1,347 @@
+{
+  "kind": "clara.ndmo-ar-public-qa.v1",
+  "source": {
+    "filename": "SDAIA NDMO Policies Ar 001.pdf",
+    "sha256": "6bc56b0a5327e5c5d84f0f1408eb7e4b0ed347b9ad5aeff3c83183cdc25bca0e",
+    "pdfPages": 197,
+    "version": "1.5",
+    "year": 2021
+  },
+  "target": {
+    "agentId": "a7107bde-ff33-4952-9ebf-ad0d1dac3861",
+    "kbName": "Support Rilan",
+    "type": "published public chat"
+  },
+  "executedOn": "2026-10-31",
+  "scoringMethod": "Lexical control-concept checks based on attached NDMO Arabic PDF; re-scored with audited synonyms, without additional provider calls.",
+  "summary": {
+    "total": 19,
+    "relevant": 16,
+    "answered": 16,
+    "answeredRelevant": 13,
+    "outOfScope": 3,
+    "correctAbstentions": 3,
+    "positiveInRangeCitations": 12,
+    "positiveWithPageMetadata": 0,
+    "medianMs": 1849,
+    "p95Ms": 2754,
+    "releaseGate": "NO_GO"
+  },
+  "cases": [
+    {
+      "id": "do42-en-seven",
+      "category": "complete",
+      "language": "en",
+      "expectedPages": [
+        69,
+        70
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 7,
+      "conceptsRequired": 7,
+      "citationsInRange": false,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 2328,
+      "returnedFallback": false
+    },
+    {
+      "id": "do42-ar-seven",
+      "category": "multilingual",
+      "language": "ar",
+      "expectedPages": [
+        69,
+        70
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 7,
+      "conceptsRequired": 7,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 2303,
+      "returnedFallback": false
+    },
+    {
+      "id": "do42-rpo-rto-en",
+      "category": "definitions",
+      "language": "en",
+      "expectedPages": [
+        70
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 4,
+      "conceptsRequired": 4,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 2988,
+      "returnedFallback": false
+    },
+    {
+      "id": "do42-typo-zero",
+      "category": "variant",
+      "language": "en",
+      "expectedPages": [
+        69,
+        70
+      ],
+      "answerRelevant": false,
+      "conceptsFound": 0,
+      "conceptsRequired": 7,
+      "citationsInRange": false,
+      "sourcePageMetadata": 0,
+      "sourceCount": 0,
+      "elapsedMs": 1654,
+      "returnedFallback": true
+    },
+    {
+      "id": "do42-priority",
+      "category": "fact",
+      "language": "en",
+      "expectedPages": [
+        69
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 1,
+      "conceptsRequired": 1,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 1212,
+      "returnedFallback": false
+    },
+    {
+      "id": "do42-ar-priority",
+      "category": "multilingual",
+      "language": "ar",
+      "expectedPages": [
+        69
+      ],
+      "answerRelevant": false,
+      "conceptsFound": 0,
+      "conceptsRequired": 1,
+      "citationsInRange": false,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 2221,
+      "returnedFallback": true
+    },
+    {
+      "id": "do41-backup",
+      "category": "enumeration",
+      "language": "en",
+      "expectedPages": [
+        69
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 4,
+      "conceptsRequired": 4,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 3,
+      "elapsedMs": 1349,
+      "returnedFallback": false
+    },
+    {
+      "id": "do41-backup-ar",
+      "category": "multilingual",
+      "language": "ar",
+      "expectedPages": [
+        69
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 4,
+      "conceptsRequired": 4,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 3,
+      "elapsedMs": 1874,
+      "returnedFallback": false
+    },
+    {
+      "id": "do43-changes",
+      "category": "enumeration",
+      "language": "en",
+      "expectedPages": [
+        70
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 3,
+      "conceptsRequired": 3,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 2,
+      "elapsedMs": 1661,
+      "returnedFallback": true
+    },
+    {
+      "id": "do21-retention",
+      "category": "enumeration",
+      "language": "en",
+      "expectedPages": [
+        65
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 4,
+      "conceptsRequired": 4,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 3,
+      "elapsedMs": 1578,
+      "returnedFallback": false
+    },
+    {
+      "id": "dcm21-content",
+      "category": "enumeration",
+      "language": "en",
+      "expectedPages": [
+        76
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 5,
+      "conceptsRequired": 5,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 4,
+      "elapsedMs": 2541,
+      "returnedFallback": false
+    },
+    {
+      "id": "dcm21-ar",
+      "category": "multilingual",
+      "language": "ar",
+      "expectedPages": [
+        76
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 5,
+      "conceptsRequired": 5,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 4,
+      "elapsedMs": 1790,
+      "returnedFallback": false
+    },
+    {
+      "id": "do51-kpis",
+      "category": "enumeration",
+      "language": "en",
+      "expectedPages": [
+        71
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 5,
+      "conceptsRequired": 5,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 3,
+      "elapsedMs": 2754,
+      "returnedFallback": false
+    },
+    {
+      "id": "dg21-gap",
+      "category": "enumeration",
+      "language": "en",
+      "expectedPages": [
+        20
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 4,
+      "conceptsRequired": 4,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 1926,
+      "returnedFallback": false
+    },
+    {
+      "id": "do42-conversation-followup",
+      "category": "multi-turn",
+      "language": "en",
+      "expectedPages": [
+        69,
+        70
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 2,
+      "conceptsRequired": 2,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 1849,
+      "returnedFallback": false
+    },
+    {
+      "id": "do42-missing-rto-number",
+      "category": "unanswerable",
+      "language": "en",
+      "expectedPages": [
+        70
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 0,
+      "conceptsRequired": 0,
+      "citationsInRange": true,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 1831,
+      "returnedFallback": true
+    },
+    {
+      "id": "do42-external-penalty",
+      "category": "unanswerable",
+      "language": "en",
+      "expectedPages": [
+        69,
+        70
+      ],
+      "answerRelevant": true,
+      "conceptsFound": 0,
+      "conceptsRequired": 0,
+      "citationsInRange": false,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 1452,
+      "returnedFallback": true
+    },
+    {
+      "id": "outside-private-account",
+      "category": "unanswerable",
+      "language": "en",
+      "expectedPages": [],
+      "answerRelevant": true,
+      "conceptsFound": 0,
+      "conceptsRequired": 0,
+      "citationsInRange": false,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 1498,
+      "returnedFallback": true
+    },
+    {
+      "id": "all-fifteen-domains",
+      "category": "cross-document-enumeration",
+      "language": "en",
+      "expectedPages": [
+        14
+      ],
+      "answerRelevant": false,
+      "conceptsFound": 2,
+      "conceptsRequired": 15,
+      "citationsInRange": false,
+      "sourcePageMetadata": 0,
+      "sourceCount": 6,
+      "elapsedMs": 1876,
+      "returnedFallback": true
+    }
+  ],
+  "releaseNotes": [
+    "D0.4.2 zero-vs-O fails on published snapshot at baseline",
+    "Arabic priority DO.4.2 unsupported by retrieved excerpts despite true PDF priority P2",
+    "15-domain list fails due insufficient cross-document evidence",
+    "Source page numbers absent for all cases; citation correctness not verifiable",
+    "English/Tamil/Hindi configured output languages; Arabic question support is an input-only comprehension check",
+    "No tenant draft authentication or reindex was performed"
+  ]
+}
