@@ -12,7 +12,8 @@ Requires a fresh exported CLARA_DEBUG_TOKEN (or CLARA_DEBUG_COOKIE), the existin
 rag-ab-queries.json in the current directory, and a built clara-backend image.
 Before running, execute: docker compose build clara-backend
 Optional: RAG_AB_QUERIES, RAG_AB_PREFIX, RAG_AB_SCOPE (default draft),
-          RAG_AB_PORT (default 4001), RAG_AB_MAX_READINESS_CHECKS (default 50).
+          RAG_AB_PORT (default 4001), RAG_AB_MAX_READINESS_CHECKS (default 50),
+          RAG_AB_LANGUAGE_POLICY (default latin-only; "all" for a verified multilingual model).
 Output JSON files are PRIVATE; never commit or share raw questions/source metadata.
 Each default arm makes 8 questions * (1 warmup + 3 measured) = 32 RAG requests.
 HELP
@@ -33,6 +34,7 @@ prefix="${RAG_AB_PREFIX:-rag-ab-v2}"
 scope="${RAG_AB_SCOPE:-draft}"
 port="${RAG_AB_PORT:-4001}"
 checks="${RAG_AB_MAX_READINESS_CHECKS:-50}"
+language_policy="${RAG_AB_LANGUAGE_POLICY:-latin-only}"
 container='clara-rag-bench'
 origin="http://127.0.0.1:${port}"
 base="${prefix}-off.json"
@@ -42,6 +44,7 @@ owned=0
 started_reranker=0
 
 [[ "$scope" == 'draft' || "$scope" == 'live' ]] || { echo 'RAG_AB_SCOPE must be draft or live' >&2; exit 1; }
+[[ "$language_policy" == 'all' || "$language_policy" == 'latin-only' ]] || { echo 'RAG_AB_LANGUAGE_POLICY must be all or latin-only' >&2; exit 1; }
 [[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || { echo 'Invalid RAG_AB_PORT' >&2; exit 1; }
 [[ "$checks" =~ ^[0-9]+$ ]] && (( checks >= 1 && checks <= 180 )) || { echo 'Invalid RAG_AB_MAX_READINESS_CHECKS' >&2; exit 1; }
 [[ -r "$queries" ]] || { echo "Missing query file: $queries" >&2; exit 1; }
@@ -100,6 +103,7 @@ start_backend() {
     -e RAG_RERANK_URL="$url" \
     -e RAG_RERANK_TIMEOUT_MS=6000 \
     -e RAG_RERANK_MAX_CANDIDATES=8 \
+    -e RAG_RERANK_LANGUAGE_POLICY="$language_policy" \
     clara-backend >/dev/null
   owned=1
   wait_healthy
