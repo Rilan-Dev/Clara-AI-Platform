@@ -411,7 +411,7 @@
         },
         {
           "key": "queryTime",
-          "regex": "(?:average).{0,45}query|متوسط.{0,45}استعلام"
+          "regex": "(?:average).{0,85}(?:quer|query|استعلام)|متوسط.{0,45}استعلام"
         }
       ]
     },
@@ -436,11 +436,11 @@
         },
         {
           "key": "sectorRegulations",
-          "regex": "(?:sector|regulator).{0,80}(?:polic|control|regulation)|(?:رقاب|تنظيم).{0,60}جهة"
+          "regex": "(?:sector.{0,85}regulat|regulat.{0,85}sector|regulator.{0,100}sector|(?:رقاب|تنظيم).{0,60}جهة)"
         },
         {
           "key": "implementationPlan",
-          "regex": "implementation plan|action plan|roadmap|خطة.{0,60}تطوير"
+          "regex": "implementation plan|action plan|development plan|plan.{0,80}(?:timeline|implementation)|خطة.{0,60}تطوير"
         }
       ]
     },
