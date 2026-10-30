@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 1,
+  "title": "NDMO Arabic v1.5 grounded published-chat relevance benchmark",
+  "source": {
+    "filename": "SDAIA NDMO Policies Ar 001.pdf",
+    "sha256": "6bc56b0a5327e5c5d84f0f1408eb7e4b0ed347b9ad5aeff3c83183cdc25bca0e",
+    "pdfPages": 197,
+    "version": "1.5",
+    "year": 2021
+  },
+  "target": {
+    "agentId": "a7107bde-ff33-4952-9ebf-ad0d1dac3861",
+    "kbName": "Support Rilan",
+    "type": "published public chat"
+  },
+  "notes": "Concept regexes are proxy checks only, not independent semantic judgment. Pages are one-indexed PDF page numbers. No private session is used.",
+  "cases": [
+    {
+      "id": "do42-en-seven",
+      "category": "complete",
+      "language": "en",
+      "pages": [
+        69,
+        70
+      ],
+      "messages": [
+        "List all seven requirements of control DO.4.2 according to the NDMO policy."
+      ],
+      "checks": [
+        {
+          "key": "prioritySystems",
+          "regex": "priorit.{0,85}(?:information systems|systems|recovery)|(?:أنظم|انظم).{0,95}(?:أولوي|اولوي)|(?:أولوي|اولوي).{0,95}(?:أنظم|انظم)"
+        },
+        {
+          "key": "incidentRoles",
+          "regex": "assign.{0,55}role|responsib.{0,55}incident|(?:أدوار|ادوار|مسؤول).{0,95}(?:حوادث|استجاب)"
+        },
+        {
+          "key": "activateResponse",
+          "regex": "activat.{0,80}(?:response|incident)|تفعيل.{0,75}(?:حوادث|استجاب|نظام)"
+        },
+        {
+          "key": "mitigateDamage",
+          "regex": "mitigat|reduc.{0,75}damag|(?:تقليل|تخفيف).{0,70}(?:أضرار|اضرار|عواقب)"
+        },
+        {
+          "key": "rpo",
+          "regex": "recovery point objective|\\bRPO\\b|نقط.{0,25}تعاف"
+        },
+        {
+          "key": "rto",
+          "regex": "recovery time objective|\\bRTO\\b|زمن.{0,25}تعاف"
+        },
+        {
+          "key": "recoveryActions",
+          "regex": "recovery activit|أنشط.{0,30}تعاف"
+        }
+      ]
+    },
+    {
+      "id": "do42-ar-seven",
+      "category": "multilingual",
+      "language": "ar",
+      "pages": [
+        69,
+        70
+      ],
+      "messages": [
+        "ما جميع المتطلبات السبعة في الضابط DO.4.2 للتعافي من الكوارث؟ أجب بالعربية مع المصادر."
+      ],
+      "checks": [
+        {
+          "key": "prioritySystems",
+          "regex": "priorit.{0,85}(?:information systems|systems|recovery)|(?:أنظم|انظم).{0,95}(?:أولوي|اولوي)|(?:أولوي|اولوي).{0,95}(?:أنظم|انظم)"
+        },
+        {
+          "key": "incidentRoles",
+          "regex": "assign.{0,55}role|responsib.{0,55}incident|(?:أدوار|ادوار|مسؤول).{0,95}(?:حوادث|استجاب)"
+        },
+        {
+          "key": "activateResponse",
+          "regex": "activat.{0,80}(?:response|incident)|تفعيل.{0,75}(?:حوادث|استجاب|نظام)"
+        },
+        {
+          "key": "mitigateDamage",
+          "regex": "mitigat|reduc.{0,75}damag|(?:تقليل|تخفيف).{0,70}(?:أضرار|اضرار|عواقب)"
+        },
+        {
+          "key": "rpo",
+          "regex": "recovery point objective|\\bRPO\\b|نقط.{0,25}تعاف"
+        },
+        {
+          "key": "rto",
+          "regex": "recovery time objective|\\bRTO\\b|زمن.{0,25}تعاف"
+        },
+        {
+          "key": "recoveryActions",
+          "regex": "recovery activit|أنشط.{0,30}تعاف"
+        }
+      ]
+    },
+    {
+      "id": "do42-rpo-rto-en",
+      "category": "definitions",
+      "language": "en",
+      "pages": [
+        70
+      ],
+      "messages": [
+        "Under DO.4.2, what is the difference between Recovery Point Objectives and Recovery Time Objectives?"
+      ],
+      "checks": [
+        {
+          "key": "rpo",
+          "regex": "recovery point objective|\\bRPO\\b|نقط.{0,25}تعاف"
+        },
+        {
+          "key": "rto",
+          "regex": "recovery time objective|\\bRTO\\b|زمن.{0,25}تعاف"
+        },
+        {
+          "key": "dataLossMeaning",
+          "regex": "data.{0,55}loss|data.{0,55}lost|فقد.{0,40}بيانات"
+        },
+        {
+          "key": "downtimeMeaning",
+          "regex": "down.?time|database.{0,60}down|outage|تعطل.{0,50}قاعدة"
+        }
+      ]
+    },
+    {
+      "id": "do42-typo-zero",
+      "category": "variant",
+      "language": "en",
+      "pages": [
+        69,
+        70
+      ],
+      "messages": [
+        "List the seven disaster recovery requirements for D0.4.2 (D-zero in the identifier)."
+      ],
+      "checks": [
+        {
+          "key": "prioritySystems",
+          "regex": "priorit.{0,85}(?:information systems|systems|recovery)|(?:أنظم|انظم).{0,95}(?:أولوي|اولوي)|(?:أولوي|اولوي).{0,95}(?:أنظم|انظم)"
+        },
+        {
+          "key": "incidentRoles",
+          "regex": "assign.{0,55}role|responsib.{0,55}incident|(?:أدوار|ادوار|مسؤول).{0,95}(?:حوادث|استجاب)"
+        },
+        {
+          "key": "activateResponse",
+          "regex": "activat.{0,80}(?:response|incident)|تفعيل.{0,75}(?:حوادث|استجاب|نظام)"
+        },
+        {
+          "key": "mitigateDamage",
+          "regex": "mitigat|reduc.{0,75}damag|(?:تقليل|تخفيف).{0,70}(?:أضرار|اضرار|عواقب)"
+        },
+        {
+          "key": "rpo",
+          "regex": "recovery point objective|\\bRPO\\b|نقط.{0,25}تعاف"
+        },
+        {
+          "key": "rto",
+          "regex": "recovery time objective|\\bRTO\\b|زمن.{0,25}تعاف"
+        },
+        {
+          "key": "recoveryActions",
+          "regex": "recovery activit|أنشط.{0,30}تعاف"
+        }
+      ]
+    },
+    {
+      "id": "do42-priority",
+      "category": "fact",
+      "language": "en",
+      "pages": [
+        69
+      ],
+      "messages": [
+        "What implementation priority is assigned to specification DO.4.2?"
+      ],
+      "checks": [
+        {
+          "key": "priorityTwo",
+          "regex": "(?:priority|أولوي|اولوي).{0,16}(?:2|٢|two|الثاني|الثانية)"
+        }
+      ]
+    },
+    {
+      "id": "do42-ar-priority",
+      "category": "multilingual",
+      "language": "ar",
+      "pages": [
+        69
+      ],
+      "messages": [
+        "ما مستوى أولوية تطبيق المواصفة DO.4.2؟"
+      ],
+      "checks": [
+        {
+          "key": "priorityTwo",
+          "regex": "(?:priority|أولوي|اولوي).{0,16}(?:2|٢|two|الثاني|الثانية)"
+        }
+      ]
+    },
+    {
+      "id": "do41-backup",
+      "category": "enumeration",
+      "language": "en",
+      "pages": [
+        69
+      ],
+      "messages": [
+        "Under DO.4.1, list the four elements the data backup and restoration process must cover."
+      ],
+      "checks": [
+        {
+          "key": "frequency",
+          "regex": "frequen.{0,50}backup|backup.{0,45}frequen|تواتر.{0,45}نسخ"
+        },
+        {
+          "key": "scope",
+          "regex": "backup.{0,45}scope|scope.{0,50}backup|نطاق.{0,45}نسخ"
+        },
+        {
+          "key": "backupLocation",
+          "regex": "backup.{0,45}(?:location|storage medium)|location.{0,55}backup|موقع.{0,35}(?:احتياط|ملفات)"
+        },
+        {
+          "key": "backupVerification",
+          "regex": "verif.{0,70}backup|periodic.{0,70}backup|التحقق.{0,70}نسخ"
+        }
+      ]
+    },
+    {
+      "id": "do41-backup-ar",
+      "category": "multilingual",
+      "language": "ar",
+      "pages": [
+        69
+      ],
+      "messages": [
+        "اذكر عناصر عملية النسخ الاحتياطي واسترجاع البيانات وفق DO.4.1."
+      ],
+      "checks": [
+        {
+          "key": "frequency",
+          "regex": "frequen.{0,50}backup|backup.{0,45}frequen|تواتر.{0,45}نسخ"
+        },
+        {
+          "key": "scope",
+          "regex": "backup.{0,45}scope|scope.{0,50}backup|نطاق.{0,45}نسخ"
+        },
+        {
+          "key": "backupLocation",
+          "regex": "backup.{0,45}(?:location|storage medium)|location.{0,55}backup|موقع.{0,35}(?:احتياط|ملفات)"
+        },
+        {
+          "key": "backupVerification",
+          "regex": "verif.{0,70}backup|periodic.{0,70}backup|التحقق.{0,70}نسخ"
+        }
+      ]
+    },
+    {
+      "id": "do43-changes",
+      "category": "enumeration",
+      "language": "en",
+      "pages": [
+        70
+      ],
+      "messages": [
+        "List the requirements of DO.4.3 for changing databases in production."
+      ],
+      "checks": [
+        {
+          "key": "changeRequests",
+          "regex": "change request|طلبات.{0,35}تغيير"
+        },
+        {
+          "key": "controlledChanges",
+          "regex": "controlled.{0,60}chang|control.{0,70}implement|منضبط.{0,45}تغير"
+        },
+        {
+          "key": "rollback",
+          "regex": "roll.?back|revert.{0,45}chang|إلغاء.{0,50}تغيير|الغاء.{0,50}تغيير"
+        }
+      ]
+    },
+    {
+      "id": "do21-retention",
+      "category": "enumeration",
+      "language": "en",
+      "pages": [
+        65
+      ],
+      "messages": [
+        "What four areas must the storage and retention policy cover under DO.2.1?"
+      ],
+      "checks": [
+        {
+          "key": "storageConditions",
+          "regex": "storage conditions|شروط.{0,40}تخزين"
+        },
+        {
+          "key": "retentionPeriods",
+          "regex": "retention period|فترات.{0,45}استبقاء"
+        },
+        {
+          "key": "disposalRules",
+          "regex": "disposal|destruction rules|حذف|إزالة|إتلاف"
+        },
+        {
+          "key": "accidentalLoss",
+          "regex": "accidental.{0,45}loss|permanent.{0,45}loss|فقدان.{0,50}دائم"
+        }
+      ]
+    },
+    {
+      "id": "dcm21-content",
+      "category": "enumeration",
+      "language": "en",
+      "pages": [
+        76
+      ],
+      "messages": [
+        "What are the five minimum areas in document/content management policy DCM.2.1?"
+      ],
+      "checks": [
+        {
+          "key": "documentNaming",
+          "regex": "naming convention|تسمية.{0,40}وثائق"
+        },
+        {
+          "key": "classification",
+          "regex": "classification level|تصنيف.{0,40}وثائق|مستويات.{0,25}تصنيف"
+        },
+        {
+          "key": "accessApprovals",
+          "regex": "access.{0,45}approval|الموافق.{0,55}وصول"
+        },
+        {
+          "key": "documentBackups",
+          "regex": "backup.{0,55}(?:document|content)|نسخ.{0,55}وثائق"
+        },
+        {
+          "key": "documentRetention",
+          "regex": "retention.{0,55}document|document.{0,55}dispos|استبقاء.{0,55}وثائق"
+        }
+      ]
+    },
+    {
+      "id": "dcm21-ar",
+      "category": "multilingual",
+      "language": "ar",
+      "pages": [
+        76
+      ],
+      "messages": [
+        "ما البنود التي تغطيها سياسة إدارة المحتوى والوثائق DCM.2.1؟"
+      ],
+      "checks": [
+        {
+          "key": "documentNaming",
+          "regex": "naming convention|تسمية.{0,40}وثائق"
+        },
+        {
+          "key": "classification",
+          "regex": "classification level|تصنيف.{0,40}وثائق|مستويات.{0,25}تصنيف"
+        },
+        {
+          "key": "accessApprovals",
+          "regex": "access.{0,45}approval|الموافق.{0,55}وصول"
+        },
+        {
+          "key": "documentBackups",
+          "regex": "backup.{0,55}(?:document|content)|نسخ.{0,55}وثائق"
+        },
+        {
+          "key": "documentRetention",
+          "regex": "retention.{0,55}document|document.{0,55}dispos|استبقاء.{0,55}وثائق"
+        }
+      ]
+    },
+    {
+      "id": "do51-kpis",
+      "category": "enumeration",
+      "language": "en",
+      "pages": [
+        71
+      ],
+      "messages": [
+        "List the five storage performance indicators required by DO.5.1."
+      ],
+      "checks": [
+        {
+          "key": "storageUsed",
+          "regex": "(?:storage capacity|سع.{0,25}تخزين).{0,50}us|نسب.{0,50}سع"
+        },
+        {
+          "key": "dbStorage",
+          "regex": "(?:database type|type of database)|نوع.{0,35}قاعدة"
+        },
+        {
+          "key": "backupStorage",
+          "regex": "storage.{0,65}backup|نسخ.{0,55}احتياط"
+        },
+        {
+          "key": "transactionCount",
+          "regex": "(?:number|count).{0,40}transactions|عدد.{0,55}معامل"
+        },
+        {
+          "key": "queryTime",
+          "regex": "(?:average).{0,45}query|متوسط.{0,45}استعلام"
+        }
+      ]
+    },
+    {
+      "id": "dg21-gap",
+      "category": "enumeration",
+      "language": "en",
+      "pages": [
+        20
+      ],
+      "messages": [
+        "What must the data governance policy gap analysis DG.2.1 include?"
+      ],
+      "checks": [
+        {
+          "key": "gapBaseline",
+          "regex": "(?:gap analys|تحليل.{0,30}فجوات)"
+        },
+        {
+          "key": "nationalPolicies",
+          "regex": "(?:national|ndmo).{0,75}(?:polic|control|guideline)|سياسات.{0,70}(?:مكتب|وطني)"
+        },
+        {
+          "key": "sectorRegulations",
+          "regex": "(?:sector|regulator).{0,80}(?:polic|control|regulation)|(?:رقاب|تنظيم).{0,60}جهة"
+        },
+        {
+          "key": "implementationPlan",
+          "regex": "implementation plan|action plan|roadmap|خطة.{0,60}تطوير"
+        }
+      ]
+    },
+    {
+      "id": "do42-conversation-followup",
+      "category": "multi-turn",
+      "language": "en",
+      "pages": [
+        69,
+        70
+      ],
+      "messages": [
+        "I am reviewing disaster recovery control DO.4.2.",
+        "For that control, explain the RPO and RTO requirements."
+      ],
+      "checks": [
+        {
+          "key": "rpo",
+          "regex": "recovery point objective|\\bRPO\\b|نقط.{0,25}تعاف"
+        },
+        {
+          "key": "rto",
+          "regex": "recovery time objective|\\bRTO\\b|زمن.{0,25}تعاف"
+        }
+      ]
+    },
+    {
+      "id": "do42-missing-rto-number",
+      "category": "unanswerable",
+      "language": "en",
+      "pages": [
+        70
+      ],
+      "messages": [
+        "What exact numerical recovery time in hours is mandated by DO.4.2 for every information system?"
+      ],
+      "expect": "abstain",
+      "checks": []
+    },
+    {
+      "id": "do42-external-penalty",
+      "category": "unanswerable",
+      "language": "en",
+      "pages": [
+        69,
+        70
+      ],
+      "messages": [
+        "What is the exact fine in Saudi riyals for violating DO.4.2?"
+      ],
+      "expect": "abstain",
+      "checks": []
+    },
+    {
+      "id": "outside-private-account",
+      "category": "unanswerable",
+      "language": "en",
+      "pages": [],
+      "messages": [
+        "Based only on the NDMO policy PDF, what is my personal bank account number?"
+      ],
+      "expect": "abstain",
+      "checks": []
+    }
+  ]
+}
