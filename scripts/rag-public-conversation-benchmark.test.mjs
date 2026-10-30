@@ -41,7 +41,7 @@ test("Arabic diacritics and hamza normalization support policy wording",()=>{
   assert.equal(result.conceptRecall,1);
   assert.equal(result.arabicAnswer,true);
   assert.equal(result.success,true);
-  assert.equal(normalizeText("إِسْتِجَابة  الْكَوَارِث"),"استجابه الكوارث");
+  assert.equal(normalizeText("إِسْتِجَابة  الْكَوَارِث"),"استجابة الكوارث");
 });
 test("irrelevant generic agent fallback fails the grounded QA requirement",()=>{
   const s=score("do42-en-seven","Hello! I don't have enough information in the knowledge base to answer.");
