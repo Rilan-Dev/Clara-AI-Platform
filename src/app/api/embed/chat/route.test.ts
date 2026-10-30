@@ -109,6 +109,40 @@ describe("embed chat — realtime voice turns", () => {
     expect(body).not.toContain('"type":"token"');
   });
 
+  it("streams verified physical PDF page numbers on public citations", async () => {
+    resolveAIConfig.mockResolvedValue({
+      provider: "openai", chatModel: "gpt",
+      flags: { publicEmbedEnabled: true }, allowedLanguages: ["en"],
+    });
+    groundClaraContext.mockResolvedValueOnce({
+      ok: true,
+      result: {
+        sources: [
+          { title: "NDMO Policy", snippet: "DO.4.2 Disaster Recovery",
+            score: 0.92, pageNumber: 69, documentId: "private-doc-1" },
+          { title: "Legacy Policy", snippet: "Recovered source without page",
+            score: 0.81 },
+        ],
+        intent: "knowledge",
+        context: "",
+        guidance: "Answer from evidence.",
+        responseLanguage: "en",
+        timings: { metadataMs: 0, admissionMs: 0, configMs: 0,
+          translationMs: 0, retrievalMs: 5, graphMs: 0, totalMs: 6 },
+      },
+    });
+    const response = await POST(req({ messages: [{ role: "user", content: "List DO.4.2." }] }));
+    expect(response.status).toBe(200);
+    const events = (await response.text()).trim().split("\\n")
+      .filter(Boolean).map((line) => JSON.parse(line));
+    const sourceEvent = events.find((event) => event.type === "sources");
+    expect(sourceEvent.payload[0]).toMatchObject({
+      index: 1, title: "NDMO Policy", pageNumber: 69,
+    });
+    expect(sourceEvent.payload[1]).not.toHaveProperty("pageNumber");
+    expect(JSON.stringify(sourceEvent)).not.toContain("private-doc-1");
+  });
+
   it("starts retrieval before the admission transaction instead of after it", async () => {
     resolveAIConfig.mockResolvedValue({
       provider: "openai", chatModel: "gpt", flags: { publicEmbedEnabled: true }, allowedLanguages: ["en"],
