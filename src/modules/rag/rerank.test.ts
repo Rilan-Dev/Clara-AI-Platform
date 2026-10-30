@@ -260,7 +260,7 @@ describe("optional model-based reranking", () => {
     process.env.RAG_RERANK_URL = "http://tei.local/rerank";
     process.env.RAG_RERANK_MAX_TEXT_CHARS = "512";
     process.env.RAG_RERANK_MAX_CANDIDATES = "3";
-    const request = vi.fn(async () => ({
+    const request = vi.fn(async (_url: string, _init: RequestInit) => ({
       ok: true,
       json: async () => [
         { index: 2, score: 0.9 },
@@ -285,7 +285,7 @@ describe("optional model-based reranking", () => {
 
   it("uses the historical 2000-char default for invalid text limits", async () => {
     process.env.RAG_RERANK_URL = "http://tei.local/rerank";
-    const request = vi.fn(async () => ({
+    const request = vi.fn(async (_url: string, _init: RequestInit) => ({
       ok: true,
       json: async () => [{ index: 1, score: 0.9 }, { index: 0, score: 0.1 }],
     }));
