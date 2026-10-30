@@ -71,7 +71,7 @@ export function buildReferenceWindows(
       // right document and exact-control hit. Keep only the adjacent,
       // strictly recognizable priority tag; never pull in preceding clauses.
       const preceding = original.slice(Math.max(0, start - 35), start);
-      const priorityTag = preceding.match(/(?:\\bP[0-5]\\b|\\bPriority\\s*[0-5]\\b|(?:أولوية|الأولوية)\\s*[0-5٠-٥])\\s*$/iu);
+      const priorityTag = preceding.match(/(?:\bP[0-5]\b|\bPriority\s*[0-5]\b|(?:أولوية|الأولوية)\s*[0-5٠-٥])\s*$/iu);
       const clipped = [
         priorityTag?.[0]?.trim() ?? "",
         original.slice(start, nextRef?.start ?? original.length).trim(),
