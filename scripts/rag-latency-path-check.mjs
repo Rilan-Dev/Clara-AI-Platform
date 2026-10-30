@@ -245,7 +245,7 @@ async function run(opts, token) {
         ' | retrieval ' + showMs(result.retrievalMs) +
         ' | embedding ' + showMs(result.embeddingMs) +
         ' | hits ' + result.sources + ' | grounded ' + result.grounded +
-        (result.reason ? ' | ' + result.reason : ''));
+        (result.reason ? ' | reason: ' + result.reason : ''));
       if (!result.ok) failures++;
       if (!warm && result.ok) measurements[target.label].push(result);
       if (result.status === 401 || result.status === 403) {
