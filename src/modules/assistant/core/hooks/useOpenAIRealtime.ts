@@ -12,7 +12,8 @@ import {
 import { withAuthHeaders } from "@/lib/client-auth";
 import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
-import { extractResponseText, isAssistantAudioDelta, isAssistantTranscriptDelta, realtimeCompletionOutcome, realtimeCompletionNotice } from "../realtime-events";
+import { extractResponseText, isAssistantAudioDelta, isAssistantTranscriptDelta, realtimeCompletionNotice } from "../realtime-events";
+import { RealtimePlaybackLifecycle, type PlaybackTransition } from "../realtime-playback-lifecycle";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { LatencyTracker, mintSessionId } from "@/modules/voice-core/realtime";
 import type { LatencyStage, TurnLatencyHandle } from "@/modules/voice-core/realtime/latency-tracker";
@@ -212,6 +213,9 @@ export function useOpenAIRealtime(opts?: Options) {
   const latestTurnIdRef       = useRef<string | null>(null);
   const toolCallBufferRef     = useRef<Record<string, string>>({});
   const isSpeakingRef         = useRef(false);
+  const playbackRef           = useRef(new RealtimePlaybackLifecycle());
+  const drainWatchdogRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredRagRef        = useRef(false);
   // ── Latency telemetry (plan Phase 10 — timings only, never transcripts) ──
   // Same tracker + window-event discipline as the Sarvam / ElevenLabs hooks
   // so the benchmark harness (scripts/voice-benchmark/run.mjs) can measure the
@@ -543,11 +547,22 @@ export function useOpenAIRealtime(opts?: Options) {
   // ── scheduleRag ───────────────────────────────────────────────────────────
 
   const scheduleRag = useCallback(() => {
+    // Do not start a second model response before the preceding WebRTC
+    // response finishes. VAD can transcribe a real interruption while the
+    // previous audio is still draining or being cancelled.
+    if (playbackRef.current.activeResponseId) {
+      deferredRagRef.current = true;
+      return;
+    }
     if (ragTriggerTimeoutRef.current !== null) {
       clearTimeout(ragTriggerTimeoutRef.current);
     }
     ragTriggerTimeoutRef.current = window.setTimeout(() => {
       ragTriggerTimeoutRef.current = null;
+      if (playbackRef.current.activeResponseId) {
+        deferredRagRef.current = true;
+        return;
+      }
       void performRagAndRespond();
     }, RAG_DEBOUNCE_MS);
   }, [performRagAndRespond]);
@@ -575,6 +590,12 @@ export function useOpenAIRealtime(opts?: Options) {
     // FIX STALL-B: discard messages queued for the dead session so they
     // don’t flood in when the user reconnects.
     sendQueueRef.current = [];
+    playbackRef.current.reset();
+    deferredRagRef.current = false;
+    if (drainWatchdogRef.current !== null) {
+      clearTimeout(drainWatchdogRef.current);
+      drainWatchdogRef.current = null;
+    }
 
     userQueryRef.current = "";
     activeTurnIdRef.current = null;
@@ -907,6 +928,46 @@ export function useOpenAIRealtime(opts?: Options) {
         sessionAudioInput?.transcription ??
         {};
 
+      // A response.done event closes GENERATION, not WebRTC playback.
+      // Only output_audio_buffer.stopped confirms delivery of an audio turn.
+      const finalizePlayback = (transition: PlaybackTransition, finalText = "") => {
+        if (drainWatchdogRef.current !== null) {
+          clearTimeout(drainWatchdogRef.current);
+          drainWatchdogRef.current = null;
+        }
+        const phase = transition.phase;
+        const success = phase === "delivered" || phase === "no_audio";
+        const notice = phase === "undrained"
+          ? "Audio playback could not be confirmed. The spoken answer may have stopped early."
+          : phase === "cleared"
+            ? "The spoken response was interrupted while playing."
+            : success ? "" : realtimeCompletionNotice({ status: transition.status });
+        if (success) markTurn("turn.complete");
+        else markTurn("interrupt");
+        emitLatencyTelemetry();
+        turnLatencyRef.current = null;
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        if (transition.turnId) {
+          setHistory((prev) => prev.map((t) => t.id !== transition.turnId ? t : ({
+            ...t,
+            answer: [t.answer.trim() ? t.answer : finalText || t.answer, notice].filter(Boolean).join("\n\n"),
+            status: "done",
+          })));
+          latestTurnIdRef.current = transition.turnId;
+        }
+        if (activeTurnIdRef.current === transition.turnId) activeTurnIdRef.current = null;
+        if (!success) {
+          console.warn("[Realtime] audio turn not confirmed delivered", {
+            phase, responseId: transition.responseId, reason: transition.reason,
+          });
+        }
+        if (deferredRagRef.current && !playbackRef.current.activeResponseId) {
+          deferredRagRef.current = false;
+          scheduleRag();
+        }
+      };
+
       // ── 2. Create RTCPeerConnection ──────────────────────────────────────
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
@@ -943,7 +1004,10 @@ export function useOpenAIRealtime(opts?: Options) {
           // Reset accumulation buffers for a fresh turn.
           if (type === RT_EVENTS.SPEECH_STARTED) {
             userQueryRef.current = "";
-            activeTurnIdRef.current = null;
+            // Retain the assistant's turn identity while it is speaking.
+            // A VAD start during playback must not redirect its transcript
+            // deltas to the next question or a greeting.
+            if (!playbackRef.current.activeResponseId) activeTurnIdRef.current = null;
           }
 
           // ── Streaming user transcript (delta) ─────────────────────────
@@ -1003,75 +1067,59 @@ export function useOpenAIRealtime(opts?: Options) {
           // closest observable browser.first_audio instant on this transport.
           if (isAssistantAudioDelta(type) || type === RT_EVENTS.OUTPUT_AUDIO_BUFFER_STARTED) {
             markTurn("tts.first_audio");
-            markTurn("browser.first_audio");
+            // A provider audio delta is generation, not actual playback.
+            // WebRTC's buffer.started is the playback-start signal.
+            if (type === RT_EVENTS.OUTPUT_AUDIO_BUFFER_STARTED) markTurn("browser.first_audio");
           }
 
-          // ── Response started ───────────────────────────────────────────
-          // FIX: Old code used `type.includes("response.start")` which never
-          // matched the actual API event "response.created". isSpeaking was
-          // therefore NEVER set to true via this path.
-          if (type === RT_EVENTS.RESPONSE_CREATED) {
-            isSpeakingRef.current = true;
-            setIsSpeaking(true);
-            setHistory((prev) => {
-              const targetId = resolveTurnId(prev);
-              if (!targetId) return prev;
-              latestTurnIdRef.current = targetId;
-              return prev.map((t) =>
-                t.id === targetId ? { ...t, status: "speaking" } : t
-              );
-            });
-          }
-
-          // ── Response complete ──────────────────────────────────────────
-          // FIX: Old code used `type.includes("response.end")` which never
-          // matched the actual API event "response.done". Consequences:
-          //   • isSpeaking was never reset to false
-          //   • Turn status was never set to "done"
-          //   • Pending follow-up messages were never dispatched
-          // FIX V3: pendingFollowUpRef dispatch removed.
-          // The old code dispatched a second response.create here, causing
-          // the model to speak the full answer a second time. With the
-          // single-path design, RESPONSE_DONE only needs to mark the turn
-          // done and reset speaking state — nothing more.
-          if (type === RT_EVENTS.RESPONSE_DONE) {
-            const terminal = realtimeCompletionOutcome(msg.response);
-            const terminalNotice = realtimeCompletionNotice(msg.response);
-            if (terminal.status === "incomplete" || terminal.status === "failed" || terminal.status === "cancelled") {
-              // Diagnostic metadata only: never log audio, transcript, knowledge or tokens.
-              console.warn("[Realtime] response ended without successful completion", {
-                status: terminal.status,
-                reason: terminal.reason,
-              });
+          // ── Correlate generation and playback by server response ID ──
+          // No text/audio is stored by the lifecycle tracker. The server's
+          // output_audio_buffer.stopped is the only successful WebRTC audio
+          // delivery event; response.done only means generation finished.
+          const lifecycle = playbackRef.current.consume(
+            msg, activeTurnIdRef.current ?? latestTurnIdRef.current,
+          );
+          if (lifecycle) {
+            if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+              window.dispatchEvent(new CustomEvent("clara:voice:playback", {
+                detail: {
+                  phase: lifecycle.phase,
+                  responseId: lifecycle.responseId,
+                  turnId: lifecycle.turnId,
+                  status: lifecycle.status,
+                  reason: lifecycle.reason,
+                },
+              }));
             }
-            markTurn("turn.complete");
-            emitLatencyTelemetry();
-            // The record has been emitted; a later utterance's interim record
-            // must not receive this turn's marks through the fallback path.
-            turnLatencyRef.current = null;
-            isSpeakingRef.current = false;
-            // Fallback: if no transcript delta arrived, take the answer from
-            // the completed response so it is never missing from the session.
-            const finalText = extractResponseText(msg.response);
-            let resolvedId: string | null = null;
-            setHistory((prev) => {
-              const targetId = resolveTurnId(prev);
-              resolvedId = targetId;
-              if (!targetId) return prev;
-              return prev.map((t) =>
-                t.id === targetId
-                  ? {
-                      ...t,
-                      answer: [t.answer.trim() ? t.answer : finalText || t.answer, terminalNotice]
-                        .filter(Boolean).join("\n\n"),
-                      status: "done",
-                    }
-                  : t
-              );
-            });
-            if (resolvedId) latestTurnIdRef.current = resolvedId;
-            activeTurnIdRef.current = null;
-            setIsSpeaking(false);
+            if (lifecycle.phase === "created") {
+              isSpeakingRef.current = true;
+              setIsSpeaking(true);
+              if (lifecycle.turnId) {
+                setHistory((prev) => prev.map((t) =>
+                  t.id === lifecycle.turnId ? { ...t, status: "speaking" } : t
+                ));
+              }
+            } else if (lifecycle.phase === "generation_done") {
+              const finalText = extractResponseText(msg.response);
+              if (finalText && lifecycle.turnId) {
+                setHistory((prev) => prev.map((t) =>
+                  t.id === lifecycle.turnId && !t.answer.trim()
+                    ? { ...t, answer: finalText } : t
+                ));
+              }
+              // If the provider never sends buffer.stopped, do not display an
+              // infinite speaking state or claim success. Never auto-replay:
+              // blind replay risks repeating audio and billing another turn.
+              if (drainWatchdogRef.current !== null) clearTimeout(drainWatchdogRef.current);
+              drainWatchdogRef.current = setTimeout(() => {
+                const timeout = playbackRef.current.timeoutUndrained(lifecycle.responseId);
+                if (timeout) finalizePlayback(timeout);
+              }, 90_000);
+            } else if (["delivered", "no_audio", "incomplete", "failed", "cancelled", "cleared", "undrained"]
+              .includes(lifecycle.phase)) {
+              finalizePlayback(lifecycle,
+                type === RT_EVENTS.RESPONSE_DONE ? extractResponseText(msg.response) : "");
+            }
           }
 
           // ── Tool call argument accumulation (delta) ────────────────────
