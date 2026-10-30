@@ -289,7 +289,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // voice comes from the prompt, not truncation.
         maxTokens,
         temperature,
-        reasoningEffort: realtimeVoice ? null : undefined,
+        // Sarvam-105B reasons by default, and its reasoning tokens count
+        // against maxTokens. A short public text reply can otherwise exhaust
+        // its output budget without emitting any visible answer tokens.
+        reasoningEffort: realtimeVoice || resolved.provider === "sarvam" ? null : undefined,
         onUsage: (u) => { usageRef.value = u; },
       },
     );
@@ -365,6 +368,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             streamError = publicAIErrorMessage(error);
             safeWrite({ type: "error", payload: streamError });
           } finally {
+            // A success status with no answer tokens leaves the chat bubble
+            // blank despite a completed provider stream. Report it as failure.
+            if (!streamError && answerBuffer.length === 0 && !req.signal.aborted) {
+              streamError = "The assistant did not return an answer. Please try again.";
+              safeWrite({ type: "error", payload: streamError });
+            }
             // A completed stream proves the brain provider is alive — clear
             // any runtime-failing answer-engine incident (rate-limited no-op).
             if (!streamError) void noteBrainRequestSucceeded(resolved.provider);
