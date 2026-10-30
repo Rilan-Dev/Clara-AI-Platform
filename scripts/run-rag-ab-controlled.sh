@@ -13,7 +13,9 @@ rag-ab-queries.json in the current directory, and a built clara-backend image.
 Before running, execute: docker compose build clara-backend
 Optional: RAG_AB_QUERIES, RAG_AB_PREFIX, RAG_AB_SCOPE (default draft),
           RAG_AB_PORT (default 4001), RAG_AB_MAX_READINESS_CHECKS (default 50),
-          RAG_AB_LANGUAGE_POLICY (default latin-only; "all" for a verified multilingual model).
+          RAG_AB_LANGUAGE_POLICY (default latin-only; "all" for a verified multilingual model),
+          RAG_AB_MAX_CANDIDATES (default 8), RAG_AB_MAX_TEXT_CHARS (default 2000),
+          RAG_AB_TIMEOUT_MS (default 6000), RAG_AB_REPEAT (default 3), RAG_AB_WARMUP (default 1).
 Output JSON files are PRIVATE; never commit or share raw questions/source metadata.
 Each default arm makes 8 questions * (1 warmup + 3 measured) = 32 RAG requests.
 HELP
@@ -35,6 +37,11 @@ scope="${RAG_AB_SCOPE:-draft}"
 port="${RAG_AB_PORT:-4001}"
 checks="${RAG_AB_MAX_READINESS_CHECKS:-50}"
 language_policy="${RAG_AB_LANGUAGE_POLICY:-latin-only}"
+max_candidates="${RAG_AB_MAX_CANDIDATES:-8}"
+max_text_chars="${RAG_AB_MAX_TEXT_CHARS:-2000}"
+timeout_ms="${RAG_AB_TIMEOUT_MS:-6000}"
+repeat="${RAG_AB_REPEAT:-3}"
+warmup="${RAG_AB_WARMUP:-1}"
 container='clara-rag-bench'
 origin="http://127.0.0.1:${port}"
 base="${prefix}-off.json"
@@ -45,6 +52,11 @@ started_reranker=0
 
 [[ "$scope" == 'draft' || "$scope" == 'live' ]] || { echo 'RAG_AB_SCOPE must be draft or live' >&2; exit 1; }
 [[ "$language_policy" == 'all' || "$language_policy" == 'latin-only' ]] || { echo 'RAG_AB_LANGUAGE_POLICY must be all or latin-only' >&2; exit 1; }
+[[ "$max_candidates" =~ ^[0-9]+$ ]] && (( max_candidates >= 2 && max_candidates <= 30 )) || { echo 'RAG_AB_MAX_CANDIDATES must be 2..30' >&2; exit 1; }
+[[ "$max_text_chars" =~ ^[0-9]+$ ]] && (( max_text_chars >= 128 && max_text_chars <= 2000 )) || { echo 'RAG_AB_MAX_TEXT_CHARS must be 128..2000' >&2; exit 1; }
+[[ "$timeout_ms" =~ ^[0-9]+$ ]] && (( timeout_ms >= 100 && timeout_ms <= 15000 )) || { echo 'RAG_AB_TIMEOUT_MS must be 100..15000' >&2; exit 1; }
+[[ "$repeat" =~ ^[0-9]+$ ]] && (( repeat >= 1 && repeat <= 10 )) || { echo 'RAG_AB_REPEAT must be 1..10' >&2; exit 1; }
+[[ "$warmup" =~ ^[0-9]+$ ]] && (( warmup >= 0 && warmup <= 3 )) || { echo 'RAG_AB_WARMUP must be 0..3' >&2; exit 1; }
 [[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1 && port <= 65535 )) || { echo 'Invalid RAG_AB_PORT' >&2; exit 1; }
 [[ "$checks" =~ ^[0-9]+$ ]] && (( checks >= 1 && checks <= 180 )) || { echo 'Invalid RAG_AB_MAX_READINESS_CHECKS' >&2; exit 1; }
 [[ -r "$queries" ]] || { echo "Missing query file: $queries" >&2; exit 1; }
@@ -101,8 +113,9 @@ start_backend() {
     -e LOCAL_INIT_SECRET= \
     -e RAG_RERANK_ENABLED="$enabled" \
     -e RAG_RERANK_URL="$url" \
-    -e RAG_RERANK_TIMEOUT_MS=6000 \
-    -e RAG_RERANK_MAX_CANDIDATES=8 \
+    -e RAG_RERANK_TIMEOUT_MS="$timeout_ms" \
+    -e RAG_RERANK_MAX_CANDIDATES="$max_candidates" \
+    -e RAG_RERANK_MAX_TEXT_CHARS="$max_text_chars" \
     -e RAG_RERANK_LANGUAGE_POLICY="$language_policy" \
     clara-backend >/dev/null
   owned=1
@@ -117,7 +130,7 @@ run_arm() {
     --scope "$scope" \
     --queries "$queries" \
     --label "$label" \
-    --top-k 6 --repeat 3 --warmup 1 --gap-ms 250 \
+    --top-k 6 --repeat "$repeat" --warmup "$warmup" --gap-ms 250 \
     --preflight-auth --out "$destination"
 }
 
