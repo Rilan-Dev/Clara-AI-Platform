@@ -22,6 +22,19 @@ describe("format-agnostic exhaustive identifier inventory", () => {
     expect(formatIdentifierInventory("DO", result)).toContain("4 distinct DO identifiers");
     expect(formatIdentifierInventory("DO", result)).toContain("page 70");
   });
+  it("labels grouping prefixes separately from individually numbered specifications", () => {
+    const points = [
+      { id: "a", payload: { chunk: "DO.1 section DO.1.1 item DO.1.2 item" } },
+      { id: "b", payload: { chunk: "DO.2 section DO.2.1 item" } },
+    ];
+    const report = buildIdentifierInventory(points, { prefix: "DO" }, true);
+    const text = formatIdentifierInventory("DO", report);
+    expect(text).toContain("3 leaf identifiers and 2 parent/group identifiers");
+    expect(text).toContain("Leaf DO.1.1");
+    expect(text).toContain("Parent DO.1");
+    expect(text).not.toContain("Leaf DO.1 —");
+  });
+
   it("never declares exhaustive results when a scroll is partial, too large or mismatched", () => {
     const pts = [{ id: "1", payload: { chunk: "DO.1.1", referenceIds: ["DO.1.1", "HR.2.1"] } }];
     expect(buildIdentifierInventory(pts, { prefix: "DO" }, false).complete).toBe(false);
