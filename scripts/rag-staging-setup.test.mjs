@@ -4,6 +4,7 @@ import {spawnSync} from "node:child_process";
 import {parseArgs,runSetup,validateWorkerStage} from "./rag-staging-setup.mjs";
 
 const AGENT="11111111-2222-4333-8444-555555555555";
+const ORG="22222222-3333-4444-8555-666666666666";
 const STAGE="aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 const source="/private/PoliciesEn001.pdf";
 const payload=Buffer.from("%PDF-1.7\n"+"A".repeat(1500));
@@ -19,6 +20,8 @@ function service({superAdmin=false,stageName="RAG-STAGING-DO42-Test",
     calls.push({path,method:opts.method,hasToken:opts.headers?.Authorization==="Bearer fake-session",body:opts.body});
     if(deny)return Response.json({error:"denied"},{status:403});
     if(path==="/api/auth/me")return Response.json({user:{id:"member",isSuperAdmin:superAdmin}});
+    if(path==="/api/orgs")return Response.json([{id:ORG,name:"Private tenant"}]);
+    if(path==="/api/orgs/"+ORG+"/agents")return Response.json([{id:AGENT,name:"Staging agent"}]);
     if(path==="/api/agents/"+AGENT)return Response.json({id:AGENT});
     if(path==="/api/agents/"+AGENT+"/kbs")return Response.json({id:STAGE,name:JSON.parse(opts.body).name},{status:201});
     if(path==="/api/kbs/"+STAGE)return Response.json({id:STAGE,name:stageName,status:"active"});
@@ -39,16 +42,28 @@ function localFiles(){
 }
 
 test("only accepts explicit create/upload/status actions with valid UUIDs",()=>{
+  assert.deepEqual(parseArgs(["--action","list"]),{action:"list"});
   assert.deepEqual(parseArgs(["--action","create","--agent-id",AGENT]),create);
   assert.deepEqual(parseArgs(["--action","upload","--kb-id",STAGE,"--source",source]),upload);
   assert.deepEqual(parseArgs(["--action","status","--kb-id",STAGE]),status);
   for(const a of [
+    ["--action","list","--agent-id",AGENT],
     ["--action","create"],["--action","create","--agent-id","bad"],
     ["--action","create","--agent-id",AGENT,"--source",source],
     ["--action","upload","--kb-id",STAGE],
     ["--action","status","--kb-id",STAGE,"--source",source],
     ["--action","status","--kb-id",STAGE,"--token","unsafe"],
   ])assert.throws(()=>parseArgs(a));
+});
+
+test("lists tenant-visible agent choices without creating or uploading anything",async()=>{
+  const s=service();
+  const out=await runSetup({action:"list"},"fake-session",{fetcher:s.fetcher});
+  assert.deepEqual(out.options,[{orgId:ORG,orgName:"Private tenant",
+    agentId:AGENT,agentName:"Staging agent"}]);
+  assert.equal(out.productionKbTouched,false);
+  assert.ok(s.calls.every(x=>x.method==="GET"));
+  assert.ok(s.calls.every(x=>x.hasToken));
 });
 
 test("creates a disposable KB through normal authorized agent endpoint",async()=>{
