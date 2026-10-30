@@ -63,6 +63,9 @@ export function selectNumberedTableEvidence(
   if (!best) return [];
   const row = best.group[best.position]!;
   const answer = [row];
+  // Some PDF extractors fit the complete summary table on one chunk
+  // and expose its totals row there. Do not pull unrelated next sections.
+  if (/(?:\bTotal\b|الإجمالي)/iu.test(row.text)) return answer;
   for (let n = 1; n <= 2; n++) {
     const following = best.group[best.position + n];
     if (!following || following.chunkIndex !== row.chunkIndex + n) break;
