@@ -265,6 +265,17 @@ export function useAgentConversation(options: UseAgentConversationOptions) {
             setChatError(message);
             setMessages((prev) => prev.filter((m) => !(m.id === assistantId && !m.content)));
           },
+          onTiming: (timing) => {
+            if (timing.phase === "first_token" || timing.phase === "complete") {
+              // No question text, credentials or response content in diagnostics.
+              console.info("[clara/chat-timing]", {
+                endpoint: chatEndpoint,
+                milestone: timing.phase,
+                elapsedMs: timing.elapsedMs,
+                serverTiming: timing.serverTiming,
+              });
+            }
+          },
           onDone: () => {
             setThinking(false);
           },
