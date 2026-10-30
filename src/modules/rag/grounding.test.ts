@@ -461,6 +461,33 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.context).not.toContain("DCM.2.3");
   });
 
+  it("matches the actual DO.4.2 clause when a visitor mistypes D-zero and the search query is canonical", async () => {
+    const q = vi.fn(async () => ({
+      points: [
+        { id: "correct", score: 0.92, payload: {
+          kbId: KB_FIXTURE.id, documentId: "ndmo-ar", title: "NDMO",
+          chunk: "DO.4.2 Disaster Recovery: seven requirements" } },
+        { id: "unrelated", score: 0.85, payload: {
+          kbId: KB_FIXTURE.id, documentId: "other", title: "Another control",
+          chunk: "DO.4.3 production database changes" } },
+      ],
+    }));
+    (getQdrantClient as ReturnType<typeof vi.fn>).mockReturnValue({
+      query: q,
+      scroll: vi.fn(async () => ({ points: [], next_page_offset: null })),
+    });
+    const result = await groundClaraContext({
+      kbId: KB_FIXTURE.id,
+      query: "List the seven requirements of D0.4.2",
+      searchQuery: "List the seven requirements of DO.4.2",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.result.sources.map((source) => source.id)).toEqual(["correct"]);
+    expect(result.result.context).toContain("DO.4.2");
+    expect(result.result.context).not.toContain("DO.4.3");
+  });
+
   it("always filters Qdrant by the server-resolved KB, even without a document ID", async () => {
     const q = vi.fn(async (_collection: string, _params: Record<string, unknown>) => ({
       points: [{
