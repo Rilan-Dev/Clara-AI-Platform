@@ -16,6 +16,7 @@ const HELP = [
   '  --repeat N        1..10, default 3 per origin',
   '  --timeout-ms N    1000..300000, default 90000',
   '  --auth-only       Compare GET /api/auth/me at both origins; NO RAG quota used',
+  '                    Defaults to 1 request per origin. Add --warmup/--repeat for trends.',
   '  --help            Print usage',
   '',
   'Authentication: CLARA_DEBUG_TOKEN environment variable, or secure hidden',
@@ -47,6 +48,10 @@ function argsOf(argv) {
     if (!value || value.startsWith('--')) throw new Error('Missing value for ' + flag);
     opts[fields[flag]] = value;
   }
+  // Preserve the existing one-GET-per-origin preflight when no sampling
+  // flags are supplied. Explicit --warmup/--repeat allow an auth-only trend.
+  if (opts.authOnly && !argv.includes('--warmup')) opts.warmup = 0;
+  if (opts.authOnly && !argv.includes('--repeat')) opts.repeat = 1;
   if (!opts.authOnly && !opts.kbId?.trim()) throw new Error('--kb-id is required');
   if (!opts.authOnly && !opts.question?.trim()) throw new Error('--question is required');
   if (!['draft', 'live'].includes(opts.scope)) throw new Error('Invalid --scope');
@@ -206,14 +211,38 @@ async function probe(origin, token, body, timeoutMs) {
 }
 async function run(opts, token) {
   if (opts.authOnly) {
-    console.log('Authentication-only preflight: GET /api/auth/me on public HTTPS and loopback; no RAG queries or quota consumption.');
+    const targets = [['public', opts.publicUrl], ['local', opts.localUrl]];
+    const total = opts.warmup + opts.repeat;
+    const measurements = { public: [], local: [] };
     let allValid = true;
-    for (const [label, origin] of [['public', opts.publicUrl], ['local', opts.localUrl]]) {
-      const result = await authCheck(origin, token, opts.timeoutMs);
-      console.log(label.padEnd(6) + ' auth: HTTP ' + result.status +
-        ' | client ' + showMs(result.clientMs) + ' | session ' + (result.ok ? 'valid' : 'not verified') +
-        (result.reason ? ' | reason: ' + result.reason : ''));
-      if (!result.ok) allValid = false;
+    console.log('Authentication-only preflight: GET /api/auth/me on public HTTPS and loopback; no RAG queries or quota consumption.');
+    if (total > 1) console.log('Authentication samples: ' + opts.warmup + ' warmup + ' + opts.repeat + ' measured per origin.');
+    for (let pass = 0; pass < total; pass++) {
+      const warm = pass < opts.warmup;
+      const ordered = pass % 2 ? [...targets].reverse() : targets;
+      for (const [label, origin] of ordered) {
+        const result = await authCheck(origin, token, opts.timeoutMs);
+        // Preserve original output for the default single authentication check.
+        const prefix = total === 1
+          ? label.padEnd(6) + ' auth:'
+          : label.padEnd(6) + ' auth ' + (warm ? 'warmup ' : 'measure ') +
+            String(warm ? pass + 1 : pass - opts.warmup + 1) + ':';
+        console.log(prefix + ' HTTP ' + result.status +
+          ' | client ' + showMs(result.clientMs) +
+          ' | session ' + (result.ok ? 'valid' : 'not verified') +
+          (result.reason ? ' | reason: ' + result.reason : ''));
+        if (!result.ok) allValid = false;
+        if (!warm && result.ok) measurements[label].push(result.clientMs);
+      }
+    }
+    if (total > 1) {
+      console.log('Authentication client HTTP timings (warmups excluded; successful requests only):');
+      for (const [label] of targets) {
+        const times = measurements[label];
+        const stats = summary(times);
+        console.log(label + ' ' + times.length + '/' + opts.repeat + ' passed | p50 ' +
+          showMs(stats?.p50) + ' p95 ' + showMs(stats?.p95));
+      }
     }
     if (!allValid) process.exitCode = 2;
     return;
