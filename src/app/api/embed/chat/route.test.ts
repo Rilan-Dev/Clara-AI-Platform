@@ -18,7 +18,7 @@ const groundClaraContext = vi.fn(async (...args: unknown[]) => {
   return {
     ok: true,
     result: {
-      sources: [{ title: "Doc", snippet: "Evidence", score: 0.9 }],
+      sources: [{ title: "Doc", snippet: "Evidence", score: 0.9, pageNumber: undefined as number | undefined }],
       intent: "knowledge",
       context: "",
       guidance: "Answer from the evidence.",
