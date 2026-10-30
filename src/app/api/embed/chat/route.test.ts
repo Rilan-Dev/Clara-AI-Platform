@@ -143,6 +143,38 @@ describe("embed chat — realtime voice turns", () => {
     expect(JSON.stringify(sourceEvent)).not.toContain("private-doc-1");
   });
 
+  it("keeps complete source-table evidence and matching citations for public exhaustive lists", async () => {
+    resolveAIConfig.mockResolvedValue({
+      provider: "openai", chatModel: "gpt",
+      flags: { publicEmbedEnabled: true }, allowedLanguages: ["en"],
+    });
+    const sources = [
+      ...Array.from({ length: 8 }, (_, i) => ({
+        id: "v" + i, title: "Standards", snippet: "Vector excerpt " + i,
+        score: 0.8, index: i + 1, sourceType: "vector",
+      })),
+      { id: "table-a", title: "Standards", snippet: "Source table row 1 through 9",
+        score: 0, index: 9, sourceType: "structural" },
+      { id: "table-b", title: "Standards", snippet: "Source table row 10 through 15",
+        score: 0, index: 10, sourceType: "structural" },
+    ];
+    groundClaraContext.mockResolvedValueOnce({ ok: true, result: {
+      sources,
+      context: "[S1] Vector excerpt 0\\n\\n[S9] Source table row 1 through 9\\n\\n[S10] Source table row 10 through 15",
+      intent: "knowledge", guidance: "Answer all grounded items.", responseLanguage: "en",
+      timings: { metadataMs: 0, admissionMs: 0, configMs: 0,
+        translationMs: 0, retrievalMs: 5, graphMs: 0, totalMs: 6 },
+    } });
+    const response = await POST(req({ messages: [{ role: "user", content: "List all 15 domains." }] }));
+    expect(response.status).toBe(200);
+    const events = (await response.text()).trim().split("\\n").filter(Boolean).map(x => JSON.parse(x));
+    const displayed = events.find(x => x.type === "sources")?.payload;
+    expect(displayed).toHaveLength(10);
+    expect(displayed[9]).toMatchObject({ index: 10 });
+    const generation = chatStream.mock.calls.at(-1)?.[0] as Array<{role:string; content:string}>;
+    expect(generation.map(x => x.content).join("\\n")).toContain("[S10] Source table row 10 through 15");
+  });
+
   it("starts retrieval before the admission transaction instead of after it", async () => {
     resolveAIConfig.mockResolvedValue({
       provider: "openai", chatModel: "gpt", flags: { publicEmbedEnabled: true }, allowedLanguages: ["en"],
