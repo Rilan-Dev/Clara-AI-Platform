@@ -54,13 +54,21 @@ export function validateWorkerStage(raw, kbId) {
      typeof e.stageId!=="string" ||
      e.stageId.toLowerCase()!==kbId.toLowerCase() ||
      e.globalPage===true || e.globalSection===true)
-    throw Error("Worker not exclusively configured for this staging KB");
+    throw Error("Ingest consumer not exclusively configured for this staging KB");
   return true;
 }
 
+export function validateIngestConsumers(observations,kbId) {
+  // The backend has its own polling loop and can dispatch local queue tasks.
+  // Every ingestion consumer must agree on the same exact-KB override.
+  if(!Array.isArray(observations)||observations.length!==2)
+    throw Error("Both backend and worker staging configurations are required");
+  for(const entry of observations)validateWorkerStage(entry,kbId);
+  return true;
+}
 export function inspectWorkerStage(kbId) {
-  // Only these four known configuration fields are disclosed by the worker.
-  // Never run printenv, docker inspect of all env, or read the secret .env file.
+  // Only four known configuration fields from each ingest consumer are read.
+  // Never run printenv, inspect full env or read the secret .env file.
   const source = [
     "const e=process.env;",
     "console.log(JSON.stringify({",
@@ -69,13 +77,16 @@ export function inspectWorkerStage(kbId) {
     "globalPage:e.RAG_SOURCE_PAGE_CHUNKING==='true',",
     "globalSection:e.RAG_SECTION_AWARE_CHUNKING==='true'}))",
   ].join("");
-  let raw;
-  try{
-    raw=execFileSync("docker",["exec","clara-worker","node","-e",source],{
-      encoding:"utf8",timeout:8000,stdio:["ignore","pipe","ignore"],maxBuffer:10000,
-    });
-  }catch{throw Error("Unable to verify the active staging worker flags")}
-  return validateWorkerStage(raw,kbId);
+  const observations=[];
+  for(const container of ["clara-backend","clara-worker"]){
+    try{
+      const raw=execFileSync("docker",["exec",container,"node","-e",source],{
+        encoding:"utf8",timeout:8000,stdio:["ignore","pipe","ignore"],maxBuffer:10000,
+      });
+      observations.push(raw);
+    }catch{throw Error("Unable to verify both active staging ingestion consumers")}
+  }
+  return validateIngestConsumers(observations,kbId);
 }
 
 function auth(token){
@@ -154,7 +165,7 @@ export async function runSetup(opts,token,{
   if(basename(opts.source)!=="PoliciesEn001.pdf")
     throw Error("Source filename must be the original PoliciesEn001.pdf");
   // Check before reading or sending any data: never silently index with the
-  // legacy worker if the exact stage override was not applied.
+  // legacy consumer if the exact stage override was not applied.
   if ((await checkWorker(opts.kbId)) !== true)
     throw Error("Worker not exclusively configured for this staging KB");
   const file=resolve(opts.source);
@@ -220,7 +231,7 @@ async function main(){
       "Expected an active disposable staging KB","Only empty disposable staging KBs can be uploaded",
       "Source filename must be the original PoliciesEn001.pdf",
       "Worker not exclusively configured for this staging KB",
-      "Unable to verify the active staging worker flags",
+      "Unable to verify both active staging ingestion consumers",
       "Original PDF size or file type invalid","Source is not an intact PDF",
       "Document was not accepted cleanly; check stage status",
     ]);
