@@ -66,6 +66,10 @@ export function buildTurnGuidance(input: TurnGuidanceInput): string {
     lines.push(
       "- Answer from the knowledge-base passages provided for this turn. If they only partly cover the question, answer what they support and say which part is not covered. Do not add facts that are not in them.",
     );
+    lines.push(
+      "- For an unclear or mistranscribed policy name, ask a concise clarification instead of switching to a different policy family just because other passages were retrieved.",
+      "- On follow-up turns, answer the current question directly. Do not repeat a greeting or introduce the assistant again.",
+    );
     // Completeness applies to every channel, including voice. Spoken brevity
     // must not convert an explicit "all requirements" request into examples.
     lines.push(
