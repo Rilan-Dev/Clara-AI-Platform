@@ -20,7 +20,7 @@ import { pathToFileURL } from "node:url";
 const BASE="https://clara.ai.amazetechclans.com";
 const FIXTURE = new URL("./fixtures/ndmo-ar-v15-public-chat-benchmark.json",import.meta.url);
 const REFUSAL = /(?:not.{0,30}(?:specif|stated|provided|available|in the document)|(?:cannot|can't|unable|don't have|do not have).{0,90}(?:information|answer|access)|insufficient.{0,35}information|no (?:such|specific|exact) (?:amount|value|number)|لا (?:يحدد|يوجد|توجد|يمكن)|غير (?:مذكور|محدد|متوفر)|لم (?:يذكر|يحدد)|لا تتضمن)/iu;
-const STOP = /(?:\\b(?:not|cannot|can't|unable|don't|do not)\\b.{0,70}\\b(?:find|available|enough information|answer)\\b|(?:I cannot|I'm unable)|(?:لا أستطيع|لا يمكن|غير كاف|لا توجد معلومات))/iu;
+const STOP = /(?:\b(?:not|cannot|can't|unable|don't|do not)\b.{0,70}\b(?:find|available|enough information|answer)\b|(?:I cannot|I'm unable)|(?:لا أستطيع|لا يمكن|غير كاف|لا توجد معلومات))/iu;
 const ARABIC=/[\u0600-\u06ff]/u;
 
 export function normalizeText(input){
