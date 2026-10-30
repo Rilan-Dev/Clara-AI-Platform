@@ -14,6 +14,7 @@ import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
 import { extractResponseText, isAssistantAudioDelta, isAssistantTranscriptDelta, realtimeCompletionNotice } from "../realtime-events";
 import { RealtimePlaybackLifecycle, type PlaybackTransition } from "../realtime-playback-lifecycle";
+import { buildOpenAIClientAudioUpdate } from "../voice/realtime-audio-config";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { LatencyTracker, mintSessionId } from "@/modules/voice-core/realtime";
 import type { LatencyStage, TurnLatencyHandle } from "@/modules/voice-core/realtime/latency-tracker";
@@ -1350,77 +1351,25 @@ export function useOpenAIRealtime(opts?: Options) {
       if (myToken !== connectTokenRef.current) return;
       await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
 
-      // ── 7. Configure the live session ─────────────────────────────────────
-      const instructions = [
-        assistantPrompts.voice.sessionInstructions,
-        languageGuidance.session,
-      ].join("\n\n");
-
-      const tools = [
-        {
-          type: "function",
-          name: "rag_search",
-          description: "Retrieve relevant snippets from the active document.",
-          parameters: {
-            type: "object",
-            properties: {
-              query: { type: "string" },
-              documentId: { type: "string" },
-            },
-            required: ["query", "documentId"],
-          },
-        },
-      ];
-
+      // ── 7. Preserve the server-authorized session configuration ──────────
+      // The ephemeral session already contains buildSystemPrompt() and the
+      // permitted tenant/KB tools. Do not overwrite those with generic
+      // browser instructions or a documentId-only rag_search descriptor.
+      // Only mirror VAD/transcription to prevent auto responses.
       if (myToken !== connectTokenRef.current) return;
-
-      sendJSON({
-        type: "session.update",
-        session: {
-          type: "realtime",
-          instructions,
-          tools,
-          tool_choice: "auto",
-          output_modalities: ["audio"],
-
-          // VAD: mirror the server-side session creation values so there is no
-          // inconsistency window between session creation and this update.
-          // Values are read from the session response when available; otherwise
-          // we use the same defaults as the server (threshold 0.5, 300/700ms).
-          // FIX V1+V2+V3: create_response: false is echoed here to ensure
-          // the update cannot accidentally re-enable auto-response generation.
-          audio: {
-            output: { voice: realtimeVoice },
-            input: {
-              turn_detection: {
-                type: "server_vad",
-                threshold:
-                  typeof sessionTurnDetection?.threshold === "number"
-                    ? sessionTurnDetection.threshold
-                    : 0.5,
-                prefix_padding_ms:
-                  typeof sessionTurnDetection?.prefix_padding_ms === "number"
-                    ? sessionTurnDetection.prefix_padding_ms
-                    : 300,
-                silence_duration_ms:
-                  typeof sessionTurnDetection?.silence_duration_ms === "number"
-                    ? sessionTurnDetection.silence_duration_ms
-                    : 700,
-                create_response: false,
-              },
-              transcription: {
-                model:
-                  typeof sessionTranscription?.model === "string"
-                    ? sessionTranscription.model
-                    : "gpt-4o-mini-transcribe",
-                ...(typeof sessionTranscription?.language === "string"
-                  ? { language: sessionTranscription.language }
-                  : {}),
-              },
-            },
-          },
-        },
-      });
+      sendJSON(buildOpenAIClientAudioUpdate({
+        voice: realtimeVoice,
+        threshold: typeof sessionTurnDetection?.threshold === "number"
+          ? sessionTurnDetection.threshold : 0.5,
+        prefixPaddingMs: typeof sessionTurnDetection?.prefix_padding_ms === "number"
+          ? sessionTurnDetection.prefix_padding_ms : 300,
+        silenceDurationMs: typeof sessionTurnDetection?.silence_duration_ms === "number"
+          ? sessionTurnDetection.silence_duration_ms : 700,
+        transcriptionModel: typeof sessionTranscription?.model === "string"
+          ? sessionTranscription.model : "gpt-4o-mini-transcribe",
+        transcriptionLanguage: typeof sessionTranscription?.language === "string"
+          ? sessionTranscription.language : undefined,
+      }));
 
       // ── 8. Optional greeting ──────────────────────────────────────────────
       const greetingText = voiceGreeting?.trim();
