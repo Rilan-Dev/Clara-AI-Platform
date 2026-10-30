@@ -14,15 +14,29 @@ export type InventoryEntry = { identifier: string; pointId: string; documentId: 
 const IDENTIFIER = /\b[A-Za-z][A-Za-z0-9]{0,15}(?:[._-]\d+){1,5}\b/g;
 
 export function detectIdentifierInventoryIntent(question: string): IdentifierInventoryIntent | null {
-  if (extractStructuredReferences(question).length) return null;
   const text = question.normalize("NFKC").trim();
+  const refs = extractStructuredReferences(text);
+  // A cited leaf clause ("list all DO.4.2 requirements") is a request for
+  // that clause's items, not for a document-wide identifier inventory.
+  // A parent/family ("available DO.4 series") means enumerate its children.
+  if (refs.length) {
+    if (refs.length !== 1 ||
+        !/\b(?:series|family|subsections?|subcontrols?|related|available)\b/i.test(text))
+      return null;
+    const family = refs[0]!;
+    const segments = family.split(/[._-]/);
+    return segments.length === 2 && /^[A-Z][A-Z0-9]{0,15}$/.test(segments[0]!)
+      ? { prefix: family } : null;
+  }
   if (!/(?:\ball\b|\bevery\b|\bcomplete\b|\bentire\b|\bfull\b|सभी|सारे|كل|جميع)/i.test(text))
     return null;
   if (!/(?:polic|control|specification|clause|standard|requirement|item|code|identifi|section|ضابط|سياس|मानक|नीति)/i.test(text))
     return null;
-  // Restrict the prefix to the same phrase as the requested item type, so
-  // generic words ("all", "what", "list") are not treated as code prefixes.
-  const match = text.match(/\b([A-Za-z]{1,6}\d{0,2})\s+(?:polic\w*|controls?|specifications?|clauses?|standards?|requirements?|items?|codes?|identifiers?|sections?)\b/i);
+  // Accept real spoken phrasing: "all DO relevant policies". Keep the
+  // optional modifier tightly adjacent to the code and policy noun.
+  const match = text.match(
+    /\b([A-Za-z]{1,6}\d{0,2})\s+(?:(?:related|relevant|available|applicable|associated)\s+)?(?:polic\w*|controls?|specifications?|clauses?|standards?|requirements?|items?|codes?|identifiers?|sections?)\b/i,
+  );
   if (!match) return null;
   const prefix = match[1]!.toUpperCase();
   if (/^(ALL|EVERY|FULL|TOTAL|SOME|WHAT|WHICH|THE|DATA|POLICY|SECTION)$/.test(prefix))
