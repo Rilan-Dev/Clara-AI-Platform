@@ -1,3 +1,9 @@
+## 2026-10-30 — Fix latency diagnostic 403 reason label
+
+- Owner executed `node --test scripts/rag-latency-path-check.test.mjs` after the auth-only preflight change: **6/7 tests passed**. The sole failing test was a console-format assertion: output correctly classified missing draft KB edit permission as `KB draft edit permission missing` but omitted the expected `reason:` prefix. This was not a change in authorization semantics or production retrieval.
+- Updated `scripts/rag-latency-path-check.mjs` to output ` | reason: <allowlisted category>` consistently with the `--auth-only` display, preserving all status checks, fail-fast semantics, response redaction, credentials, and request count. No production application code was modified.
+- Re-fetched current GitHub branch and changed the single output-format anchor. **Owner rerun of tests still pending**: `git pull --ff-only origin feature/ai-core-from-doable-source && node --test scripts/rag-latency-path-check.test.mjs`, then `node scripts/rag-latency-path-check.mjs --auth-only` to classify the real HTTP 403 without RAG quota consumption.
+
 ## 2026-10-30 — Diagnose RAG latency probe HTTP 403 without weakening authorization
 
 - Operator ran `scripts/rag-latency-path-check.mjs` from an interactive shell with a hidden token. First public HTTPS request returned HTTP 403 after 5,271 ms and the script correctly stopped without sending the remaining seven retrieval requests. This is an **authorization or proxy denial**, not evidence of increased grounding latency. Exact source of 403 remains unverified because the first script did not classify returned error responses.
