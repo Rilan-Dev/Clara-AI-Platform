@@ -5,6 +5,7 @@
  * Uses normal RBAC-protected HTTP APIs, never DB inserts or test sessions.
  * No credentials are accepted as CLI arguments or printed.
  *
+ *   node scripts/rag-staging-setup.mjs --action list
  *   node scripts/rag-staging-setup.mjs --action create --agent-id UUID
  *   node scripts/rag-staging-setup.mjs --action upload --kb-id UUID --source /private/PoliciesEn001.pdf
  *   node scripts/rag-staging-setup.mjs --action status --kb-id UUID
@@ -34,8 +35,9 @@ export function parseArgs(argv) {
     o[key]=value;
   }
   const action=o["--action"];
-  if(!["create","upload","status"].includes(action))throw Error("Action must be create, upload or status");
-  if(action==="create" ? !UUID.test(o["--agent-id"]||"") || o["--kb-id"] || o["--source"] :
+  if(!["list","create","upload","status"].includes(action))throw Error("Action must be list, create, upload or status");
+  if(action==="list" ? !!o["--agent-id"] || !!o["--kb-id"] || !!o["--source"] :
+     action==="create" ? !UUID.test(o["--agent-id"]||"") || o["--kb-id"] || o["--source"] :
      !UUID.test(o["--kb-id"]||"") || o["--agent-id"] ||
        (action==="upload" ? !o["--source"] : !!o["--source"]))
     throw Error("Missing or conflicting stage arguments");
@@ -108,6 +110,22 @@ export async function runSetup(opts,token,{
 }={}) {
   const me=await request(fetcher,token,"/api/auth/me");
   if(!me?.user||me.user.isSuperAdmin===true)throw Error("An authorized non-platform tenant session is required");
+  if(opts.action==="list"){
+    const orgs=await request(fetcher,token,"/api/orgs");
+    if(!Array.isArray(orgs)||orgs.length>40)throw Error("Unexpected organization listing");
+    const choices=[];
+    for(const org of orgs){
+      if(!UUID.test(org?.id||""))throw Error("Unexpected organization reference");
+      const agents=await request(fetcher,token,"/api/orgs/"+org.id+"/agents");
+      if(!Array.isArray(agents)||agents.length>100)throw Error("Unexpected agent listing");
+      for(const agent of agents){
+        if(!UUID.test(agent?.id||""))throw Error("Unexpected agent reference");
+        choices.push({orgId:org.id,orgName:String(org.name||"").slice(0,80),
+          agentId:agent.id,agentName:String(agent.name||"").slice(0,80)});
+      }
+    }
+    return {action:"list",options:choices,productionKbTouched:false,releaseApproved:false};
+  }
   if(opts.action==="create"){
     // This normal API GET also verifies the caller can see this agent.
     const agent=await request(fetcher,token,"/api/agents/"+opts.agentId);
@@ -187,7 +205,7 @@ async function main(){
     console.error("Invalid arguments. Use --help");process.exitCode=1;return;
   }
   if(opts.help){
-    console.log("Actions: --action create --agent-id UUID | --action upload --kb-id UUID --source /private/PoliciesEn001.pdf | --action status --kb-id UUID");
+    console.log("Actions: --action list | --action create --agent-id UUID | --action upload --kb-id UUID --source /private/PoliciesEn001.pdf | --action status --kb-id UUID");
     return;
   }
   let token;
