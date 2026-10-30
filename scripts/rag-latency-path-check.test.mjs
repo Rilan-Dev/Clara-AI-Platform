@@ -202,3 +202,41 @@ test('RAG 403 diagnoses a missing draft permission without echoing response bodi
     await close(localServer.server);
   }
 });
+
+
+test('auth-only explicit warmup and repeats measure both origins without RAG calls', async () => {
+  const calls = [];
+  const serverA = createServer((req, res) => {
+    calls.push({ origin: 'A', method: req.method, path: req.url });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ user: { id: 'private-a' } }));
+  });
+  const serverB = createServer((req, res) => {
+    calls.push({ origin: 'B', method: req.method, path: req.url });
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ user: { id: 'private-b' } }));
+  });
+  try {
+    await listen(serverA);
+    await listen(serverB);
+    const r = await exec([
+      '--auth-only', '--warmup', '1', '--repeat', '3',
+      '--public-url', 'http://127.0.0.1:' + serverA.address().port,
+      '--local-url', 'http://127.0.0.1:' + serverB.address().port,
+    ]);
+    assert.equal(r.code, 0, r.stderr);
+    assert.equal(calls.length, 8);
+    assert.equal(calls.filter(c => c.origin === 'A').length, 4);
+    assert.equal(calls.filter(c => c.origin === 'B').length, 4);
+    assert.ok(calls.every(c => c.method === 'GET' && c.path === '/api/auth/me'));
+    assert.match(r.stdout, /Authentication samples: 1 warmup \+ 3 measured per origin/);
+    assert.match(r.stdout, /public auth warmup 1: HTTP 200/);
+    assert.match(r.stdout, /local\s+auth measure 3: HTTP 200/);
+    assert.match(r.stdout, /public 3\/3 passed \| p50 \d+ms p95 \d+ms/);
+    assert.match(r.stdout, /local 3\/3 passed \| p50 \d+ms p95 \d+ms/);
+    assert.doesNotMatch(r.stdout, /private-a|private-b|secret-fixture-token/);
+  } finally {
+    await close(serverA);
+    await close(serverB);
+  }
+});
