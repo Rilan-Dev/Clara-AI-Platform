@@ -52,6 +52,7 @@ import {
   type RetrievalTranslation,
 } from "@/modules/rag/cross-lingual";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
+import { normalizeDocumentControlSearchQuery } from "@/modules/assistant/api/conversation-context";
 import { getKnowledgeTopics } from "@/modules/rag/knowledge-topics";
 import {
   detectVisitorLanguage,
@@ -1007,7 +1008,13 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   // starts NOW, in parallel with the AI-config resolution below (which can
   // take seconds on a cold instance), using the org's configured translation
   // when that config is already available and the platform model otherwise.
-  const searchText = (request.searchQuery ?? query).trim() || query;
+  // Normalize D-zero control identifiers consistently for vector search AND
+  // exact-reference verification. The real user text remains unchanged for
+  // the model's conversation, quota audit and visible request.
+  const searchText = normalizeDocumentControlSearchQuery(
+    (request.searchQuery ?? query).trim() || query,
+  );
+  const exactReferenceQuestion = normalizeDocumentControlSearchQuery(query);
   const knowledgeLanguage = inferKnowledgeLanguage(documentTitles, assistantConfig?.defaultLanguage);
   const early = resolvedSnapshot();
   // A multilingual index (E5) matches questions across languages by itself —
@@ -1094,7 +1101,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
       providerConfig,
       scoreThreshold,
       Boolean(request.documentId),
-      query,
+      exactReferenceQuestion,
       request.surface === "voice",
       retrievalStages,
     );
