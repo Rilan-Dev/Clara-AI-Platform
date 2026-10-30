@@ -32,7 +32,7 @@ describe("deployment feature switches at request boundary", () => {
         method, headers:{authorization,origin:"https://clara.example.test"},
       });
     const signedShape="Bearer pub_v1.payload.signature";
-    for(const path of ["/api/embed/chat","/api/embed/session"]) {
+    for(const path of ["/api/embed/chat","/api/embed/session","/api/embed/rag"]) {
       // This is transport admission only. Full signed-token verification
       // is performed by validateEmbedRequest in both route handlers.
       expect(middleware(req(path,"POST",signedShape)).status).toBe(200);
@@ -43,6 +43,10 @@ describe("deployment feature switches at request boundary", () => {
       expect(middleware(req(path,"GET",signedShape)).status).toBe(404);
       expect(middleware(req(path,"OPTIONS",signedShape)).status).toBe(404);
     }
+    // Token shape alone is never permission: the RAG handler must validate
+    // the HMAC, active deployment, KB binding, quotas and live-only scope.
+    expect(middleware(req("/api/embed/rag","POST","Bearer pub_v1.bad.signature")).status).toBe(200);
+    expect(middleware(req("/api/embed/rag","POST","Bearer workspace.jwt.signature")).status).toBe(404);
     expect(middleware(req("/api/embed/search","POST",signedShape)).status).toBe(404);
     expect(middleware(req("/api/embed/design","POST",signedShape)).status).toBe(404);
   });
