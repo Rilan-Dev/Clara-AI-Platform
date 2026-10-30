@@ -250,13 +250,14 @@ function traceHttpsAuth(origin, token, timeoutMs, family) {
         signal: AbortSignal.timeout(timeoutMs),
       }, res => {
         t.firstByte = performance.now();
+        const connectionFamily = res.socket?.remoteFamily ?? 'n/a';
         res.resume(); // discard without printing identity or response body
         res.on('end', () => {
           const end = performance.now();
           const finalHandshake = t.tls ?? t.tcp ?? t.socket ?? start;
           done({
             status: res.statusCode,
-            family: res.socket?.remoteFamily ?? 'n/a',
+            family: connectionFamily,
             dnsMs: t.dns !== undefined && t.socket !== undefined ? t.dns - t.socket : null,
             tcpMs: t.tcp !== undefined ? t.tcp - (t.dns ?? t.socket ?? start) : null,
             tlsMs: t.tls !== undefined && t.tcp !== undefined ? t.tls - t.tcp : null,
