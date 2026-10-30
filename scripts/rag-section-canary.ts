@@ -41,7 +41,7 @@ export function syntheticFixture(): CanaryFixture {
     pages: [
       { pageNumber: 2, text:
         "DO.4.1 Data Backup and Restoration " +
-        "Backup records shall be reviewed by the owner. ".repeat(7) +
+        "Backup records shall be reviewed by the owner. ".repeat(3) +
         "DO.4.2 Disaster Recovery " +
         SYNTHETIC_REQS.map((text, i) => (i + 1) + ". The Entity shall " + text + ".").join(" ") },
       { pageNumber: 3, text:
