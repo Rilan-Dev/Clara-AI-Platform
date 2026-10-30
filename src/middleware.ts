@@ -93,14 +93,15 @@ export function middleware(request: NextRequest): NextResponse {
   // can read/write settings or call external providers.
   const gatedFeature = featureForPath(pathname);
   // Only the PUBLISHED agent's short-lived signed session may reuse the
-  // existing text/voice embed transports with third-party widgets disabled.
+  // chat, voice-session and realtime RAG transports while the optional
+  // third-party embed widget feature remains disabled.
   // This shape check is ROUTING ONLY: each handler independently validates
   // HMAC signature, expiry, active public deployment, KB and org quota.
   // Long-lived external widget keys remain blocked in this environment.
   const header = request.headers.get("authorization") ?? "";
   const publishedAgentTransport =
     request.method === "POST" &&
-    (pathname === "/api/embed/chat" || pathname === "/api/embed/session") &&
+    (pathname === "/api/embed/chat" || pathname === "/api/embed/session" || pathname === "/api/embed/rag") &&
     /^Bearer pub_v1\.[^.\s]+\.[^.\s]+$/.test(header);
   if (gatedFeature && !publishedAgentTransport && !isPlatformFeatureEnabled(gatedFeature)) {
     const response = pathname.startsWith("/api/")
