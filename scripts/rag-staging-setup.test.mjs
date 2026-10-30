@@ -124,6 +124,14 @@ test("refuses upload if no exact staged worker override is active",async()=>{
   assert.equal(s.calls.some(x=>x.method==="POST"),false);
 });
 
+test("a worker probe returning false cannot authorize a document upload",async()=>{
+  const serviceMock=service();
+  await assert.rejects(runSetup(upload,"fake-session",{
+    ...localFiles(),fetcher:serviceMock.fetcher,checkWorker:async()=>false,
+  }));
+  assert.equal(serviceMock.calls.some(x=>x.method==="POST"),false);
+});
+
 test("worker verification forbids production global flags and unrelated stage ids",()=>{
   const good={stageEnabled:true,stageId:STAGE,globalPage:false,globalSection:false};
   assert.equal(validateWorkerStage(good,STAGE),true);
