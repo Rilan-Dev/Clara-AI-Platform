@@ -20,6 +20,8 @@ describe("disposable real-PDF retrieval benchmark scoring", () => {
   it("cannot connect to Clara production Qdrant or non-loopback embedding hosts", () => {
     expect(()=>assertLocalStagingUrl("http://127.0.0.1:6335/collections")).not.toThrow();
     expect(()=>assertLocalStagingUrl("http://127.0.0.1:8088/v1/embeddings")).not.toThrow();
+    expect(()=>assertLocalStagingUrl("http://127.0.0.1:8089/v1/embeddings")).not.toThrow();
+    expect(()=>assertLocalStagingUrl("http://127.0.0.1:6336/collections")).not.toThrow();
     for(const bad of [
       "http://127.0.0.1:6333/collections",
       "http://127.0.0.1:6334/collections",
