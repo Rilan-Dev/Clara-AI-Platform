@@ -24,8 +24,15 @@ import { loadFileAsText } from "../src/modules/admin/core/ingest/document-loader
 import { chunkDocumentWithPages } from "../src/modules/admin/core/ingest/chunker";
 
 const MODEL = "Qwen/Qwen3-Embedding-0.6B";
-const EMBED_URL = "http://127.0.0.1:8088/v1/embeddings";
-const QDRANT_URL = "http://127.0.0.1:6335";
+// Additional dedicated test ports avoid collisions with a separate operator's
+// staging jobs. These remain loopback-only and cannot address production 6333.
+const EMBED_PORT = process.env.RAG_STAGING_EMBED_PORT ?? "8088";
+const QDRANT_PORT = process.env.RAG_STAGING_QDRANT_PORT ?? "6335";
+if (!["8088", "8089"].includes(EMBED_PORT) ||
+    !["6335", "6336"].includes(QDRANT_PORT))
+  throw new Error("Staging endpoints must use approved isolated ports");
+const EMBED_URL = "http://127.0.0.1:" + EMBED_PORT + "/v1/embeddings";
+const QDRANT_URL = "http://127.0.0.1:" + QDRANT_PORT;
 const MAX_FILE_BYTES = 5_000_000;
 const CHUNK_SIZE = 900;
 const OVERLAP = 150;
@@ -141,7 +148,7 @@ function metrics(results: ReturnType<typeof pageHitRanks>[]) {
 export function assertLocalStagingUrl(url:string):void {
   const endpoint=new URL(url);
   if (endpoint.protocol!=="http:" || endpoint.hostname!=="127.0.0.1" ||
-      ![8088,6335].includes(Number(endpoint.port)) ||
+      ![8088,8089,6335,6336].includes(Number(endpoint.port)) ||
       endpoint.username || endpoint.password || endpoint.hash) {
     throw new Error("Refusing non-local endpoint or unexpected port");
   }
