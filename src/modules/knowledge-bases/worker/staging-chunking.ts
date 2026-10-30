@@ -9,12 +9,8 @@
  * The isolated match prevents reindexing any other tenant or production KB.
  * This helper does not grant KB permissions or change provider configuration.
  */
-type IngestFlags = Partial<Pick<NodeJS.ProcessEnv,
-  "RAG_SOURCE_PAGE_CHUNKING" |
-  "RAG_SECTION_AWARE_CHUNKING" |
-  "RAG_STAGING_PAGE_SECTION_CHUNKING" |
-  "RAG_STAGING_KB_ID"
->>;
+/** Env entries may be absent; ProcessEnv and narrow test fixture objects both satisfy this. */
+type IngestFlags = Record<string, string | undefined>;
 type Target = { id: string; name: string; status?: string };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
