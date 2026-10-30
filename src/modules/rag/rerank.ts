@@ -8,6 +8,18 @@
  */
 export type Reranked<T> = T & { rerankScore?: number };
 
+/**
+ * A conservative script gate for English-only cross-encoders. This is NOT
+ * language detection: romanized non-English text is Latin-script and may pass.
+ * Check both the original user query and KB excerpts, not a translated query.
+ */
+function containsNonLatinLetters(text: string): boolean {
+  for (const char of text) {
+    if (/\p{Letter}/u.test(char) && !/\p{Script=Latin}/u.test(char)) return true;
+  }
+  return false;
+}
+
 /** Content-free, per-retrieval outcome, never logged with query or KB excerpts. */
 export type RerankStatus = "skipped" | "applied" | "timeout" | "fallback";
 export type RerankObservation = {
@@ -51,6 +63,16 @@ export async function rerankCandidates<T>(
     candidates.length < 2
   ) return returnFallback("skipped");
 
+  // Model language capability is deployment-specific: the default "all" keeps
+  // existing multilingual-model deployments unchanged. Operators using an
+  // English-only model can explicitly set "latin-only" to avoid costly,
+  // unsupported Arabic/CJK/Indic inference. Unknown values fail closed.
+  const languagePolicy = process.env.RAG_RERANK_LANGUAGE_POLICY?.trim().toLowerCase() || "all";
+  if (languagePolicy !== "all" && languagePolicy !== "latin-only") return returnFallback("skipped");
+  if (languagePolicy === "latin-only" && containsNonLatinLetters(query)) {
+    return returnFallback("skipped");
+  }
+
   // The URL is deployment-owned, never accepted from a user/tenant request.
   try {
     const target = new URL(url);
@@ -86,6 +108,11 @@ export async function rerankCandidates<T>(
     return returnFallback("skipped");
   }
   if (texts.some((text) => !text.trim())) return returnFallback("skipped");
+  // The evidence itself may be Arabic even when the query is English. Avoid
+  // sending source excerpts to a cross-encoder that does not support them.
+  if (languagePolicy === "latin-only" && texts.some(containsNonLatinLetters)) {
+    return returnFallback("skipped");
+  }
 
   let signal: AbortSignal | undefined;
   try {
