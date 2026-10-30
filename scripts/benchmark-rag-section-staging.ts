@@ -30,7 +30,7 @@ const MAX_FILE_BYTES = 5_000_000;
 const CHUNK_SIZE = 900;
 const OVERLAP = 150;
 
-export type StagingQuestion = { id: string; question: string; expectedPage: number };
+export type StagingQuestion = { id: string; question: string; expectedPage: number; expectedEvidence?: string[] };
 type Chunk = { text: string; pageNumber?: number };
 type Rank = { id: number | string; score: number; payload?: { pageNumber?: number } };
 
@@ -69,8 +69,38 @@ export function validateQuestions(questions: StagingQuestion[], pageNumbers: num
         ids.has(q.id) || typeof q.question !== "string" || !q.question.trim() ||
         q.question.length>1200 || !Number.isSafeInteger(q.expectedPage) ||
         !pages.has(q.expectedPage)) throw new Error("Invalid question or expected page");
+    if (q.expectedEvidence !== undefined) {
+      if (!Array.isArray(q.expectedEvidence) || !q.expectedEvidence.length ||
+          q.expectedEvidence.length > 20 ||
+          q.expectedEvidence.some(e => typeof e !== "string" || e.trim().length < 4 || e.length > 160) ||
+          new Set(q.expectedEvidence.map(e => normalizeEvidence(e))).size !== q.expectedEvidence.length) {
+        throw new Error("Invalid expected evidence labels");
+      }
+    }
     ids.add(q.id);
   }
+}
+
+/** Evaluates whether actual returned chunk text supports each expected source
+ * phrase, not merely whether its PDF page is numerically correct.
+ * No source content or labels are ever placed in the result or Qdrant payload. */
+export function normalizeEvidence(text: string) {
+  return text.normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase();
+}
+export function evidenceCoverageAtK(
+  rankedChunkText: readonly string[],
+  expectedEvidence: readonly string[],
+  k = 6,
+) {
+  if (!expectedEvidence.length || k < 1 || !Number.isInteger(k))
+    throw new Error("Invalid evidence labels or rank limit");
+  const normalized = rankedChunkText.slice(0, k).map(normalizeEvidence);
+  const covered = expectedEvidence.filter(phrase => {
+    const query = normalizeEvidence(phrase);
+    return normalized.some(chunk => chunk.includes(query));
+  }).length;
+  return { required: expectedEvidence.length, covered, recall: covered / expectedEvidence.length,
+    complete: covered === expectedEvidence.length };
 }
 
 export function pageHitRanks(ranks: Array<{pageNumber?:number}>, expectedPage:number, k=3) {
@@ -154,7 +184,10 @@ async function run() {
   const collectionNames:string[]=[];
   const baselineCounts:Record<string,number>={};
   const results:Record<string,ReturnType<typeof pageHitRanks>[]>={};
-  const rankings:Record<string,Array<{id:string;ranking:number;matchedPage:boolean}>>={};
+  const rankings:Record<string,Array<{
+    id:string;ranking:number;matchedPage:boolean;
+    coverageAt1?:number;coverageAt3?:number;coverageAt6?:number;fullCoverageAt6?:boolean;
+  }>>={};
   let modelDimension:number|null=null;
   try {
     for(const arm of arms){
@@ -169,8 +202,10 @@ async function run() {
       const collection="section_stage_"+randomUUID().replaceAll("-","").slice(0,12)+"_"+arm.name.toLowerCase();
       await qdrant("/collections/"+collection,"PUT",{vectors:{size:dim,distance:"Cosine"}});
       collectionNames.push(collection);
+      const indexedText = new Map<string,string>();
       for(let i=0;i<chunks.length;i+=32){
         const batch=chunks.slice(i,i+32).map((chunk,j)=>({id:randomUUID(),vector:vectors[i+j],payload:{pageNumber:chunk.pageNumber}}));
+        for (let j=0;j<batch.length;j++) indexedText.set(String(batch[j]!.id),chunks[i+j]!.text);
         await qdrant("/collections/"+collection+"/points?wait=true","PUT",{points:batch});
       }
       results[arm.name]=[];rankings[arm.name]=[];
@@ -182,12 +217,33 @@ async function run() {
         const pages=ranked.map((r)=>({pageNumber:r.payload?.pageNumber}));
         const rank=pageHitRanks(pages,question.expectedPage);
         results[arm.name]!.push(rank);
-        rankings[arm.name]!.push({id:question.id,ranking:rank.reciprocalRank?Math.round(1/rank.reciprocalRank):0,matchedPage:rank.hitAt3});
+        const evidence = question.expectedEvidence?.length
+          ? [1,3,6].map(k => evidenceCoverageAtK(
+              ranked.slice(0,k).map(point => indexedText.get(String(point.id)) || ""),
+              question.expectedEvidence!,k))
+          : null;
+        rankings[arm.name]!.push({
+          id:question.id,ranking:rank.reciprocalRank?Math.round(1/rank.reciprocalRank):0,
+          matchedPage:rank.hitAt3,
+          ...(evidence ? {coverageAt1:evidence[0]!.recall,
+            coverageAt3:evidence[1]!.recall,coverageAt6:evidence[2]!.recall,
+            fullCoverageAt6:evidence[2]!.complete} : {}),
+        });
       }
     }
     const legacy=metrics(results.legacy!);const section=metrics(results.sectionAware!);
+    const summarizeEvidence=(rows:typeof rankings.legacy) => {
+      const labeled=rows.filter(row=>row.coverageAt6!==undefined);
+      const mean=(key:"coverageAt1"|"coverageAt3"|"coverageAt6") =>
+        labeled.length?Math.round(10000*labeled.reduce((s,row)=>s+(row[key]||0),0)/labeled.length)/10000:null;
+      return {labeledQuestions:labeled.length,meanRecallAt1:mean("coverageAt1"),
+        meanRecallAt3:mean("coverageAt3"),meanRecallAt6:mean("coverageAt6"),
+        fullyCoveredQuestionsAt6:labeled.filter(row=>row.fullCoverageAt6).length};
+    };
     const comparison=(questions as StagingQuestion[]).map((q,i)=>({
       case:q.id, baselineRank:rankings.legacy![i]!.ranking,candidateRank:rankings.sectionAware![i]!.ranking,
+      ...(q.expectedEvidence?.length ? { baselineEvidenceRecallAt6:rankings.legacy![i]!.coverageAt6,
+        candidateEvidenceRecallAt6:rankings.sectionAware![i]!.coverageAt6 } : {}),
     }));
     console.log(JSON.stringify({
       kind:"isolated-local-qwen-qdrant-pdf-staging",
@@ -201,6 +257,11 @@ async function run() {
       legacyChunks:baselineCounts.legacy,sectionAwareChunks:baselineCounts.sectionAware,
       uniqueModelEmbeddings:embedCache.size,
       baseline:legacy,candidate:section,
+      evidenceAssessment:{
+        baseline:summarizeEvidence(rankings.legacy!),
+        candidate:summarizeEvidence(rankings.sectionAware!),
+        qualification:"Exact short-phrase containment in returned source chunks; not generated-answer correctness or independent reviewer relevance.",
+      },
       deltaMRR:Number((section.meanReciprocalRank-legacy.meanReciprocalRank).toFixed(4)),
       perCase:comparison,
       tenantKBModified:false,
