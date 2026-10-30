@@ -18,6 +18,7 @@ import {
   recordEmbeddingRuntimeFailure,
 } from "@/modules/platform-health/core/incidents";
 import { encodeNDJSONEvent } from "@/modules/embed/core/ndjson";
+import { toPublicSourceMetadata } from "@/modules/embed/core/public-source-metadata";
 import {
   buildConversationAwareSearchQuery,
   buildRecentConversationContextBlock,
@@ -325,12 +326,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         if (sources.length > 0) {
           safeWrite({
             type: "sources",
-            payload: sources.map((result, index) => ({
-              index: index + 1,
-              title: result.title,
-              snippet: result.snippet.slice(0, 200),
-              score: result.score,
-            })),
+            payload: sources.map(toPublicSourceMetadata),
           });
         }
 
