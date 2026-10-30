@@ -303,6 +303,10 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SKIP_AUTH: "false"
+      # HTTP server can execute ingest jobs via its local queue and poller.
+      # Match the dedicated worker's exact-KB staging override (OFF by default).
+      RAG_STAGING_PAGE_SECTION_CHUNKING: ${RAG_STAGING_PAGE_SECTION_CHUNKING:-false}
+      RAG_STAGING_KB_ID: ${RAG_STAGING_KB_ID:-}
     # Published for Nginx Proxy Manager. If NPM proxies to the container name
     # (clara-backend:3000 on the nginx-proxy_default network) you can bind
     # this to 127.0.0.1 as well.
@@ -350,8 +354,8 @@ services:
       REDIS_PORT: 6379
       CRAWL_WORKER_CONCURRENCY: ${CRAWL_WORKER_CONCURRENCY:-1}
       RETRY_WORKER_CONCURRENCY: ${RETRY_WORKER_CONCURRENCY:-1}
-      # Exact disposable-KB canary only. Both defaults leave the feature OFF.
-      # Configure these only after the tenant has created RAG-STAGING-* via RBAC.
+      # Match backend ingest, local queue and poller to this exact staging KB.
+      # Keep OFF until an authorized tenant has created RAG-STAGING-*.
       RAG_STAGING_PAGE_SECTION_CHUNKING: ${RAG_STAGING_PAGE_SECTION_CHUNKING:-false}
       RAG_STAGING_KB_ID: ${RAG_STAGING_KB_ID:-}
     depends_on:
