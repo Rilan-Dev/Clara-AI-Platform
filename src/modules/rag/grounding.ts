@@ -1109,7 +1109,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // Exhaustive enumeration is opt-in by user intent, never a replacement
   // for semantic QA. Reuse the resolved KB and document authorization filter.
-  const inventoryIntent = detectIdentifierInventoryIntent(searchText);
+  // Detect an explicit list/family request from the CURRENT user turn only.
+  // Conversation-aware retrieval text includes old assistant citations, and
+  // those identifiers used to suppress an otherwise valid family inventory.
+  const inventoryIntent = detectIdentifierInventoryIntent(exactReferenceQuestion);
   const numberedTableIntent = detectNumberedTableIntent(query);
   // Use one bounded, authorized scan for either exhaustive-list path.
   // In a large collection, a partial scan never supplies "all" evidence.
