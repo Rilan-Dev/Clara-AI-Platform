@@ -12,7 +12,7 @@ import { realtimeCompletionOutcome, type RealtimeCompletionStatus } from "./real
 export type PlaybackPhase =
   | "created" | "audio_started" | "audio_generated"
   | "generation_done" | "delivered" | "no_audio"
-  | "incomplete" | "failed" | "cancelled" | "cleared";
+  | "incomplete" | "failed" | "cancelled" | "cleared" | "undrained";
 
 export type PlaybackTransition = {
   phase: PlaybackPhase;
@@ -129,6 +129,16 @@ export class RealtimePlaybackLifecycle {
       return this.result(entry, "generation_done");
     }
     return null;
+  }
+
+  /** A watchdog may report missing buffer-drained after the provider finished.
+   * Do not call this a successful delivery and never resend automatically. */
+  timeoutUndrained(responseId: string): PlaybackTransition | null {
+    const entry = this.entries.get(responseId);
+    if (!entry || entry.finished || entry.status !== "completed" ||
+        !entry.hasAudio || entry.drained) return null;
+    entry.finished = true;
+    return this.result(entry, "undrained");
   }
 
   private result(entry: Entry, phase: PlaybackPhase): PlaybackTransition {
