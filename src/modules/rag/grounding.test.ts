@@ -518,6 +518,13 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     expect(outcome.result.context).toContain("DO.4.2");
     expect(outcome.result.context).toContain("DO.4.3");
     expect(outcome.result.context).not.toContain("PDP.4.1");
+    expect(outcome.result.sources.map((source) => source.snippet)).toEqual([
+      expect.stringContaining("DO.4.1"),
+      expect.stringContaining("DO.4.2"),
+      expect.stringContaining("DO.4.3"),
+    ]);
+    expect(outcome.result.sources.every((source) => source.sourceType === "structural")).toBe(true);
+    expect(outcome.result.context).toContain("[S1]");
     expect(scroll).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       filter: { must: [{ key: "kbId", match: { value: KB_FIXTURE.id } }] },
     }));
