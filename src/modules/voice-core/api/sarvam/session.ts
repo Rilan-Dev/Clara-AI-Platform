@@ -43,6 +43,7 @@ import { VoiceConfigResolutionError, resolveVoiceConfig } from "../../resolve";
 import { AIConfigResolutionError } from "@/modules/ai-core/resolve";
 import { embedVoiceGuard } from "../elevenlabs/embed-auth";
 import { classifyVoicePipelineSession } from "../pipeline-chat-audience";
+import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { mintSarvamRealtimeToken } from "./realtime-auth";
 import type { SarvamSessionPayload } from "../../config-types";
 
@@ -66,11 +67,22 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
     const embedDenied = await embedVoiceGuard(request, kbId);
     if (embedDenied) return embedDenied;
     const audience = classifyVoicePipelineSession(request.headers.get("authorization"));
+    // Only signed published visitors and validated widget keys may use the
+    // public transport. Preview/native sessions must pass tenant RBAC before
+    // consuming a voice-session quota or minting a realtime capability token.
+    let authorizedOrgId: string | null = null;
+    if (!audience.isExternalSession) {
+      const auth = await requireAuth(request);
+      const access = await requireKbPermission(auth, kbId, "kb:read");
+      authorizedOrgId = access.orgId;
+    }
 
-    const orgRows = await dbQuery<{ org_id: string }>(
-      `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
-      [kbId],
-    );
+    const orgRows = authorizedOrgId
+      ? [{ org_id: authorizedOrgId }]
+      : await dbQuery<{ org_id: string }>(
+          `SELECT a.org_id FROM agents a JOIN knowledge_bases kb ON kb.agent_id = a.id WHERE kb.id = $1`,
+          [kbId],
+        );
     const orgId = orgRows[0]?.org_id ?? null;
 
     // ── Same bucket as the other realtime providers ──
@@ -189,6 +201,9 @@ export async function postSarvamSession(request: NextRequest): Promise<NextRespo
     }
     return NextResponse.json(payload);
   } catch (error) {
+    // requireAuth/requireKbPermission throw NextResponse on 401/403. Preserve
+    // those decisions instead of converting a denied workspace request to 500.
+    if (error instanceof NextResponse) return error;
     console.error("[sarvam-session] post:", error);
     if (error instanceof VoiceConfigResolutionError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
