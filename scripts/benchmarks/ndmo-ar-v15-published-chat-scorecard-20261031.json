@@ -1,0 +1,225 @@
+{
+  "kind": "ndmo-public-agent-scorecard",
+  "sourceSha256": "6bc56b0a5327e5c5d84f0f1408eb7e4b0ed347b9ad5aeff3c83183cdc25bca0e",
+  "agentId": "a7107bde-ff33-4952-9ebf-ad0d1dac3861",
+  "summary": {
+    "total": 18,
+    "pass": 16,
+    "fail": 2,
+    "positive": 15,
+    "positivePassed": 13,
+    "abstentions": 3,
+    "abstentionsPassed": 3,
+    "inRangeCitationCases": 13,
+    "casesWithPageMetadata": 0
+  },
+  "cases": [
+    {
+      "id": "do42-en-seven",
+      "language": "en",
+      "category": "complete",
+      "pass": true,
+      "concepts": "7/7",
+      "citations": 0,
+      "citationsInRange": false,
+      "hasPageMetadata": false,
+      "latencyMs": 2328
+    },
+    {
+      "id": "do42-ar-seven",
+      "language": "ar",
+      "category": "multilingual",
+      "pass": true,
+      "concepts": "7/7",
+      "citations": 4,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 2303
+    },
+    {
+      "id": "do42-rpo-rto-en",
+      "language": "en",
+      "category": "definitions",
+      "pass": true,
+      "concepts": "4/4",
+      "citations": 2,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 2988
+    },
+    {
+      "id": "do42-typo-zero",
+      "language": "en",
+      "category": "variant",
+      "pass": false,
+      "concepts": "0/7",
+      "citations": 0,
+      "citationsInRange": false,
+      "hasPageMetadata": false,
+      "latencyMs": 1654
+    },
+    {
+      "id": "do42-priority",
+      "language": "en",
+      "category": "fact",
+      "pass": true,
+      "concepts": "1/1",
+      "citations": 1,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1212
+    },
+    {
+      "id": "do42-ar-priority",
+      "language": "ar",
+      "category": "multilingual",
+      "pass": false,
+      "concepts": "0/1",
+      "citations": 0,
+      "citationsInRange": false,
+      "hasPageMetadata": false,
+      "latencyMs": 2221
+    },
+    {
+      "id": "do41-backup",
+      "language": "en",
+      "category": "enumeration",
+      "pass": true,
+      "concepts": "4/4",
+      "citations": 1,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1349
+    },
+    {
+      "id": "do41-backup-ar",
+      "language": "ar",
+      "category": "multilingual",
+      "pass": true,
+      "concepts": "4/4",
+      "citations": 3,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1874
+    },
+    {
+      "id": "do43-changes",
+      "language": "en",
+      "category": "enumeration",
+      "pass": true,
+      "concepts": "3/3",
+      "citations": 1,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1661
+    },
+    {
+      "id": "do21-retention",
+      "language": "en",
+      "category": "enumeration",
+      "pass": true,
+      "concepts": "4/4",
+      "citations": 2,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1578
+    },
+    {
+      "id": "dcm21-content",
+      "language": "en",
+      "category": "enumeration",
+      "pass": true,
+      "concepts": "5/5",
+      "citations": 1,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 2541
+    },
+    {
+      "id": "dcm21-ar",
+      "language": "ar",
+      "category": "multilingual",
+      "pass": true,
+      "concepts": "5/5",
+      "citations": 3,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1790
+    },
+    {
+      "id": "do51-kpis",
+      "language": "en",
+      "category": "enumeration",
+      "pass": true,
+      "concepts": "5/5",
+      "citations": 1,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 2754
+    },
+    {
+      "id": "dg21-gap",
+      "language": "en",
+      "category": "enumeration",
+      "pass": true,
+      "concepts": "4/4",
+      "citations": 1,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1926
+    },
+    {
+      "id": "do42-conversation-followup",
+      "language": "en",
+      "category": "multi-turn",
+      "pass": true,
+      "concepts": "2/2",
+      "citations": 2,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1849
+    },
+    {
+      "id": "do42-missing-rto-number",
+      "language": "en",
+      "category": "unanswerable",
+      "pass": true,
+      "concepts": "0/0",
+      "citations": 1,
+      "citationsInRange": true,
+      "hasPageMetadata": false,
+      "latencyMs": 1831
+    },
+    {
+      "id": "do42-external-penalty",
+      "language": "en",
+      "category": "unanswerable",
+      "pass": true,
+      "concepts": "0/0",
+      "citations": 0,
+      "citationsInRange": false,
+      "hasPageMetadata": false,
+      "latencyMs": 1452
+    },
+    {
+      "id": "outside-private-account",
+      "language": "en",
+      "category": "unanswerable",
+      "pass": true,
+      "concepts": "0/0",
+      "citations": 0,
+      "citationsInRange": false,
+      "hasPageMetadata": false,
+      "latencyMs": 1498
+    }
+  ],
+  "interpretation": "Scoring patterns were expanded for P2, reversal, query execution time and sector regulator/development plan. No live tests were rerun for regrading. Citation presence and page metadata remain separate gates.",
+  "executedOn": "2026-10-31",
+  "evaluationType": "Live public published-chat responses re-scored offline with corrected synonyms",
+  "limitations": [
+    "Page-number source metadata absent from current production index",
+    "Heuristic concept checks are not independent expert judgment",
+    "Arabic responses follow the agent's configured English/Tamil/Hindi output languages",
+    "Existing public agent snapshot only; not draft tenant acceptance"
+  ]
+}
