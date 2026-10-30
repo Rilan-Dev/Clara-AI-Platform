@@ -64,7 +64,18 @@ export function buildReferenceWindows(
       const original = String(base.payload?.chunk ?? "");
       const start = Math.min(...spans.map((r) => r.start));
       const nextRef = referenceSpans(original).find((r) => r.start > start && !wanted.has(r.id));
-      const clipped = original.slice(start, nextRef?.start ?? original.length).trim();
+      // In many table-derived PDF chunks, the clause priority is a short
+      // column immediately BEFORE the identifier: "P2 DO.4.2" or
+      // "أولوية 2 DO.4.2". The old slice(start) permanently lost that field,
+      // causing an incorrect "priority not found" refusal even with the
+      // right document and exact-control hit. Keep only the adjacent,
+      // strictly recognizable priority tag; never pull in preceding clauses.
+      const preceding = original.slice(Math.max(0, start - 35), start);
+      const priorityTag = preceding.match(/(?:\\bP[0-5]\\b|\\bPriority\\s*[0-5]\\b|(?:أولوية|الأولوية)\\s*[0-5٠-٥])\\s*$/iu);
+      const clipped = [
+        priorityTag?.[0]?.trim() ?? "",
+        original.slice(start, nextRef?.start ?? original.length).trim(),
+      ].filter(Boolean).join(" ");
       if (clipped) {
         // A previous section can add this as a continuation. An actual exact
         // match must replace its broader excerpt with the correct clause span.
