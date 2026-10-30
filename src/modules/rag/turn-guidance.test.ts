@@ -34,6 +34,13 @@ describe("buildTurnGuidance — provider-neutral, no canned refusal", () => {
     expect(text).not.toMatch(/No knowledge-base passage matched/);
   });
 
+  it("requires clarification for unclear policy-family names instead of substituting other controls", () => {
+    const text = buildTurnGuidance({ grounded: true, intent: "knowledge", channel: "chat" });
+    expect(text).toContain("unclear or mistranscribed");
+    expect(text).toContain("different policy family");
+    expect(text).toContain("answer the current question directly");
+  });
+
   it("grounded written answers must preserve every listed requirement without inventing any", () => {
     const text = buildTurnGuidance({ grounded: true, intent: "knowledge", channel: "chat" });
     expect(text).toContain("every applicable numbered or bulleted requirement");
