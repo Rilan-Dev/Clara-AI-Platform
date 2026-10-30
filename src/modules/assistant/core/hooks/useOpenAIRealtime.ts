@@ -1063,7 +1063,7 @@ export function useOpenAIRealtime(opts?: Options) {
                   ? {
                       ...t,
                       answer: [t.answer.trim() ? t.answer : finalText || t.answer, terminalNotice]
-                        .filter(Boolean).join("\\n\\n"),
+                        .filter(Boolean).join("\n\n"),
                       status: "done",
                     }
                   : t
