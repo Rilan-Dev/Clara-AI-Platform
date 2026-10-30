@@ -66,7 +66,8 @@ import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
 import { rerankCandidates, type RerankStatus } from "@/modules/rag/rerank";
 import { extractStructuredReferences, matchingExactReferenceEvidence } from "@/modules/rag/reference-evidence";
-import { detectIdentifierInventoryIntent, buildIdentifierInventory, formatIdentifierInventory, type IdentifierInventoryPoint, type IdentifierInventoryIntent } from "@/modules/rag/identifier-inventory";
+import { detectIdentifierInventoryIntent, buildIdentifierInventory, formatIdentifierInventory, type IdentifierInventoryPoint } from "@/modules/rag/identifier-inventory";
+import { detectNumberedTableIntent, selectNumberedTableEvidence } from "@/modules/rag/numbered-table-evidence";
 import {
   REFERENCE_SCAN_LIMIT,
   REFERENCE_SCAN_PAGE_SIZE,
@@ -282,7 +283,7 @@ export interface GroundedSource {
   pageNumber?: number;
   score: number;
   snippet: string;
-  sourceType: "vector";
+  sourceType: "vector" | "structural";
 }
 
 export interface GraphSource {
@@ -465,12 +466,11 @@ type SearchHit = {
  * Bounded, payload-only, KB-filtered scans avoid cross-tenant exposure and
  * avoid changing Qdrant's stored vectors or live collection schema.
  */
-async function enumerateAuthorizedIdentifiers(
+async function scanAuthorizedEvidence(
   client: ReturnType<typeof getQdrantClient>,
   collectionName: string,
   filter: Record<string, unknown>,
-  intent: IdentifierInventoryIntent,
-): Promise<ReturnType<typeof buildIdentifierInventory> | null> {
+): Promise<IdentifierInventoryPoint[] | null> {
   if (typeof client.scroll !== "function") return null;
   const points: IdentifierInventoryPoint[] = [];
   let offset: string | number | undefined;
@@ -480,7 +480,7 @@ async function enumerateAuthorizedIdentifiers(
         ...(offset === undefined ? {} : { offset }),
         limit: REFERENCE_SCAN_PAGE_SIZE,
         filter: filter as NonNullable<Parameters<typeof client.scroll>[1]>["filter"],
-        with_payload: ["kbId","documentId","title","chunk","referenceIds","pageNumber"],
+        with_payload: ["kbId","documentId","title","originalFilename","chunk","chunkIndex","referenceIds","pageNumber"],
         with_vector: false,
       });
       for (const item of page.points) {
@@ -490,7 +490,7 @@ async function enumerateAuthorizedIdentifiers(
       if (points.length > REFERENCE_SCAN_LIMIT) return null;
       const next = page.next_page_offset;
       if (typeof next !== "string" && typeof next !== "number")
-        return buildIdentifierInventory(points, intent, true);
+        return points;
       if (points.length === REFERENCE_SCAN_LIMIT) return null;
       offset = next;
     }
@@ -1110,8 +1110,11 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   // Exhaustive enumeration is opt-in by user intent, never a replacement
   // for semantic QA. Reuse the resolved KB and document authorization filter.
   const inventoryIntent = detectIdentifierInventoryIntent(searchText);
-  const inventoryPromise = inventoryIntent
-    ? enumerateAuthorizedIdentifiers(getQdrantClient(), searchCollection, filter, inventoryIntent)
+  const numberedTableIntent = detectNumberedTableIntent(query);
+  // Use one bounded, authorized scan for either exhaustive-list path.
+  // In a large collection, a partial scan never supplies "all" evidence.
+  const exhaustiveEvidencePromise = inventoryIntent || numberedTableIntent
+    ? scanAuthorizedEvidence(getQdrantClient(), searchCollection, filter)
     : Promise.resolve(null);
 
   const graphStarted = Date.now();
@@ -1184,7 +1187,13 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const retrievalMs = Date.now() - retrievalStarted;
   const translation = await translationPromise;
   const graphHits = await graphPromise;
-  const identifierInventory = await inventoryPromise;
+  const completeEvidence = await exhaustiveEvidencePromise;
+  const identifierInventory = inventoryIntent && completeEvidence
+    ? buildIdentifierInventory(completeEvidence, inventoryIntent, true)
+    : null;
+  const numberedTableEvidence = numberedTableIntent && completeEvidence
+    ? selectNumberedTableEvidence(completeEvidence, numberedTableIntent, query)
+    : [];
   // Graph and vector work overlap. Measuring graph AFTER awaiting vector
   // wrongly attributes the entire Qdrant request to graphMs (even with graph
   // disabled), making stage-level latency diagnoses misleading.
@@ -1249,6 +1258,15 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const contextParts = [
     inventoryIntent && identifierInventory
       ? formatIdentifierInventory(inventoryIntent.prefix, identifierInventory) : "",
+    numberedTableEvidence.length
+      ? [
+          "[Verified contiguous source table excerpt. Use it to enumerate the requested source items. It is not an independent completeness certificate: distinguish any missing or unreadable rows.]",
+          ...numberedTableEvidence.map((hit, i) => {
+            const location = hit.pageNumber == null ? "" : " (page " + hit.pageNumber + ")";
+            return "[S" + (vectorResults.length + i + 1) + "] " + hit.title + location + "\n" + hit.text;
+          }),
+        ].join("\n\n")
+      : "",
     vectorResults
       .map((r, i) => {
         const title = r.payload?.title ? String(r.payload.title) : "Document";
@@ -1283,6 +1301,18 @@ ${graphContext}`);
     snippet: r.snippet,
     sourceType: "vector",
   }));
+  for (const [i, evidence] of numberedTableEvidence.entries()) {
+    sources.push({
+      index: vectorResults.length + i + 1,
+      id: evidence.id,
+      title: evidence.title,
+      documentId: evidence.documentId,
+      ...(evidence.pageNumber ? { pageNumber: evidence.pageNumber } : {}),
+      score: 0, // Structural match, NOT cosine similarity. Never rank by this value.
+      snippet: evidence.text,
+      sourceType: "structural",
+    });
+  }
 
   const graphSources: GraphSource[] = graphHits.map((hit, index) => ({
     index: index + 1,
