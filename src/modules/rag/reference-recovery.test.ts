@@ -65,9 +65,9 @@ describe("bounded exact-clause recovery and multi-chunk continuity", () => {
         "P3 previous content with lots of unrelated words. DO.4.2 Disaster Recovery"),
     ];
     const windows = buildReferenceWindows(rows, "What priority is DO.4.2?", 6);
-    expect(windows.find(w => w.id === "ar")?.text).toMatch(/أولوية 2\\s+DO\\.4\\.2/);
-    expect(windows.find(w => w.id === "en")?.text).toMatch(/P2\\s+DO\\.4\\.2/);
-    expect(windows.find(w => w.id === "far")?.text).toMatch(/^DO\\.4\\.2/);
+    expect(windows.find(w => w.id === "ar")?.text).toContain("أولوية 2 DO.4.2");
+    expect(windows.find(w => w.id === "en")?.text).toContain("P2 DO.4.2");
+    expect(windows.find(w => w.id === "far")?.text).toMatch(/^DO[.]4[.]2/);
     expect(windows.map(w => w.text).join(" ")).not.toContain("old backup instructions");
   });
 
