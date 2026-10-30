@@ -20,6 +20,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { recordEmbeddingRuntimeFailure } from "@/modules/platform-health/core/incidents";
 import { parseDocumentFromBuffer } from "@/modules/admin/core/ingest/document-loader";
 import { chunkText, chunkDocumentWithPages, chunkSectionAwareText } from "@/modules/admin/core/ingest/chunker";
+import { resolveIngestChunkingFlags } from "./staging-chunking";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
@@ -112,11 +113,10 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
       throw new Error("Document parsed successfully but contained no extractable text");
     }
 
-    // Feature-flagged rollout: legacy indexing is unchanged until canary QA.
-    const pageAware = process.env.RAG_SOURCE_PAGE_CHUNKING === "true";
-    // Opt-in section boundaries: do not change existing production indexes or
-    // future tenant ingests until a staging KB validates retrieval quality.
-    const sectionAware = process.env.RAG_SECTION_AWARE_CHUNKING === "true";
+    // Keep production flags untouched. A two-factor, exact-ID operator
+    // override enables both experimental options ONLY for one active
+    // RAG-STAGING-* KB; other tenant KBs retain the existing behavior.
+    const { pageAware, sectionAware } = resolveIngestChunkingFlags(kb);
     const sourcedChunks = pageAware
       ? chunkDocumentWithPages(parsed, { sectionAware })
       : (sectionAware ? chunkSectionAwareText(parsed.text) : chunkText(parsed.text))
