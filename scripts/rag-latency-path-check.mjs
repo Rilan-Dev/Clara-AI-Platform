@@ -15,6 +15,7 @@ const HELP = [
   '  --warmup N        0..3, default 1 per origin',
   '  --repeat N        1..10, default 3 per origin',
   '  --timeout-ms N    1000..300000, default 90000',
+  '  --auth-only       Compare GET /api/auth/me at both origins; NO RAG quota used',
   '  --help            Print usage',
   '',
   'Authentication: CLARA_DEBUG_TOKEN environment variable, or secure hidden',
@@ -40,13 +41,14 @@ function argsOf(argv) {
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     if (flag === '--help' || flag === '-h') return { help: true };
+    if (flag === '--auth-only') { opts.authOnly = true; continue; }
     if (!Object.hasOwn(fields, flag)) throw new Error('Unknown option: ' + flag);
     const value = argv[++i];
     if (!value || value.startsWith('--')) throw new Error('Missing value for ' + flag);
     opts[fields[flag]] = value;
   }
-  if (!opts.kbId?.trim()) throw new Error('--kb-id is required');
-  if (!opts.question?.trim()) throw new Error('--question is required');
+  if (!opts.authOnly && !opts.kbId?.trim()) throw new Error('--kb-id is required');
+  if (!opts.authOnly && !opts.question?.trim()) throw new Error('--question is required');
   if (!['draft', 'live'].includes(opts.scope)) throw new Error('Invalid --scope');
   if (!['agentic', 'classic', 'hybrid'].includes(opts.mode)) throw new Error('Invalid --mode');
   for (const [key, min, max] of [
@@ -112,6 +114,56 @@ function hiddenToken() {
 }
 
 const showMs = n => Number.isFinite(n) ? String(Math.round(n)) + 'ms' : 'n/a';
+// Return ONLY preapproved non-sensitive reason categories from error responses.
+// Never echo arbitrary response error strings or identity/KB/tenant metadata.
+function classifyDenial(status, data, isJson) {
+  const error = typeof data?.error === 'string' ? data.error : '';
+  const code = typeof data?.code === 'string' ? data.code : '';
+  if (code === 'EMAIL_VERIFICATION_REQUIRED') return 'account email verification required';
+  if (code === 'ONBOARDING_INCOMPLETE') return 'organization onboarding incomplete';
+  if (code === 'SUBSCRIPTION_REQUIRED') return 'subscription required';
+  if (error.includes('requires permission: kb:update')) return 'KB draft edit permission missing';
+  if (error.includes('requires permission: kb:read')) return 'KB read permission missing';
+  if (error === 'Platform admins cannot access tenant resources') return 'platform admin cannot access tenant KB';
+  if (error === 'Account is suspended') return 'account suspended';
+  if (error === 'Authentication required') return 'session token absent or unrecognized';
+  if (error === 'Session expired or invalid') return 'session expired or invalid';
+  if (error === 'Knowledge base not found') return 'KB not found for authenticated caller';
+  if (status === 401) return 'authentication rejected; use a fresh logged-in session token';
+  if (status === 403 && !isJson) return 'non-JSON denial; reverse proxy/WAF or application response';
+  if (status === 403) return 'permission, subscription or account-policy denial (unclassified)';
+  if (status >= 500) return 'server failure';
+  return null;
+}
+function bearerHeaders(token) {
+  // Clara extracts an exact "Bearer " prefix: normalize any pasted casing.
+  const bare = token.replace(/^Bearer\s+/i, '').trim();
+  if (!bare || /[\r\n]/.test(bare) || /^clara_platform_token=/i.test(bare))
+    throw new Error('Expected a raw session token, not a cookie/header value');
+  return { Authorization: 'Bearer ' + bare, Accept: 'application/json' };
+}
+async function authCheck(origin, token, timeoutMs) {
+  const start = performance.now();
+  try {
+    const response = await fetch(origin + '/api/auth/me', {
+      method: 'GET', redirect: 'manual', headers: bearerHeaders(token),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const isJson = response.headers.get('content-type')?.includes('application/json') === true;
+    // Never print /api/auth/me user details or the raw error body.
+    const data = isJson ? await response.json().catch(() => null) : null;
+    return {
+      status: response.status, clientMs: Math.round(performance.now() - start),
+      ok: response.ok && data !== null && typeof data?.user === 'object' && data.user !== null,
+      reason: !response.ok ? classifyDenial(response.status, data, isJson) : null,
+    };
+  } catch (error) {
+    return {
+      status: 'network-error', clientMs: Math.round(performance.now() - start),
+      ok: false, reason: error?.name === 'TimeoutError' ? 'timeout' : 'network error',
+    };
+  }
+}
 function summary(values) {
   const numbers = values.filter(Number.isFinite).sort((a, b) => a - b);
   if (!numbers.length) return null;
@@ -127,16 +179,12 @@ async function probe(origin, token, body, timeoutMs) {
   try {
     const response = await fetch(origin + '/api/rag/search', {
       method: 'POST', redirect: 'manual',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: /^Bearer\s/i.test(token) ? token : 'Bearer ' + token,
-      },
+      headers: { 'Content-Type': 'application/json', ...bearerHeaders(token) },
       body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs),
     });
     // No raw server messages (they may contain sensitive document text).
-    const data = response.headers.get('content-type')?.includes('application/json')
-      ? await response.json().catch(() => null) : null;
+    const isJson = response.headers.get('content-type')?.includes('application/json') === true;
+    const data = isJson ? await response.json().catch(() => null) : null;
     const sources = Array.isArray(data?.sources) ? data.sources.length : 0;
     return {
       status: response.status, clientMs: Math.round(performance.now() - start),
@@ -145,6 +193,7 @@ async function probe(origin, token, body, timeoutMs) {
       embeddingMs: typeof data?.timings?.embeddingMs === 'number' ? data.timings.embeddingMs : null,
       sources, grounded: data?.grounded === true,
       ok: response.ok && data?.grounded === true && Array.isArray(data?.sources),
+      reason: !response.ok ? classifyDenial(response.status, data, isJson) : null,
     };
   } catch (err) {
     return {
@@ -156,6 +205,19 @@ async function probe(origin, token, body, timeoutMs) {
   }
 }
 async function run(opts, token) {
+  if (opts.authOnly) {
+    console.log('Authentication-only preflight: GET /api/auth/me on public HTTPS and loopback; no RAG queries or quota consumption.');
+    let allValid = true;
+    for (const [label, origin] of [['public', opts.publicUrl], ['local', opts.localUrl]]) {
+      const result = await authCheck(origin, token, opts.timeoutMs);
+      console.log(label.padEnd(6) + ' auth: HTTP ' + result.status +
+        ' | client ' + showMs(result.clientMs) + ' | session ' + (result.ok ? 'valid' : 'not verified') +
+        (result.reason ? ' | reason: ' + result.reason : ''));
+      if (!result.ok) allValid = false;
+    }
+    if (!allValid) process.exitCode = 2;
+    return;
+  }
   const body = {
     kbId: opts.kbId, query: opts.question, scope: opts.scope,
     ragMode: opts.mode, topK: opts.topK, channel: 'chat',
@@ -187,7 +249,7 @@ async function run(opts, token) {
       if (!result.ok) failures++;
       if (!warm && result.ok) measurements[target.label].push(result);
       if (result.status === 401 || result.status === 403) {
-        console.error('Authorization denied: stopping further requests.');
+        console.error('Authorization denied: stopping further requests. Use --auth-only to check the session at both origins without retrieval quota.');
         process.exitCode = 2;
         return;
       }
