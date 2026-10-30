@@ -627,7 +627,16 @@ async function postChatKb(
         // Token emitter shared by the direct path and the V4 sentence
         // translator (query+answer mode) — declared here so the finally
         // flush can reuse it.
+        let firstTokenAt: number | null = null;
         const emitToken = (text: string) => {
+          if (firstTokenAt === null && text) {
+            firstTokenAt = Date.now();
+            console.info("[chat/latency] first answer token", {
+              elapsedSinceRetrievalStartMs: firstTokenAt - t0,
+              elapsedSinceStreamStartMs: firstTokenAt - streamT0,
+              realtimeVoice,
+            });
+          }
           answerBuffer += text;
           write({ type: "token", payload: text });
         };
@@ -763,6 +772,13 @@ async function postChatKb(
           trace.end({
             status: 200,
             note: streamError ? "stream-error-event" : "stream-complete",
+          });
+          console.info("[chat/latency] stream complete", {
+            totalSinceRetrievalStartMs: Date.now() - t0,
+            totalSinceStreamStartMs: Date.now() - streamT0,
+            firstTokenSinceRetrievalStartMs: firstTokenAt === null ? null : firstTokenAt - t0,
+            chars: answerBuffer.length,
+            realtimeVoice,
           });
         }
       })();
