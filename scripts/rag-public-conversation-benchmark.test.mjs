@@ -16,9 +16,9 @@ const fullArabic="قائمة مرتبة حسب الأولوية بأنظمة ا�
   "إجراءات لتفعيل الاستجابة للحوادث، تحديد إجراءات لتقليل الأضرار، أهداف نقطة التعافي، "+
   "أهداف زمن التعافي، تحديد أنشطة التعافي [S1]";
 
-test("all 18 golden questions ground in a pinned original PDF hash and page range",()=>{
+test("all 19 golden questions ground in a pinned original PDF hash and page range",()=>{
   assert.equal(validateFixture(fixture),fixture);
-  assert.equal(fixture.cases.length,18);
+  assert.equal(fixture.cases.length,19);
   assert.equal(fixture.source.sha256.length,64);
   assert.equal(fixture.cases.filter(c=>c.expect==="abstain").length,3);
   assert.ok(fixture.cases.every(c=>c.pages.every(n=>n<=197)));
