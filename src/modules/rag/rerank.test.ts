@@ -8,6 +8,7 @@ const originals = {
   apiKey: process.env.RAG_RERANK_API_KEY,
   maxCandidates: process.env.RAG_RERANK_MAX_CANDIDATES,
   languagePolicy: process.env.RAG_RERANK_LANGUAGE_POLICY,
+  maxTextChars: process.env.RAG_RERANK_MAX_TEXT_CHARS,
 };
 const candidates = [
   { id: "a", snippet: "Unrelated high similarity", score: 0.94 },
@@ -26,6 +27,7 @@ afterEach(() => {
     RAG_RERANK_API_KEY: originals.apiKey,
     RAG_RERANK_MAX_CANDIDATES: originals.maxCandidates,
     RAG_RERANK_LANGUAGE_POLICY: originals.languagePolicy,
+    RAG_RERANK_MAX_TEXT_CHARS: originals.maxTextChars,
   })) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -252,6 +254,57 @@ describe("optional model-based reranking", () => {
     expect(body.query).toHaveLength(2_000);
     expect(body.texts).toHaveLength(2);
     expect(body.texts.every((item: string) => item.length === 2_000)).toBe(true);
+  });
+
+  it("uses an explicit shorter TEI text budget without changing the original evidence", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    process.env.RAG_RERANK_MAX_TEXT_CHARS = "512";
+    process.env.RAG_RERANK_MAX_CANDIDATES = "3";
+    const request = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { index: 2, score: 0.9 },
+        { index: 1, score: 0.4 },
+        { index: 0, score: 0.1 },
+      ],
+    }));
+    vi.stubGlobal("fetch", request);
+    const hits = [
+      { id: "1", snippet: "A".repeat(1500), score: 0.9 },
+      { id: "2", snippet: "B".repeat(1300), score: 0.8 },
+      { id: "3", snippet: "C".repeat(1100), score: 0.7 },
+    ];
+    const ranked = await rerankCandidates("Relevant clause", hits, (hit) => hit.snippet);
+    expect(ranked.map((hit) => hit.id)).toEqual(["3", "2", "1"]);
+    // TEI receives shorter text, but no KB excerpt or citation is truncated downstream.
+    const body = JSON.parse(String(request.mock.calls[0]![1]?.body));
+    expect(body.texts.every((text: string) => text.length === 512)).toBe(true);
+    expect(ranked.map((hit) => hit.snippet.length)).toEqual([1100, 1300, 1500]);
+    expect(ranked.map((hit) => hit.score)).toEqual([0.7, 0.8, 0.9]);
+  });
+
+  it("uses the historical 2000-char default for invalid text limits", async () => {
+    process.env.RAG_RERANK_URL = "http://tei.local/rerank";
+    const request = vi.fn(async () => ({
+      ok: true,
+      json: async () => [{ index: 1, score: 0.9 }, { index: 0, score: 0.1 }],
+    }));
+    vi.stubGlobal("fetch", request);
+    for (const invalid of ["not-a-number", "0", "-100", "10.5"]) {
+      process.env.RAG_RERANK_MAX_TEXT_CHARS = invalid;
+      await rerankCandidates("Question", [
+        { snippet: "A".repeat(2500) }, { snippet: "B".repeat(2500) },
+      ], (hit) => hit.snippet);
+      const last = request.mock.calls.at(-1);
+      const body = JSON.parse(String(last![1]?.body));
+      expect(body.texts.every((text: string) => text.length === 2000)).toBe(true);
+    }
+    process.env.RAG_RERANK_MAX_TEXT_CHARS = "99999";
+    await rerankCandidates("Question", [
+      { snippet: "A".repeat(2500) }, { snippet: "B".repeat(2500) },
+    ], (hit) => hit.snippet);
+    const body = JSON.parse(String(request.mock.calls.at(-1)![1]?.body));
+    expect(body.texts.every((text: string) => text.length === 2000)).toBe(true);
   });
 
   it("never sends a request to an invalid or non-HTTP endpoint", async () => {
