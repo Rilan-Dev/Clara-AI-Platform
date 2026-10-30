@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertLocalStagingUrl, pageHitRanks, validateQuestions } from "../../../../../scripts/benchmark-rag-section-staging";
+import { assertLocalStagingUrl, evidenceCoverageAtK, pageHitRanks, validateQuestions } from "../../../../../scripts/benchmark-rag-section-staging";
 
 describe("disposable real-PDF retrieval benchmark scoring", () => {
   it("reports first relevant page rank, recall@3 and reciprocal rank", () => {
@@ -29,6 +29,32 @@ describe("disposable real-PDF retrieval benchmark scoring", () => {
       "http://admin:password@127.0.0.1:6335/collections",
       "http://127.0.0.1:6335/collections#ignored",
     ]) expect(()=>assertLocalStagingUrl(bad)).toThrow();
+  });
+  it("measures evidence from actual ranked excerpts, not just matching pages", () => {
+    const chunks = [
+      "Recovery Point Objectives are defined for each system.",
+      "Incident response roles must be assigned and documented.",
+      "Backup media shall be tested.",
+    ];
+    expect(evidenceCoverageAtK(chunks, ["Recovery Point Objectives", "incident response roles"], 1))
+      .toEqual({ required: 2, covered: 1, recall: 0.5, complete: false });
+    expect(evidenceCoverageAtK(chunks, ["Recovery Point Objectives", "incident response roles"], 3))
+      .toEqual({ required: 2, covered: 2, recall: 1, complete: true });
+    expect(evidenceCoverageAtK(["Recovery\\n Point  Objectives"], ["recovery point objectives"], 1).recall).toBe(1);
+  });
+  it("does not count page-matching evidence when its clause is absent", () => {
+    const result = evidenceCoverageAtK(["DO.4.2 Disaster Recovery"], ["Recovery Time Objectives"], 1);
+    expect(result.covered).toBe(0);
+    expect(result.complete).toBe(false);
+  });
+  it("requires distinct, bounded, explicit evidence labels", () => {
+    const q = {id:"clause", question:"What does the plan require?", expectedPage:60,
+      expectedEvidence:["Recovery Point Objectives","incident response roles"]};
+    expect(()=>validateQuestions([q],[60])).not.toThrow();
+    expect(()=>validateQuestions([{...q,expectedEvidence:[]}],[60])).toThrow();
+    expect(()=>validateQuestions([{...q,expectedEvidence:["Recovery Point Objectives","recovery   point objectives"]}],[60])).toThrow();
+    expect(()=>validateQuestions([{...q,expectedEvidence:["x"]}],[60])).toThrow();
+    expect(()=>evidenceCoverageAtK([], [], 3)).toThrow();
   });
   it("rejects empty benchmark sets", () => {
     expect(()=>validateQuestions([], [1])).toThrow();
