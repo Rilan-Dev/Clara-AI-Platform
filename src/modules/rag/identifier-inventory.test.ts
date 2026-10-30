@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeDocumentControlSearchQuery } from "../assistant/api/conversation-context";
 import { detectIdentifierInventoryIntent, buildIdentifierInventory, formatIdentifierInventory } from "./identifier-inventory";
 
 describe("format-agnostic exhaustive identifier inventory", () => {
@@ -44,5 +45,16 @@ describe("format-agnostic exhaustive identifier inventory", () => {
     expect(buildIdentifierInventory(pts, { prefix: "DO" }, false).complete).toBe(false);
     expect(buildIdentifierInventory(pts, { prefix: "DO" }, true, 0).overflow).toBe(true);
     expect(buildIdentifierInventory(pts, { prefix: "T0" }, true).entries).toEqual([]);
+  });
+});
+
+describe("spoken data operations identifier aliases", () => {
+  it("normalizes shorter D-zero family forms, but leaves other document codes intact", () => {
+    expect(normalizeDocumentControlSearchQuery("Show D0.4 series")).toBe("Show DO.4 series");
+    expect(normalizeDocumentControlSearchQuery("Show D0.4.2 requirements")).toBe("Show DO.4.2 requirements");
+    expect(normalizeDocumentControlSearchQuery("List all D zero relevant policies")).toBe("List all DO relevant policies");
+    expect(normalizeDocumentControlSearchQuery("List D zero point four controls")).toBe("List DO.4 controls");
+    expect(normalizeDocumentControlSearchQuery("Explain DG.2 and ISO.1.2")).toBe("Explain DG.2 and ISO.1.2");
+    expect(normalizeDocumentControlSearchQuery("My D0 report totals 400")).toBe("My D0 report totals 400");
   });
 });
