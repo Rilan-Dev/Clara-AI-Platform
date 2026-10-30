@@ -14,6 +14,7 @@ import { apiUrl } from "@/lib/runtime";
 import { setMicStreamMuted } from "../voice/mic-mute";
 import { extractResponseText, isAssistantAudioDelta, isAssistantTranscriptDelta, realtimeCompletionNotice } from "../realtime-events";
 import { RealtimePlaybackLifecycle, type PlaybackTransition } from "../realtime-playback-lifecycle";
+import { readGroundedRagResponse } from "../rag-http-response";
 import { buildOpenAIClientAudioUpdate } from "../voice/realtime-audio-config";
 import { buildTurnGuidance } from "@/modules/rag/turn-guidance";
 import { LatencyTracker, mintSessionId } from "@/modules/voice-core/realtime";
@@ -400,7 +401,7 @@ export function useOpenAIRealtime(opts?: Options) {
         ),
         signal: abortCtrl.signal, // FIX STALL-A: allow aborting stale fetches
       });
-      const payload = await res.json();
+      const payload = await readGroundedRagResponse(res);
       markTurn("rag.end");
       serverTimingRef.current = ragTimings(payload?.timings);
       const payloadSources = Array.isArray(payload?.sources) ? payload.sources : [];
@@ -740,7 +741,7 @@ export function useOpenAIRealtime(opts?: Options) {
               : { query: q, documentId: docId }    // Legacy mode
           ),
         });
-        const payload = await res.json();
+        const payload = await readGroundedRagResponse(res);
         const payloadSources = Array.isArray(payload?.sources)
           ? payload.sources
           : [];
