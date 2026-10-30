@@ -19,7 +19,7 @@
 import { ensureMigrated } from "@/lib/db/migrate";
 import { recordEmbeddingRuntimeFailure } from "@/modules/platform-health/core/incidents";
 import { parseDocumentFromBuffer } from "@/modules/admin/core/ingest/document-loader";
-import { chunkText, chunkDocumentWithPages } from "@/modules/admin/core/ingest/chunker";
+import { chunkText, chunkDocumentWithPages, chunkSectionAwareText } from "@/modules/admin/core/ingest/chunker";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
@@ -114,9 +114,13 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
 
     // Feature-flagged rollout: legacy indexing is unchanged until canary QA.
     const pageAware = process.env.RAG_SOURCE_PAGE_CHUNKING === "true";
+    // Opt-in section boundaries: do not change existing production indexes or
+    // future tenant ingests until a staging KB validates retrieval quality.
+    const sectionAware = process.env.RAG_SECTION_AWARE_CHUNKING === "true";
     const sourcedChunks = pageAware
-      ? chunkDocumentWithPages(parsed)
-      : chunkText(parsed.text).map((text) => ({ text }));
+      ? chunkDocumentWithPages(parsed, { sectionAware })
+      : (sectionAware ? chunkSectionAwareText(parsed.text) : chunkText(parsed.text))
+          .map((text) => ({ text }));
     const chunks = sourcedChunks.map((entry) => entry.text);
     if (chunks.length === 0) {
       throw new Error("Chunking produced 0 chunks — document may be empty or corrupt");
