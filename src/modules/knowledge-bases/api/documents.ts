@@ -30,6 +30,7 @@ import {
   getDocumentJobStatus,
 } from "@/modules/knowledge-bases/core/documents-db";
 import { deleteDocumentChunks } from "@/modules/admin/core/vector-store-kb";
+import { getGraphStore } from "@/modules/graph/core/graph-store";
 import { INGEST_STALE_JOB_MS } from "@/modules/knowledge-bases/worker/ingest-worker";
 import { enqueueIngestJob } from "@/modules/cloud-jobs/queue";
 
@@ -329,6 +330,13 @@ export async function deleteDocumentHandler(
       // Otherwise the document vanishes from the UI with no way to retry
       // cleaning up its Qdrant points.
       return NextResponse.json({ error: "Knowledge base not found" }, { status: 404 });
+    }
+    // In an explicitly enabled graph pilot, remove the graph provenance
+    // before deleting the source record. If Neo4j is down, keep the source
+    // and vector evidence so deletion can be retried safely.
+    if (process.env.GRAPH_STORE_PROVIDER === "neo4j" &&
+        process.env.ENABLE_GRAPH_INDEXING === "true") {
+      await getGraphStore("neo4j").deleteDocument(kbId, docId);
     }
     await deleteDocumentChunks(kb.qdrantCollection, docId, kbId);
     await deleteDocument(docId);

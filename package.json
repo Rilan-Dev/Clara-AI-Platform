@@ -270,6 +270,7 @@
     "lucide-react": "^1.52.0",
     "mammoth": "^1.13.0",
     "monaco-editor": "^0.57.0",
+    "neo4j-driver": "^6.3.0",
     "next": "16.4.0",
     "nodemailer": "^10.0.16",
     "openai": "^7.30.0",

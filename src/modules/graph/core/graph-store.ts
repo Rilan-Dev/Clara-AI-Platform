@@ -1,3 +1,4 @@
+import { Neo4jGraphStore } from "./neo4j-store";
 import type {
   DocumentGraphExtraction,
   GraphChunkRef,
@@ -41,41 +42,61 @@ function mergeChunkRefs(existing: GraphChunkRef[], incoming: GraphChunkRef[]): G
 
 class InMemoryGraphStore implements GraphStore {
   async upsertExtraction(extraction: DocumentGraphExtraction): Promise<void> {
+    await this.deleteDocument(extraction.kbId, extraction.documentId);
     const state = getState();
     const docs = state.documentsByKb.get(extraction.kbId) ?? new Set<string>();
     docs.add(extraction.documentId);
     state.documentsByKb.set(extraction.kbId, docs);
 
     for (const nodeInput of extraction.nodes) {
-      const existing = state.nodes.get(nodeInput.id);
+      const key = extraction.kbId + ":" + nodeInput.id;
+      const existing = state.nodes.get(key);
       if (existing) {
         existing.aliases = Array.from(new Set([...existing.aliases, ...(nodeInput.aliases ?? [])]));
-        existing.documentIds = Array.from(new Set([...existing.documentIds, ...(nodeInput.documentIds ?? [])]));
+        existing.documentIds = Array.from(new Set([...existing.documentIds, extraction.documentId, ...(nodeInput.documentIds ?? [])]));
         existing.chunks = mergeChunkRefs(existing.chunks, nodeInput.chunks ?? []);
       } else {
-        state.nodes.set(nodeInput.id, {
+        state.nodes.set(key, {
           ...nodeInput,
           aliases: nodeInput.aliases ?? [nodeInput.label],
-          documentIds: nodeInput.documentIds ?? [],
+          documentIds: [extraction.documentId],
           chunks: nodeInput.chunks ?? [],
         });
       }
     }
 
     for (const edgeInput of extraction.edges) {
-      const existing = state.edges.get(edgeInput.id);
+      const key = extraction.kbId + ":" + edgeInput.id;
+      const existing = state.edges.get(key);
       if (existing) {
         existing.weight += edgeInput.weight ?? 1;
-        existing.documentIds = Array.from(new Set([...existing.documentIds, ...(edgeInput.documentIds ?? [])]));
+        existing.documentIds = Array.from(new Set([...existing.documentIds, extraction.documentId, ...(edgeInput.documentIds ?? [])]));
         existing.evidence = mergeChunkRefs(existing.evidence, edgeInput.evidence ?? []);
       } else {
-        state.edges.set(edgeInput.id, {
+        state.edges.set(key, {
           ...edgeInput,
           weight: edgeInput.weight ?? 1,
-          documentIds: edgeInput.documentIds ?? [],
+          documentIds: [extraction.documentId],
           evidence: edgeInput.evidence ?? [],
         });
       }
+    }
+  }
+
+  async deleteDocument(kbId: string, documentId: string): Promise<void> {
+    const state=getState();
+    state.documentsByKb.get(kbId)?.delete(documentId);
+    for (const [id,node] of state.nodes) {
+      if (node.kbId!==kbId) continue;
+      node.documentIds=node.documentIds.filter(d=>d!==documentId);
+      node.chunks=node.chunks.filter(c=>c.documentId!==documentId);
+      if (!node.documentIds.length) state.nodes.delete(id);
+    }
+    for (const [id,edge] of state.edges) {
+      if (edge.kbId!==kbId) continue;
+      edge.documentIds=edge.documentIds.filter(d=>d!==documentId);
+      edge.evidence=edge.evidence.filter(c=>c.documentId!==documentId);
+      if (!edge.documentIds.length) state.edges.delete(id);
     }
   }
 
@@ -91,6 +112,7 @@ class InMemoryGraphStore implements GraphStore {
         const matchedTokens = tokens.filter((token) => haystack.includes(token)).length;
         const relationMatches = Array.from(state.edges.values()).filter(
           (edge) =>
+            edge.kbId === params.kbId &&
             (edge.source === node.id || edge.target === node.id) &&
             (!params.documentId || edge.documentIds.includes(params.documentId)),
         );
@@ -137,8 +159,7 @@ class InMemoryGraphStore implements GraphStore {
 }
 
 export function getGraphStore(provider = process.env.GRAPH_STORE_PROVIDER ?? "memory"): GraphStore {
-  if (provider !== "memory") {
-    return new InMemoryGraphStore();
-  }
-  return new InMemoryGraphStore();
+  if (provider === "memory") return new InMemoryGraphStore();
+  if (provider === "neo4j") return new Neo4jGraphStore();
+  throw new Error("Unsupported GRAPH_STORE_PROVIDER; use memory or neo4j");
 }

@@ -86,6 +86,7 @@ export type GraphStats = {
 
 export interface GraphStore {
   upsertExtraction(extraction: DocumentGraphExtraction): Promise<void>;
+  deleteDocument(kbId: string, documentId: string): Promise<void>;
   search(params: GraphStoreSearchParams): Promise<GraphSearchHit[]>;
   getStats(kbId?: string): Promise<GraphStats>;
 }

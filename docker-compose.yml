@@ -119,6 +119,41 @@ services:
     volumes:
       - ./infra/qdrant/storage:/qdrant/storage
 
+  # Neo4j graph pilot: explicitly opt in with --profile graph.
+  # No public browser/Bolt ports. The app accesses Bolt through Compose.
+  neo4j:
+    profiles: ["graph"]
+    image: ${NEO4J_IMAGE:-neo4j:2026.10.1-community}
+    container_name: clara-neo4j
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-}
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+    ports:
+      - "${INFRA_BIND_ADDRESS:-127.0.0.1}:7687:7687"
+    volumes:
+      - ./infra/neo4j/data:/data
+      - ./infra/neo4j/logs:/logs
+    deploy:
+      resources:
+        limits:
+          cpus: "1.50"
+          memory: "1536M"
+          pids: 320
+    memswap_limit: "1536M"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          cypher-shell -u neo4j -p "$${NEO4J_AUTH#*/}" "RETURN 1" >/dev/null 2>&1
+      interval: 15s
+      timeout: 8s
+      retries: 12
+      start_period: 60s
+
   # ──────────── Qwen3 local embeddings (llama.cpp) — OPT-IN ────────────
   # Self-hosted embedding backbone: Qwen3-Embedding-0.6B (Q8_0 GGUF, 1024-d,
   # 100+ languages, 32k context) served by llama.cpp's llama-server through
