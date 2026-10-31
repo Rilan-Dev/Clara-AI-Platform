@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-const upsert = vi.fn(async () => undefined);
+const upsert = vi.fn(async (_extraction: {kbId:string}) => undefined);
 vi.mock("./graph-store",()=>({getGraphStore:()=>({upsertExtraction:upsert})}));
 import { indexDocumentGraph } from "./graph-indexing";
 const sample = {kbId:"test-kb",documentId:"doc",title:"Guide",chunks:["DO.4.2 Disaster Recovery"]};

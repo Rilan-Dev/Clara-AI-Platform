@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   parseDocumentFromBuffer: vi.fn(),
   chunkText: vi.fn(),
   upsertDocumentsKb: vi.fn(),
+  indexDocumentGraph:vi.fn(),
+  invalidateGraphSnapshot:vi.fn(),
   getKnowledgeBaseById: vi.fn(),
   claimPendingJobById: vi.fn(),
   updateDocumentStatus: vi.fn(),
@@ -19,6 +21,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/db/migrate", () => ({ ensureMigrated: mocks.ensureMigrated }));
+vi.mock("@/modules/graph/core/graph-readiness",()=>({invalidateGraphSnapshot:mocks.invalidateGraphSnapshot}));
+vi.mock("@/modules/graph/core/graph-indexing",()=>({indexDocumentGraph:mocks.indexDocumentGraph}));
 vi.mock("@/modules/platform-health/core/incidents", () => ({
   recordEmbeddingRuntimeFailure: mocks.recordEmbeddingRuntimeFailure,
 }));
@@ -48,6 +52,10 @@ import { processJobById } from "./ingest-worker";
 describe("platform-admin incidents for failed embedding ingestion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.ENABLE_GRAPH_INDEXING;
+    mocks.invalidateGraphSnapshot.mockResolvedValue(undefined);
+    mocks.indexDocumentGraph.mockResolvedValue({state:"indexed",nodes:2,edges:1});
+    mocks.upsertDocumentsKb.mockResolvedValue(undefined);
     mocks.ensureMigrated.mockResolvedValue(undefined);
     mocks.getKnowledgeBaseById.mockResolvedValue({
       id: "kb-1", qdrantCollection: "kb_vectors",
@@ -67,6 +75,32 @@ describe("platform-admin incidents for failed embedding ingestion", () => {
     mocks.recordEmbeddingRuntimeFailure.mockResolvedValue(undefined);
   });
 
+  it("invalidates a previously verified graph before writing new vectors, even with graph flags off",async()=>{
+    const result=await processJobById("job-1");
+    expect(result).toMatchObject({status:"processed",chunkCount:1});
+    expect(mocks.invalidateGraphSnapshot).toHaveBeenCalledWith("kb-1","kb_vectors");
+    expect(mocks.invalidateGraphSnapshot.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.upsertDocumentsKb.mock.invocationCallOrder[0]);
+    expect(mocks.indexDocumentGraph).not.toHaveBeenCalled();
+  });
+  it("automatically creates graph evidence AFTER successful Qdrant upload when opted in",async()=>{
+    process.env.ENABLE_GRAPH_INDEXING="true";
+    const result=await processJobById("job-1");
+    expect(result.status).toBe("processed");
+    expect(mocks.indexDocumentGraph).toHaveBeenCalledWith(expect.objectContaining({
+      kbId:"kb-1",collection:"kb_vectors",documentId:"doc-1",chunks:["a chunk"],
+    }));
+    expect(mocks.upsertDocumentsKb.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.indexDocumentGraph.mock.invocationCallOrder[0]);
+  });
+  it("does not destroy healthy Qdrant ingestion when optional Neo4j extraction fails",async()=>{
+    process.env.ENABLE_GRAPH_INDEXING="true";
+    mocks.indexDocumentGraph.mockRejectedValueOnce(new Error("Neo4j temporarily unavailable"));
+    const result=await processJobById("job-1");
+    expect(result).toMatchObject({status:"processed",chunkCount:1});
+    expect(mocks.updateDocumentStatus).toHaveBeenCalledWith("doc-1","ready",expect.anything());
+    expect(mocks.markJobDone).toHaveBeenCalledWith("job-1");
+  });
   it("stores provider diagnostics for platform operations and triggers the admin incident channel", async () => {
     mocks.upsertDocumentsKb.mockRejectedValueOnce(providerFailure);
     const result = await processJobById("job-1");

@@ -378,7 +378,7 @@ export async function batchSetUrlInclusion(
 ): Promise<number> {
   if (urlIds.length === 0) return 0;
   const newStatus = included ? "pending" : "excluded";
-  const placeholders = urlIds.map((_, i) => `${i + 4}`).join(", ");
+  const placeholders = urlIds.map((_, i) => `$${i + 4}`).join(", ");
   // Scope the UPDATE itself, not just a preceding read, to prevent a batch
   // of URL IDs from mutating another KB's scrape session.
   const result = await execute(

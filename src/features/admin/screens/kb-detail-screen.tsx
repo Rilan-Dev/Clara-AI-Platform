@@ -1,6 +1,7 @@
 "use client";
 
 import { KnowledgeIndexPanel } from "@/components/admin/KnowledgeIndexPanel";
+import { GraphIndexStatusPanel } from "@/components/admin/GraphIndexStatusPanel";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -219,6 +220,7 @@ export default function KbDashboardPage() {
         {tab === "documents" && (
           <div className="space-y-4">
             {!isAdmin && <KnowledgeIndexPanel kbId={kbId} />}
+            <GraphIndexStatusPanel kbId={kbId} processing={processing} />
             {docsError && (
               <div className="flex flex-col gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -444,6 +446,7 @@ export default function KbDashboardPage() {
       {tab === "documents" && (
         <div className="space-y-4">
           {!isAdmin && <KnowledgeIndexPanel kbId={kbId} />}
+            <GraphIndexStatusPanel kbId={kbId} processing={processing} />
           {docsError && (
             <div className="flex flex-col gap-3 rounded-2xl border border-destructive/25 bg-destructive/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>

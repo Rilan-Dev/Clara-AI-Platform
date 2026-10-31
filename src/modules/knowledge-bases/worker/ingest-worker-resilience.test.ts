@@ -25,6 +25,7 @@ vi.mock("@/modules/knowledge-bases/core/documents-db", () => ({
 }));
 
 vi.mock("@/lib/db/migrate", () => ({ ensureMigrated: vi.fn(async () => undefined) }));
+vi.mock("@/modules/graph/core/graph-readiness",()=>({invalidateGraphSnapshot:vi.fn(async()=>undefined)}));
 vi.mock("@/modules/admin/core/ingest/document-loader", () => ({
   parseDocumentFromBuffer: vi.fn(async () => ({ text: "hello world", title: "t" })),
 }));

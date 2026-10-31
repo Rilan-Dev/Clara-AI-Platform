@@ -59,9 +59,22 @@ async function main() {
     await store.upsertExtraction(extraction);
     nodes+=extraction.nodes.length;edges+=extraction.edges.length;
   }
+  // The same operator-approved Qdrant collection is authoritative.
+  // A previously deleted/replaced document may leave a graph manifest when
+  // the Neo4j runtime was temporarily disabled. Remove only orphaned
+  // document memberships within this exact graph scope before verification.
+  const oldDocuments=await (store as {listDocumentFingerprints:(kb:string)=>Promise<Array<{documentId:string}>>})
+    .listDocumentFingerprints(graphKbId);
+  let removedOrphans=0;
+  for(const old of oldDocuments){
+    if(!documents.has(old.documentId)){
+      await store.deleteDocument(graphKbId,old.documentId);
+      removedOrphans++;
+    }
+  }
   const stats=await store.getStats(graphKbId);
   console.log(JSON.stringify({result:"pilot_graph_backfill_completed",scannedPoints:points.length,
     scannedDocuments:documents.size,extractedNodes:nodes,extractedEdges:edges,
-    storedStats:stats,mode:"identifier_hierarchy_only",publishedAgentChanged:false}));
+    storedStats:stats,removedOrphans,mode:"identifier_hierarchy_only",publishedAgentChanged:false}));
 }
 main().catch(error=>{console.error("PILOT_BACKFILL_FAILED",error.message);process.exitCode=1}).finally(()=>closeNeo4jDriver());

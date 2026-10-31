@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   deleteDocument: vi.fn(),
   writeAuditLog: vi.fn(),
   query: vi.fn(),
+  invalidateGraphSnapshot: vi.fn(),
+  deleteGraphDocument: vi.fn(),
 }));
 
 vi.mock("@/lib/db/migrate", () => ({
@@ -48,6 +50,12 @@ vi.mock("@/modules/knowledge-bases/core/documents-db", () => ({
   updateDocumentStatus: vi.fn(),
   getDocumentJobStatus: vi.fn(),
 }));
+vi.mock("@/modules/graph/core/graph-readiness",()=>({
+  invalidateGraphSnapshot:mocks.invalidateGraphSnapshot,
+}));
+vi.mock("@/modules/graph/core/graph-store",()=>({
+  getGraphStore:()=>({deleteDocument:mocks.deleteGraphDocument}),
+}));
 vi.mock("@/modules/admin/core/vector-store-kb", () => ({
   deleteDocumentChunks: mocks.deleteDocumentChunks,
 }));
@@ -72,8 +80,35 @@ describe("document delete integrity", () => {
     mocks.deleteDocument.mockResolvedValue(undefined);
     mocks.writeAuditLog.mockResolvedValue(undefined);
     mocks.query.mockResolvedValue([{ org_id: "org-1" }]);
+    delete process.env.GRAPH_STORE_PROVIDER;
+    mocks.invalidateGraphSnapshot.mockResolvedValue(undefined);
+    mocks.deleteGraphDocument.mockResolvedValue(undefined);
   });
 
+  it("invalidates a verified graph even when all graph feature flags are disabled",async()=>{
+    const response=await deleteDocumentHandler(request(),"kb-1","doc-1");
+    expect(response.status).toBe(200);
+    expect(mocks.invalidateGraphSnapshot).toHaveBeenCalledWith("kb-1","kb-collection");
+    expect(mocks.invalidateGraphSnapshot.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.deleteDocumentChunks.mock.invocationCallOrder[0]);
+  });
+  it("cleans backfilled Neo4j evidence even when new graph indexing is disabled",async()=>{
+    process.env.GRAPH_STORE_PROVIDER="neo4j";
+    delete process.env.ENABLE_GRAPH_INDEXING;
+    const response=await deleteDocumentHandler(request(),"kb-1","doc-1");
+    expect(response.status).toBe(200);
+    expect(mocks.deleteGraphDocument).toHaveBeenCalledWith("kb-1::kb-collection","doc-1");
+    expect(mocks.deleteGraphDocument.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.deleteDocumentChunks.mock.invocationCallOrder[0]);
+  });
+  it("keeps the document when Neo4j deletion fails, allowing a retry",async()=>{
+    process.env.GRAPH_STORE_PROVIDER="neo4j";
+    mocks.deleteGraphDocument.mockRejectedValueOnce(new Error("Neo4j not available"));
+    const response=await deleteDocumentHandler(request(),"kb-1","doc-1");
+    expect(response.status).toBe(500);
+    expect(mocks.deleteDocumentChunks).not.toHaveBeenCalled();
+    expect(mocks.deleteDocument).not.toHaveBeenCalled();
+  });
   it("does not delete the database source if Qdrant deletion fails", async () => {
     mocks.deleteDocumentChunks.mockRejectedValueOnce(new Error("Qdrant unavailable"));
 

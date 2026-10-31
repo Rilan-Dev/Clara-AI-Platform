@@ -1,3 +1,12 @@
+## 2026-10-31 — Three-mode retrieval acceptance and document/website ingestion audit
+
+- Read-only, verified-pilot three-way acceptance used the same exact KB+collection holding two documents and 585 Qdrant points. Qdrant nearest-neighbor query-by-existing-point (not a new text-query embedding), Neo4j graph search, and independent hybrid evidence union passed DO.4.1, DO.4.2 and DO.4.3. Qdrant vectors and published agent policies were not changed. The isolated hybrid proof is not a claim that the customer-facing Graph-only/Hybrid selector is operational.
+- Upload/reindex now invalidates graph snapshot readiness unconditionally before Qdrant writes; previously it could leave a verified marker when graph policy was switched off. Deleting a document invalidates verification and removes Neo4j evidence if Neo4j is configured, even if automatic graph indexing is disabled. Operator-only graph backfill can remove orphaned document memberships in the exact scoped collection.
+- Added authorized KB graph-status GET endpoint and frontend indexing-status panel on the knowledge-base Documents screen. Shows current verification, whether new uploads automatically graph-index, and caveats for replace/reupload and scraping. The panel does not falsely claim customer runtime mode switching is active.
+- Fixed existing batch scrape URL selection placeholders to use PostgreSQL $4, $5 etc instead of 4, 5, preserving KB scope.
+- Regression coverage: live Neo4j replacement/delete, scraper ready-URL deduplication and new URL queueing, document deletion, vector-first optional graph enrichment and graph outage fallback, policy and grounding. 88/88 tests passed across 18 suites; TypeScript count 116 unchanged, none from touched files.
+- Next release gates: authenticated KB frontend click-through; controlled live new-upload and real webpage scrape UAT (do not mutate the two customer documents); verified graph refresh; published agent mode switch and source-level hybrid fusion.
+
 ## 2026-10-31 — Published collection-scoped Graph RAG readiness foundation
 
 - Added migration 079 exact KB+collection graph snapshot readiness registry, deliberately stale/absent by default. Readiness checks match the authorized Qdrant collection, graph scope, extraction schema version, non-empty source count and verified timestamp; immutable published collection never inherits live graph readiness.

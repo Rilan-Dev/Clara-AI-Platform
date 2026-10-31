@@ -336,12 +336,14 @@ export async function deleteDocumentHandler(
     // In an explicitly enabled graph pilot, remove the graph provenance
     // before deleting the source record. If Neo4j is down, keep the source
     // and vector evidence so deletion can be retried safely.
-    if (process.env.GRAPH_STORE_PROVIDER === "neo4j" &&
-        process.env.ENABLE_GRAPH_INDEXING === "true") {
+    // Any deletion makes the previous collection-level verification stale,
+    // regardless of the current ingestion or runtime feature flags.
+    await invalidateGraphSnapshot(kbId, kb.qdrantCollection);
+    // An operator backfill can create graph data even when auto-indexing is
+    // disabled. Clean it whenever Neo4j is configured, not only when new
+    // uploads opt into graph enrichment. If unavailable, retain source for retry.
+    if (process.env.GRAPH_STORE_PROVIDER === "neo4j") {
       await getGraphStore("neo4j").deleteDocument(scopedGraphKbId(kbId, kb.qdrantCollection), docId);
-    }
-    if (process.env.ENABLE_RAG_RETRIEVAL_POLICY === "true") {
-      await invalidateGraphSnapshot(kbId, kb.qdrantCollection);
     }
     await deleteDocumentChunks(kb.qdrantCollection, docId, kbId);
     await deleteDocument(docId);

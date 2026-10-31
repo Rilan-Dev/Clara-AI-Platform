@@ -136,9 +136,7 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
 
     // Invalidate *before* a mutable Qdrant write, so published graph
     // evidence cannot remain marked ready while a document is changing.
-    if (process.env.ENABLE_RAG_RETRIEVAL_POLICY === "true") {
-      await invalidateGraphSnapshot(kbId, kb.qdrantCollection);
-    }
+    await invalidateGraphSnapshot(kbId, kb.qdrantCollection);
     await upsertDocumentsKb(kb.qdrantCollection, chunks, {
       kbId,
       documentId,
