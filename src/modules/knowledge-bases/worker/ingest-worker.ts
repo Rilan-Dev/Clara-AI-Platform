@@ -22,8 +22,9 @@ import { parseDocumentFromBuffer } from "@/modules/admin/core/ingest/document-lo
 import { chunkText, chunkDocumentWithPages, chunkSectionAwareText } from "@/modules/admin/core/ingest/chunker";
 import { resolveIngestChunkingFlags } from "./staging-chunking";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
-import { indexDocumentGraph } from "@/modules/graph/core/graph-indexing";
+import { indexDocumentGraph, graphIndexingEnabledForKb } from "@/modules/graph/core/graph-indexing";
 import { invalidateGraphSnapshot } from "@/modules/graph/core/graph-readiness";
+import { reconcileGraphSnapshotAfterIngest } from "@/modules/graph/core/graph-snapshot-reconcile";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
   claimPendingJobById,
@@ -153,12 +154,23 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
     // Optional graph pilot: enrichment failure is reported, not allowed to
     // destroy a successful Qdrant ingest. Graph readiness remains separate
     // from document/vector readiness until backfill and reconciliation pass.
-    if (process.env.ENABLE_GRAPH_INDEXING === "true") {
+    if (graphIndexingEnabledForKb(kbId)) {
       try {
         const graph = await indexDocumentGraph({
           kbId, collection: kb.qdrantCollection, documentId, title: parsed.title || filePayload.filename, chunks,
         });
         console.info("[ingest-worker] graph indexing:", graph);
+        // Reconcile only the operator-selected KB, with a mutation-generation
+        // fence. Concurrent uploads or unindexed documents leave the graph
+        // stale instead of granting a false ready state.
+        if (process.env.GRAPH_INDEXING_KB_ID === kbId) {
+          try {
+            const verified = await reconcileGraphSnapshotAfterIngest(kbId,kb.qdrantCollection);
+            console.info("[ingest-worker] scoped graph reconciliation:",verified);
+          } catch (error) {
+            console.warn("[ingest-worker] graph verification pending:",(error as Error).message);
+          }
+        }
       } catch (error) {
         console.warn("[ingest-worker] optional graph index failed:", (error as Error).message);
       }

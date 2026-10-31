@@ -58,6 +58,17 @@ async function main() {
         WHERE snap.kb_id=k.id AND snap.collection_name=$2
       ))`,[kbId,collection]);
   if(!owned)throw Error("Collection does not belong to this knowledge base or a published snapshot");
+  // Create an initial stale marker if this is the first backfill. Capture
+  // the generation BEFORE scanning; a concurrently started upload bumps it.
+  await query(`INSERT INTO rag_graph_snapshot_readiness
+    (kb_id,collection_name,graph_scope_key,status,extractor_version,mutation_generation)
+    VALUES ($1,$2,$3,'stale',$4,0)
+    ON CONFLICT (kb_id,collection_name) DO NOTHING`,
+    [kbId,collection,scopedGraphKbId(kbId,collection),GRAPH_EXTRACTOR_VERSION]);
+  const marker=await queryOne<{generation:string}>(
+    "SELECT mutation_generation::text AS generation FROM rag_graph_snapshot_readiness WHERE kb_id=$1 AND collection_name=$2",
+    [kbId,collection]);
+  if(!marker)throw Error("Graph readiness marker missing");
   const sourceChunks=await readVectorSource();
   const source=fingerprintSourceDocuments(sourceChunks);
   const graph=new Neo4jGraphStore();
@@ -67,17 +78,15 @@ async function main() {
   assertGraphMatchesSource(source,second);
   // After proof, store an exact KB+collection readiness decision; no
   // retrieval setting, agent deployment or Qdrant point is modified.
-  await query(`
-    INSERT INTO rag_graph_snapshot_readiness
-       (kb_id,collection_name,graph_scope_key,status,extractor_version,
-        source_chunks,graph_documents,verified_at)
-    VALUES ($1,$2,$3,'verified',$4,$5,$6,now())
-    ON CONFLICT(kb_id,collection_name) DO UPDATE SET
-      graph_scope_key=EXCLUDED.graph_scope_key,status='verified',
-      extractor_version=EXCLUDED.extractor_version,source_chunks=EXCLUDED.source_chunks,
-      graph_documents=EXCLUDED.graph_documents,verified_at=now(),updated_at=now()
+  const written=await query(`
+    UPDATE rag_graph_snapshot_readiness
+    SET graph_scope_key=$3,status='verified',extractor_version=$4,
+        source_chunks=$5,graph_documents=$6,verified_at=now(),updated_at=now()
+    WHERE kb_id=$1 AND collection_name=$2 AND mutation_generation=$7::bigint
+    RETURNING mutation_generation
   `,[kbId,collection,scopedGraphKbId(kbId,collection),GRAPH_EXTRACTOR_VERSION,
-    sourceChunks.length,source.length]);
+    sourceChunks.length,source.length,marker.generation]);
+  if(written.length!==1)throw Error("Graph snapshot changed during verification; retry after ingestion");
   console.log(JSON.stringify({status:"verified",sourceDocuments:source.length,
     graphDocuments:persisted.length,collection,mode:"identifier_hierarchy_only",
     publishedAgentChanged:false}));

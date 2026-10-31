@@ -11,6 +11,7 @@ describe("KB graph status read security and accuracy",()=>{
   beforeEach(()=>{
     vi.clearAllMocks();
     delete process.env.ENABLE_GRAPH_INDEXING;
+    delete process.env.GRAPH_INDEXING_KB_ID;
     delete process.env.GRAPH_STORE_PROVIDER;
     delete process.env.ENABLE_RAG_RETRIEVAL_POLICY;
     delete process.env.ENABLE_GRAPH_RAG;
@@ -35,6 +36,20 @@ describe("KB graph status read security and accuracy",()=>{
     const r=await getKbGraphIndexHandler(req(),"kb1");
     expect(r.status).toBe(403);
     expect(m.read).not.toHaveBeenCalled();
+  });
+  it("shows the true scoped Neo4j ingestion status without claiming graph retrieval is enabled",async()=>{
+    process.env.GRAPH_STORE_PROVIDER="memory";
+    process.env.ENABLE_GRAPH_INDEXING="true";
+    process.env.GRAPH_INDEXING_KB_ID="kb1";
+    const r=await getKbGraphIndexHandler(req(),"kb1");
+    expect(await r.json()).toMatchObject({
+      graph:{verified:true},
+      ingestion:{graphAutoIndexing:true},
+      retrieval:{graphRuntimeConfigured:false,customerSwitchingAvailable:false},
+    });
+    m.kb.mockResolvedValueOnce({id:"kb2",qdrantCollection:"other"});
+    const other=await getKbGraphIndexHandler(req(),"kb2");
+    expect(await other.json()).toMatchObject({ingestion:{graphAutoIndexing:false}});
   });
   it("shows stale index and explicit opt-in status",async()=>{
     process.env.GRAPH_STORE_PROVIDER="neo4j";

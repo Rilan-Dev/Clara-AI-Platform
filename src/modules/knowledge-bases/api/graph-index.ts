@@ -3,6 +3,7 @@ import { ensureMigrated } from "@/lib/db/migrate";
 import { requireAuth, requireKbPermission } from "@/modules/auth/core/rbac";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import { getGraphSnapshotStatus } from "@/modules/graph/core/graph-readiness";
+import { graphIndexingEnabledForKb } from "@/modules/graph/core/graph-indexing";
 
 /** Tenant-scoped graph status. Never exposes raw source text or infrastructure credentials. */
 export async function getKbGraphIndexHandler(req:NextRequest,kbId:string):Promise<NextResponse>{
@@ -14,7 +15,7 @@ export async function getKbGraphIndexHandler(req:NextRequest,kbId:string):Promis
     if(!kb)return NextResponse.json({error:"Knowledge base not found"},{status:404});
     const snapshot=await getGraphSnapshotStatus(kbId,kb.qdrantCollection);
     const providerConfigured=process.env.GRAPH_STORE_PROVIDER==="neo4j";
-    const autoIndexing=providerConfigured && process.env.ENABLE_GRAPH_INDEXING==="true";
+    const autoIndexing=graphIndexingEnabledForKb(kbId);
     const policyEnabled=process.env.ENABLE_RAG_RETRIEVAL_POLICY==="true";
     const graphRetrievalEnabled=providerConfigured && process.env.ENABLE_GRAPH_RAG==="true" && policyEnabled;
     return NextResponse.json({

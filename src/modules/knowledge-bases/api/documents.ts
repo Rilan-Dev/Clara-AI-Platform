@@ -31,6 +31,7 @@ import {
 } from "@/modules/knowledge-bases/core/documents-db";
 import { deleteDocumentChunks } from "@/modules/admin/core/vector-store-kb";
 import { getGraphStore } from "@/modules/graph/core/graph-store";
+import { graphStorageConfiguredForKb } from "@/modules/graph/core/graph-indexing";
 import { scopedGraphKbId } from "@/modules/graph/core/graph-scope";
 import { invalidateGraphSnapshot } from "@/modules/graph/core/graph-readiness";
 import { INGEST_STALE_JOB_MS } from "@/modules/knowledge-bases/worker/ingest-worker";
@@ -342,7 +343,7 @@ export async function deleteDocumentHandler(
     // An operator backfill can create graph data even when auto-indexing is
     // disabled. Clean it whenever Neo4j is configured, not only when new
     // uploads opt into graph enrichment. If unavailable, retain source for retry.
-    if (process.env.GRAPH_STORE_PROVIDER === "neo4j") {
+    if (graphStorageConfiguredForKb(kbId)) {
       await getGraphStore("neo4j").deleteDocument(scopedGraphKbId(kbId, kb.qdrantCollection), docId);
     }
     await deleteDocumentChunks(kb.qdrantCollection, docId, kbId);

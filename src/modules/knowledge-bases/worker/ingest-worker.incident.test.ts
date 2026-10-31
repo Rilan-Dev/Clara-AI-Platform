@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   upsertDocumentsKb: vi.fn(),
   indexDocumentGraph:vi.fn(),
   invalidateGraphSnapshot:vi.fn(),
+  reconcileGraphSnapshotAfterIngest:vi.fn(),
   getKnowledgeBaseById: vi.fn(),
   claimPendingJobById: vi.fn(),
   updateDocumentStatus: vi.fn(),
@@ -22,7 +23,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/db/migrate", () => ({ ensureMigrated: mocks.ensureMigrated }));
 vi.mock("@/modules/graph/core/graph-readiness",()=>({invalidateGraphSnapshot:mocks.invalidateGraphSnapshot}));
-vi.mock("@/modules/graph/core/graph-indexing",()=>({indexDocumentGraph:mocks.indexDocumentGraph}));
+vi.mock("@/modules/graph/core/graph-snapshot-reconcile",()=>({
+  reconcileGraphSnapshotAfterIngest:mocks.reconcileGraphSnapshotAfterIngest,
+}));
+vi.mock("@/modules/graph/core/graph-indexing",()=>({
+  indexDocumentGraph:mocks.indexDocumentGraph,
+  graphIndexingEnabledForKb:(kbId:string)=>process.env.ENABLE_GRAPH_INDEXING==="true" &&
+    (!process.env.GRAPH_INDEXING_KB_ID || process.env.GRAPH_INDEXING_KB_ID===kbId),
+}));
 vi.mock("@/modules/platform-health/core/incidents", () => ({
   recordEmbeddingRuntimeFailure: mocks.recordEmbeddingRuntimeFailure,
 }));
@@ -53,6 +61,9 @@ describe("platform-admin incidents for failed embedding ingestion", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.ENABLE_GRAPH_INDEXING;
+    delete process.env.GRAPH_INDEXING_KB_ID;
+    mocks.reconcileGraphSnapshotAfterIngest.mockResolvedValue({verified:true,reason:"verified",
+      sourceChunks:1,graphDocuments:1});
     mocks.invalidateGraphSnapshot.mockResolvedValue(undefined);
     mocks.indexDocumentGraph.mockResolvedValue({state:"indexed",nodes:2,edges:1});
     mocks.upsertDocumentsKb.mockResolvedValue(undefined);
@@ -82,6 +93,31 @@ describe("platform-admin incidents for failed embedding ingestion", () => {
     expect(mocks.invalidateGraphSnapshot.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.upsertDocumentsKb.mock.invocationCallOrder[0]);
     expect(mocks.indexDocumentGraph).not.toHaveBeenCalled();
+  });
+  it("keeps other tenants vector-only while scoped graph ingestion is enabled",async()=>{
+    process.env.ENABLE_GRAPH_INDEXING="true";
+    process.env.GRAPH_INDEXING_KB_ID="different-kb";
+    const result=await processJobById("job-1");
+    expect(result.status).toBe("processed");
+    expect(mocks.upsertDocumentsKb).toHaveBeenCalledOnce();
+    expect(mocks.indexDocumentGraph).not.toHaveBeenCalled();
+  });
+  it("verifies the exact KB graph after a successful graph upload",async()=>{
+    process.env.ENABLE_GRAPH_INDEXING="true";
+    process.env.GRAPH_INDEXING_KB_ID="kb-1";
+    const result=await processJobById("job-1");
+    expect(result.status).toBe("processed");
+    expect(mocks.reconcileGraphSnapshotAfterIngest).toHaveBeenCalledWith("kb-1","kb_vectors");
+    expect(mocks.indexDocumentGraph.mock.invocationCallOrder[0])
+      .toBeLessThan(mocks.reconcileGraphSnapshotAfterIngest.mock.invocationCallOrder[0]);
+  });
+  it("retains successful vector and graph ingestion if concurrent verification is deferred",async()=>{
+    process.env.ENABLE_GRAPH_INDEXING="true";
+    process.env.GRAPH_INDEXING_KB_ID="kb-1";
+    mocks.reconcileGraphSnapshotAfterIngest.mockRejectedValueOnce(new Error("source changed"));
+    const result=await processJobById("job-1");
+    expect(result.status).toBe("processed");
+    expect(mocks.markJobDone).toHaveBeenCalledWith("job-1");
   });
   it("automatically creates graph evidence AFTER successful Qdrant upload when opted in",async()=>{
     process.env.ENABLE_GRAPH_INDEXING="true";

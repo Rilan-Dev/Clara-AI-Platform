@@ -31,6 +31,9 @@ describe("immutable published Graph RAG readiness",()=>{
     expect(result.ready).toBe(true);
     expect(m.queryOne).toHaveBeenCalledWith(expect.stringContaining("WHERE kb_id=$1 AND collection_name=$2"),[kb,live]);
     await invalidateGraphSnapshot(kb,live);
-    expect(m.query).toHaveBeenCalledWith(expect.stringContaining("status='stale'"),[kb,live]);
+    expect(m.query).toHaveBeenCalledWith(
+      expect.stringContaining("mutation_generation=rag_graph_snapshot_readiness.mutation_generation+1"),
+      [kb,live,scopedGraphKbId(kb,live),GRAPH_EXTRACTOR_VERSION],
+    );
   });
 });

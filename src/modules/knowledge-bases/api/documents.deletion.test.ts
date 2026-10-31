@@ -81,6 +81,7 @@ describe("document delete integrity", () => {
     mocks.writeAuditLog.mockResolvedValue(undefined);
     mocks.query.mockResolvedValue([{ org_id: "org-1" }]);
     delete process.env.GRAPH_STORE_PROVIDER;
+    delete process.env.GRAPH_INDEXING_KB_ID;
     mocks.invalidateGraphSnapshot.mockResolvedValue(undefined);
     mocks.deleteGraphDocument.mockResolvedValue(undefined);
   });
@@ -100,6 +101,13 @@ describe("document delete integrity", () => {
     expect(mocks.deleteGraphDocument).toHaveBeenCalledWith("kb-1::kb-collection","doc-1");
     expect(mocks.deleteGraphDocument.mock.invocationCallOrder[0])
       .toBeLessThan(mocks.deleteDocumentChunks.mock.invocationCallOrder[0]);
+  });
+  it("cleans a scoped KB graph even while global GRAPH_STORE_PROVIDER stays memory",async()=>{
+    process.env.GRAPH_STORE_PROVIDER="memory";
+    process.env.GRAPH_INDEXING_KB_ID="kb-1";
+    const response=await deleteDocumentHandler(request(),"kb-1","doc-1");
+    expect(response.status).toBe(200);
+    expect(mocks.deleteGraphDocument).toHaveBeenCalledWith("kb-1::kb-collection","doc-1");
   });
   it("keeps the document when Neo4j deletion fails, allowing a retry",async()=>{
     process.env.GRAPH_STORE_PROVIDER="neo4j";
