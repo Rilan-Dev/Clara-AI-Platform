@@ -1,3 +1,12 @@
+## 2026-10-31 — Neo4j Graph RAG pilot foundation and NDMO backfill
+
+- Added opt-in, pinned Neo4j Community Docker Compose service with persistent volumes, authenticated localhost-only Bolt, 1.5 GiB ceiling and graph profile (not started by default). Secrets remain in ignored, mode-0600 server pilot env file.
+- Replaced the placeholder non-memory graph store with the official Neo4j JavaScript driver. All Cypher statements are parameterized, restricted to the server-resolved KB/document, with transactional document upsert/replacement/deletion and provenance-linked chunk nodes. Also fixed cross-KB collisions in the in-memory test adapter.
+- Added deterministic source-backed control identifier hierarchy extraction and opt-in graph indexing after successful Qdrant ingest, with document graph cleanup on deletion. This pilot does not infer project/business relationships and does not automatically enable graph retrieval for published agents.
+- Verified 47/47 tests in 8 suites, including actual Neo4j KB isolation, document scope, reindex, deletion, unit extraction, normal ingestion and vector retrieval regressions. Existing unrelated TypeScript diagnostics remain at 116; no new graph-module errors. Verified Neo4j survives an actual container restart.
+- Operator-only backfill scanned 585 authorized source chunks from the NDMO knowledge base without changing Qdrant; two documents yielded 270 distinct graph nodes and 191 relations. Three live graph store read-only queries DO.4.1/DO.4.2/DO.4.3 returned matching entries with source evidence. Source commit 0a1dab00e9b321d45e3836902a88179023aeaf73.
+- Remaining phases: organization/agent mode selection and published snapshot consistency; improved relationship extraction, graph/vector evidence fusion and semantic evaluation; optional bounded agentic RAG harness. Do not mark Graph RAG production-ready or switch published agents yet.
+
 ## 2026-10-31 — Realtime-transcription DO family and published-chat catalog follow-up
 
 - Reproduced the supplied four-turn Support Rilan conversation: "para eukaryotic policies" (unrecognized speech term), "D zero relevant policies", "availability 0.4 ... series", "D0.4 series". Read-only verification of the published Qdrant collection showed all three expected DO.4 identifiers: DO.4.1 (Data Backup Recovery), DO.4.2 (Disaster Recovery), DO.4.3 (Production Data Access Control). The underlying indexed evidence was present.
