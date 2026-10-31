@@ -525,6 +525,8 @@ describe("groundClaraContext — Task 3.1 authenticated entry point", () => {
     ]);
     expect(outcome.result.sources.every((source) => source.sourceType === "structural")).toBe(true);
     expect(outcome.result.context).toContain("[S1]");
+    expect(outcome.result.guidance).toContain("identifier catalog");
+    expect(outcome.result.guidance).toContain("do not expand individual requirements");
     expect(scroll).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
       filter: { must: [{ key: "kbId", match: { value: KB_FIXTURE.id } }] },
     }));
