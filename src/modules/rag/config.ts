@@ -71,7 +71,7 @@ export function getRagRuntimeConfig(options?: { requestedMode?: unknown }): RagR
 
   const envMode = normalizeRagMode(getEnv("RAG_MODE")) ?? "classic";
   const requestedMode = normalizeRagMode(options?.requestedMode) ?? envMode;
-  const enableGraphRag = parseBooleanEnv(getEnv("ENABLE_GRAPH_RAG"), requestedMode !== "classic");
+  const enableGraphRag = parseBooleanEnv(getEnv("ENABLE_GRAPH_RAG"), false) && getEnv("GRAPH_STORE_PROVIDER") === "neo4j" && requestedMode !== "classic";
   const enableAgentLoop = parseBooleanEnv(getEnv("ENABLE_AGENT_LOOP"), requestedMode === "agentic");
   const enableSelfEval = parseBooleanEnv(getEnv("ENABLE_SELF_EVAL"), requestedMode === "agentic");
   const enableMcp = isPlatformFeatureEnabled("integrations") && parseBooleanEnv(getEnv("ENABLE_MCP"), false);

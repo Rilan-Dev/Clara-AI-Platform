@@ -910,3 +910,20 @@ export type OrgUsageLimits = {
 export async function fetchOrgUsageLimits(orgId: string): Promise<OrgUsageLimits> {
   return apiFetch<OrgUsageLimits>(`/api/orgs/${orgId}/usage-limits`);
 }
+
+// Retrieval policy: draft and published modes remain separate from model settings.
+export type RetrievalModeChoice = "vector"|"hybrid"|"graph";
+export type OrgRetrievalPolicyDTO = {orgId:string;defaultMode:RetrievalModeChoice;allowedModes:RetrievalModeChoice[]};
+export type AgentRetrievalSettingsDTO = {
+ org:OrgRetrievalPolicyDTO;
+ policy:{agentId:string;orgId:string;draftMode:RetrievalModeChoice;publishedMode:RetrievalModeChoice};
+ preview:{configured:RetrievalModeChoice;effective:RetrievalModeChoice;reason?:string};
+ live:{configured:RetrievalModeChoice;effective:RetrievalModeChoice;reason?:string};
+ graphReady:boolean;graphStatus:string;
+};
+export const fetchOrgRetrievalPolicy=(id:string)=>apiFetch<OrgRetrievalPolicyDTO>(`/api/orgs/${encodeURIComponent(id)}/retrieval-policy`);
+export const patchOrgRetrievalPolicy=(id:string,input:Pick<OrgRetrievalPolicyDTO,"allowedModes"|"defaultMode">)=>
+ apiFetch<OrgRetrievalPolicyDTO>(`/api/orgs/${encodeURIComponent(id)}/retrieval-policy`,{method:"PATCH",body:JSON.stringify(input)});
+export const fetchAgentRetrievalSettings=(id:string)=>apiFetch<AgentRetrievalSettingsDTO>(`/api/agents/${encodeURIComponent(id)}/retrieval-policy`);
+export const patchAgentRetrievalDraft=(id:string,draftMode:RetrievalModeChoice)=>
+ apiFetch<Pick<AgentRetrievalSettingsDTO,"policy"|"preview">>(`/api/agents/${encodeURIComponent(id)}/retrieval-policy`,{method:"PATCH",body:JSON.stringify({draftMode})});

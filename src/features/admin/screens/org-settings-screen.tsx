@@ -18,6 +18,7 @@ import { useAuth, useOrg } from "@/modules/admin-ui/hooks";
 import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
 import { EditOrgPanel } from "@/components/admin/EditOrgPanel";
 import { OrgElevenLabsAgentsPanel } from "@/components/admin/OrgElevenLabsAgentsPanel";
+import { OrgRetrievalSettings } from "@/features/admin/components/retrieval-settings";
 
 export default function OrgSettingsScreen() {
   const { id = "" } = useParams<{ id: string }>();
@@ -73,6 +74,7 @@ export default function OrgSettingsScreen() {
         </ul>
       </div>
 
+      {!isAdmin && <div className="mt-4 sm:mt-6"><OrgRetrievalSettings orgId={id}/></div>}
       {/* Conversational AI (Mode B) — opt-in realtime ElevenLabs agents,
           disclosure-gated bindings, conversation history, voice studio. */}
       <div className="mt-4 sm:mt-6">

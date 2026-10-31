@@ -62,6 +62,7 @@ import {
   type ReplyLanguageDecision,
 } from "@/modules/assistant/core/language-policy";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
+import { resolveKbRetrievalPolicy } from "@/modules/rag/core/retrieval-policy";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
 import { rerankCandidates, type RerankStatus } from "@/modules/rag/rerank";
@@ -943,6 +944,18 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // ── Tenant binding: derived server-side from the KB row, never from input.
   const { orgId, agentId } = tenant;
+  // A published tenant policy outranks request-body and LLM tool arguments.
+  // Until graph-version parity and verified readiness are implemented, graph
+  // modes deliberately resolve to vector. No extra DB read for legacy stacks.
+  const retrievalPolicy = process.env.ENABLE_RAG_RETRIEVAL_POLICY === "true"
+    ? await resolveKbRetrievalPolicy({
+        orgId, agentId, draft: request.preferDraft === true, graphReady: false,
+      })
+    : null;
+  const policyRequestedMode = retrievalPolicy
+    ? retrievalPolicy.effective === "vector" ? "classic" : retrievalPolicy.effective
+    : request.ragMode ?? undefined;
+
   // ── Language policy: start in the default language; reply in the
   // visitor's language only when it is allowed; otherwise the default.
   const languagePolicy = normalizeLanguagePolicy({
@@ -992,14 +1005,14 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
         outOfScopeReply: fallbackReply,
         sources: [],
         graphSources: [],
-        mode: getRagRuntimeConfig({ requestedMode: request.ragMode ?? undefined }).ragMode,
+        mode: getRagRuntimeConfig({ requestedMode: policyRequestedMode }).ragMode,
         kb: { id: kb.id, name: kb.name, collection: kb.qdrantCollection },
         binding: {
           tenantId: orgId,
           agentId,
           kbId: kb.id,
           documentId: request.documentId ?? null,
-          ragMode: getRagRuntimeConfig({ requestedMode: request.ragMode ?? undefined }).ragMode,
+          ragMode: getRagRuntimeConfig({ requestedMode: policyRequestedMode }).ragMode,
         },
         scope,
         intent: "capability",
@@ -1092,7 +1105,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const configMs = Date.now() - configStarted;
 
   const runtime = getRagRuntimeConfig({
-    requestedMode: (request.ragMode ?? undefined) as string | undefined,
+    requestedMode: policyRequestedMode,
   });
 
   // Tenant/KB binding must be enforced by Qdrant itself, not only by the

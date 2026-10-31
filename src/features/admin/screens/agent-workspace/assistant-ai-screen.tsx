@@ -40,6 +40,7 @@ import { useAgentWorkspaceContext } from "@/features/admin/screens/agent-workspa
 import { AutoSaveChip } from "@/components/admin/ai-platform/shared";
 import { cn } from "@/lib/utils";
 import { useAutoSave } from "@/hooks/use-auto-save";
+import { AgentRetrievalSettings } from "@/features/admin/components/retrieval-settings";
 
 export default function AgentAssistantAIScreen() {
   const { agentId = "" } = useParams<{ agentId: string }>();
@@ -259,6 +260,7 @@ export default function AgentAssistantAIScreen() {
           </p>
         )}
 
+        {!isAdmin && <AgentRetrievalSettings agentId={agentId} />}
         {/* AI model selection — capability resolver, no API keys, no provider
             health. Reached from the right-column LLM card. */}
         {!isAdmin && (
