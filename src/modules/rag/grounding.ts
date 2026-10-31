@@ -1382,7 +1382,7 @@ ${graphContext}`);
         topics: scope.topics,
         channel: request.channel,
       }) + (completeInventory
-        ? "\n- This is a complete identifier catalog within the fully scanned, authorized KB scope, not a claim about documents outside this KB. The visitor asked which policy/control codes are available: list the catalog identifiers and their source-backed names with citations; do not expand individual requirements or copy partial numbered requirement excerpts. Do not call this KB-scoped identifier catalog incomplete merely because a source excerpt cuts off the body of a particular requirement. Do not invent missing titles."
+        ? "\n- This is a complete identifier catalog within the fully scanned, authorized KB scope, not a claim about documents outside this KB. The visitor asked which policy/control codes are available: list the catalog identifiers and their source-backed names with citations; do not expand individual requirements or copy partial numbered requirement excerpts. Do not call this KB-scoped identifier catalog incomplete merely because a source excerpt cuts off the body of a particular requirement. Use the canonical identifiers exactly as written in the source, and briefly acknowledge any transcription alias if it differs from the user's wording. Do not invent missing titles."
         : ""),
       kb: {
         id: kb.id,
