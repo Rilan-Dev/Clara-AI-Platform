@@ -63,6 +63,7 @@ import {
 } from "@/modules/assistant/core/language-policy";
 import { getRagRuntimeConfig } from "@/modules/rag/config";
 import { resolveKbRetrievalPolicy } from "@/modules/rag/core/retrieval-policy";
+import { getGraphSnapshotStatus } from "@/modules/graph/core/graph-readiness";
 import { retrieveGraphContext } from "@/modules/graph/core/graph-retriever";
 import { candidatePoolSize, diversifyByDocument } from "@/modules/rag/diversify";
 import { rerankCandidates, type RerankStatus } from "@/modules/rag/rerank";
@@ -944,17 +945,10 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
 
   // ── Tenant binding: derived server-side from the KB row, never from input.
   const { orgId, agentId } = tenant;
-  // A published tenant policy outranks request-body and LLM tool arguments.
-  // Until graph-version parity and verified readiness are implemented, graph
-  // modes deliberately resolve to vector. No extra DB read for legacy stacks.
-  const retrievalPolicy = process.env.ENABLE_RAG_RETRIEVAL_POLICY === "true"
-    ? await resolveKbRetrievalPolicy({
-        orgId, agentId, draft: request.preferDraft === true, graphReady: false,
-      })
-    : null;
-  const policyRequestedMode = retrievalPolicy
-    ? retrievalPolicy.effective === "vector" ? "classic" : retrievalPolicy.effective
-    : request.ragMode ?? undefined;
+  // The request/LLM cannot promote a vector-only agent into graph mode.
+  // Early non-retrieval/capability turns use the vector-safe policy default.
+  const policyEnabled = process.env.ENABLE_RAG_RETRIEVAL_POLICY === "true";
+  const policyRequestedMode = policyEnabled ? "classic" : request.ragMode ?? undefined;
 
   // ── Language policy: start in the default language; reply in the
   // visitor's language only when it is allowed; otherwise the default.
@@ -1096,6 +1090,22 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const configStarted = Date.now();
   const resolved = await resolvedPromise;
   const searchCollection = resolved.knowledgeCollection ?? kb.qdrantCollection;
+  // Only a verified graph for the EXACT authorized Qdrant collection can
+  // participate in retrieval. Publishing a new KB snapshot cannot inherit
+  // graph readiness from the live collection or a previous deployment.
+  const readiness = policyEnabled
+    ? await getGraphSnapshotStatus(kb.id, searchCollection)
+    : null;
+  const activeRetrievalPolicy = policyEnabled
+    ? await resolveKbRetrievalPolicy({
+        orgId, agentId, draft: request.preferDraft === true,
+        graphReady: readiness?.ready === true,
+      })
+    : null;
+  const runtimeRequestedMode = activeRetrievalPolicy
+    ? activeRetrievalPolicy.effective === "vector" ? "classic" : "hybrid"
+    : policyRequestedMode;
+
   // Embed the question with the model that BUILT this collection (registry),
   // never just today's setting — a model change must not break search.
   const providerConfig =
@@ -1105,7 +1115,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
   const configMs = Date.now() - configStarted;
 
   const runtime = getRagRuntimeConfig({
-    requestedMode: policyRequestedMode,
+    requestedMode: runtimeRequestedMode,
   });
 
   // Tenant/KB binding must be enforced by Qdrant itself, not only by the
@@ -1139,6 +1149,7 @@ export async function groundClaraContext(request: GroundingRequest): Promise<Gro
     ? settleWithin(
         retrieveGraphContext({
           kbId: kb.id,
+          collection: searchCollection,
           query,
           topK: Math.min(topK, 4),
           documentId: request.documentId ?? undefined,

@@ -15,6 +15,9 @@ describe.skipIf(!pilot)("Neo4j persistent graph integration (isolated pilot)", (
       await store.upsertExtraction(make(first,documentA,"DO.4.2 Disaster Recovery"));
       await store.upsertExtraction(make(second,documentA,"DO.4.2 Another tenant"));
       await store.upsertExtraction(make(first,documentB,"DO.4.3 Production Access Control"));
+      const manifests=await store.listDocumentFingerprints(first);
+      expect(manifests).toHaveLength(2);
+      expect(manifests.every(m=>/^[0-9a-f]{64}$/.test(m.sourceFingerprint))).toBe(true);
       const a=await store.search({kbId:first,query:"DO.4.2",topK:4});
       expect(a.some(n=>n.label==="DO.4.2")).toBe(true);
       const control=a.find(n=>n.label==="DO.4.2");
@@ -25,6 +28,7 @@ describe.skipIf(!pilot)("Neo4j persistent graph integration (isolated pilot)", (
       expect((await store.search({kbId:first,documentId:documentA,query:"DO.4.3",topK:4}))).toHaveLength(0);
       expect((await store.getStats(first)).documentCount).toBe(2);
       await store.upsertExtraction(make(first,documentA,"DO.5.1 Storage Performance"));
+      expect((await store.listDocumentFingerprints(first)).length).toBe(2);
       expect(await store.search({kbId:first,query:"DO.4.2",topK:4})).toHaveLength(0);
       expect((await store.search({kbId:second,query:"DO.4.2",topK:4}))).toHaveLength(1);
       await store.deleteDocument(first,documentB);

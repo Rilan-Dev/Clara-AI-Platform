@@ -1,3 +1,11 @@
+## 2026-10-31 — Published collection-scoped Graph RAG readiness foundation
+
+- Added migration 079 exact KB+collection graph snapshot readiness registry, deliberately stale/absent by default. Readiness checks match the authorized Qdrant collection, graph scope, extraction schema version, non-empty source count and verified timestamp; immutable published collection never inherits live graph readiness.
+- Neo4j graph indexing, graph retrieval, document deletion and controlled Qdrant backfill use a new collection-specific namespace. Each document graph stores a SHA-256 fingerprint of all ordered source chunks, including chunks without explicit identifiers. Operator-only verification compares complete Qdrant source document fingerprints to Neo4j manifests and refuses partial, modified or cross-KB sources.
+- Invalidate readiness before tenant live-vector mutations when policy enforcement is enabled. Do not enable graph-only mode until separate runtime is implemented; it remains vector-safe. Hybrid retrieval remains protected by exact snapshot readiness plus existing runtime flags.
+- Verified 66/66 tests across 13 suites including live Neo4j manifest reindexing, KB scoping, document deletion, policy authorization, vector grounding and source fingerprints. Existing TypeScript diagnostic count remained 116; no diagnostics from modified modules. No published agent or global rollout mode changed.
+- Next: deploy production backend/worker from the latest branch, run migration verification and public health tests, then backfill/verify a controlled published snapshot without changing the agent retrieval strategy.
+
 ## 2026-10-31 — Retrieval policy organization/agent control plane
 
 - Implemented migration 078 for organization-level allowed Vector / Hybrid / Graph retrieval modes and separate agent draft/published selections, all scoped by organization/agent foreign keys. Vector remains the backward-compatible default.

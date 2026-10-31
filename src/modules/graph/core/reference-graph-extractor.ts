@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { DocumentGraphExtraction, GraphChunkRef, GraphNodeInput } from "./types";
 
 /**
@@ -47,5 +48,6 @@ export function buildReferenceGraphExtraction(args: {
       }
     }
   }
-  return {kbId,documentId,title,nodes:[...nodes.values()],edges:[...edges.values()]};
+  const sourceFingerprint = createHash("sha256").update(JSON.stringify(chunks)).digest("hex");
+  return {kbId,documentId,title,sourceFingerprint,nodes:[...nodes.values()],edges:[...edges.values()]};
 }

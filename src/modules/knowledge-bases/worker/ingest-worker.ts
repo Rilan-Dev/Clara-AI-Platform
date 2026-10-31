@@ -23,6 +23,7 @@ import { chunkText, chunkDocumentWithPages, chunkSectionAwareText } from "@/modu
 import { resolveIngestChunkingFlags } from "./staging-chunking";
 import { upsertDocumentsKb } from "@/modules/admin/core/vector-store-kb";
 import { indexDocumentGraph } from "@/modules/graph/core/graph-indexing";
+import { invalidateGraphSnapshot } from "@/modules/graph/core/graph-readiness";
 import { getKnowledgeBaseById } from "@/modules/knowledge-bases/core/db";
 import {
   claimPendingJobById,
@@ -133,6 +134,11 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
       `[ingest-worker] document ${documentId}: parsed ${parsed.text.length} chars → ${chunks.length} chunks`
     );
 
+    // Invalidate *before* a mutable Qdrant write, so published graph
+    // evidence cannot remain marked ready while a document is changing.
+    if (process.env.ENABLE_RAG_RETRIEVAL_POLICY === "true") {
+      await invalidateGraphSnapshot(kbId, kb.qdrantCollection);
+    }
     await upsertDocumentsKb(kb.qdrantCollection, chunks, {
       kbId,
       documentId,
@@ -152,7 +158,7 @@ async function processClaimedJob(job: IngestJobWithPayload): Promise<ProcessResu
     if (process.env.ENABLE_GRAPH_INDEXING === "true") {
       try {
         const graph = await indexDocumentGraph({
-          kbId, documentId, title: parsed.title || filePayload.filename, chunks,
+          kbId, collection: kb.qdrantCollection, documentId, title: parsed.title || filePayload.filename, chunks,
         });
         console.info("[ingest-worker] graph indexing:", graph);
       } catch (error) {

@@ -6,6 +6,7 @@ import { closeNeo4jDriver } from "../src/modules/graph/core/neo4j-store";
  */
 import { buildReferenceGraphExtraction } from "../src/modules/graph/core/reference-graph-extractor";
 import { getGraphStore } from "../src/modules/graph/core/graph-store";
+import { scopedGraphKbId } from "../src/modules/graph/core/graph-scope";
 
 type Point = {id:string; payload?:Record<string,unknown>};
 async function main() {
@@ -49,15 +50,16 @@ async function main() {
   }
   if(points.length===0 || documents.size===0) throw Error("No scoped, indexed pilot documents found");
   const store=getGraphStore("neo4j");
+  const graphKbId=scopedGraphKbId(kbId,collection);
   let nodes=0,edges=0;
   for(const [documentId,rows] of documents) {
     rows.sort((a,b)=>a.index-b.index);
-    const extraction=buildReferenceGraphExtraction({kbId,documentId,
+    const extraction=buildReferenceGraphExtraction({kbId:graphKbId,documentId,
       title:rows[0]!.title,chunks:rows.map(r=>r.chunk)});
     await store.upsertExtraction(extraction);
     nodes+=extraction.nodes.length;edges+=extraction.edges.length;
   }
-  const stats=await store.getStats(kbId);
+  const stats=await store.getStats(graphKbId);
   console.log(JSON.stringify({result:"pilot_graph_backfill_completed",scannedPoints:points.length,
     scannedDocuments:documents.size,extractedNodes:nodes,extractedEdges:edges,
     storedStats:stats,mode:"identifier_hierarchy_only",publishedAgentChanged:false}));

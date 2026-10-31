@@ -13,6 +13,18 @@ describe("graph indexing feature gate",()=>{
     await expect(indexDocumentGraph(sample,{enabled:true})).rejects.toThrow("Neo4j");
     expect(upsert).not.toHaveBeenCalled();
   });
+  it("isolates snapshots with the same KB id but different collections",async()=>{
+    process.env.GRAPH_STORE_PROVIDER="neo4j";
+    const live=await indexDocumentGraph({...sample,collection:"live-v1"},{enabled:true});
+    const published=await indexDocumentGraph({...sample,collection:"published-v2"},{enabled:true});
+    expect(live.state).toBe("indexed");
+    expect(published.state).toBe("indexed");
+    const calls=upsert.mock.calls;
+    const scopes=calls.map(x=>(x[0] as {kbId:string}).kbId);
+    expect(scopes[0]).not.toBe(scopes[1]);
+    expect(scopes[0]).toContain("live-v1");
+    expect(scopes[1]).toContain("published-v2");
+  });
   it("indexes source-backed control hierarchy when opted in",async()=>{
     process.env.GRAPH_STORE_PROVIDER="neo4j";
     const result=await indexDocumentGraph(sample,{enabled:true});

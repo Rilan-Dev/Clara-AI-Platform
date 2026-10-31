@@ -53,6 +53,7 @@ export function resolveAllowedRetrievalMode(params: {
 }):{configured:RetrievalMode;effective:RetrievalMode;reason?:string}{
   const configured=params.draft?params.agent.draftMode:params.agent.publishedMode;
   if(!params.org.allowedModes.includes(configured)) return {configured,effective:"vector",reason:"org_policy_restricted"};
+  if(configured==="graph") return {configured,effective:"vector",reason:"graph_only_not_implemented"};
   if(configured!=="vector" && !params.graphReady) return {configured,effective:"vector",reason:"graph_not_ready"};
   return {configured,effective:configured};
 }

@@ -31,6 +31,8 @@ import {
 } from "@/modules/knowledge-bases/core/documents-db";
 import { deleteDocumentChunks } from "@/modules/admin/core/vector-store-kb";
 import { getGraphStore } from "@/modules/graph/core/graph-store";
+import { scopedGraphKbId } from "@/modules/graph/core/graph-scope";
+import { invalidateGraphSnapshot } from "@/modules/graph/core/graph-readiness";
 import { INGEST_STALE_JOB_MS } from "@/modules/knowledge-bases/worker/ingest-worker";
 import { enqueueIngestJob } from "@/modules/cloud-jobs/queue";
 
@@ -336,7 +338,10 @@ export async function deleteDocumentHandler(
     // and vector evidence so deletion can be retried safely.
     if (process.env.GRAPH_STORE_PROVIDER === "neo4j" &&
         process.env.ENABLE_GRAPH_INDEXING === "true") {
-      await getGraphStore("neo4j").deleteDocument(kbId, docId);
+      await getGraphStore("neo4j").deleteDocument(scopedGraphKbId(kbId, kb.qdrantCollection), docId);
+    }
+    if (process.env.ENABLE_RAG_RETRIEVAL_POLICY === "true") {
+      await invalidateGraphSnapshot(kbId, kb.qdrantCollection);
     }
     await deleteDocumentChunks(kb.qdrantCollection, docId, kbId);
     await deleteDocument(docId);

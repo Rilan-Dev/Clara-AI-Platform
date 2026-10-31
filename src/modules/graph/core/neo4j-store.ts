@@ -32,6 +32,7 @@ async function ensureSchema() {
     try {
       await session.run("CREATE CONSTRAINT clara_graph_nodes IF NOT EXISTS FOR (n:ClaraGraphEntity) REQUIRE (n.kbId,n.id) IS UNIQUE");
       await session.run("CREATE CONSTRAINT clara_graph_chunks IF NOT EXISTS FOR (n:ClaraGraphChunk) REQUIRE (n.kbId,n.documentId,n.chunkId) IS UNIQUE");
+      await session.run("CREATE CONSTRAINT clara_graph_manifests IF NOT EXISTS FOR (n:ClaraGraphManifest) REQUIRE (n.kbId,n.documentId) IS UNIQUE");
     } finally { await session.close(); }
   })().catch(e => { schema = undefined; throw e; });
   return schema;
@@ -56,6 +57,7 @@ async function removeDocument(tx: ManagedTransaction, kbId: string, documentId: 
   await tx.run("MATCH (n:ClaraGraphEntity {kbId:$kbId}) WHERE $documentId IN n.documentIds SET n.documentIds=[d IN n.documentIds WHERE d <> $documentId]", {kbId, documentId});
   await tx.run("MATCH ()-[r:CLARA_RELATES {kbId:$kbId}]->() WHERE $documentId IN r.documentIds SET r.documentIds=[d IN r.documentIds WHERE d <> $documentId]", {kbId, documentId});
   await tx.run("MATCH (c:ClaraGraphChunk {kbId:$kbId,documentId:$documentId}) DETACH DELETE c", {kbId, documentId});
+  await tx.run("MATCH (d:ClaraGraphManifest {kbId:$kbId,documentId:$documentId}) DETACH DELETE d", {kbId, documentId});
   await tx.run("MATCH ()-[r:CLARA_RELATES {kbId:$kbId}]->() WHERE size(r.documentIds)=0 DELETE r", {kbId});
   await tx.run("MATCH (n:ClaraGraphEntity {kbId:$kbId}) WHERE size(n.documentIds)=0 DETACH DELETE n", {kbId});
 }
@@ -68,6 +70,13 @@ export class Neo4jGraphStore implements GraphStore {
     try {
       await session.executeWrite(async tx => {
         await removeDocument(tx, extraction.kbId, extraction.documentId);
+        if (extraction.sourceFingerprint) {
+          await tx.run(
+            "MERGE (d:ClaraGraphManifest {kbId:$kbId,documentId:$documentId}) SET d.sourceFingerprint=$fingerprint",
+            {kbId:extraction.kbId,documentId:extraction.documentId,fingerprint:extraction.sourceFingerprint},
+          );
+        }
+
         for (const n of extraction.nodes) {
           const params = {kbId: extraction.kbId, documentId: extraction.documentId,
             id:n.id, label:n.label, type:n.type, aliases:[...new Set([n.label,...(n.aliases??[])])]};
@@ -133,6 +142,16 @@ export class Neo4jGraphStore implements GraphStore {
           relations,
         };
       }).filter(hit=>hit.supportingChunks.length>0);
+    } finally { await session.close(); }
+  }
+
+  async listDocumentFingerprints(kbId:string):Promise<Array<{documentId:string;sourceFingerprint:string}>> {
+    const session=getDriver().session({defaultAccessMode:neo4j.session.READ});
+    try {
+      const result=await session.executeRead(tx=>tx.run(
+        "MATCH (d:ClaraGraphManifest {kbId:$kbId}) RETURN d.documentId AS doc,d.sourceFingerprint AS fingerprint ORDER BY doc",
+        {kbId}));
+      return result.records.map(r=>({documentId:String(r.get("doc")),sourceFingerprint:String(r.get("fingerprint"))}));
     } finally { await session.close(); }
   }
 

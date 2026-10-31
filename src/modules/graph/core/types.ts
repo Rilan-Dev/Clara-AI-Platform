@@ -49,6 +49,7 @@ export type GraphEdge = GraphEdgeInput & {
 };
 
 export type DocumentGraphExtraction = {
+  sourceFingerprint?: string;
   kbId: string;
   documentId: string;
   title?: string;
