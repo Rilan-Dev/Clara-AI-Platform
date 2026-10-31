@@ -1,3 +1,12 @@
+## 2026-10-31 — Retrieval policy organization/agent control plane
+
+- Implemented migration 078 for organization-level allowed Vector / Hybrid / Graph retrieval modes and separate agent draft/published selections, all scoped by organization/agent foreign keys. Vector remains the backward-compatible default.
+- Added RBAC-protected organization and agent policy GET/PATCH APIs, server-owned tenant validation, explicit mode validation, and rejection of disallowed modes and invalid published-policy contraction.
+- Added organization settings and agent Assistant & AI workspace retrieval selectors. Selecting a mode only edits the agent draft policy; published mode remains vector while graph index/snapshot parity verification is pending.
+- Added opt-in runtime enforcement ENABLE_RAG_RETRIEVAL_POLICY. When enabled, server-resolved policy overrides untrusted request or LLM ragMode; graph readiness is intentionally false until proper verification exists, so the effective retrieval path is vector. Neo4j graph execution now also requires explicit ENABLE_GRAPH_RAG=true and GRAPH_STORE_PROVIDER=neo4j.
+- Verified 39/39 retrieval-policy and grounding tests (3 suites). TypeScript still reports the same 116 pre-existing unrelated errors; no diagnostics from modified paths. Source commit 9d51afadfd49a379edb2dd11bac35adc60861608.
+- Pending: publish transactional agent mode and immutable KB graph version consistency, honest graph readiness, genuine relationship extraction and quality benchmarks, then agentic harness. No customer-facing graph rollout.
+
 ## 2026-10-31 — Neo4j Graph RAG pilot foundation and NDMO backfill
 
 - Added opt-in, pinned Neo4j Community Docker Compose service with persistent volumes, authenticated localhost-only Bolt, 1.5 GiB ceiling and graph profile (not started by default). Secrets remain in ignored, mode-0600 server pilot env file.
